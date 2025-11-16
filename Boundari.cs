@@ -1,6 +1,4 @@
-using Godot;
 using System;
+using Godot;
 
-public partial class Boundari : Node
-{
-}
+public partial class Boundari : Node { }

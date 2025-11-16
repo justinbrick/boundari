@@ -1,3 +1,21 @@
-[gd_scene format=3 uid="uid://bvf7xj3oe6l6e"]
+[gd_scene load_steps=3 format=3 uid="uid://bvf7xj3oe6l6e"]
+
+[ext_resource type="Texture2D" uid="uid://cxnyt7kxbwa6y" path="res://4639f7a3-5bf0-4561-8cb8-9831959b396b.png" id="1_ieay5"]
+[ext_resource type="Script" uid="uid://b03prub72qvax" path="res://Camera.cs" id="2_rft6w"]
 
 [node name="Node2D" type="Node2D"]
+
+[node name="Bounds" type="ColorRect" parent="."]
+offset_left = -1504.0
+offset_top = -633.0
+offset_right = 1496.0
+offset_bottom = 633.0
+
+[node name="Map" type="Sprite2D" parent="."]
+position = Vector2(-1.5000153, -2.2888184e-05)
+scale = Vector2(1.6188469, 1.3744681)
+texture = ExtResource("1_ieay5")
+
+[node name="Camera2D" type="Camera2D" parent="." node_paths=PackedStringArray("Bounds")]
+script = ExtResource("2_rft6w")
+Bounds = NodePath("../Bounds")
