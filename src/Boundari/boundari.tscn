@@ -1,5 +1,6 @@
-[gd_scene load_steps=3 format=3 uid="uid://bvf7xj3oe6l6e"]
+[gd_scene load_steps=4 format=3 uid="uid://bvf7xj3oe6l6e"]
 
+[ext_resource type="Material" uid="uid://b33g2hecf433j" path="res://territory_shader.tres" id="1_8bxg0"]
 [ext_resource type="Texture2D" uid="uid://cxnyt7kxbwa6y" path="res://4639f7a3-5bf0-4561-8cb8-9831959b396b.png" id="1_ieay5"]
 [ext_resource type="Script" uid="uid://b03prub72qvax" path="res://Camera.cs" id="2_rft6w"]
 
@@ -12,7 +13,8 @@ offset_right = 1496.0
 offset_bottom = 633.0
 
 [node name="Map" type="Sprite2D" parent="."]
-position = Vector2(-1.5000153, -2.2888184e-05)
+material = ExtResource("1_8bxg0")
+position = Vector2(62, -224.00003)
 scale = Vector2(1.6188469, 1.3744681)
 texture = ExtResource("1_ieay5")
 
