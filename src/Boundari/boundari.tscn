@@ -1,18 +1,31 @@
-[gd_scene load_steps=11 format=3 uid="uid://bvf7xj3oe6l6e"]
+[gd_scene load_steps=14 format=3 uid="uid://bvf7xj3oe6l6e"]
 
 [ext_resource type="Material" uid="uid://b33g2hecf433j" path="res://territory_shader.tres" id="1_8bxg0"]
 [ext_resource type="Texture2D" uid="uid://cxnyt7kxbwa6y" path="res://4639f7a3-5bf0-4561-8cb8-9831959b396b.png" id="1_ieay5"]
 [ext_resource type="Script" uid="uid://b03prub72qvax" path="res://Camera.cs" id="2_rft6w"]
 [ext_resource type="Shader" uid="uid://xuspxhp7k1eb" path="res://blur.gdshader" id="4_itarl"]
+[ext_resource type="Shader" uid="uid://du8gvy30pqaxj" path="res://blur_buttons.gdshader" id="4_ojipx"]
 [ext_resource type="StyleBox" uid="uid://dx408lj5yntuu" path="res://button_custom.tres" id="5_n3xjr"]
 [ext_resource type="StyleBox" uid="uid://bcjs8ydcbrqkb" path="res://button_custom_pressed.tres" id="6_fl6yx"]
 [ext_resource type="StyleBox" uid="uid://bfjx2fhyw58pf" path="res://button_custom_hover.tres" id="6_w4dff"]
+[ext_resource type="Script" uid="uid://ckkbd6p72c5tg" path="res://buttonlift.gd" id="8_1c1ly"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_itarl"]
 bg_color = Color(1, 1, 1, 0)
 draw_center = false
 shadow_color = Color(0, 0, 0, 0.23529412)
 shadow_size = 20
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_fl6yx"]
+shader = ExtResource("4_ojipx")
+shader_parameter/blur_amount = 2.6000001235
+shader_parameter/darken_amount = 0.550000026125
+shader_parameter/noise_strength = 0.02000000095
+shader_parameter/grain_scale = 150.00000665
+shader_parameter/noise_speed = 0.0
+shader_parameter/tint_color = Vector3(0.95, 0.95, 1)
+shader_parameter/tint_strength = 0.03600000171
+shader_parameter/panel_alpha = 1.0
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_n3xjr"]
 shader = ExtResource("4_itarl")
@@ -72,6 +85,137 @@ offset_bottom = 20.0
 theme_override_styles/panel = SubResource("StyleBoxFlat_itarl")
 metadata/_edit_use_anchors_ = true
 
+[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/Control"]
+layout_mode = 1
+anchors_preset = -1
+anchor_top = -0.6666664
+anchor_right = 1.0
+anchor_bottom = 0.7083336
+offset_top = 1014.6666
+offset_right = 1880.0
+offset_bottom = 1051.6666
+grow_horizontal = 2
+grow_vertical = 0
+alignment = 1
+
+[node name="Port_Button" type="Button" parent="CanvasLayer/Control/HBoxContainer"]
+material = SubResource("ShaderMaterial_fl6yx")
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_styles/normal = ExtResource("5_n3xjr")
+theme_override_styles/pressed = ExtResource("6_fl6yx")
+theme_override_styles/hover = ExtResource("6_w4dff")
+icon_alignment = 1
+script = ExtResource("8_1c1ly")
+
+[node name="Fac_Button" type="Button" parent="CanvasLayer/Control/HBoxContainer"]
+material = SubResource("ShaderMaterial_fl6yx")
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_styles/normal = ExtResource("5_n3xjr")
+theme_override_styles/pressed = ExtResource("6_fl6yx")
+theme_override_styles/hover = ExtResource("6_w4dff")
+icon_alignment = 1
+script = ExtResource("8_1c1ly")
+
+[node name="City_Button" type="Button" parent="CanvasLayer/Control/HBoxContainer"]
+material = SubResource("ShaderMaterial_fl6yx")
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_styles/normal = ExtResource("5_n3xjr")
+theme_override_styles/pressed = ExtResource("6_fl6yx")
+theme_override_styles/hover = ExtResource("6_w4dff")
+icon_alignment = 1
+script = ExtResource("8_1c1ly")
+
+[node name="Def_Button" type="Button" parent="CanvasLayer/Control/HBoxContainer"]
+material = SubResource("ShaderMaterial_fl6yx")
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_styles/normal = ExtResource("5_n3xjr")
+theme_override_styles/pressed = ExtResource("6_fl6yx")
+theme_override_styles/hover = ExtResource("6_w4dff")
+icon_alignment = 1
+script = ExtResource("8_1c1ly")
+
+[node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/Control/HBoxContainer"]
+custom_minimum_size = Vector2(8, 0)
+layout_mode = 2
+
+[node name="Silo_Button" type="Button" parent="CanvasLayer/Control/HBoxContainer"]
+material = SubResource("ShaderMaterial_fl6yx")
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_styles/normal = ExtResource("5_n3xjr")
+theme_override_styles/pressed = ExtResource("6_fl6yx")
+theme_override_styles/hover = ExtResource("6_w4dff")
+icon_alignment = 1
+script = ExtResource("8_1c1ly")
+
+[node name="Sam_Button" type="Button" parent="CanvasLayer/Control/HBoxContainer"]
+material = SubResource("ShaderMaterial_fl6yx")
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_styles/normal = ExtResource("5_n3xjr")
+theme_override_styles/pressed = ExtResource("6_fl6yx")
+theme_override_styles/hover = ExtResource("6_w4dff")
+icon_alignment = 1
+script = ExtResource("8_1c1ly")
+
+[node name="MarginContainer2" type="MarginContainer" parent="CanvasLayer/Control/HBoxContainer"]
+custom_minimum_size = Vector2(8, 0)
+layout_mode = 2
+
+[node name="Ship_Button" type="Button" parent="CanvasLayer/Control/HBoxContainer"]
+material = SubResource("ShaderMaterial_fl6yx")
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_styles/normal = ExtResource("5_n3xjr")
+theme_override_styles/pressed = ExtResource("6_fl6yx")
+theme_override_styles/hover = ExtResource("6_w4dff")
+icon_alignment = 1
+script = ExtResource("8_1c1ly")
+
+[node name="Proton_Button" type="Button" parent="CanvasLayer/Control/HBoxContainer"]
+material = SubResource("ShaderMaterial_fl6yx")
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_styles/normal = ExtResource("5_n3xjr")
+theme_override_styles/pressed = ExtResource("6_fl6yx")
+theme_override_styles/hover = ExtResource("6_w4dff")
+icon_alignment = 1
+script = ExtResource("8_1c1ly")
+
+[node name="Neutron_Button" type="Button" parent="CanvasLayer/Control/HBoxContainer"]
+material = SubResource("ShaderMaterial_fl6yx")
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_styles/normal = ExtResource("5_n3xjr")
+theme_override_styles/pressed = ExtResource("6_fl6yx")
+theme_override_styles/hover = ExtResource("6_w4dff")
+icon_alignment = 1
+script = ExtResource("8_1c1ly")
+
+[node name="Atomizer_Button" type="Button" parent="CanvasLayer/Control/HBoxContainer"]
+material = SubResource("ShaderMaterial_fl6yx")
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_styles/normal = ExtResource("5_n3xjr")
+theme_override_styles/pressed = ExtResource("6_fl6yx")
+theme_override_styles/hover = ExtResource("6_w4dff")
+icon_alignment = 1
+script = ExtResource("8_1c1ly")
+
 [node name="ColorRect_Blur" type="ColorRect" parent="CanvasLayer/Control"]
 material = SubResource("ShaderMaterial_n3xjr")
 layout_mode = 1
@@ -83,117 +227,6 @@ offset_bottom = 7.0
 grow_horizontal = 2
 grow_vertical = 2
 metadata/_edit_use_anchors_ = true
-
-[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/Control"]
-layout_mode = 1
-anchors_preset = -1
-anchor_top = -0.6666664
-anchor_right = 1.0
-anchor_bottom = 0.7083336
-offset_top = 1006.6666
-offset_right = 1880.0
-offset_bottom = 1051.6666
-grow_horizontal = 2
-grow_vertical = 0
-alignment = 1
-
-[node name="Port_Button" type="Button" parent="CanvasLayer/Control/HBoxContainer"]
-custom_minimum_size = Vector2(60, 0)
-layout_mode = 2
-size_flags_horizontal = 4
-theme_override_styles/normal = ExtResource("5_n3xjr")
-theme_override_styles/pressed = ExtResource("6_fl6yx")
-theme_override_styles/hover = ExtResource("6_w4dff")
-icon_alignment = 1
-
-[node name="Fac_Button" type="Button" parent="CanvasLayer/Control/HBoxContainer"]
-custom_minimum_size = Vector2(60, 0)
-layout_mode = 2
-size_flags_horizontal = 4
-theme_override_styles/normal = ExtResource("5_n3xjr")
-theme_override_styles/pressed = ExtResource("6_fl6yx")
-theme_override_styles/hover = ExtResource("6_w4dff")
-icon_alignment = 1
-
-[node name="City_Button" type="Button" parent="CanvasLayer/Control/HBoxContainer"]
-custom_minimum_size = Vector2(60, 0)
-layout_mode = 2
-size_flags_horizontal = 4
-theme_override_styles/normal = ExtResource("5_n3xjr")
-theme_override_styles/pressed = ExtResource("6_fl6yx")
-theme_override_styles/hover = ExtResource("6_w4dff")
-icon_alignment = 1
-
-[node name="Def_Button" type="Button" parent="CanvasLayer/Control/HBoxContainer"]
-custom_minimum_size = Vector2(60, 0)
-layout_mode = 2
-size_flags_horizontal = 4
-theme_override_styles/normal = ExtResource("5_n3xjr")
-theme_override_styles/pressed = ExtResource("6_fl6yx")
-theme_override_styles/hover = ExtResource("6_w4dff")
-icon_alignment = 1
-
-[node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/Control/HBoxContainer"]
-custom_minimum_size = Vector2(8, 0)
-layout_mode = 2
-
-[node name="Silo_Button" type="Button" parent="CanvasLayer/Control/HBoxContainer"]
-custom_minimum_size = Vector2(60, 0)
-layout_mode = 2
-size_flags_horizontal = 4
-theme_override_styles/normal = ExtResource("5_n3xjr")
-theme_override_styles/pressed = ExtResource("6_fl6yx")
-theme_override_styles/hover = ExtResource("6_w4dff")
-icon_alignment = 1
-
-[node name="Sam_Button" type="Button" parent="CanvasLayer/Control/HBoxContainer"]
-custom_minimum_size = Vector2(60, 0)
-layout_mode = 2
-size_flags_horizontal = 4
-theme_override_styles/normal = ExtResource("5_n3xjr")
-theme_override_styles/pressed = ExtResource("6_fl6yx")
-theme_override_styles/hover = ExtResource("6_w4dff")
-icon_alignment = 1
-
-[node name="MarginContainer2" type="MarginContainer" parent="CanvasLayer/Control/HBoxContainer"]
-custom_minimum_size = Vector2(8, 0)
-layout_mode = 2
-
-[node name="Ship_Button" type="Button" parent="CanvasLayer/Control/HBoxContainer"]
-custom_minimum_size = Vector2(60, 0)
-layout_mode = 2
-size_flags_horizontal = 4
-theme_override_styles/normal = ExtResource("5_n3xjr")
-theme_override_styles/pressed = ExtResource("6_fl6yx")
-theme_override_styles/hover = ExtResource("6_w4dff")
-icon_alignment = 1
-
-[node name="Proton_Button" type="Button" parent="CanvasLayer/Control/HBoxContainer"]
-custom_minimum_size = Vector2(60, 0)
-layout_mode = 2
-size_flags_horizontal = 4
-theme_override_styles/normal = ExtResource("5_n3xjr")
-theme_override_styles/pressed = ExtResource("6_fl6yx")
-theme_override_styles/hover = ExtResource("6_w4dff")
-icon_alignment = 1
-
-[node name="Neutron_Button" type="Button" parent="CanvasLayer/Control/HBoxContainer"]
-custom_minimum_size = Vector2(60, 0)
-layout_mode = 2
-size_flags_horizontal = 4
-theme_override_styles/normal = ExtResource("5_n3xjr")
-theme_override_styles/pressed = ExtResource("6_fl6yx")
-theme_override_styles/hover = ExtResource("6_w4dff")
-icon_alignment = 1
-
-[node name="Atomizer_Button" type="Button" parent="CanvasLayer/Control/HBoxContainer"]
-custom_minimum_size = Vector2(60, 0)
-layout_mode = 2
-size_flags_horizontal = 4
-theme_override_styles/normal = ExtResource("5_n3xjr")
-theme_override_styles/pressed = ExtResource("6_fl6yx")
-theme_override_styles/hover = ExtResource("6_w4dff")
-icon_alignment = 1
 
 [node name="Panel_Population" type="Panel" parent="CanvasLayer/Control"]
 layout_mode = 0
