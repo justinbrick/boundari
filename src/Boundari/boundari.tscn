@@ -1,8 +1,38 @@
-[gd_scene load_steps=4 format=3 uid="uid://bvf7xj3oe6l6e"]
+[gd_scene load_steps=11 format=3 uid="uid://bvf7xj3oe6l6e"]
 
 [ext_resource type="Material" uid="uid://b33g2hecf433j" path="res://territory_shader.tres" id="1_8bxg0"]
 [ext_resource type="Texture2D" uid="uid://cxnyt7kxbwa6y" path="res://4639f7a3-5bf0-4561-8cb8-9831959b396b.png" id="1_ieay5"]
 [ext_resource type="Script" uid="uid://b03prub72qvax" path="res://Camera.cs" id="2_rft6w"]
+[ext_resource type="Shader" uid="uid://xuspxhp7k1eb" path="res://blur.gdshader" id="4_itarl"]
+[ext_resource type="StyleBox" uid="uid://dx408lj5yntuu" path="res://button_custom.tres" id="5_n3xjr"]
+[ext_resource type="StyleBox" uid="uid://bcjs8ydcbrqkb" path="res://button_custom_pressed.tres" id="6_fl6yx"]
+[ext_resource type="StyleBox" uid="uid://bfjx2fhyw58pf" path="res://button_custom_hover.tres" id="6_w4dff"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_itarl"]
+bg_color = Color(1, 1, 1, 0)
+draw_center = false
+shadow_color = Color(0, 0, 0, 0.23529412)
+shadow_size = 20
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_n3xjr"]
+shader = ExtResource("4_itarl")
+shader_parameter/blur_amount = 2.6000001235
+shader_parameter/darken_amount = 0.70000003325
+shader_parameter/noise_strength = 0.01600000076
+shader_parameter/grain_scale = 150.0
+shader_parameter/noise_speed = 0.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_n3xjr"]
+bg_color = Color(0, 0, 0, 0.19607843)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(1, 1, 1, 0.09803922)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
 
 [node name="Node2D" type="Node2D"]
 
@@ -14,9 +44,184 @@ offset_bottom = 633.0
 
 [node name="Map" type="Sprite2D" parent="."]
 material = ExtResource("1_8bxg0")
+position = Vector2(960, 540)
 scale = Vector2(1.6188469, 1.3744681)
 texture = ExtResource("1_ieay5")
 
 [node name="Camera2D" type="Camera2D" parent="." node_paths=PackedStringArray("Bounds")]
+offset = Vector2(960, 540)
 script = ExtResource("2_rft6w")
 Bounds = NodePath("../Bounds")
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="Control" type="Control" parent="CanvasLayer"]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="Panel_Shadow" type="Panel" parent="CanvasLayer/Control"]
+layout_mode = 1
+anchors_preset = -1
+anchor_top = 25.5
+anchor_right = 1.0
+anchor_bottom = 26.5
+offset_right = 1880.0
+offset_bottom = 20.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_itarl")
+metadata/_edit_use_anchors_ = true
+
+[node name="ColorRect_Blur" type="ColorRect" parent="CanvasLayer/Control"]
+material = SubResource("ShaderMaterial_n3xjr")
+layout_mode = 1
+anchors_preset = -1
+anchor_top = 25.5
+anchor_right = 48.0
+anchor_bottom = 26.825
+offset_bottom = 7.0
+grow_horizontal = 2
+grow_vertical = 2
+metadata/_edit_use_anchors_ = true
+
+[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/Control"]
+layout_mode = 1
+anchors_preset = -1
+anchor_top = -0.6666664
+anchor_right = 1.0
+anchor_bottom = 0.7083336
+offset_top = 1006.6666
+offset_right = 1880.0
+offset_bottom = 1051.6666
+grow_horizontal = 2
+grow_vertical = 0
+alignment = 1
+
+[node name="Port_Button" type="Button" parent="CanvasLayer/Control/HBoxContainer"]
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_styles/normal = ExtResource("5_n3xjr")
+theme_override_styles/pressed = ExtResource("6_fl6yx")
+theme_override_styles/hover = ExtResource("6_w4dff")
+icon_alignment = 1
+
+[node name="Fac_Button" type="Button" parent="CanvasLayer/Control/HBoxContainer"]
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_styles/normal = ExtResource("5_n3xjr")
+theme_override_styles/pressed = ExtResource("6_fl6yx")
+theme_override_styles/hover = ExtResource("6_w4dff")
+icon_alignment = 1
+
+[node name="City_Button" type="Button" parent="CanvasLayer/Control/HBoxContainer"]
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_styles/normal = ExtResource("5_n3xjr")
+theme_override_styles/pressed = ExtResource("6_fl6yx")
+theme_override_styles/hover = ExtResource("6_w4dff")
+icon_alignment = 1
+
+[node name="Def_Button" type="Button" parent="CanvasLayer/Control/HBoxContainer"]
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_styles/normal = ExtResource("5_n3xjr")
+theme_override_styles/pressed = ExtResource("6_fl6yx")
+theme_override_styles/hover = ExtResource("6_w4dff")
+icon_alignment = 1
+
+[node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/Control/HBoxContainer"]
+custom_minimum_size = Vector2(8, 0)
+layout_mode = 2
+
+[node name="Silo_Button" type="Button" parent="CanvasLayer/Control/HBoxContainer"]
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_styles/normal = ExtResource("5_n3xjr")
+theme_override_styles/pressed = ExtResource("6_fl6yx")
+theme_override_styles/hover = ExtResource("6_w4dff")
+icon_alignment = 1
+
+[node name="Sam_Button" type="Button" parent="CanvasLayer/Control/HBoxContainer"]
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_styles/normal = ExtResource("5_n3xjr")
+theme_override_styles/pressed = ExtResource("6_fl6yx")
+theme_override_styles/hover = ExtResource("6_w4dff")
+icon_alignment = 1
+
+[node name="MarginContainer2" type="MarginContainer" parent="CanvasLayer/Control/HBoxContainer"]
+custom_minimum_size = Vector2(8, 0)
+layout_mode = 2
+
+[node name="Ship_Button" type="Button" parent="CanvasLayer/Control/HBoxContainer"]
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_styles/normal = ExtResource("5_n3xjr")
+theme_override_styles/pressed = ExtResource("6_fl6yx")
+theme_override_styles/hover = ExtResource("6_w4dff")
+icon_alignment = 1
+
+[node name="Proton_Button" type="Button" parent="CanvasLayer/Control/HBoxContainer"]
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_styles/normal = ExtResource("5_n3xjr")
+theme_override_styles/pressed = ExtResource("6_fl6yx")
+theme_override_styles/hover = ExtResource("6_w4dff")
+icon_alignment = 1
+
+[node name="Neutron_Button" type="Button" parent="CanvasLayer/Control/HBoxContainer"]
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_styles/normal = ExtResource("5_n3xjr")
+theme_override_styles/pressed = ExtResource("6_fl6yx")
+theme_override_styles/hover = ExtResource("6_w4dff")
+icon_alignment = 1
+
+[node name="Atomizer_Button" type="Button" parent="CanvasLayer/Control/HBoxContainer"]
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_styles/normal = ExtResource("5_n3xjr")
+theme_override_styles/pressed = ExtResource("6_fl6yx")
+theme_override_styles/hover = ExtResource("6_w4dff")
+icon_alignment = 1
+
+[node name="Panel_Population" type="Panel" parent="CanvasLayer/Control"]
+layout_mode = 0
+offset_left = 233.0
+offset_top = 1033.0
+offset_right = 533.0
+offset_bottom = 1068.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_n3xjr")
+
+[node name="Pop" type="Label" parent="CanvasLayer/Control/Panel_Population"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.10666667
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme_override_font_sizes/font_size = 16
+text = "142,600"
+vertical_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="Pop_Rate" type="Label" parent="CanvasLayer/Control/Panel_Population"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.5133333
+anchor_right = 0.9633333
+anchor_bottom = 1.0000001
+theme_override_font_sizes/font_size = 16
+text = "+2,300/m"
+horizontal_alignment = 2
+vertical_alignment = 1
+metadata/_edit_use_anchors_ = true
