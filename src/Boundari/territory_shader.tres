@@ -9,21 +9,22 @@
 noise = SubResource("FastNoiseLite_5ut2h")
 seamless = true
 as_normal_map = true
+bump_strength = 3.0
 
 [resource]
 shader = ExtResource("1_7dguo")
 shader_parameter/map_texture = ExtResource("2_a7fbw")
 shader_parameter/noise_texture = SubResource("NoiseTexture2D_26sfn")
-shader_parameter/ocean_deep = Color(0.13726357, 0.27390543, 0.7514983, 1)
-shader_parameter/ocean_shallow = Color(0.2, 0.5, 1, 1)
+shader_parameter/ocean_deep = Color(0.16757348, 0.36657408, 0.51919436, 1)
+shader_parameter/ocean_shallow = Color(0.38446674, 0.64145696, 0.8475838, 1)
 shader_parameter/foam_color = Color(1, 1, 1, 1)
 shader_parameter/land_color_tint = Color(1, 1, 1, 1)
-shader_parameter/wave_scale = 28.409000874427495
-shader_parameter/wave_speed = 0.09200000437
+shader_parameter/wave_scale = 28.000000855
+shader_parameter/wave_speed = 0.10000000475
 shader_parameter/foam_band_width = 0.20000000298023
-shader_parameter/foam_noise_scale = 80.0
-shader_parameter/foam_noise_speed = 0.086000004085
+shader_parameter/foam_noise_scale = 80.000003325
+shader_parameter/foam_noise_speed = 0.030000001425
 shader_parameter/shadow_distance = 0.0250000011875
-shader_parameter/shadow_steps = 5
-shader_parameter/shadow_strength = 0.498000023655
+shader_parameter/shadow_steps = 10
+shader_parameter/shadow_strength = 0.400000019
 shader_parameter/wave_shadow_distort = 0.00999999977648
