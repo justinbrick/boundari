@@ -1,7 +1,7 @@
 extends Button
 
 var normal_pos: Vector2
-var hover_offset := Vector2(0, -8)
+var hover_offset := Vector2(0, -10)
 var tween: Tween
 
 func _ready():
