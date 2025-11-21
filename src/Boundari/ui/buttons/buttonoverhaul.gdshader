@@ -69,14 +69,19 @@ void fragment() {
     // Optional: soften edges if needed
     // shape_alpha = smoothstep(0.05, 0.95, shape_alpha);
 
-    // How strongly to show the SVG's own color (e.g. white stroke)
-    float stroke_mix = 1.0; // 0 = ignore SVG color, 1 = full SVG stroke
+    // How strongly to show the SVG's own color (e.g. white/gray stroke)
+    float stroke_mix = 1.0; // 0 = ignore SVG color, 1 = max influence
 
     // Start from the blurred color
     vec3 final_rgb = col;
 
-    // Add SVG stroke color on top, without replacing the blur
-    final_rgb += shape_tex.rgb * (stroke_mix * shape_alpha);
+    // Use brightness (luminance) so black fill doesn't override the blur,
+    // but bright stroke lines do.
+    float lum = dot(shape_tex.rgb, vec3(0.299, 0.587, 0.114));
+    float overlay_strength = stroke_mix * lum * shape_alpha;
+
+    // Blend SVG color over the blurred color, stronger where it's bright (stroke)
+    final_rgb = mix(col, shape_tex.rgb, overlay_strength);
     final_rgb = clamp(final_rgb, 0.0, 1.0);
 
     // Final alpha: only visible where SVG alpha exists, scaled by panel_alpha

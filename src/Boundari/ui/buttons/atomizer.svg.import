@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bw3g2qvn85w0k"
-path="res://.godot/imported/citybutton.svg-2d54149d196058c5edcc039c8ae15593.ctex"
+uid="uid://bllgtlngiofsu"
+path="res://.godot/imported/atomizer.svg-d0e9583d6a80a3c6f9226345afd2b512.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://ui/buttons/citybutton.svg"
-dest_files=["res://.godot/imported/citybutton.svg-2d54149d196058c5edcc039c8ae15593.ctex"]
+source_file="res://ui/buttons/atomizer.svg"
+dest_files=["res://.godot/imported/atomizer.svg-d0e9583d6a80a3c6f9226345afd2b512.ctex"]
 
 [params]
 
