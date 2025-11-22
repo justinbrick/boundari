@@ -1,10 +1,9 @@
-[gd_scene load_steps=63 format=3 uid="uid://bvf7xj3oe6l6e"]
+[gd_scene load_steps=93 format=3 uid="uid://bvf7xj3oe6l6e"]
 
 [ext_resource type="Material" uid="uid://b33g2hecf433j" path="res://territory_shader.tres" id="1_8bxg0"]
 [ext_resource type="Texture2D" uid="uid://cxnyt7kxbwa6y" path="res://4639f7a3-5bf0-4561-8cb8-9831959b396b.png" id="1_ieay5"]
 [ext_resource type="Script" uid="uid://b03prub72qvax" path="res://Camera.cs" id="2_rft6w"]
 [ext_resource type="Shader" uid="uid://ccrx2iq3onidj" path="res://blurroundcorn.gdshader" id="4_enfkb"]
-[ext_resource type="StyleBox" uid="uid://hgnxyc8nbaid" path="res://rec_shadows.tres" id="4_ewirb"]
 [ext_resource type="Shader" uid="uid://xuspxhp7k1eb" path="res://blur.gdshader" id="4_itarl"]
 [ext_resource type="Script" uid="uid://bbf0lhb2yu8x6" path="res://hoveroverhaul.gd" id="4_xc0m3"]
 [ext_resource type="Texture2D" uid="uid://qepctrj10e6q" path="res://ui/buttons/port.svg" id="6_xc0m3"]
@@ -24,10 +23,25 @@
 [ext_resource type="Texture2D" uid="uid://40h5s8o5klqq" path="res://ui/speed2.svg" id="14_fuftb"]
 [ext_resource type="FontFile" uid="uid://r2ps7q3ddsib" path="res://fonts/HWYGWDE.TTF" id="14_tepi4"]
 [ext_resource type="Texture2D" uid="uid://bvan8mgxhs4a0" path="res://ui/speed3.svg" id="15_ddwe0"]
+[ext_resource type="Shader" uid="uid://di1rymha5s5c3" path="res://ratio_grad.gdshader" id="17_ta2ko"]
+[ext_resource type="Shader" uid="uid://d3sknjps5xcvh" path="res://leadericons.gdshader" id="19_fbxuu"]
+[ext_resource type="Script" uid="uid://2511x8khnyhh" path="res://gradient_script.gd" id="19_vekao"]
 [ext_resource type="Script" uid="uid://c6gb3sv8bmm6b" path="res://chat.gd" id="20_04lhv"]
+[ext_resource type="Texture2D" uid="uid://v3vqee3p0pap" path="res://ui/aiden.jpg" id="20_ldsro"]
+[ext_resource type="Texture2D" uid="uid://cihixy1h635as" path="res://ui/justin.jpg" id="21_gjm0y"]
 [ext_resource type="StyleBox" uid="uid://22bs8d30p5ln" path="res://rounded_shadow.tres" id="21_tepi4"]
+[ext_resource type="Texture2D" uid="uid://xq0evwhkc0r8" path="res://ui/joe.jpg" id="22_7tbuw"]
 [ext_resource type="Texture2D" uid="uid://dhvt3k5qccf4d" path="res://ui/swordswhite.svg" id="22_di8wi"]
+[ext_resource type="Texture2D" uid="uid://cxktrdlg5bjl7" path="res://ui/jacob.jpg" id="23_1jx2k"]
+[ext_resource type="StyleBox" uid="uid://dgkm23fdcrx3" path="res://button_Normbasic.tres" id="23_7tbuw"]
 [ext_resource type="Texture2D" uid="uid://b4md2jqkibvje" path="res://ui/shield.svg" id="23_tepi4"]
+[ext_resource type="StyleBox" uid="uid://mtdnv5kx3xlq" path="res://button_Pressbasic.tres" id="24_4aj2s"]
+[ext_resource type="Texture2D" uid="uid://bwq3sboipn8sl" path="res://ui/nick.jpg" id="24_xp78s"]
+[ext_resource type="StyleBox" uid="uid://vvkdwwnf1ujw" path="res://button_Hoverbasic.tres" id="25_p1vly"]
+[ext_resource type="Texture2D" uid="uid://dfhmxqij04f7a" path="res://ui/tip.jpg" id="25_xffgh"]
+[ext_resource type="Texture2D" uid="uid://dtptu6l5ug7bj" path="res://ui/rando.jpg" id="26_ta2ko"]
+[ext_resource type="Texture2D" uid="uid://cjpjwtye5wlx6" path="res://ui/settings.svg" id="30_xp78s"]
+[ext_resource type="Texture2D" uid="uid://bbnn05qkyvu5i" path="res://ui/exit.svg" id="31_xffgh"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ok40o"]
 bg_color = Color(0, 0, 0, 0.29411766)
@@ -43,9 +57,13 @@ corner_radius_top_right = 6
 variation_transform = Transform2D(1, 0.165, 0, 1.28, 0, 0)
 spacing_glyph = 1
 
+[sub_resource type="FontVariation" id="FontVariation_o10ms"]
+variation_transform = Transform2D(1, 0, 0, 1.28, 0, 0)
+spacing_glyph = 1
+
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_fbxuu"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_o10ms"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_rblt2"]
 bg_color = Color(0, 0, 0, 0.29411766)
 border_width_left = 2
 border_width_top = 2
@@ -60,8 +78,12 @@ variation_transform = Transform2D(1, 0.14, 0, 1.225, 0, 0)
 spacing_glyph = 1
 spacing_bottom = -2
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_rblt2"]
-bg_color = Color(0, 0, 0, 0.29411766)
+[sub_resource type="FontVariation" id="FontVariation_fbxuu"]
+variation_transform = Transform2D(1, 0, 0, 1.28, 0, 0)
+spacing_glyph = 1
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_o10ms"]
+bg_color = Color(0.56842285, 0.13662893, 0, 0.29411766)
 border_width_left = 2
 border_width_top = 2
 border_width_right = 2
@@ -69,6 +91,36 @@ border_color = Color(2.0507386, 2.0507386, 2.0507386, 0.05490196)
 border_blend = true
 corner_radius_top_left = 6
 corner_radius_top_right = 6
+
+[sub_resource type="FontVariation" id="FontVariation_ldsro"]
+variation_transform = Transform2D(1, 0, 0, 1.28, 0, 0)
+spacing_glyph = 1
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_fbxuu"]
+bg_color = Color(0.35385472, 3.134515e-06, 1.889132e-06, 0.29411766)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_color = Color(2.0507386, 2.0507386, 2.0507386, 0.05490196)
+border_blend = true
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_p1vly"]
+bg_color = Color(0, 0, 0, 0.29411766)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_color = Color(2.0507386, 2.0507386, 2.0507386, 0.05490196)
+border_blend = true
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ldsro"]
+shader = ExtResource("4_itarl")
+shader_parameter/blur_amount = 2.6000001235
+shader_parameter/darken_amount = 1.0
+shader_parameter/noise_strength = 0.01600000076
+shader_parameter/grain_scale = 150.0
+shader_parameter/noise_speed = 0.0
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_ddwe0"]
 
@@ -83,7 +135,7 @@ corner_radius_top_right = 6
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_ewirb"]
 shader = ExtResource("8_di8wi")
 shader_parameter/blur_amount = 2.6000001235
-shader_parameter/darken_amount = 0.70000003325
+shader_parameter/darken_amount = 0.550000026125
 shader_parameter/noise_strength = 0.01600000076
 shader_parameter/grain_scale = 150.0
 shader_parameter/noise_speed = 0.0
@@ -106,7 +158,7 @@ shader_parameter/panel_alpha = 1.0
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_enfkb"]
 shader = ExtResource("8_di8wi")
 shader_parameter/blur_amount = 2.6000001235
-shader_parameter/darken_amount = 0.70000003325
+shader_parameter/darken_amount = 0.550000026125
 shader_parameter/noise_strength = 0.01600000076
 shader_parameter/grain_scale = 150.0
 shader_parameter/noise_speed = 0.0
@@ -119,7 +171,7 @@ shader_parameter/panel_alpha = 1.0
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_di8wi"]
 shader = ExtResource("8_di8wi")
 shader_parameter/blur_amount = 2.6000001235
-shader_parameter/darken_amount = 0.70000003325
+shader_parameter/darken_amount = 0.550000026125
 shader_parameter/noise_strength = 0.01600000076
 shader_parameter/grain_scale = 150.0
 shader_parameter/noise_speed = 0.0
@@ -132,7 +184,7 @@ shader_parameter/panel_alpha = 1.0
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_tepi4"]
 shader = ExtResource("8_di8wi")
 shader_parameter/blur_amount = 2.6000001235
-shader_parameter/darken_amount = 0.70000003325
+shader_parameter/darken_amount = 0.550000026125
 shader_parameter/noise_strength = 0.01600000076
 shader_parameter/grain_scale = 150.0
 shader_parameter/noise_speed = 0.0
@@ -145,7 +197,7 @@ shader_parameter/panel_alpha = 1.0
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_b2en8"]
 shader = ExtResource("8_di8wi")
 shader_parameter/blur_amount = 2.6000001235
-shader_parameter/darken_amount = 0.70000003325
+shader_parameter/darken_amount = 0.550000026125
 shader_parameter/noise_strength = 0.01600000076
 shader_parameter/grain_scale = 150.0
 shader_parameter/noise_speed = 0.0
@@ -158,7 +210,7 @@ shader_parameter/panel_alpha = 1.0
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_lwvql"]
 shader = ExtResource("8_di8wi")
 shader_parameter/blur_amount = 2.6000001235
-shader_parameter/darken_amount = 0.70000003325
+shader_parameter/darken_amount = 0.550000026125
 shader_parameter/noise_strength = 0.01600000076
 shader_parameter/grain_scale = 150.0
 shader_parameter/noise_speed = 0.0
@@ -171,7 +223,7 @@ shader_parameter/panel_alpha = 1.0
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_kthhr"]
 shader = ExtResource("8_di8wi")
 shader_parameter/blur_amount = 2.6000001235
-shader_parameter/darken_amount = 0.70000003325
+shader_parameter/darken_amount = 0.550000026125
 shader_parameter/noise_strength = 0.01600000076
 shader_parameter/grain_scale = 150.0
 shader_parameter/noise_speed = 0.0
@@ -184,7 +236,7 @@ shader_parameter/panel_alpha = 1.0
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_ok40o"]
 shader = ExtResource("8_di8wi")
 shader_parameter/blur_amount = 2.6000001235
-shader_parameter/darken_amount = 0.70000003325
+shader_parameter/darken_amount = 0.550000026125
 shader_parameter/noise_strength = 0.01600000076
 shader_parameter/grain_scale = 150.0
 shader_parameter/noise_speed = 0.0
@@ -197,7 +249,7 @@ shader_parameter/panel_alpha = 1.0
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_rblt2"]
 shader = ExtResource("8_di8wi")
 shader_parameter/blur_amount = 2.6000001235
-shader_parameter/darken_amount = 0.70000003325
+shader_parameter/darken_amount = 0.550000026125
 shader_parameter/noise_strength = 0.01600000076
 shader_parameter/grain_scale = 150.0
 shader_parameter/noise_speed = 0.0
@@ -210,7 +262,7 @@ shader_parameter/panel_alpha = 1.0
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_o10ms"]
 shader = ExtResource("8_di8wi")
 shader_parameter/blur_amount = 2.6000001235
-shader_parameter/darken_amount = 0.70000003325
+shader_parameter/darken_amount = 0.550000026125
 shader_parameter/noise_strength = 0.01600000076
 shader_parameter/grain_scale = 150.0
 shader_parameter/noise_speed = 0.0
@@ -220,6 +272,16 @@ shader_parameter/tint_color = Vector3(1, 1, 1)
 shader_parameter/tint_strength = 0.0
 shader_parameter/panel_alpha = 1.0
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_4aj2s"]
+draw_center = false
+shadow_color = Color(0, 0, 0, 0.19607843)
+shadow_size = 20
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_kthhr"]
+draw_center = false
+shadow_color = Color(0, 0, 0, 0.43137255)
+shadow_size = 20
+
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_n3xjr"]
 shader = ExtResource("4_itarl")
 shader_parameter/blur_amount = 2.6000001235
@@ -227,6 +289,35 @@ shader_parameter/darken_amount = 0.70000003325
 shader_parameter/noise_strength = 0.01600000076
 shader_parameter/grain_scale = 150.0
 shader_parameter/noise_speed = 0.0
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ta2ko"]
+shader = ExtResource("17_ta2ko")
+shader_parameter/rect_size_px = Vector2(300, 40)
+shader_parameter/border_thickness_px = 0.0
+shader_parameter/border_color = Color(0.86369616, 0.86369616, 0.86369616, 1)
+shader_parameter/left_dark_color = Color(0.99988943, 0.41802827, 0.35451728, 1)
+shader_parameter/left_light_color = Color(0.012617188, 0.00093636644, 0.00055181305, 1)
+shader_parameter/right_dark_color = Color(2.1418184e-06, 0.702974, 5.7756904e-07, 1)
+shader_parameter/right_light_color = Color(0, 0, 0, 1)
+shader_parameter/line_pos = 0.50000002375
+shader_parameter/center_light_strength = 0.6550000311125
+shader_parameter/center_light_width = 0.5
+shader_parameter/panel_alpha = 1.0
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_vekao"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_vekao"]
+bg_color = Color(0, 0, 0, 0.29411766)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(2.051, 2.051, 2.051, 0.055)
+border_blend = true
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
 
 [sub_resource type="FontVariation" id="FontVariation_tepi4"]
 variation_transform = Transform2D(1.005, 0.31, 0, 1.385, 0, 0)
@@ -243,6 +334,39 @@ variation_transform = Transform2D(1, 0.1, 0, 1, 0, 0)
 base_font = ExtResource("14_tepi4")
 spacing_glyph = 1
 spacing_bottom = -1
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ldsro"]
+bg_color = Color(0, 0, 0, 0.07058824)
+border_width_right = 2
+border_color = Color(2.0507386, 2.0507386, 2.0507386, 0.05490196)
+border_blend = true
+corner_radius_top_left = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="FontVariation" id="FontVariation_gjm0y"]
+variation_transform = Transform2D(1, 0.085, 0, 1.33, 0, 0)
+spacing_top = 3
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_4aj2s"]
+shader = ExtResource("19_fbxuu")
+shader_parameter/corner_radius_px = 24.00000114
+shader_parameter/edge_softness_px = 2.000000095
+shader_parameter/panel_alpha = 0.90000004275
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_xffgh"]
+bg_color = Color(2.0507386, 2.0507386, 2.0507386, 0.09803922)
+corner_radius_top_left = 1
+corner_radius_top_right = 1
+corner_radius_bottom_right = 1
+corner_radius_bottom_left = 1
+shadow_color = Color(2.0507386, 2.0507386, 2.0507386, 0.09803922)
+shadow_size = 2
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_gjm0y"]
+shader = ExtResource("19_fbxuu")
+shader_parameter/corner_radius_px = 24.0
+shader_parameter/edge_softness_px = 2.0
+shader_parameter/panel_alpha = 0.90000004275
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_xc0m3"]
 shader = ExtResource("4_enfkb")
@@ -310,18 +434,19 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="HBox_BHud" type="HBoxContainer" parent="CanvasLayer/Main_Control"]
+visible = false
 layout_mode = 0
 offset_top = 960.0
 offset_right = 1920.0
 offset_bottom = 1020.0
 alignment = 1
 
-[node name="BoundI_Panel" type="Panel" parent="CanvasLayer/Main_Control/HBox_BHud"]
+[node name="In_Panel" type="Panel" parent="CanvasLayer/Main_Control/HBox_BHud"]
 custom_minimum_size = Vector2(265, 0)
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_ok40o")
 
-[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBox_BHud/BoundI_Panel"]
+[node name="HBox_Names" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBox_BHud/In_Panel"]
 layout_mode = 1
 anchors_preset = -1
 anchor_top = 0.027083334
@@ -331,7 +456,7 @@ offset_bottom = -0.8125
 alignment = 1
 metadata/_edit_use_anchors_ = true
 
-[node name="Port_Label" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/BoundI_Panel/HBoxContainer"]
+[node name="Port_Label" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/In_Panel/HBox_Names"]
 custom_minimum_size = Vector2(50, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
@@ -341,11 +466,11 @@ text = "Port"
 horizontal_alignment = 1
 metadata/_edit_use_anchors_ = true
 
-[node name="MarginContainer2" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_BHud/BoundI_Panel/HBoxContainer"]
+[node name="MarginContainer2" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_BHud/In_Panel/HBox_Names"]
 custom_minimum_size = Vector2(5, 0)
 layout_mode = 2
 
-[node name="Port_Label2" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/BoundI_Panel/HBoxContainer"]
+[node name="Port_Label2" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/In_Panel/HBox_Names"]
 custom_minimum_size = Vector2(50, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
@@ -355,11 +480,11 @@ text = "City"
 horizontal_alignment = 1
 metadata/_edit_use_anchors_ = true
 
-[node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_BHud/BoundI_Panel/HBoxContainer"]
+[node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_BHud/In_Panel/HBox_Names"]
 custom_minimum_size = Vector2(5, 0)
 layout_mode = 2
 
-[node name="Port_Label3" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/BoundI_Panel/HBoxContainer"]
+[node name="Port_Label3" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/In_Panel/HBox_Names"]
 custom_minimum_size = Vector2(50, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
@@ -369,11 +494,11 @@ text = "Factory"
 horizontal_alignment = 1
 metadata/_edit_use_anchors_ = true
 
-[node name="MarginContainer3" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_BHud/BoundI_Panel/HBoxContainer"]
+[node name="MarginContainer3" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_BHud/In_Panel/HBox_Names"]
 custom_minimum_size = Vector2(5, 0)
 layout_mode = 2
 
-[node name="Port_Label4" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/BoundI_Panel/HBoxContainer"]
+[node name="Port_Label4" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/In_Panel/HBox_Names"]
 custom_minimum_size = Vector2(50, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
@@ -383,17 +508,79 @@ text = "Defense"
 horizontal_alignment = 1
 metadata/_edit_use_anchors_ = true
 
-[node name="Infra_Panel" type="Panel" parent="CanvasLayer/Main_Control/HBox_BHud/BoundI_Panel"]
+[node name="HBox_Numbers" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBox_BHud/In_Panel"]
+layout_mode = 1
+anchors_preset = -1
+anchor_top = 0.22708334
+anchor_right = 1.0
+anchor_bottom = 0.45729166
+offset_bottom = -0.8125
+alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="Port_Label" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/In_Panel/HBox_Numbers"]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
+theme_override_fonts/font = SubResource("FontVariation_o10ms")
+theme_override_font_sizes/font_size = 7
+text = "[1]"
+horizontal_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="MarginContainer2" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_BHud/In_Panel/HBox_Numbers"]
+custom_minimum_size = Vector2(5, 0)
+layout_mode = 2
+
+[node name="Port_Label2" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/In_Panel/HBox_Numbers"]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
+theme_override_fonts/font = SubResource("FontVariation_o10ms")
+theme_override_font_sizes/font_size = 7
+text = "[2]"
+horizontal_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_BHud/In_Panel/HBox_Numbers"]
+custom_minimum_size = Vector2(5, 0)
+layout_mode = 2
+
+[node name="Port_Label3" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/In_Panel/HBox_Numbers"]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
+theme_override_fonts/font = SubResource("FontVariation_o10ms")
+theme_override_font_sizes/font_size = 7
+text = "[3]"
+horizontal_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="MarginContainer3" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_BHud/In_Panel/HBox_Numbers"]
+custom_minimum_size = Vector2(5, 0)
+layout_mode = 2
+
+[node name="Port_Label4" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/In_Panel/HBox_Numbers"]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
+theme_override_fonts/font = SubResource("FontVariation_o10ms")
+theme_override_font_sizes/font_size = 7
+text = "[4]"
+horizontal_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="InTitle_Panel" type="Panel" parent="CanvasLayer/Main_Control/HBox_BHud/In_Panel"]
 material = SubResource("ShaderMaterial_fbxuu")
 layout_mode = 1
 anchors_preset = -1
 anchor_top = -0.23333345
 anchor_right = 1.0
 anchor_bottom = 1.0
-theme_override_styles/panel = SubResource("StyleBoxFlat_o10ms")
+theme_override_styles/panel = SubResource("StyleBoxFlat_rblt2")
 metadata/_edit_use_anchors_ = true
 
-[node name="Label" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/BoundI_Panel/Infra_Panel"]
+[node name="Label" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/In_Panel/InTitle_Panel"]
 show_behind_parent = true
 layout_mode = 1
 anchors_preset = -1
@@ -411,12 +598,12 @@ metadata/_edit_use_anchors_ = true
 custom_minimum_size = Vector2(10, 0)
 layout_mode = 2
 
-[node name="BoundI_Panel2" type="Panel" parent="CanvasLayer/Main_Control/HBox_BHud"]
+[node name="Action_Panel" type="Panel" parent="CanvasLayer/Main_Control/HBox_BHud"]
 custom_minimum_size = Vector2(150, 0)
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_ok40o")
 
-[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBox_BHud/BoundI_Panel2"]
+[node name="HBox_Names" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBox_BHud/Action_Panel"]
 layout_mode = 1
 anchors_preset = -1
 anchor_top = 0.027083334
@@ -426,7 +613,7 @@ offset_bottom = -0.8125
 alignment = 1
 metadata/_edit_use_anchors_ = true
 
-[node name="Port_Label" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/BoundI_Panel2/HBoxContainer"]
+[node name="Port_Label" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/Action_Panel/HBox_Names"]
 custom_minimum_size = Vector2(50, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
@@ -436,11 +623,11 @@ text = "Silo"
 horizontal_alignment = 1
 metadata/_edit_use_anchors_ = true
 
-[node name="MarginContainer2" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_BHud/BoundI_Panel2/HBoxContainer"]
+[node name="MarginContainer2" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_BHud/Action_Panel/HBox_Names"]
 custom_minimum_size = Vector2(5, 0)
 layout_mode = 2
 
-[node name="Port_Label2" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/BoundI_Panel2/HBoxContainer"]
+[node name="Port_Label2" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/Action_Panel/HBox_Names"]
 custom_minimum_size = Vector2(50, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
@@ -450,8 +637,42 @@ text = "Sam"
 horizontal_alignment = 1
 metadata/_edit_use_anchors_ = true
 
-[node name="Infra_Panel" type="Panel" parent="CanvasLayer/Main_Control/HBox_BHud/BoundI_Panel2"]
-material = SubResource("ShaderMaterial_fbxuu")
+[node name="HBox_Numbers" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBox_BHud/Action_Panel"]
+layout_mode = 1
+anchors_preset = -1
+anchor_top = 0.19375
+anchor_right = 1.0
+anchor_bottom = 0.42395833
+offset_top = 2.0
+offset_bottom = 1.1875
+alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="Port_Label" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/Action_Panel/HBox_Numbers"]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
+theme_override_fonts/font = SubResource("FontVariation_fbxuu")
+theme_override_font_sizes/font_size = 7
+text = "[5]"
+horizontal_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="MarginContainer2" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_BHud/Action_Panel/HBox_Numbers"]
+custom_minimum_size = Vector2(5, 0)
+layout_mode = 2
+
+[node name="Port_Label2" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/Action_Panel/HBox_Numbers"]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
+theme_override_fonts/font = SubResource("FontVariation_fbxuu")
+theme_override_font_sizes/font_size = 7
+text = "[6]"
+horizontal_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="Infra_Panel" type="Panel" parent="CanvasLayer/Main_Control/HBox_BHud/Action_Panel"]
 layout_mode = 1
 anchors_preset = -1
 anchor_top = -0.23333345
@@ -460,7 +681,7 @@ anchor_bottom = 1.0
 theme_override_styles/panel = SubResource("StyleBoxFlat_o10ms")
 metadata/_edit_use_anchors_ = true
 
-[node name="Label" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/BoundI_Panel2/Infra_Panel"]
+[node name="Label" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/Action_Panel/Infra_Panel"]
 show_behind_parent = true
 layout_mode = 1
 anchors_preset = -1
@@ -478,12 +699,12 @@ metadata/_edit_use_anchors_ = true
 custom_minimum_size = Vector2(10, 0)
 layout_mode = 2
 
-[node name="BoundW_Panel" type="Panel" parent="CanvasLayer/Main_Control/HBox_BHud"]
+[node name="Wartime_Panel" type="Panel" parent="CanvasLayer/Main_Control/HBox_BHud"]
 custom_minimum_size = Vector2(265, 0)
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_ok40o")
 
-[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBox_BHud/BoundW_Panel"]
+[node name="HBox_Names" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBox_BHud/Wartime_Panel"]
 layout_mode = 1
 anchors_preset = -1
 anchor_top = 0.027083334
@@ -493,7 +714,7 @@ offset_bottom = -0.8125
 alignment = 1
 metadata/_edit_use_anchors_ = true
 
-[node name="Port_Label" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/BoundW_Panel/HBoxContainer"]
+[node name="Port_Label" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/Wartime_Panel/HBox_Names"]
 custom_minimum_size = Vector2(50, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
@@ -503,11 +724,11 @@ text = "Warship"
 horizontal_alignment = 1
 metadata/_edit_use_anchors_ = true
 
-[node name="MarginContainer2" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_BHud/BoundW_Panel/HBoxContainer"]
+[node name="MarginContainer2" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_BHud/Wartime_Panel/HBox_Names"]
 custom_minimum_size = Vector2(5, 0)
 layout_mode = 2
 
-[node name="Port_Label2" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/BoundW_Panel/HBoxContainer"]
+[node name="Port_Label2" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/Wartime_Panel/HBox_Names"]
 custom_minimum_size = Vector2(50, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
@@ -517,11 +738,11 @@ text = "Proton"
 horizontal_alignment = 1
 metadata/_edit_use_anchors_ = true
 
-[node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_BHud/BoundW_Panel/HBoxContainer"]
+[node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_BHud/Wartime_Panel/HBox_Names"]
 custom_minimum_size = Vector2(5, 0)
 layout_mode = 2
 
-[node name="Port_Label3" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/BoundW_Panel/HBoxContainer"]
+[node name="Port_Label3" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/Wartime_Panel/HBox_Names"]
 custom_minimum_size = Vector2(50, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
@@ -531,11 +752,11 @@ text = "Neutron"
 horizontal_alignment = 1
 metadata/_edit_use_anchors_ = true
 
-[node name="MarginContainer3" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_BHud/BoundW_Panel/HBoxContainer"]
+[node name="MarginContainer3" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_BHud/Wartime_Panel/HBox_Names"]
 custom_minimum_size = Vector2(5, 0)
 layout_mode = 2
 
-[node name="Port_Label4" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/BoundW_Panel/HBoxContainer"]
+[node name="Port_Label4" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/Wartime_Panel/HBox_Names"]
 custom_minimum_size = Vector2(50, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
@@ -545,8 +766,418 @@ text = "Atomizer"
 horizontal_alignment = 1
 metadata/_edit_use_anchors_ = true
 
-[node name="Infra_Panel" type="Panel" parent="CanvasLayer/Main_Control/HBox_BHud/BoundW_Panel"]
+[node name="HBox_Numbers" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBox_BHud/Wartime_Panel"]
+layout_mode = 1
+anchors_preset = -1
+anchor_top = 0.027083334
+anchor_right = 1.0
+anchor_bottom = 0.25729167
+offset_top = 12.0
+offset_bottom = 11.1875
+alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="Port_Label" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/Wartime_Panel/HBox_Numbers"]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
+theme_override_fonts/font = SubResource("FontVariation_ldsro")
+theme_override_font_sizes/font_size = 7
+text = "[7]"
+horizontal_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="MarginContainer2" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_BHud/Wartime_Panel/HBox_Numbers"]
+custom_minimum_size = Vector2(5, 0)
+layout_mode = 2
+
+[node name="Port_Label2" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/Wartime_Panel/HBox_Numbers"]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
+theme_override_fonts/font = SubResource("FontVariation_ldsro")
+theme_override_font_sizes/font_size = 7
+text = "[8]"
+horizontal_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_BHud/Wartime_Panel/HBox_Numbers"]
+custom_minimum_size = Vector2(5, 0)
+layout_mode = 2
+
+[node name="Port_Label3" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/Wartime_Panel/HBox_Numbers"]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
+theme_override_fonts/font = SubResource("FontVariation_ldsro")
+theme_override_font_sizes/font_size = 7
+text = "[9]"
+horizontal_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="MarginContainer3" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_BHud/Wartime_Panel/HBox_Numbers"]
+custom_minimum_size = Vector2(5, 0)
+layout_mode = 2
+
+[node name="Port_Label4" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/Wartime_Panel/HBox_Numbers"]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
+theme_override_fonts/font = SubResource("FontVariation_ldsro")
+theme_override_font_sizes/font_size = 7
+text = "[0]"
+horizontal_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="Infra_Panel" type="Panel" parent="CanvasLayer/Main_Control/HBox_BHud/Wartime_Panel"]
 material = SubResource("ShaderMaterial_fbxuu")
+layout_mode = 1
+anchors_preset = -1
+anchor_top = -0.23333345
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_fbxuu")
+metadata/_edit_use_anchors_ = true
+
+[node name="Label" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/Wartime_Panel/Infra_Panel"]
+show_behind_parent = true
+layout_mode = 1
+anchors_preset = -1
+anchor_top = 0.024691358
+anchor_right = 1.0
+anchor_bottom = 0.20270285
+theme_override_fonts/font = SubResource("FontVariation_rblt2")
+theme_override_font_sizes/font_size = 8
+text = "Wartime"
+horizontal_alignment = 1
+vertical_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="HBox_AHud" type="HBoxContainer" parent="CanvasLayer/Main_Control"]
+layout_mode = 0
+offset_top = 960.0
+offset_right = 1920.0
+offset_bottom = 1020.0
+alignment = 1
+
+[node name="In_Panel" type="Panel" parent="CanvasLayer/Main_Control/HBox_AHud"]
+custom_minimum_size = Vector2(750, 0)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_p1vly")
+
+[node name="Hud_Rec" type="ColorRect" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel"]
+material = SubResource("ShaderMaterial_ldsro")
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.0026666666
+anchor_top = 0.016666286
+anchor_right = 0.99733335
+anchor_bottom = 1.0
+offset_top = 2.2888184e-05
+offset_bottom = 2.2888184e-05
+grow_horizontal = 2
+grow_vertical = 2
+metadata/_edit_use_anchors_ = true
+
+[node name="HBox_Names" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel"]
+layout_mode = 1
+anchors_preset = -1
+anchor_top = 0.027083334
+anchor_right = 1.0
+anchor_bottom = 0.25729167
+offset_bottom = -0.8125
+metadata/_edit_use_anchors_ = true
+
+[node name="MarginContainer8" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/HBox_Names"]
+custom_minimum_size = Vector2(25, 0)
+layout_mode = 2
+
+[node name="Port_Label" type="Label" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/HBox_Names"]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
+theme_override_fonts/font = SubResource("FontVariation_ok40o")
+theme_override_font_sizes/font_size = 9
+text = "Port"
+horizontal_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="MarginContainer2" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/HBox_Names"]
+custom_minimum_size = Vector2(6, 0)
+layout_mode = 2
+
+[node name="Port_Label2" type="Label" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/HBox_Names"]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
+theme_override_fonts/font = SubResource("FontVariation_ok40o")
+theme_override_font_sizes/font_size = 9
+text = "City"
+horizontal_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/HBox_Names"]
+custom_minimum_size = Vector2(6, 0)
+layout_mode = 2
+
+[node name="Port_Label3" type="Label" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/HBox_Names"]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
+theme_override_fonts/font = SubResource("FontVariation_ok40o")
+theme_override_font_sizes/font_size = 9
+text = "Factory"
+horizontal_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="MarginContainer3" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/HBox_Names"]
+custom_minimum_size = Vector2(6, 0)
+layout_mode = 2
+
+[node name="Port_Label4" type="Label" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/HBox_Names"]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
+theme_override_fonts/font = SubResource("FontVariation_ok40o")
+theme_override_font_sizes/font_size = 9
+text = "Defense"
+horizontal_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="MarginContainer9" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/HBox_Names"]
+custom_minimum_size = Vector2(38, 0)
+layout_mode = 2
+
+[node name="Port_Label5" type="Label" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/HBox_Names"]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
+theme_override_fonts/font = SubResource("FontVariation_ok40o")
+theme_override_font_sizes/font_size = 9
+text = "Silo"
+horizontal_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="MarginContainer4" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/HBox_Names"]
+custom_minimum_size = Vector2(6, 0)
+layout_mode = 2
+
+[node name="Port_Label6" type="Label" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/HBox_Names"]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
+theme_override_fonts/font = SubResource("FontVariation_ok40o")
+theme_override_font_sizes/font_size = 9
+text = "Sam"
+horizontal_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="MarginContainer10" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/HBox_Names"]
+custom_minimum_size = Vector2(40, 0)
+layout_mode = 2
+
+[node name="Port_Label7" type="Label" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/HBox_Names"]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
+theme_override_fonts/font = SubResource("FontVariation_ok40o")
+theme_override_font_sizes/font_size = 9
+text = "Warship"
+horizontal_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="MarginContainer5" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/HBox_Names"]
+custom_minimum_size = Vector2(6, 0)
+layout_mode = 2
+
+[node name="Port_Label8" type="Label" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/HBox_Names"]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
+theme_override_fonts/font = SubResource("FontVariation_ok40o")
+theme_override_font_sizes/font_size = 9
+text = "Proton"
+horizontal_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="MarginContainer6" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/HBox_Names"]
+custom_minimum_size = Vector2(6, 0)
+layout_mode = 2
+
+[node name="Port_Label9" type="Label" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/HBox_Names"]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
+theme_override_fonts/font = SubResource("FontVariation_ok40o")
+theme_override_font_sizes/font_size = 9
+text = "Neutron"
+horizontal_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="MarginContainer7" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/HBox_Names"]
+custom_minimum_size = Vector2(6, 0)
+layout_mode = 2
+
+[node name="Port_Label10" type="Label" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/HBox_Names"]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
+theme_override_fonts/font = SubResource("FontVariation_ok40o")
+theme_override_font_sizes/font_size = 9
+text = "Atomizer"
+horizontal_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="HBox_Numbers" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel"]
+layout_mode = 1
+anchors_preset = -1
+anchor_top = 0.22708334
+anchor_right = 1.0
+anchor_bottom = 0.45729166
+offset_bottom = -0.8125
+metadata/_edit_use_anchors_ = true
+
+[node name="MarginContainer8" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/HBox_Numbers"]
+custom_minimum_size = Vector2(25, 0)
+layout_mode = 2
+
+[node name="Port_Label" type="Label" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/HBox_Numbers"]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
+theme_override_fonts/font = SubResource("FontVariation_o10ms")
+theme_override_font_sizes/font_size = 7
+text = "[1]"
+horizontal_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="MarginContainer2" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/HBox_Numbers"]
+custom_minimum_size = Vector2(6, 0)
+layout_mode = 2
+
+[node name="Port_Label2" type="Label" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/HBox_Numbers"]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
+theme_override_fonts/font = SubResource("FontVariation_o10ms")
+theme_override_font_sizes/font_size = 7
+text = "[2]"
+horizontal_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/HBox_Numbers"]
+custom_minimum_size = Vector2(6, 0)
+layout_mode = 2
+
+[node name="Port_Label3" type="Label" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/HBox_Numbers"]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
+theme_override_fonts/font = SubResource("FontVariation_o10ms")
+theme_override_font_sizes/font_size = 7
+text = "[3]"
+horizontal_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="MarginContainer3" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/HBox_Numbers"]
+custom_minimum_size = Vector2(6, 0)
+layout_mode = 2
+
+[node name="Port_Label4" type="Label" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/HBox_Numbers"]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
+theme_override_fonts/font = SubResource("FontVariation_o10ms")
+theme_override_font_sizes/font_size = 7
+text = "[4]"
+horizontal_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="MarginContainer9" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/HBox_Numbers"]
+custom_minimum_size = Vector2(38, 0)
+layout_mode = 2
+
+[node name="Port_Label5" type="Label" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/HBox_Numbers"]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
+theme_override_fonts/font = SubResource("FontVariation_fbxuu")
+theme_override_font_sizes/font_size = 7
+text = "[5]"
+horizontal_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="MarginContainer4" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/HBox_Numbers"]
+custom_minimum_size = Vector2(6, 0)
+layout_mode = 2
+
+[node name="Port_Label6" type="Label" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/HBox_Numbers"]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
+theme_override_fonts/font = SubResource("FontVariation_fbxuu")
+theme_override_font_sizes/font_size = 7
+text = "[6]"
+horizontal_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="MarginContainer10" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/HBox_Numbers"]
+custom_minimum_size = Vector2(40, 0)
+layout_mode = 2
+
+[node name="Port_Label7" type="Label" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/HBox_Numbers"]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
+theme_override_fonts/font = SubResource("FontVariation_ldsro")
+theme_override_font_sizes/font_size = 7
+text = "[7]"
+horizontal_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="MarginContainer5" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/HBox_Numbers"]
+custom_minimum_size = Vector2(6, 0)
+layout_mode = 2
+
+[node name="Port_Label8" type="Label" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/HBox_Numbers"]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
+theme_override_fonts/font = SubResource("FontVariation_ldsro")
+theme_override_font_sizes/font_size = 7
+text = "[8]"
+horizontal_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="MarginContainer6" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/HBox_Numbers"]
+custom_minimum_size = Vector2(6, 0)
+layout_mode = 2
+
+[node name="Port_Label9" type="Label" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/HBox_Numbers"]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
+theme_override_fonts/font = SubResource("FontVariation_ldsro")
+theme_override_font_sizes/font_size = 7
+text = "[9]"
+horizontal_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="MarginContainer7" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/HBox_Numbers"]
+custom_minimum_size = Vector2(6, 0)
+layout_mode = 2
+
+[node name="Port_Label10" type="Label" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/HBox_Numbers"]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
+theme_override_fonts/font = SubResource("FontVariation_ldsro")
+theme_override_font_sizes/font_size = 7
+text = "[0]"
+horizontal_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="Titles_Panel" type="Panel" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel"]
 layout_mode = 1
 anchors_preset = -1
 anchor_top = -0.23333345
@@ -555,13 +1186,49 @@ anchor_bottom = 1.0
 theme_override_styles/panel = SubResource("StyleBoxFlat_rblt2")
 metadata/_edit_use_anchors_ = true
 
-[node name="Label" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/BoundW_Panel/Infra_Panel"]
-show_behind_parent = true
+[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/Titles_Panel"]
 layout_mode = 1
 anchors_preset = -1
-anchor_top = 0.024691358
-anchor_right = 1.0
-anchor_bottom = 0.20270285
+anchor_left = 0.0013333333
+anchor_right = 0.99866664
+anchor_bottom = 0.21621619
+metadata/_edit_use_anchors_ = true
+
+[node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/Titles_Panel/HBoxContainer"]
+custom_minimum_size = Vector2(110, 0)
+layout_mode = 2
+
+[node name="Label" type="Label" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/Titles_Panel/HBoxContainer"]
+show_behind_parent = true
+layout_mode = 2
+theme_override_fonts/font = SubResource("FontVariation_rblt2")
+theme_override_font_sizes/font_size = 8
+text = "Infrastructure"
+horizontal_alignment = 1
+vertical_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="MarginContainer2" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/Titles_Panel/HBoxContainer"]
+custom_minimum_size = Vector2(165, 0)
+layout_mode = 2
+
+[node name="Label2" type="Label" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/Titles_Panel/HBoxContainer"]
+show_behind_parent = true
+layout_mode = 2
+theme_override_fonts/font = SubResource("FontVariation_rblt2")
+theme_override_font_sizes/font_size = 8
+text = "Action"
+horizontal_alignment = 1
+vertical_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="MarginContainer3" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/Titles_Panel/HBoxContainer"]
+custom_minimum_size = Vector2(185, 0)
+layout_mode = 2
+
+[node name="Label3" type="Label" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/Titles_Panel/HBoxContainer"]
+show_behind_parent = true
+layout_mode = 2
 theme_override_fonts/font = SubResource("FontVariation_rblt2")
 theme_override_font_sizes/font_size = 8
 text = "Wartime"
@@ -836,14 +1503,29 @@ offset_bottom = 90.0
 texture = ExtResource("13_lwvql")
 expand_mode = 1
 
-[node name="Large_Shadow" type="Panel" parent="CanvasLayer/Main_Control"]
-layout_mode = 1
-anchors_preset = -1
+[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/Main_Control"]
+layout_mode = 0
 anchor_top = 0.9444444
 anchor_right = 1.0
 anchor_bottom = 1.0
-theme_override_styles/panel = ExtResource("4_ewirb")
+theme_override_constants/separation = 0
+alignment = 1
 metadata/_edit_use_anchors_ = true
+
+[node name="Hud_Shadow3" type="Panel" parent="CanvasLayer/Main_Control/HBoxContainer"]
+custom_minimum_size = Vector2(585, 0)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_4aj2s")
+
+[node name="Hud_Shadow" type="Panel" parent="CanvasLayer/Main_Control/HBoxContainer"]
+custom_minimum_size = Vector2(750, 0)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_kthhr")
+
+[node name="Hud_Shadow2" type="Panel" parent="CanvasLayer/Main_Control/HBoxContainer"]
+custom_minimum_size = Vector2(585, 0)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_4aj2s")
 
 [node name="Large_Rec" type="ColorRect" parent="CanvasLayer/Main_Control"]
 material = SubResource("ShaderMaterial_n3xjr")
@@ -871,6 +1553,54 @@ offset_bottom = -27867.0
 grow_horizontal = 2
 grow_vertical = 0
 alignment = 1
+
+[node name="FuckedRatio_Control" type="Control" parent="CanvasLayer/Main_Control/HBox_Info"]
+custom_minimum_size = Vector2(350, 0)
+layout_mode = 2
+
+[node name="GradientRect" type="TextureRect" parent="CanvasLayer/Main_Control/HBox_Info/FuckedRatio_Control"]
+visible = false
+material = SubResource("ShaderMaterial_ta2ko")
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.05142857
+anchor_top = 0.20754717
+anchor_right = 0.9085714
+anchor_bottom = 0.7735849
+offset_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("22_7tbuw")
+expand_mode = 1
+script = ExtResource("19_vekao")
+metadata/_edit_use_anchors_ = true
+
+[node name="LineIndicator" type="ColorRect" parent="CanvasLayer/Main_Control/HBox_Info/FuckedRatio_Control/GradientRect"]
+material = SubResource("ShaderMaterial_vekao")
+custom_minimum_size = Vector2(2, 0)
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 149.0
+offset_right = -149.0
+offset_bottom = 30.0
+grow_horizontal = 2
+
+[node name="Panel_Pop" type="Panel" parent="CanvasLayer/Main_Control/HBox_Info/FuckedRatio_Control/GradientRect"]
+show_behind_parent = true
+layout_mode = 1
+anchors_preset = -1
+anchor_left = -0.083333336
+anchor_top = -0.06451635
+anchor_bottom = 1.1774191
+offset_bottom = -3.5
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("StyleBoxFlat_vekao")
+metadata/_edit_use_anchors_ = true
+
+[node name="MarginContainer4" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_Info"]
+custom_minimum_size = Vector2(10, 0)
+layout_mode = 2
 
 [node name="Panel_Pop" type="Panel" parent="CanvasLayer/Main_Control/HBox_Info"]
 custom_minimum_size = Vector2(350, 35)
@@ -918,7 +1648,7 @@ horizontal_alignment = 2
 vertical_alignment = 1
 
 [node name="MarginContainer2" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_Info"]
-custom_minimum_size = Vector2(60, 0)
+custom_minimum_size = Vector2(25, 0)
 layout_mode = 2
 
 [node name="Panel_Notif" type="Panel" parent="CanvasLayer/Main_Control/HBox_Info"]
@@ -938,7 +1668,7 @@ horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_Info"]
-custom_minimum_size = Vector2(60, 0)
+custom_minimum_size = Vector2(25, 0)
 layout_mode = 2
 
 [node name="Panel_Cur" type="Panel" parent="CanvasLayer/Main_Control/HBox_Info"]
@@ -954,7 +1684,7 @@ anchor_left = 0.025714263
 anchor_top = 0.057142857
 anchor_right = 0.67142874
 anchor_bottom = 1.0000001
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.09803922)
+theme_override_colors/font_color = Color(18.892, 18.892, 18.892, 0.098)
 theme_override_fonts/font = SubResource("FontVariation_tepi4")
 theme_override_font_sizes/font_size = 16
 text = "Cash"
@@ -983,6 +1713,163 @@ theme_override_font_sizes/font_size = 14
 text = "+115,750/m"
 horizontal_alignment = 2
 vertical_alignment = 1
+
+[node name="MarginContainer3" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_Info"]
+custom_minimum_size = Vector2(10, 0)
+layout_mode = 2
+
+[node name="Leader_Panel" type="Panel" parent="CanvasLayer/Main_Control/HBox_Info"]
+custom_minimum_size = Vector2(360, 50)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_styles/panel = ExtResource("10_tqtv8")
+
+[node name="Place_Panel" type="Panel" parent="CanvasLayer/Main_Control/HBox_Info/Leader_Panel"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.0057142857
+anchor_top = 0.04
+anchor_right = 0.10285714
+anchor_bottom = 0.96
+offset_left = -1.3828278e-05
+offset_right = -1.5258789e-05
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("StyleBoxFlat_ldsro")
+metadata/_edit_use_anchors_ = true
+
+[node name="Label" type="Label" parent="CanvasLayer/Main_Control/HBox_Info/Leader_Panel/Place_Panel"]
+layout_mode = 1
+anchors_preset = -1
+anchor_right = 0.9705882
+anchor_bottom = 0.99999994
+theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.33333334)
+theme_override_fonts/font = SubResource("FontVariation_gjm0y")
+theme_override_font_sizes/font_size = 11
+text = "1st"
+horizontal_alignment = 1
+vertical_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBox_Info/Leader_Panel"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.114285715
+anchor_top = 0.1
+anchor_right = 0.98285717
+anchor_bottom = 0.9
+metadata/_edit_use_anchors_ = true
+
+[node name="TextureRect" type="TextureRect" parent="CanvasLayer/Main_Control/HBox_Info/Leader_Panel/HBoxContainer"]
+material = SubResource("ShaderMaterial_4aj2s")
+custom_minimum_size = Vector2(40, 40)
+layout_mode = 2
+texture = ExtResource("20_ldsro")
+expand_mode = 1
+
+[node name="Panel" type="Panel" parent="CanvasLayer/Main_Control/HBox_Info/Leader_Panel/HBoxContainer"]
+custom_minimum_size = Vector2(1, 0)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_xffgh")
+
+[node name="MarginContainer2" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_Info/Leader_Panel/HBoxContainer"]
+layout_mode = 2
+
+[node name="TextureRect2" type="TextureRect" parent="CanvasLayer/Main_Control/HBox_Info/Leader_Panel/HBoxContainer"]
+material = SubResource("ShaderMaterial_gjm0y")
+custom_minimum_size = Vector2(40, 40)
+layout_mode = 2
+texture = ExtResource("21_gjm0y")
+expand_mode = 1
+
+[node name="TextureRect3" type="TextureRect" parent="CanvasLayer/Main_Control/HBox_Info/Leader_Panel/HBoxContainer"]
+material = SubResource("ShaderMaterial_gjm0y")
+custom_minimum_size = Vector2(40, 40)
+layout_mode = 2
+texture = ExtResource("22_7tbuw")
+expand_mode = 1
+
+[node name="TextureRect4" type="TextureRect" parent="CanvasLayer/Main_Control/HBox_Info/Leader_Panel/HBoxContainer"]
+material = SubResource("ShaderMaterial_gjm0y")
+custom_minimum_size = Vector2(40, 40)
+layout_mode = 2
+texture = ExtResource("23_1jx2k")
+expand_mode = 1
+
+[node name="TextureRect5" type="TextureRect" parent="CanvasLayer/Main_Control/HBox_Info/Leader_Panel/HBoxContainer"]
+material = SubResource("ShaderMaterial_gjm0y")
+custom_minimum_size = Vector2(40, 40)
+layout_mode = 2
+texture = ExtResource("24_xp78s")
+expand_mode = 1
+
+[node name="TextureRect6" type="TextureRect" parent="CanvasLayer/Main_Control/HBox_Info/Leader_Panel/HBoxContainer"]
+material = SubResource("ShaderMaterial_gjm0y")
+custom_minimum_size = Vector2(40, 40)
+layout_mode = 2
+texture = ExtResource("25_xffgh")
+expand_mode = 1
+
+[node name="TextureRect7" type="TextureRect" parent="CanvasLayer/Main_Control/HBox_Info/Leader_Panel/HBoxContainer"]
+material = SubResource("ShaderMaterial_gjm0y")
+custom_minimum_size = Vector2(40, 40)
+layout_mode = 2
+texture = ExtResource("26_ta2ko")
+expand_mode = 1
+
+[node name="VBox_Misc" type="VBoxContainer" parent="CanvasLayer/Main_Control/HBox_Info/Leader_Panel"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 10.0147085
+anchor_top = 0.04347826
+anchor_right = 10.071848
+anchor_bottom = 0.95652175
+offset_left = -3241.647
+offset_top = 1.826087
+offset_right = -3241.647
+offset_bottom = 1.826088
+theme_override_constants/separation = 0
+alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="Settings_Button" type="Button" parent="CanvasLayer/Main_Control/HBox_Info/Leader_Panel/VBox_Misc"]
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+theme_override_styles/normal = ExtResource("23_7tbuw")
+theme_override_styles/pressed = ExtResource("24_4aj2s")
+theme_override_styles/hover = ExtResource("25_p1vly")
+icon_alignment = 1
+
+[node name="TextureRect" type="TextureRect" parent="CanvasLayer/Main_Control/HBox_Info/Leader_Panel/VBox_Misc/Settings_Button"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.25
+anchor_top = 0.25
+anchor_right = 0.7499878
+anchor_bottom = 0.75
+texture = ExtResource("30_xp78s")
+expand_mode = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_Info/Leader_Panel/VBox_Misc"]
+custom_minimum_size = Vector2(0, 2)
+layout_mode = 2
+
+[node name="Exit_Button" type="Button" parent="CanvasLayer/Main_Control/HBox_Info/Leader_Panel/VBox_Misc"]
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+theme_override_styles/normal = ExtResource("23_7tbuw")
+theme_override_styles/pressed = ExtResource("24_4aj2s")
+theme_override_styles/hover = ExtResource("25_p1vly")
+
+[node name="TextureRect" type="TextureRect" parent="CanvasLayer/Main_Control/HBox_Info/Leader_Panel/VBox_Misc/Exit_Button"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.25
+anchor_top = 0.225
+anchor_right = 0.7499878
+anchor_bottom = 0.775
+texture = ExtResource("31_xffgh")
+metadata/_edit_use_anchors_ = true
 
 [node name="Misc_Control" type="Control" parent="CanvasLayer/Main_Control"]
 visible = false
