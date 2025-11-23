@@ -1,5 +1,10 @@
 extends Button
 
+# === Popup text lines for the info panel ===
+@export var line1: String = ""
+@export var line2: String = ""
+@export var line3: String = ""
+
 # How far the button jumps on hover (negative = up)
 @export var hover_offset_y: float = -16.0
 @export var hover_duration: float = 0.12
@@ -13,7 +18,7 @@ var move_tween: Tween
 
 
 func _ready() -> void:
-    # Save starting position (inside its wrapper Control/CenterContainer)
+    # Save starting position (inside its wrapper Control)
     base_position = position
 
     # Connect signals in code so you don't have to use the editor

@@ -1,10 +1,11 @@
-[gd_scene load_steps=93 format=3 uid="uid://bvf7xj3oe6l6e"]
+[gd_scene load_steps=94 format=3 uid="uid://bvf7xj3oe6l6e"]
 
 [ext_resource type="Material" uid="uid://b33g2hecf433j" path="res://territory_shader.tres" id="1_8bxg0"]
 [ext_resource type="Texture2D" uid="uid://cxnyt7kxbwa6y" path="res://4639f7a3-5bf0-4561-8cb8-9831959b396b.png" id="1_ieay5"]
 [ext_resource type="Script" uid="uid://b03prub72qvax" path="res://Camera.cs" id="2_rft6w"]
 [ext_resource type="Shader" uid="uid://ccrx2iq3onidj" path="res://blurroundcorn.gdshader" id="4_enfkb"]
 [ext_resource type="Shader" uid="uid://xuspxhp7k1eb" path="res://blur.gdshader" id="4_itarl"]
+[ext_resource type="Script" uid="uid://5k1716wrxjer" path="res://main_control.gd" id="4_pdu2b"]
 [ext_resource type="Script" uid="uid://bbf0lhb2yu8x6" path="res://hoveroverhaul.gd" id="4_xc0m3"]
 [ext_resource type="Texture2D" uid="uid://qepctrj10e6q" path="res://ui/buttons/port.svg" id="6_xc0m3"]
 [ext_resource type="Texture2D" uid="uid://b08ul63hc75jg" path="res://ui/buttons/city.svg" id="7_04lhv"]
@@ -23,9 +24,9 @@
 [ext_resource type="Texture2D" uid="uid://40h5s8o5klqq" path="res://ui/speed2.svg" id="14_fuftb"]
 [ext_resource type="FontFile" uid="uid://r2ps7q3ddsib" path="res://fonts/HWYGWDE.TTF" id="14_tepi4"]
 [ext_resource type="Texture2D" uid="uid://bvan8mgxhs4a0" path="res://ui/speed3.svg" id="15_ddwe0"]
-[ext_resource type="Shader" uid="uid://di1rymha5s5c3" path="res://ratio_grad.gdshader" id="17_ta2ko"]
+[ext_resource type="Script" uid="uid://dcuc4uj2tiy8r" path="res://splitslider.gd" id="17_ta2ko"]
 [ext_resource type="Shader" uid="uid://d3sknjps5xcvh" path="res://leadericons.gdshader" id="19_fbxuu"]
-[ext_resource type="Script" uid="uid://2511x8khnyhh" path="res://gradient_script.gd" id="19_vekao"]
+[ext_resource type="Texture2D" uid="uid://cpw4o088f2wj3" path="res://ui/attack.svg" id="19_vekao"]
 [ext_resource type="Script" uid="uid://c6gb3sv8bmm6b" path="res://chat.gd" id="20_04lhv"]
 [ext_resource type="Texture2D" uid="uid://v3vqee3p0pap" path="res://ui/aiden.jpg" id="20_ldsro"]
 [ext_resource type="Texture2D" uid="uid://cihixy1h635as" path="res://ui/justin.jpg" id="21_gjm0y"]
@@ -43,26 +44,6 @@
 [ext_resource type="Texture2D" uid="uid://cjpjwtye5wlx6" path="res://ui/settings.svg" id="30_xp78s"]
 [ext_resource type="Texture2D" uid="uid://bbnn05qkyvu5i" path="res://ui/exit.svg" id="31_xffgh"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ok40o"]
-bg_color = Color(0, 0, 0, 0.29411766)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_color = Color(2.0507386, 2.0507386, 2.0507386, 0.05490196)
-border_blend = true
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-
-[sub_resource type="FontVariation" id="FontVariation_ok40o"]
-variation_transform = Transform2D(1, 0.165, 0, 1.28, 0, 0)
-spacing_glyph = 1
-
-[sub_resource type="FontVariation" id="FontVariation_o10ms"]
-variation_transform = Transform2D(1, 0, 0, 1.28, 0, 0)
-spacing_glyph = 1
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_fbxuu"]
-
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_rblt2"]
 bg_color = Color(0, 0, 0, 0.29411766)
 border_width_left = 2
@@ -73,38 +54,10 @@ border_blend = true
 corner_radius_top_left = 6
 corner_radius_top_right = 6
 
-[sub_resource type="FontVariation" id="FontVariation_rblt2"]
+[sub_resource type="FontVariation" id="FontVariation_ta2ko"]
 variation_transform = Transform2D(1, 0.14, 0, 1.225, 0, 0)
-spacing_glyph = 1
+spacing_glyph = 2
 spacing_bottom = -2
-
-[sub_resource type="FontVariation" id="FontVariation_fbxuu"]
-variation_transform = Transform2D(1, 0, 0, 1.28, 0, 0)
-spacing_glyph = 1
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_o10ms"]
-bg_color = Color(0.56842285, 0.13662893, 0, 0.29411766)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_color = Color(2.0507386, 2.0507386, 2.0507386, 0.05490196)
-border_blend = true
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-
-[sub_resource type="FontVariation" id="FontVariation_ldsro"]
-variation_transform = Transform2D(1, 0, 0, 1.28, 0, 0)
-spacing_glyph = 1
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_fbxuu"]
-bg_color = Color(0.35385472, 3.134515e-06, 1.889132e-06, 0.29411766)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_color = Color(2.0507386, 2.0507386, 2.0507386, 0.05490196)
-border_blend = true
-corner_radius_top_left = 6
-corner_radius_top_right = 6
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_p1vly"]
 bg_color = Color(0, 0, 0, 0.29411766)
@@ -121,6 +74,28 @@ shader_parameter/darken_amount = 1.0
 shader_parameter/noise_strength = 0.01600000076
 shader_parameter/grain_scale = 150.0
 shader_parameter/noise_speed = 0.0
+
+[sub_resource type="FontVariation" id="FontVariation_ok40o"]
+variation_transform = Transform2D(1, 0.165, 0, 1.28, 0, 0)
+spacing_glyph = 1
+
+[sub_resource type="FontVariation" id="FontVariation_rblt2"]
+variation_transform = Transform2D(1, 0.14, 0, 1.295, 0, 0)
+spacing_glyph = 1
+spacing_top = 2
+spacing_bottom = -2
+
+[sub_resource type="FontVariation" id="FontVariation_o10ms"]
+variation_transform = Transform2D(1, 0, 0, 1.28, 0, 0)
+spacing_glyph = 1
+
+[sub_resource type="FontVariation" id="FontVariation_fbxuu"]
+variation_transform = Transform2D(1, 0, 0, 1.28, 0, 0)
+spacing_glyph = 1
+
+[sub_resource type="FontVariation" id="FontVariation_ldsro"]
+variation_transform = Transform2D(1, 0, 0, 1.28, 0, 0)
+spacing_glyph = 1
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_ddwe0"]
 
@@ -277,11 +252,6 @@ draw_center = false
 shadow_color = Color(0, 0, 0, 0.19607843)
 shadow_size = 20
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_kthhr"]
-draw_center = false
-shadow_color = Color(0, 0, 0, 0.43137255)
-shadow_size = 20
-
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_n3xjr"]
 shader = ExtResource("4_itarl")
 shader_parameter/blur_amount = 2.6000001235
@@ -290,23 +260,7 @@ shader_parameter/noise_strength = 0.01600000076
 shader_parameter/grain_scale = 150.0
 shader_parameter/noise_speed = 0.0
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_ta2ko"]
-shader = ExtResource("17_ta2ko")
-shader_parameter/rect_size_px = Vector2(300, 40)
-shader_parameter/border_thickness_px = 0.0
-shader_parameter/border_color = Color(0.86369616, 0.86369616, 0.86369616, 1)
-shader_parameter/left_dark_color = Color(0.99988943, 0.41802827, 0.35451728, 1)
-shader_parameter/left_light_color = Color(0.012617188, 0.00093636644, 0.00055181305, 1)
-shader_parameter/right_dark_color = Color(2.1418184e-06, 0.702974, 5.7756904e-07, 1)
-shader_parameter/right_light_color = Color(0, 0, 0, 1)
-shader_parameter/line_pos = 0.50000002375
-shader_parameter/center_light_strength = 0.6550000311125
-shader_parameter/center_light_width = 0.5
-shader_parameter/panel_alpha = 1.0
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_vekao"]
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_vekao"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ta2ko"]
 bg_color = Color(0, 0, 0, 0.29411766)
 border_width_left = 2
 border_width_top = 2
@@ -318,6 +272,34 @@ corner_radius_top_left = 6
 corner_radius_top_right = 6
 corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_vekao"]
+bg_color = Color(0.03741204, 0.3467331, 0.6177336, 0.1764706)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(2.051, 2.051, 2.051, 0.055)
+border_blend = true
+corner_radius_top_left = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pdu2b"]
+bg_color = Color(0.02782452, 0.027824532, 0.027824508, 0.1764706)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(2.051, 2.051, 2.051, 0.055)
+border_blend = true
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+
+[sub_resource type="FontVariation" id="FontVariation_vekao"]
+variation_transform = Transform2D(1, 0.14, 0, 1.74, 0, 0)
+spacing_glyph = 2
+spacing_top = 2
+spacing_bottom = -2
 
 [sub_resource type="FontVariation" id="FontVariation_tepi4"]
 variation_transform = Transform2D(1.005, 0.31, 0, 1.385, 0, 0)
@@ -343,7 +325,7 @@ border_blend = true
 corner_radius_top_left = 6
 corner_radius_bottom_left = 6
 
-[sub_resource type="FontVariation" id="FontVariation_gjm0y"]
+[sub_resource type="FontVariation" id="FontVariation_pdu2b"]
 variation_transform = Transform2D(1, 0.085, 0, 1.33, 0, 0)
 spacing_top = 3
 
@@ -354,7 +336,7 @@ shader_parameter/edge_softness_px = 2.000000095
 shader_parameter/panel_alpha = 0.90000004275
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_xffgh"]
-bg_color = Color(2.0507386, 2.0507386, 2.0507386, 0.09803922)
+bg_color = Color(2.0507386, 2.0507386, 2.0507386, 0.30588236)
 corner_radius_top_left = 1
 corner_radius_top_right = 1
 corner_radius_bottom_right = 1
@@ -367,6 +349,11 @@ shader = ExtResource("19_fbxuu")
 shader_parameter/corner_radius_px = 24.0
 shader_parameter/edge_softness_px = 2.0
 shader_parameter/panel_alpha = 0.90000004275
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_kthhr"]
+draw_center = false
+shadow_color = Color(0, 0, 0, 0.43137255)
+shadow_size = 20
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_xc0m3"]
 shader = ExtResource("4_enfkb")
@@ -403,6 +390,22 @@ corner_radius_bottom_left = 4
 corner_detail = 6
 shadow_color = Color(1, 1, 1, 0.47058824)
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ejj3t"]
+bg_color = Color(0, 0, 0, 0.42352942)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(2.051, 2.051, 2.051, 0.055)
+border_blend = true
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="FontVariation" id="FontVariation_urls0"]
+base_font = ExtResource("14_tepi4")
+
 [node name="Node2D" type="Node2D"]
 
 [node name="Bounds" type="ColorRect" parent="."]
@@ -414,8 +417,8 @@ offset_bottom = 633.0
 
 [node name="Map" type="Sprite2D" parent="."]
 material = ExtResource("1_8bxg0")
-position = Vector2(961.7032, 540)
-scale = Vector2(2.2978723, 2.2978723)
+position = Vector2(959.99994, 540)
+scale = Vector2(2.7004218, 2.2978723)
 texture = ExtResource("1_ieay5")
 
 [node name="Camera2D" type="Camera2D" parent="." node_paths=PackedStringArray("Bounds")]
@@ -432,31 +435,89 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+script = ExtResource("4_pdu2b")
+popup_offset_y = 33.0
 
-[node name="HBox_BHud" type="HBoxContainer" parent="CanvasLayer/Main_Control"]
-visible = false
+[node name="HBox_AHudTEST" type="HBoxContainer" parent="CanvasLayer/Main_Control"]
 layout_mode = 0
-offset_top = 960.0
+offset_top = 970.0
 offset_right = 1920.0
 offset_bottom = 1020.0
-alignment = 1
 
-[node name="In_Panel" type="Panel" parent="CanvasLayer/Main_Control/HBox_BHud"]
-custom_minimum_size = Vector2(265, 0)
+[node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_AHudTEST"]
+custom_minimum_size = Vector2(10, 0)
 layout_mode = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_ok40o")
 
-[node name="HBox_Names" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBox_BHud/In_Panel"]
+[node name="Ratio_Control" type="Control" parent="CanvasLayer/Main_Control/HBox_AHudTEST"]
+custom_minimum_size = Vector2(380, 0)
+layout_mode = 2
+
+[node name="Titles_Panel" type="Panel" parent="CanvasLayer/Main_Control/HBox_AHudTEST/Ratio_Control"]
 layout_mode = 1
 anchors_preset = -1
-anchor_top = 0.027083334
+anchor_top = 0.6599999
 anchor_right = 1.0
-anchor_bottom = 0.25729167
-offset_bottom = -0.8125
+anchor_bottom = 0.99999994
+theme_override_styles/panel = SubResource("StyleBoxFlat_rblt2")
+metadata/_edit_use_anchors_ = true
+
+[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBox_AHudTEST/Ratio_Control/Titles_Panel"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.0013333333
+anchor_top = 0.11111108
+anchor_right = 0.99866664
+anchor_bottom = 1.0
 alignment = 1
 metadata/_edit_use_anchors_ = true
 
-[node name="Port_Label" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/In_Panel/HBox_Names"]
+[node name="Label2" type="Label" parent="CanvasLayer/Main_Control/HBox_AHudTEST/Ratio_Control/Titles_Panel/HBoxContainer"]
+show_behind_parent = true
+layout_mode = 2
+theme_override_fonts/font = SubResource("FontVariation_ta2ko")
+theme_override_font_sizes/font_size = 8
+text = "Attack Ratio"
+horizontal_alignment = 1
+vertical_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="MarginContainer2" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_AHudTEST"]
+custom_minimum_size = Vector2(183, 0)
+layout_mode = 2
+
+[node name="In_Panel" type="Panel" parent="CanvasLayer/Main_Control/HBox_AHudTEST"]
+custom_minimum_size = Vector2(750, 0)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_p1vly")
+
+[node name="Hud_Rec" type="ColorRect" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel"]
+material = SubResource("ShaderMaterial_ldsro")
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.0026666666
+anchor_top = 0.016666286
+anchor_right = 0.99733335
+anchor_bottom = 1.0
+offset_top = 2.2888184e-05
+offset_bottom = 2.2888184e-05
+grow_horizontal = 2
+grow_vertical = 2
+metadata/_edit_use_anchors_ = true
+
+[node name="HBox_Names" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel"]
+layout_mode = 1
+anchors_preset = -1
+anchor_top = 0.04708333
+anchor_right = 1.0
+anchor_bottom = 0.32333332
+offset_bottom = -0.8125
+metadata/_edit_use_anchors_ = true
+
+[node name="MarginContainer8" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names"]
+custom_minimum_size = Vector2(25, 0)
+layout_mode = 2
+
+[node name="Port_Label" type="Label" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names"]
 custom_minimum_size = Vector2(50, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
@@ -466,11 +527,11 @@ text = "Port"
 horizontal_alignment = 1
 metadata/_edit_use_anchors_ = true
 
-[node name="MarginContainer2" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_BHud/In_Panel/HBox_Names"]
-custom_minimum_size = Vector2(5, 0)
+[node name="MarginContainer2" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names"]
+custom_minimum_size = Vector2(6, 0)
 layout_mode = 2
 
-[node name="Port_Label2" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/In_Panel/HBox_Names"]
+[node name="Port_Label2" type="Label" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names"]
 custom_minimum_size = Vector2(50, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
@@ -480,11 +541,11 @@ text = "City"
 horizontal_alignment = 1
 metadata/_edit_use_anchors_ = true
 
-[node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_BHud/In_Panel/HBox_Names"]
-custom_minimum_size = Vector2(5, 0)
+[node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names"]
+custom_minimum_size = Vector2(6, 0)
 layout_mode = 2
 
-[node name="Port_Label3" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/In_Panel/HBox_Names"]
+[node name="Port_Label3" type="Label" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names"]
 custom_minimum_size = Vector2(50, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
@@ -494,11 +555,11 @@ text = "Factory"
 horizontal_alignment = 1
 metadata/_edit_use_anchors_ = true
 
-[node name="MarginContainer3" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_BHud/In_Panel/HBox_Names"]
-custom_minimum_size = Vector2(5, 0)
+[node name="MarginContainer3" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names"]
+custom_minimum_size = Vector2(6, 0)
 layout_mode = 2
 
-[node name="Port_Label4" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/In_Panel/HBox_Names"]
+[node name="Port_Label4" type="Label" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names"]
 custom_minimum_size = Vector2(50, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
@@ -508,112 +569,11 @@ text = "Defense"
 horizontal_alignment = 1
 metadata/_edit_use_anchors_ = true
 
-[node name="HBox_Numbers" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBox_BHud/In_Panel"]
-layout_mode = 1
-anchors_preset = -1
-anchor_top = 0.22708334
-anchor_right = 1.0
-anchor_bottom = 0.45729166
-offset_bottom = -0.8125
-alignment = 1
-metadata/_edit_use_anchors_ = true
-
-[node name="Port_Label" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/In_Panel/HBox_Numbers"]
-custom_minimum_size = Vector2(50, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
-theme_override_fonts/font = SubResource("FontVariation_o10ms")
-theme_override_font_sizes/font_size = 7
-text = "[1]"
-horizontal_alignment = 1
-metadata/_edit_use_anchors_ = true
-
-[node name="MarginContainer2" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_BHud/In_Panel/HBox_Numbers"]
-custom_minimum_size = Vector2(5, 0)
+[node name="MarginContainer9" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names"]
+custom_minimum_size = Vector2(38, 0)
 layout_mode = 2
 
-[node name="Port_Label2" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/In_Panel/HBox_Numbers"]
-custom_minimum_size = Vector2(50, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
-theme_override_fonts/font = SubResource("FontVariation_o10ms")
-theme_override_font_sizes/font_size = 7
-text = "[2]"
-horizontal_alignment = 1
-metadata/_edit_use_anchors_ = true
-
-[node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_BHud/In_Panel/HBox_Numbers"]
-custom_minimum_size = Vector2(5, 0)
-layout_mode = 2
-
-[node name="Port_Label3" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/In_Panel/HBox_Numbers"]
-custom_minimum_size = Vector2(50, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
-theme_override_fonts/font = SubResource("FontVariation_o10ms")
-theme_override_font_sizes/font_size = 7
-text = "[3]"
-horizontal_alignment = 1
-metadata/_edit_use_anchors_ = true
-
-[node name="MarginContainer3" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_BHud/In_Panel/HBox_Numbers"]
-custom_minimum_size = Vector2(5, 0)
-layout_mode = 2
-
-[node name="Port_Label4" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/In_Panel/HBox_Numbers"]
-custom_minimum_size = Vector2(50, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
-theme_override_fonts/font = SubResource("FontVariation_o10ms")
-theme_override_font_sizes/font_size = 7
-text = "[4]"
-horizontal_alignment = 1
-metadata/_edit_use_anchors_ = true
-
-[node name="InTitle_Panel" type="Panel" parent="CanvasLayer/Main_Control/HBox_BHud/In_Panel"]
-material = SubResource("ShaderMaterial_fbxuu")
-layout_mode = 1
-anchors_preset = -1
-anchor_top = -0.23333345
-anchor_right = 1.0
-anchor_bottom = 1.0
-theme_override_styles/panel = SubResource("StyleBoxFlat_rblt2")
-metadata/_edit_use_anchors_ = true
-
-[node name="Label" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/In_Panel/InTitle_Panel"]
-show_behind_parent = true
-layout_mode = 1
-anchors_preset = -1
-anchor_top = 0.024691358
-anchor_right = 1.0
-anchor_bottom = 0.20270285
-theme_override_fonts/font = SubResource("FontVariation_rblt2")
-theme_override_font_sizes/font_size = 8
-text = "Infrastructure"
-horizontal_alignment = 1
-vertical_alignment = 1
-metadata/_edit_use_anchors_ = true
-
-[node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_BHud"]
-custom_minimum_size = Vector2(10, 0)
-layout_mode = 2
-
-[node name="Action_Panel" type="Panel" parent="CanvasLayer/Main_Control/HBox_BHud"]
-custom_minimum_size = Vector2(150, 0)
-layout_mode = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_ok40o")
-
-[node name="HBox_Names" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBox_BHud/Action_Panel"]
-layout_mode = 1
-anchors_preset = -1
-anchor_top = 0.027083334
-anchor_right = 1.0
-anchor_bottom = 0.25729167
-offset_bottom = -0.8125
-alignment = 1
-metadata/_edit_use_anchors_ = true
-
-[node name="Port_Label" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/Action_Panel/HBox_Names"]
+[node name="Port_Label5" type="Label" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names"]
 custom_minimum_size = Vector2(50, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
@@ -623,11 +583,11 @@ text = "Silo"
 horizontal_alignment = 1
 metadata/_edit_use_anchors_ = true
 
-[node name="MarginContainer2" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_BHud/Action_Panel/HBox_Names"]
-custom_minimum_size = Vector2(5, 0)
+[node name="MarginContainer4" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names"]
+custom_minimum_size = Vector2(6, 0)
 layout_mode = 2
 
-[node name="Port_Label2" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/Action_Panel/HBox_Names"]
+[node name="Port_Label6" type="Label" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names"]
 custom_minimum_size = Vector2(50, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
@@ -637,84 +597,11 @@ text = "Sam"
 horizontal_alignment = 1
 metadata/_edit_use_anchors_ = true
 
-[node name="HBox_Numbers" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBox_BHud/Action_Panel"]
-layout_mode = 1
-anchors_preset = -1
-anchor_top = 0.19375
-anchor_right = 1.0
-anchor_bottom = 0.42395833
-offset_top = 2.0
-offset_bottom = 1.1875
-alignment = 1
-metadata/_edit_use_anchors_ = true
-
-[node name="Port_Label" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/Action_Panel/HBox_Numbers"]
-custom_minimum_size = Vector2(50, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
-theme_override_fonts/font = SubResource("FontVariation_fbxuu")
-theme_override_font_sizes/font_size = 7
-text = "[5]"
-horizontal_alignment = 1
-metadata/_edit_use_anchors_ = true
-
-[node name="MarginContainer2" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_BHud/Action_Panel/HBox_Numbers"]
-custom_minimum_size = Vector2(5, 0)
+[node name="MarginContainer10" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names"]
+custom_minimum_size = Vector2(40, 0)
 layout_mode = 2
 
-[node name="Port_Label2" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/Action_Panel/HBox_Numbers"]
-custom_minimum_size = Vector2(50, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
-theme_override_fonts/font = SubResource("FontVariation_fbxuu")
-theme_override_font_sizes/font_size = 7
-text = "[6]"
-horizontal_alignment = 1
-metadata/_edit_use_anchors_ = true
-
-[node name="Infra_Panel" type="Panel" parent="CanvasLayer/Main_Control/HBox_BHud/Action_Panel"]
-layout_mode = 1
-anchors_preset = -1
-anchor_top = -0.23333345
-anchor_right = 1.0
-anchor_bottom = 1.0
-theme_override_styles/panel = SubResource("StyleBoxFlat_o10ms")
-metadata/_edit_use_anchors_ = true
-
-[node name="Label" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/Action_Panel/Infra_Panel"]
-show_behind_parent = true
-layout_mode = 1
-anchors_preset = -1
-anchor_top = 0.024691358
-anchor_right = 1.0
-anchor_bottom = 0.20270285
-theme_override_fonts/font = SubResource("FontVariation_rblt2")
-theme_override_font_sizes/font_size = 8
-text = "Action"
-horizontal_alignment = 1
-vertical_alignment = 1
-metadata/_edit_use_anchors_ = true
-
-[node name="MarginContainer2" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_BHud"]
-custom_minimum_size = Vector2(10, 0)
-layout_mode = 2
-
-[node name="Wartime_Panel" type="Panel" parent="CanvasLayer/Main_Control/HBox_BHud"]
-custom_minimum_size = Vector2(265, 0)
-layout_mode = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_ok40o")
-
-[node name="HBox_Names" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBox_BHud/Wartime_Panel"]
-layout_mode = 1
-anchors_preset = -1
-anchor_top = 0.027083334
-anchor_right = 1.0
-anchor_bottom = 0.25729167
-offset_bottom = -0.8125
-alignment = 1
-metadata/_edit_use_anchors_ = true
-
-[node name="Port_Label" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/Wartime_Panel/HBox_Names"]
+[node name="Port_Label7" type="Label" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names"]
 custom_minimum_size = Vector2(50, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
@@ -724,11 +611,11 @@ text = "Warship"
 horizontal_alignment = 1
 metadata/_edit_use_anchors_ = true
 
-[node name="MarginContainer2" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_BHud/Wartime_Panel/HBox_Names"]
-custom_minimum_size = Vector2(5, 0)
+[node name="MarginContainer5" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names"]
+custom_minimum_size = Vector2(6, 0)
 layout_mode = 2
 
-[node name="Port_Label2" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/Wartime_Panel/HBox_Names"]
+[node name="Port_Label8" type="Label" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names"]
 custom_minimum_size = Vector2(50, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
@@ -738,11 +625,11 @@ text = "Proton"
 horizontal_alignment = 1
 metadata/_edit_use_anchors_ = true
 
-[node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_BHud/Wartime_Panel/HBox_Names"]
-custom_minimum_size = Vector2(5, 0)
+[node name="MarginContainer6" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names"]
+custom_minimum_size = Vector2(6, 0)
 layout_mode = 2
 
-[node name="Port_Label3" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/Wartime_Panel/HBox_Names"]
+[node name="Port_Label9" type="Label" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names"]
 custom_minimum_size = Vector2(50, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
@@ -752,11 +639,11 @@ text = "Neutron"
 horizontal_alignment = 1
 metadata/_edit_use_anchors_ = true
 
-[node name="MarginContainer3" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_BHud/Wartime_Panel/HBox_Names"]
-custom_minimum_size = Vector2(5, 0)
+[node name="MarginContainer7" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names"]
+custom_minimum_size = Vector2(6, 0)
 layout_mode = 2
 
-[node name="Port_Label4" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/Wartime_Panel/HBox_Names"]
+[node name="Port_Label10" type="Label" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names"]
 custom_minimum_size = Vector2(50, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
@@ -766,86 +653,59 @@ text = "Atomizer"
 horizontal_alignment = 1
 metadata/_edit_use_anchors_ = true
 
-[node name="HBox_Numbers" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBox_BHud/Wartime_Panel"]
+[node name="Titles_Panel" type="Panel" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel"]
 layout_mode = 1
 anchors_preset = -1
-anchor_top = 0.027083334
-anchor_right = 1.0
-anchor_bottom = 0.25729167
-offset_top = 12.0
-offset_bottom = 11.1875
-alignment = 1
-metadata/_edit_use_anchors_ = true
-
-[node name="Port_Label" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/Wartime_Panel/HBox_Numbers"]
-custom_minimum_size = Vector2(50, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
-theme_override_fonts/font = SubResource("FontVariation_ldsro")
-theme_override_font_sizes/font_size = 7
-text = "[7]"
-horizontal_alignment = 1
-metadata/_edit_use_anchors_ = true
-
-[node name="MarginContainer2" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_BHud/Wartime_Panel/HBox_Numbers"]
-custom_minimum_size = Vector2(5, 0)
-layout_mode = 2
-
-[node name="Port_Label2" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/Wartime_Panel/HBox_Numbers"]
-custom_minimum_size = Vector2(50, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
-theme_override_fonts/font = SubResource("FontVariation_ldsro")
-theme_override_font_sizes/font_size = 7
-text = "[8]"
-horizontal_alignment = 1
-metadata/_edit_use_anchors_ = true
-
-[node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_BHud/Wartime_Panel/HBox_Numbers"]
-custom_minimum_size = Vector2(5, 0)
-layout_mode = 2
-
-[node name="Port_Label3" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/Wartime_Panel/HBox_Numbers"]
-custom_minimum_size = Vector2(50, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
-theme_override_fonts/font = SubResource("FontVariation_ldsro")
-theme_override_font_sizes/font_size = 7
-text = "[9]"
-horizontal_alignment = 1
-metadata/_edit_use_anchors_ = true
-
-[node name="MarginContainer3" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_BHud/Wartime_Panel/HBox_Numbers"]
-custom_minimum_size = Vector2(5, 0)
-layout_mode = 2
-
-[node name="Port_Label4" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/Wartime_Panel/HBox_Numbers"]
-custom_minimum_size = Vector2(50, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
-theme_override_fonts/font = SubResource("FontVariation_ldsro")
-theme_override_font_sizes/font_size = 7
-text = "[0]"
-horizontal_alignment = 1
-metadata/_edit_use_anchors_ = true
-
-[node name="Infra_Panel" type="Panel" parent="CanvasLayer/Main_Control/HBox_BHud/Wartime_Panel"]
-material = SubResource("ShaderMaterial_fbxuu")
-layout_mode = 1
-anchors_preset = -1
-anchor_top = -0.23333345
+anchor_top = -0.2799997
 anchor_right = 1.0
 anchor_bottom = 1.0
-theme_override_styles/panel = SubResource("StyleBoxFlat_fbxuu")
+theme_override_styles/panel = SubResource("StyleBoxFlat_rblt2")
 metadata/_edit_use_anchors_ = true
 
-[node name="Label" type="Label" parent="CanvasLayer/Main_Control/HBox_BHud/Wartime_Panel/Infra_Panel"]
-show_behind_parent = true
+[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel/Titles_Panel"]
 layout_mode = 1
 anchors_preset = -1
-anchor_top = 0.024691358
-anchor_right = 1.0
-anchor_bottom = 0.20270285
+anchor_left = 0.0013333333
+anchor_top = 0.013513512
+anchor_right = 0.99866664
+anchor_bottom = 0.18918917
+metadata/_edit_use_anchors_ = true
+
+[node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel/Titles_Panel/HBoxContainer"]
+custom_minimum_size = Vector2(110, 0)
+layout_mode = 2
+
+[node name="Label" type="Label" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel/Titles_Panel/HBoxContainer"]
+show_behind_parent = true
+layout_mode = 2
+theme_override_fonts/font = SubResource("FontVariation_rblt2")
+theme_override_font_sizes/font_size = 8
+text = "Infrastructure"
+horizontal_alignment = 1
+vertical_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="MarginContainer2" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel/Titles_Panel/HBoxContainer"]
+custom_minimum_size = Vector2(165, 0)
+layout_mode = 2
+
+[node name="Label2" type="Label" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel/Titles_Panel/HBoxContainer"]
+show_behind_parent = true
+layout_mode = 2
+theme_override_fonts/font = SubResource("FontVariation_rblt2")
+theme_override_font_sizes/font_size = 8
+text = "Action"
+horizontal_alignment = 1
+vertical_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="MarginContainer3" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel/Titles_Panel/HBoxContainer"]
+custom_minimum_size = Vector2(185, 0)
+layout_mode = 2
+
+[node name="Label3" type="Label" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel/Titles_Panel/HBoxContainer"]
+show_behind_parent = true
+layout_mode = 2
 theme_override_fonts/font = SubResource("FontVariation_rblt2")
 theme_override_font_sizes/font_size = 8
 text = "Wartime"
@@ -853,12 +713,90 @@ horizontal_alignment = 1
 vertical_alignment = 1
 metadata/_edit_use_anchors_ = true
 
+[node name="MarginContainer3" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_AHudTEST"]
+custom_minimum_size = Vector2(183, 0)
+layout_mode = 2
+
+[node name="Leader_Control" type="Control" parent="CanvasLayer/Main_Control/HBox_AHudTEST"]
+custom_minimum_size = Vector2(380, 0)
+layout_mode = 2
+
+[node name="Titles_Panel" type="Panel" parent="CanvasLayer/Main_Control/HBox_AHudTEST/Leader_Control"]
+layout_mode = 1
+anchors_preset = -1
+anchor_top = 0.6599999
+anchor_right = 1.0
+anchor_bottom = 0.99999994
+theme_override_styles/panel = SubResource("StyleBoxFlat_rblt2")
+metadata/_edit_use_anchors_ = true
+
+[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBox_AHudTEST/Leader_Control/Titles_Panel"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.0013333333
+anchor_top = 0.11111108
+anchor_right = 0.99866664
+anchor_bottom = 1.0
+alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="Label2" type="Label" parent="CanvasLayer/Main_Control/HBox_AHudTEST/Leader_Control/Titles_Panel/HBoxContainer"]
+show_behind_parent = true
+layout_mode = 2
+theme_override_fonts/font = SubResource("FontVariation_ta2ko")
+theme_override_font_sizes/font_size = 8
+text = "Leaderboard"
+horizontal_alignment = 1
+vertical_alignment = 1
+metadata/_edit_use_anchors_ = true
+
 [node name="HBox_AHud" type="HBoxContainer" parent="CanvasLayer/Main_Control"]
+visible = false
 layout_mode = 0
 offset_top = 960.0
 offset_right = 1920.0
 offset_bottom = 1020.0
+
+[node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_AHud"]
+custom_minimum_size = Vector2(10, 0)
+layout_mode = 2
+
+[node name="Ratio_Control" type="Control" parent="CanvasLayer/Main_Control/HBox_AHud"]
+custom_minimum_size = Vector2(380, 0)
+layout_mode = 2
+
+[node name="Titles_Panel" type="Panel" parent="CanvasLayer/Main_Control/HBox_AHud/Ratio_Control"]
+layout_mode = 1
+anchors_preset = -1
+anchor_top = 0.6999999
+anchor_right = 1.0
+anchor_bottom = 0.99999994
+theme_override_styles/panel = SubResource("StyleBoxFlat_rblt2")
+metadata/_edit_use_anchors_ = true
+
+[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBox_AHud/Ratio_Control/Titles_Panel"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.0013333333
+anchor_top = 0.11111108
+anchor_right = 0.99866664
+anchor_bottom = 1.0
 alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="Label2" type="Label" parent="CanvasLayer/Main_Control/HBox_AHud/Ratio_Control/Titles_Panel/HBoxContainer"]
+show_behind_parent = true
+layout_mode = 2
+theme_override_fonts/font = SubResource("FontVariation_ta2ko")
+theme_override_font_sizes/font_size = 8
+text = "Attack Ratio"
+horizontal_alignment = 1
+vertical_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="MarginContainer2" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_AHud"]
+custom_minimum_size = Vector2(183, 0)
+layout_mode = 2
 
 [node name="In_Panel" type="Panel" parent="CanvasLayer/Main_Control/HBox_AHud"]
 custom_minimum_size = Vector2(750, 0)
@@ -1190,8 +1128,9 @@ metadata/_edit_use_anchors_ = true
 layout_mode = 1
 anchors_preset = -1
 anchor_left = 0.0013333333
+anchor_top = 0.013513512
 anchor_right = 0.99866664
-anchor_bottom = 0.21621619
+anchor_bottom = 0.18918917
 metadata/_edit_use_anchors_ = true
 
 [node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_AHud/In_Panel/Titles_Panel/HBoxContainer"]
@@ -1236,7 +1175,44 @@ horizontal_alignment = 1
 vertical_alignment = 1
 metadata/_edit_use_anchors_ = true
 
-[node name="HBox_Buttons" type="HBoxContainer" parent="CanvasLayer/Main_Control"]
+[node name="MarginContainer3" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_AHud"]
+custom_minimum_size = Vector2(183, 0)
+layout_mode = 2
+
+[node name="Leader_Control" type="Control" parent="CanvasLayer/Main_Control/HBox_AHud"]
+custom_minimum_size = Vector2(380, 0)
+layout_mode = 2
+
+[node name="Titles_Panel" type="Panel" parent="CanvasLayer/Main_Control/HBox_AHud/Leader_Control"]
+layout_mode = 1
+anchors_preset = -1
+anchor_top = 0.6999999
+anchor_right = 1.0
+anchor_bottom = 0.99999994
+theme_override_styles/panel = SubResource("StyleBoxFlat_rblt2")
+metadata/_edit_use_anchors_ = true
+
+[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBox_AHud/Leader_Control/Titles_Panel"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.0013333333
+anchor_top = 0.11111108
+anchor_right = 0.99866664
+anchor_bottom = 1.0
+alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="Label2" type="Label" parent="CanvasLayer/Main_Control/HBox_AHud/Leader_Control/Titles_Panel/HBoxContainer"]
+show_behind_parent = true
+layout_mode = 2
+theme_override_fonts/font = SubResource("FontVariation_ta2ko")
+theme_override_font_sizes/font_size = 8
+text = "Leaderboard"
+horizontal_alignment = 1
+vertical_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="ButtonsRow" type="HBoxContainer" parent="CanvasLayer/Main_Control"]
 layout_mode = 1
 anchors_preset = -1
 anchor_top = 0.9166667
@@ -1245,11 +1221,11 @@ anchor_bottom = 1.0
 alignment = 1
 metadata/_edit_use_anchors_ = true
 
-[node name="Control2" type="Control" parent="CanvasLayer/Main_Control/HBox_Buttons"]
+[node name="Control2" type="Control" parent="CanvasLayer/Main_Control/ButtonsRow"]
 custom_minimum_size = Vector2(60, 0)
 layout_mode = 2
 
-[node name="Port_Button" type="Button" parent="CanvasLayer/Main_Control/HBox_Buttons/Control2"]
+[node name="Port_Button" type="Button" parent="CanvasLayer/Main_Control/ButtonsRow/Control2"]
 layout_mode = 0
 offset_right = 60.0
 offset_bottom = 90.0
@@ -1261,8 +1237,11 @@ theme_override_styles/disabled = SubResource("StyleBoxEmpty_04lhv")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_ewirb")
 icon_alignment = 1
 script = ExtResource("4_xc0m3")
+line1 = "Port [1]"
+line2 = "Trade ships generate cash"
+line3 = "300K"
 
-[node name="TextureRect" type="TextureRect" parent="CanvasLayer/Main_Control/HBox_Buttons/Control2/Port_Button"]
+[node name="TextureRect" type="TextureRect" parent="CanvasLayer/Main_Control/ButtonsRow/Control2/Port_Button"]
 material = SubResource("ShaderMaterial_ewirb")
 layout_mode = 0
 offset_right = 60.0
@@ -1270,11 +1249,11 @@ offset_bottom = 90.0
 texture = ExtResource("6_xc0m3")
 expand_mode = 1
 
-[node name="Control3" type="Control" parent="CanvasLayer/Main_Control/HBox_Buttons"]
+[node name="Control3" type="Control" parent="CanvasLayer/Main_Control/ButtonsRow"]
 custom_minimum_size = Vector2(60, 0)
 layout_mode = 2
 
-[node name="City_Button" type="Button" parent="CanvasLayer/Main_Control/HBox_Buttons/Control3"]
+[node name="City_Button" type="Button" parent="CanvasLayer/Main_Control/ButtonsRow/Control3"]
 layout_mode = 0
 offset_right = 60.0
 offset_bottom = 90.0
@@ -1286,8 +1265,11 @@ theme_override_styles/disabled = SubResource("StyleBoxEmpty_lwvql")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_kthhr")
 icon_alignment = 1
 script = ExtResource("4_xc0m3")
+line1 = "City [2]"
+line2 = "Incrases max population"
+line3 = "300K"
 
-[node name="TextureRect" type="TextureRect" parent="CanvasLayer/Main_Control/HBox_Buttons/Control3/City_Button"]
+[node name="TextureRect" type="TextureRect" parent="CanvasLayer/Main_Control/ButtonsRow/Control3/City_Button"]
 material = SubResource("ShaderMaterial_enfkb")
 layout_mode = 0
 offset_right = 60.0
@@ -1295,11 +1277,11 @@ offset_bottom = 90.0
 texture = ExtResource("7_04lhv")
 expand_mode = 1
 
-[node name="Control4" type="Control" parent="CanvasLayer/Main_Control/HBox_Buttons"]
+[node name="Control4" type="Control" parent="CanvasLayer/Main_Control/ButtonsRow"]
 custom_minimum_size = Vector2(60, 0)
 layout_mode = 2
 
-[node name="Fac_Button" type="Button" parent="CanvasLayer/Main_Control/HBox_Buttons/Control4"]
+[node name="Fac_Button" type="Button" parent="CanvasLayer/Main_Control/ButtonsRow/Control4"]
 layout_mode = 0
 offset_right = 60.0
 offset_bottom = 90.0
@@ -1311,8 +1293,11 @@ theme_override_styles/disabled = SubResource("StyleBoxEmpty_04lhv")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_ewirb")
 icon_alignment = 1
 script = ExtResource("4_xc0m3")
+line1 = "Factory [3]"
+line2 = "Railroads generate cash"
+line3 = "300K"
 
-[node name="TextureRect" type="TextureRect" parent="CanvasLayer/Main_Control/HBox_Buttons/Control4/Fac_Button"]
+[node name="TextureRect" type="TextureRect" parent="CanvasLayer/Main_Control/ButtonsRow/Control4/Fac_Button"]
 material = SubResource("ShaderMaterial_di8wi")
 layout_mode = 0
 offset_right = 60.0
@@ -1320,11 +1305,11 @@ offset_bottom = 90.0
 texture = ExtResource("7_ewirb")
 expand_mode = 1
 
-[node name="Control5" type="Control" parent="CanvasLayer/Main_Control/HBox_Buttons"]
+[node name="Control5" type="Control" parent="CanvasLayer/Main_Control/ButtonsRow"]
 custom_minimum_size = Vector2(60, 0)
 layout_mode = 2
 
-[node name="Def_Button" type="Button" parent="CanvasLayer/Main_Control/HBox_Buttons/Control5"]
+[node name="Def_Button" type="Button" parent="CanvasLayer/Main_Control/ButtonsRow/Control5"]
 layout_mode = 0
 offset_right = 60.0
 offset_bottom = 90.0
@@ -1336,8 +1321,11 @@ theme_override_styles/disabled = SubResource("StyleBoxEmpty_04lhv")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_ewirb")
 icon_alignment = 1
 script = ExtResource("4_xc0m3")
+line1 = "Defense [4]"
+line2 = "Strengthens a small radius"
+line3 = "100K"
 
-[node name="TextureRect" type="TextureRect" parent="CanvasLayer/Main_Control/HBox_Buttons/Control5/Def_Button"]
+[node name="TextureRect" type="TextureRect" parent="CanvasLayer/Main_Control/ButtonsRow/Control5/Def_Button"]
 material = SubResource("ShaderMaterial_tepi4")
 layout_mode = 0
 offset_right = 60.0
@@ -1345,15 +1333,15 @@ offset_bottom = 90.0
 texture = ExtResource("8_tepi4")
 expand_mode = 1
 
-[node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_Buttons"]
+[node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/Main_Control/ButtonsRow"]
 custom_minimum_size = Vector2(30, 0)
 layout_mode = 2
 
-[node name="Control6" type="Control" parent="CanvasLayer/Main_Control/HBox_Buttons"]
+[node name="Control6" type="Control" parent="CanvasLayer/Main_Control/ButtonsRow"]
 custom_minimum_size = Vector2(60, 0)
 layout_mode = 2
 
-[node name="Silo_Button" type="Button" parent="CanvasLayer/Main_Control/HBox_Buttons/Control6"]
+[node name="Silo_Button" type="Button" parent="CanvasLayer/Main_Control/ButtonsRow/Control6"]
 layout_mode = 0
 offset_right = 60.0
 offset_bottom = 90.0
@@ -1365,8 +1353,11 @@ theme_override_styles/disabled = SubResource("StyleBoxEmpty_04lhv")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_ewirb")
 icon_alignment = 1
 script = ExtResource("4_xc0m3")
+line1 = "Silo [5]"
+line2 = "Increases max missiles"
+line3 = "2M"
 
-[node name="TextureRect" type="TextureRect" parent="CanvasLayer/Main_Control/HBox_Buttons/Control6/Silo_Button"]
+[node name="TextureRect" type="TextureRect" parent="CanvasLayer/Main_Control/ButtonsRow/Control6/Silo_Button"]
 material = SubResource("ShaderMaterial_b2en8")
 layout_mode = 0
 offset_right = 60.0
@@ -1374,11 +1365,11 @@ offset_bottom = 90.0
 texture = ExtResource("9_ewirb")
 expand_mode = 1
 
-[node name="Control7" type="Control" parent="CanvasLayer/Main_Control/HBox_Buttons"]
+[node name="Control7" type="Control" parent="CanvasLayer/Main_Control/ButtonsRow"]
 custom_minimum_size = Vector2(60, 0)
 layout_mode = 2
 
-[node name="Sam_Button" type="Button" parent="CanvasLayer/Main_Control/HBox_Buttons/Control7"]
+[node name="Sam_Button" type="Button" parent="CanvasLayer/Main_Control/ButtonsRow/Control7"]
 layout_mode = 0
 offset_right = 60.0
 offset_bottom = 90.0
@@ -1390,8 +1381,11 @@ theme_override_styles/disabled = SubResource("StyleBoxEmpty_04lhv")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_ewirb")
 icon_alignment = 1
 script = ExtResource("4_xc0m3")
+line1 = "Sam [6]"
+line2 = "Defends against missiles"
+line3 = "3M"
 
-[node name="TextureRect" type="TextureRect" parent="CanvasLayer/Main_Control/HBox_Buttons/Control7/Sam_Button"]
+[node name="TextureRect" type="TextureRect" parent="CanvasLayer/Main_Control/ButtonsRow/Control7/Sam_Button"]
 material = SubResource("ShaderMaterial_lwvql")
 layout_mode = 0
 offset_right = 60.0
@@ -1399,15 +1393,15 @@ offset_bottom = 90.0
 texture = ExtResource("11_ok40o")
 expand_mode = 1
 
-[node name="MarginContainer2" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_Buttons"]
+[node name="MarginContainer2" type="MarginContainer" parent="CanvasLayer/Main_Control/ButtonsRow"]
 custom_minimum_size = Vector2(30, 0)
 layout_mode = 2
 
-[node name="Control8" type="Control" parent="CanvasLayer/Main_Control/HBox_Buttons"]
+[node name="Control8" type="Control" parent="CanvasLayer/Main_Control/ButtonsRow"]
 custom_minimum_size = Vector2(60, 0)
 layout_mode = 2
 
-[node name="Ship_Button" type="Button" parent="CanvasLayer/Main_Control/HBox_Buttons/Control8"]
+[node name="Ship_Button" type="Button" parent="CanvasLayer/Main_Control/ButtonsRow/Control8"]
 layout_mode = 0
 offset_right = 60.0
 offset_bottom = 90.0
@@ -1419,8 +1413,11 @@ theme_override_styles/disabled = SubResource("StyleBoxEmpty_04lhv")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_ewirb")
 icon_alignment = 1
 script = ExtResource("4_xc0m3")
+line1 = "Warship [7]"
+line2 = "Captures trade ships"
+line3 = "500K"
 
-[node name="TextureRect" type="TextureRect" parent="CanvasLayer/Main_Control/HBox_Buttons/Control8/Ship_Button"]
+[node name="TextureRect" type="TextureRect" parent="CanvasLayer/Main_Control/ButtonsRow/Control8/Ship_Button"]
 material = SubResource("ShaderMaterial_kthhr")
 layout_mode = 0
 offset_right = 60.0
@@ -1428,11 +1425,11 @@ offset_bottom = 90.0
 texture = ExtResource("10_di8wi")
 expand_mode = 1
 
-[node name="Control9" type="Control" parent="CanvasLayer/Main_Control/HBox_Buttons"]
+[node name="Control9" type="Control" parent="CanvasLayer/Main_Control/ButtonsRow"]
 custom_minimum_size = Vector2(60, 0)
 layout_mode = 2
 
-[node name="Proton_Button" type="Button" parent="CanvasLayer/Main_Control/HBox_Buttons/Control9"]
+[node name="Proton_Button" type="Button" parent="CanvasLayer/Main_Control/ButtonsRow/Control9"]
 layout_mode = 0
 offset_right = 60.0
 offset_bottom = 90.0
@@ -1444,8 +1441,11 @@ theme_override_styles/disabled = SubResource("StyleBoxEmpty_04lhv")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_ewirb")
 icon_alignment = 1
 script = ExtResource("4_xc0m3")
+line1 = "Proton Missile [8]"
+line2 = "Missile with a small radius"
+line3 = "1.5M"
 
-[node name="TextureRect" type="TextureRect" parent="CanvasLayer/Main_Control/HBox_Buttons/Control9/Proton_Button"]
+[node name="TextureRect" type="TextureRect" parent="CanvasLayer/Main_Control/ButtonsRow/Control9/Proton_Button"]
 material = SubResource("ShaderMaterial_ok40o")
 layout_mode = 0
 offset_right = 60.0
@@ -1453,11 +1453,11 @@ offset_bottom = 90.0
 texture = ExtResource("11_tepi4")
 expand_mode = 1
 
-[node name="Control10" type="Control" parent="CanvasLayer/Main_Control/HBox_Buttons"]
+[node name="Control10" type="Control" parent="CanvasLayer/Main_Control/ButtonsRow"]
 custom_minimum_size = Vector2(60, 0)
 layout_mode = 2
 
-[node name="Neutron_Button" type="Button" parent="CanvasLayer/Main_Control/HBox_Buttons/Control10"]
+[node name="Neutron_Button" type="Button" parent="CanvasLayer/Main_Control/ButtonsRow/Control10"]
 layout_mode = 0
 offset_right = 60.0
 offset_bottom = 90.0
@@ -1469,8 +1469,11 @@ theme_override_styles/disabled = SubResource("StyleBoxEmpty_04lhv")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_ewirb")
 icon_alignment = 1
 script = ExtResource("4_xc0m3")
+line1 = "Neutron Missile [9]"
+line2 = "Missile with a large radius"
+line3 = "10M"
 
-[node name="TextureRect" type="TextureRect" parent="CanvasLayer/Main_Control/HBox_Buttons/Control10/Neutron_Button"]
+[node name="TextureRect" type="TextureRect" parent="CanvasLayer/Main_Control/ButtonsRow/Control10/Neutron_Button"]
 material = SubResource("ShaderMaterial_rblt2")
 layout_mode = 0
 offset_right = 60.0
@@ -1478,11 +1481,11 @@ offset_bottom = 90.0
 texture = ExtResource("12_b2en8")
 expand_mode = 1
 
-[node name="Control11" type="Control" parent="CanvasLayer/Main_Control/HBox_Buttons"]
+[node name="Control11" type="Control" parent="CanvasLayer/Main_Control/ButtonsRow"]
 custom_minimum_size = Vector2(60, 0)
 layout_mode = 2
 
-[node name="Atomizer_Button" type="Button" parent="CanvasLayer/Main_Control/HBox_Buttons/Control11"]
+[node name="Atomizer_Button" type="Button" parent="CanvasLayer/Main_Control/ButtonsRow/Control11"]
 layout_mode = 0
 offset_right = 60.0
 offset_bottom = 90.0
@@ -1494,8 +1497,11 @@ theme_override_styles/disabled = SubResource("StyleBoxEmpty_04lhv")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_ewirb")
 icon_alignment = 1
 script = ExtResource("4_xc0m3")
+line1 = "Atomizer Bomb [0]"
+line2 = "Indefensible nuclear warhead"
+line3 = "70M"
 
-[node name="TextureRect" type="TextureRect" parent="CanvasLayer/Main_Control/HBox_Buttons/Control11/Atomizer_Button"]
+[node name="TextureRect" type="TextureRect" parent="CanvasLayer/Main_Control/ButtonsRow/Control11/Atomizer_Button"]
 material = SubResource("ShaderMaterial_o10ms")
 layout_mode = 0
 offset_right = 60.0
@@ -1503,7 +1509,7 @@ offset_bottom = 90.0
 texture = ExtResource("13_lwvql")
 expand_mode = 1
 
-[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/Main_Control"]
+[node name="HBox_Shadow" type="HBoxContainer" parent="CanvasLayer/Main_Control"]
 layout_mode = 0
 anchor_top = 0.9444444
 anchor_right = 1.0
@@ -1512,18 +1518,8 @@ theme_override_constants/separation = 0
 alignment = 1
 metadata/_edit_use_anchors_ = true
 
-[node name="Hud_Shadow3" type="Panel" parent="CanvasLayer/Main_Control/HBoxContainer"]
-custom_minimum_size = Vector2(585, 0)
-layout_mode = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_4aj2s")
-
-[node name="Hud_Shadow" type="Panel" parent="CanvasLayer/Main_Control/HBoxContainer"]
-custom_minimum_size = Vector2(750, 0)
-layout_mode = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_kthhr")
-
-[node name="Hud_Shadow2" type="Panel" parent="CanvasLayer/Main_Control/HBoxContainer"]
-custom_minimum_size = Vector2(585, 0)
+[node name="Hud_Shadow3" type="Panel" parent="CanvasLayer/Main_Control/HBox_Shadow"]
+custom_minimum_size = Vector2(1920, 0)
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_4aj2s")
 
@@ -1554,48 +1550,105 @@ grow_horizontal = 2
 grow_vertical = 0
 alignment = 1
 
-[node name="FuckedRatio_Control" type="Control" parent="CanvasLayer/Main_Control/HBox_Info"]
+[node name="RP_Control" type="Control" parent="CanvasLayer/Main_Control/HBox_Info"]
 custom_minimum_size = Vector2(350, 0)
 layout_mode = 2
 
-[node name="GradientRect" type="TextureRect" parent="CanvasLayer/Main_Control/HBox_Info/FuckedRatio_Control"]
-visible = false
-material = SubResource("ShaderMaterial_ta2ko")
+[node name="Ratio_Panel" type="Panel" parent="CanvasLayer/Main_Control/HBox_Info/RP_Control"]
 layout_mode = 1
 anchors_preset = -1
-anchor_left = 0.05142857
-anchor_top = 0.20754717
-anchor_right = 0.9085714
-anchor_bottom = 0.7735849
+anchor_top = 0.0754717
+anchor_right = 1.0
+anchor_bottom = 0.9245283
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("StyleBoxFlat_ta2ko")
+metadata/_edit_use_anchors_ = true
+
+[node name="FuckedRatio_Control" type="Control" parent="CanvasLayer/Main_Control/HBox_Info/RP_Control/Ratio_Panel"]
+layout_mode = 1
+anchor_left = 0.18571429
+anchor_top = -0.08888889
+anchor_right = 0.9714286
+anchor_bottom = 1.0888889
+script = ExtResource("17_ta2ko")
+max_value = 100.0
+value = 50.0
+hbox_path = NodePath("HBox")
+left_panel_path = NodePath("HBox/LeftPanel")
+right_panel_path = NodePath("HBox/RightPanel")
+metadata/_edit_use_anchors_ = true
+
+[node name="HBox" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBox_Info/RP_Control/Ratio_Panel/FuckedRatio_Control"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.0036363637
+anchor_top = 0.26415095
+anchor_right = 1.0036364
+anchor_bottom = 0.7358491
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+metadata/_edit_use_anchors_ = true
+
+[node name="LeftPanel" type="Panel" parent="CanvasLayer/Main_Control/HBox_Info/RP_Control/Ratio_Panel/FuckedRatio_Control/HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 5
+theme_override_styles/panel = SubResource("StyleBoxFlat_vekao")
+
+[node name="RightPanel" type="Panel" parent="CanvasLayer/Main_Control/HBox_Info/RP_Control/Ratio_Panel/FuckedRatio_Control/HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 5
+theme_override_styles/panel = SubResource("StyleBoxFlat_pdu2b")
+
+[node name="Panel_Pop" type="Panel" parent="CanvasLayer/Main_Control/HBox_Info/RP_Control/Ratio_Panel/FuckedRatio_Control"]
+visible = false
+custom_minimum_size = Vector2(350, 35)
+layout_mode = 1
+anchors_preset = -1
+anchor_top = 0.018867925
+anchor_right = 1.0
+anchor_bottom = 0.9622642
 offset_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-texture = ExtResource("22_7tbuw")
-expand_mode = 1
-script = ExtResource("19_vekao")
+size_flags_vertical = 4
+theme_override_styles/panel = ExtResource("10_tqtv8")
 metadata/_edit_use_anchors_ = true
 
-[node name="LineIndicator" type="ColorRect" parent="CanvasLayer/Main_Control/HBox_Info/FuckedRatio_Control/GradientRect"]
-material = SubResource("ShaderMaterial_vekao")
-custom_minimum_size = Vector2(2, 0)
-layout_mode = 1
-anchors_preset = 10
-anchor_right = 1.0
-offset_left = 149.0
-offset_right = -149.0
-offset_bottom = 30.0
-grow_horizontal = 2
+[node name="Control" type="Control" parent="CanvasLayer/Main_Control/HBox_Info/RP_Control/Ratio_Panel"]
+anchors_preset = 0
+anchor_right = 0.18857142
+anchor_bottom = 1.0
+metadata/_edit_use_anchors_ = true
 
-[node name="Panel_Pop" type="Panel" parent="CanvasLayer/Main_Control/HBox_Info/FuckedRatio_Control/GradientRect"]
+[node name="TextureRect" type="TextureRect" parent="CanvasLayer/Main_Control/HBox_Info/RP_Control/Ratio_Panel/Control"]
+modulate = Color(1, 1, 1, 0.84313726)
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.18181819
+anchor_top = 0.2888889
+anchor_right = 0.4848485
+anchor_bottom = 0.73333335
+texture = ExtResource("19_vekao")
+expand_mode = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="Label" type="Label" parent="CanvasLayer/Main_Control/HBox_Info/RP_Control/Ratio_Panel/Control"]
 show_behind_parent = true
 layout_mode = 1
 anchors_preset = -1
-anchor_left = -0.083333336
-anchor_top = -0.06451635
-anchor_bottom = 1.1774191
-offset_bottom = -3.5
-size_flags_vertical = 4
-theme_override_styles/panel = SubResource("StyleBoxFlat_vekao")
+anchor_left = 0.5151515
+anchor_top = 0.22222222
+anchor_right = 0.95454544
+anchor_bottom = 0.7777778
+theme_override_colors/font_color = Color(1, 1, 1, 0.84313726)
+theme_override_fonts/font = SubResource("FontVariation_vekao")
+theme_override_font_sizes/font_size = 9
+text = "50%"
+horizontal_alignment = 2
+vertical_alignment = 1
 metadata/_edit_use_anchors_ = true
 
 [node name="MarginContainer4" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_Info"]
@@ -1742,8 +1795,8 @@ layout_mode = 1
 anchors_preset = -1
 anchor_right = 0.9705882
 anchor_bottom = 0.99999994
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.33333334)
-theme_override_fonts/font = SubResource("FontVariation_gjm0y")
+theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.627451)
+theme_override_fonts/font = SubResource("FontVariation_pdu2b")
 theme_override_font_sizes/font_size = 11
 text = "1st"
 horizontal_alignment = 1
@@ -1869,6 +1922,28 @@ anchor_top = 0.225
 anchor_right = 0.7499878
 anchor_bottom = 0.775
 texture = ExtResource("31_xffgh")
+metadata/_edit_use_anchors_ = true
+
+[node name="Shadow_Control" type="Control" parent="CanvasLayer/Main_Control"]
+clip_contents = true
+layout_mode = 1
+anchor_left = 0.30572918
+anchor_top = 0.8888889
+anchor_right = 0.69427085
+anchor_bottom = 0.9444444
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+metadata/_edit_use_anchors_ = true
+
+[node name="Hud_Shadow" type="Panel" parent="CanvasLayer/Main_Control/Shadow_Control"]
+custom_minimum_size = Vector2(750, 0)
+layout_mode = 1
+anchors_preset = -1
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 2.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_kthhr")
 metadata/_edit_use_anchors_ = true
 
 [node name="Misc_Control" type="Control" parent="CanvasLayer/Main_Control"]
@@ -2038,5 +2113,70 @@ anchor_bottom = 0.7047619
 texture = ExtResource("23_tepi4")
 expand_mode = 1
 metadata/_edit_use_anchors_ = true
+
+[node name="InfoPanel" type="Panel" parent="CanvasLayer/Main_Control"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.38854167
+anchor_top = 0.8212962
+anchor_right = 0.47708333
+anchor_bottom = 0.8861111
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_ejj3t")
+metadata/_edit_use_anchors_ = true
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CanvasLayer/Main_Control/InfoPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+
+[node name="Label" type="Label" parent="CanvasLayer/Main_Control/InfoPanel/VBoxContainer"]
+custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
+theme_override_fonts/font = SubResource("FontVariation_urls0")
+theme_override_font_sizes/font_size = 16
+text = "Text [1]"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Label2" type="Label" parent="CanvasLayer/Main_Control/InfoPanel/VBoxContainer"]
+layout_mode = 2
+theme_override_fonts/font = SubResource("FontVariation_urls0")
+theme_override_font_sizes/font_size = 11
+text = "Description listing uses"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/Main_Control/InfoPanel/VBoxContainer"]
+custom_minimum_size = Vector2(0, 8)
+layout_mode = 2
+
+[node name="HBox_Cash" type="HBoxContainer" parent="CanvasLayer/Main_Control/InfoPanel/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 2
+alignment = 1
+
+[node name="Label3" type="Label" parent="CanvasLayer/Main_Control/InfoPanel/VBoxContainer/HBox_Cash"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.5686275, 1, 0.5372549, 1)
+theme_override_fonts/font = SubResource("FontVariation_urls0")
+theme_override_font_sizes/font_size = 11
+text = "X-K"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Label4" type="Label" parent="CanvasLayer/Main_Control/InfoPanel/VBoxContainer/HBox_Cash"]
+layout_mode = 2
+theme_override_fonts/font = SubResource("FontVariation_urls0")
+theme_override_font_sizes/font_size = 11
+text = "Cash"
+horizontal_alignment = 1
+vertical_alignment = 1
 
 [connection signal="text_submitted" from="CanvasLayer/Main_Control/Misc_Control/Chat_Control/Chat_Rec/LineEdit" to="CanvasLayer/Main_Control/Misc_Control/Chat_Control" method="_on_line_edit_text_submitted"]
