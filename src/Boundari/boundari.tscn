@@ -1,4 +1,4 @@
-[gd_scene load_steps=94 format=3 uid="uid://bvf7xj3oe6l6e"]
+[gd_scene load_steps=102 format=3 uid="uid://bvf7xj3oe6l6e"]
 
 [ext_resource type="Material" uid="uid://b33g2hecf433j" path="res://territory_shader.tres" id="1_8bxg0"]
 [ext_resource type="Texture2D" uid="uid://cxnyt7kxbwa6y" path="res://4639f7a3-5bf0-4561-8cb8-9831959b396b.png" id="1_ieay5"]
@@ -31,7 +31,9 @@
 [ext_resource type="Texture2D" uid="uid://v3vqee3p0pap" path="res://ui/aiden.jpg" id="20_ldsro"]
 [ext_resource type="Texture2D" uid="uid://cihixy1h635as" path="res://ui/justin.jpg" id="21_gjm0y"]
 [ext_resource type="StyleBox" uid="uid://22bs8d30p5ln" path="res://rounded_shadow.tres" id="21_tepi4"]
+[ext_resource type="FontVariation" uid="uid://23wqxrdv1uci" path="res://Pop_Fontvar.tres" id="21_urls0"]
 [ext_resource type="Texture2D" uid="uid://xq0evwhkc0r8" path="res://ui/joe.jpg" id="22_7tbuw"]
+[ext_resource type="FontVariation" uid="uid://b037rp8hgy35q" path="res://Pop_Numbervar.tres" id="22_62siw"]
 [ext_resource type="Texture2D" uid="uid://dhvt3k5qccf4d" path="res://ui/swordswhite.svg" id="22_di8wi"]
 [ext_resource type="Texture2D" uid="uid://cxktrdlg5bjl7" path="res://ui/jacob.jpg" id="23_1jx2k"]
 [ext_resource type="StyleBox" uid="uid://dgkm23fdcrx3" path="res://button_Normbasic.tres" id="23_7tbuw"]
@@ -43,6 +45,8 @@
 [ext_resource type="Texture2D" uid="uid://dtptu6l5ug7bj" path="res://ui/rando.jpg" id="26_ta2ko"]
 [ext_resource type="Texture2D" uid="uid://cjpjwtye5wlx6" path="res://ui/settings.svg" id="30_xp78s"]
 [ext_resource type="Texture2D" uid="uid://bbnn05qkyvu5i" path="res://ui/exit.svg" id="31_xffgh"]
+[ext_resource type="Texture2D" uid="uid://cyef00tjve676" path="res://ui/steam2.svg" id="46_62siw"]
+[ext_resource type="Texture2D" uid="uid://d0q23xu83vcqh" path="res://ui/united-states.svg" id="46_ogqqv"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_rblt2"]
 bg_color = Color(0, 0, 0, 0.29411766)
@@ -301,16 +305,11 @@ spacing_glyph = 2
 spacing_top = 2
 spacing_bottom = -2
 
-[sub_resource type="FontVariation" id="FontVariation_tepi4"]
-variation_transform = Transform2D(1.005, 0.31, 0, 1.385, 0, 0)
-
-[sub_resource type="FontVariation" id="FontVariation_ewirb"]
-base_font = ExtResource("14_tepi4")
-spacing_glyph = 1
-spacing_top = 1
-
 [sub_resource type="FontVariation" id="FontVariation_b2en8"]
 variation_transform = Transform2D(1, 0.1, 0, 1, 0, 0)
+
+[sub_resource type="FontVariation" id="FontVariation_tepi4"]
+variation_transform = Transform2D(1.005, 0.31, 0, 1.385, 0, 0)
 
 [sub_resource type="FontVariation" id="FontVariation_di8wi"]
 base_font = ExtResource("14_tepi4")
@@ -405,6 +404,49 @@ corner_radius_bottom_left = 6
 
 [sub_resource type="FontVariation" id="FontVariation_urls0"]
 base_font = ExtResource("14_tepi4")
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_62siw"]
+shader = ExtResource("4_enfkb")
+shader_parameter/blur_amount = 2.6000001235
+shader_parameter/darken_amount = 1.0
+shader_parameter/noise_strength = 0.01600000076
+shader_parameter/grain_scale = 150.0
+shader_parameter/noise_speed = 0.0
+shader_parameter/corner_radius_px = 12.00000057
+shader_parameter/corner_smooth_px = 1.0000000475
+shader_parameter/rect_size = Vector2(200, 260)
+shader_parameter/panel_alpha = 1.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_wffjv"]
+bg_color = Color(0, 0, 0, 0.19215687)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(2.051, 2.051, 2.051, 0.055)
+border_blend = true
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="FontVariation" id="FontVariation_wffjv"]
+variation_transform = Transform2D(1.005, 0.31, 0, 1.385, 0, 0)
+spacing_top = 2
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ogqqv"]
+shader = ExtResource("4_enfkb")
+shader_parameter/blur_amount = 2.6000001235
+shader_parameter/darken_amount = 1.0
+shader_parameter/noise_strength = 0.01600000076
+shader_parameter/grain_scale = 150.0
+shader_parameter/noise_speed = 0.0
+shader_parameter/corner_radius_px = 6.000000285
+shader_parameter/corner_smooth_px = 1.0000000475
+shader_parameter/rect_size = Vector2(200, 90)
+shader_parameter/panel_alpha = 1.0
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_wffjv"]
 
 [node name="Node2D" type="Node2D"]
 
@@ -1266,7 +1308,7 @@ theme_override_styles/focus = SubResource("StyleBoxEmpty_kthhr")
 icon_alignment = 1
 script = ExtResource("4_xc0m3")
 line1 = "City [2]"
-line2 = "Incrases max population"
+line2 = "Increases max population"
 line3 = "300K"
 
 [node name="TextureRect" type="TextureRect" parent="CanvasLayer/Main_Control/ButtonsRow/Control3/City_Button"]
@@ -1669,7 +1711,7 @@ anchor_top = 0.028571429
 anchor_right = 0.67142874
 anchor_bottom = 0.9714287
 theme_override_colors/font_color = Color(18.892, 18.892, 18.892, 0.098)
-theme_override_fonts/font = SubResource("FontVariation_tepi4")
+theme_override_fonts/font = ExtResource("21_urls0")
 theme_override_font_sizes/font_size = 16
 text = "Pop"
 vertical_alignment = 1
@@ -1682,7 +1724,7 @@ anchor_right = 0.7828573
 anchor_bottom = 1.0
 offset_left = 1.0
 offset_right = 1.0
-theme_override_fonts/font = SubResource("FontVariation_ewirb")
+theme_override_fonts/font = ExtResource("22_62siw")
 theme_override_font_sizes/font_size = 16
 text = "142,600"
 vertical_alignment = 1
@@ -1872,9 +1914,9 @@ expand_mode = 1
 [node name="VBox_Misc" type="VBoxContainer" parent="CanvasLayer/Main_Control/HBox_Info/Leader_Panel"]
 layout_mode = 1
 anchors_preset = -1
-anchor_left = 10.0147085
-anchor_top = 0.04347826
-anchor_right = 10.071848
+anchor_left = 10.010131
+anchor_top = -0.01652174
+anchor_right = 10.0767975
 anchor_bottom = 0.95652175
 offset_left = -3241.647
 offset_top = 1.826087
@@ -1885,7 +1927,7 @@ alignment = 1
 metadata/_edit_use_anchors_ = true
 
 [node name="Settings_Button" type="Button" parent="CanvasLayer/Main_Control/HBox_Info/Leader_Panel/VBox_Misc"]
-custom_minimum_size = Vector2(20, 20)
+custom_minimum_size = Vector2(23, 23)
 layout_mode = 2
 theme_override_styles/normal = ExtResource("23_7tbuw")
 theme_override_styles/pressed = ExtResource("24_4aj2s")
@@ -1908,7 +1950,7 @@ custom_minimum_size = Vector2(0, 2)
 layout_mode = 2
 
 [node name="Exit_Button" type="Button" parent="CanvasLayer/Main_Control/HBox_Info/Leader_Panel/VBox_Misc"]
-custom_minimum_size = Vector2(20, 20)
+custom_minimum_size = Vector2(23, 23)
 layout_mode = 2
 theme_override_styles/normal = ExtResource("23_7tbuw")
 theme_override_styles/pressed = ExtResource("24_4aj2s")
@@ -2115,6 +2157,7 @@ expand_mode = 1
 metadata/_edit_use_anchors_ = true
 
 [node name="InfoPanel" type="Panel" parent="CanvasLayer/Main_Control"]
+visible = false
 layout_mode = 1
 anchors_preset = -1
 anchor_left = 0.38854167
@@ -2178,5 +2221,320 @@ theme_override_font_sizes/font_size = 11
 text = "Cash"
 horizontal_alignment = 1
 vertical_alignment = 1
+
+[node name="Display_Rec" type="ColorRect" parent="CanvasLayer/Main_Control"]
+material = SubResource("ShaderMaterial_62siw")
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.88854164
+anchor_top = 0.6787037
+anchor_right = 0.9927083
+anchor_bottom = 0.9194445
+grow_horizontal = 2
+grow_vertical = 2
+metadata/_edit_use_anchors_ = true
+
+[node name="Panel" type="Panel" parent="CanvasLayer/Main_Control/Display_Rec"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = ExtResource("10_tqtv8")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CanvasLayer/Main_Control/Display_Rec/Panel"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.04
+anchor_right = 0.84
+anchor_bottom = 0.99999976
+grow_horizontal = 2
+grow_vertical = 2
+metadata/_edit_use_anchors_ = true
+
+[node name="MarginContainer2" type="MarginContainer" parent="CanvasLayer/Main_Control/Display_Rec/Panel/VBoxContainer"]
+custom_minimum_size = Vector2(0, 6)
+layout_mode = 2
+
+[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/Main_Control/Display_Rec/Panel/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="Flag" type="TextureRect" parent="CanvasLayer/Main_Control/Display_Rec/Panel/VBoxContainer/HBoxContainer"]
+modulate = Color(1, 1, 1, 0.80784315)
+custom_minimum_size = Vector2(34, 20)
+layout_mode = 2
+texture = ExtResource("46_ogqqv")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Site" type="TextureRect" parent="CanvasLayer/Main_Control/Display_Rec/Panel/VBoxContainer/HBoxContainer"]
+modulate = Color(1, 1, 1, 0.13725491)
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+texture = ExtResource("46_62siw")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/Main_Control/Display_Rec/Panel/VBoxContainer/HBoxContainer"]
+custom_minimum_size = Vector2(6, 0)
+layout_mode = 2
+
+[node name="Label" type="Label" parent="CanvasLayer/Main_Control/Display_Rec/Panel/VBoxContainer/HBoxContainer"]
+layout_mode = 2
+theme_override_fonts/font = SubResource("FontVariation_urls0")
+theme_override_font_sizes/font_size = 16
+text = "brunette"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="MarginContainer3" type="MarginContainer" parent="CanvasLayer/Main_Control/Display_Rec/Panel/VBoxContainer"]
+custom_minimum_size = Vector2(0, 5)
+layout_mode = 2
+
+[node name="Panel_Pop" type="Panel" parent="CanvasLayer/Main_Control/Display_Rec/Panel/VBoxContainer"]
+custom_minimum_size = Vector2(100, 25)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("StyleBoxFlat_wffjv")
+
+[node name="Pop_Label" type="Label" parent="CanvasLayer/Main_Control/Display_Rec/Panel/VBoxContainer/Panel_Pop"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.025714263
+anchor_top = 0.028571429
+anchor_right = 0.67142874
+anchor_bottom = 0.9714287
+offset_left = 1.0000005
+offset_right = 1.0
+theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.22352941)
+theme_override_fonts/font = SubResource("FontVariation_wffjv")
+theme_override_font_sizes/font_size = 11
+text = "Pop"
+vertical_alignment = 1
+
+[node name="Pop" type="Label" parent="CanvasLayer/Main_Control/Display_Rec/Panel/VBoxContainer/Panel_Pop"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.19214287
+anchor_right = 0.83785737
+anchor_bottom = 1.0
+theme_override_fonts/font = ExtResource("22_62siw")
+theme_override_font_sizes/font_size = 13
+text = "142,600"
+vertical_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="Panel_Cash" type="Panel" parent="CanvasLayer/Main_Control/Display_Rec/Panel/VBoxContainer"]
+custom_minimum_size = Vector2(100, 25)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("StyleBoxFlat_wffjv")
+
+[node name="Pop_Label" type="Label" parent="CanvasLayer/Main_Control/Display_Rec/Panel/VBoxContainer/Panel_Cash"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.025714263
+anchor_top = 0.028571429
+anchor_right = 0.67142874
+anchor_bottom = 0.9714287
+offset_left = 1.0000005
+offset_right = 1.0
+theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.22352941)
+theme_override_fonts/font = SubResource("FontVariation_wffjv")
+theme_override_font_sizes/font_size = 11
+text = "Cash"
+vertical_alignment = 1
+
+[node name="Pop" type="Label" parent="CanvasLayer/Main_Control/Display_Rec/Panel/VBoxContainer/Panel_Cash"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.22964287
+anchor_right = 0.87535733
+anchor_bottom = 1.0
+theme_override_fonts/font = ExtResource("22_62siw")
+theme_override_font_sizes/font_size = 13
+text = "$1,520,660"
+vertical_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="Avatar_Rec" type="ColorRect" parent="CanvasLayer/Main_Control"]
+visible = false
+material = SubResource("ShaderMaterial_ogqqv")
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.8276042
+anchor_top = 0.84537035
+anchor_right = 0.93177086
+anchor_bottom = 0.9287037
+metadata/_edit_use_anchors_ = true
+
+[node name="AvatarPanel" type="Panel" parent="CanvasLayer/Main_Control/Avatar_Rec"]
+material = SubResource("ShaderMaterial_wffjv")
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_ejj3t")
+metadata/_edit_use_anchors_ = true
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CanvasLayer/Main_Control/Avatar_Rec/AvatarPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+
+[node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/Main_Control/Avatar_Rec/AvatarPanel/VBoxContainer"]
+custom_minimum_size = Vector2(0, 5)
+layout_mode = 2
+
+[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/Main_Control/Avatar_Rec/AvatarPanel/VBoxContainer"]
+layout_mode = 2
+alignment = 1
+
+[node name="Label" type="Label" parent="CanvasLayer/Main_Control/Avatar_Rec/AvatarPanel/VBoxContainer/HBoxContainer"]
+layout_mode = 2
+theme_override_fonts/font = SubResource("FontVariation_urls0")
+theme_override_font_sizes/font_size = 16
+text = "brunette"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="TextureRect" type="TextureRect" parent="CanvasLayer/Main_Control/Avatar_Rec/AvatarPanel/VBoxContainer/HBoxContainer"]
+modulate = Color(1, 1, 1, 0.13725491)
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+texture = ExtResource("46_62siw")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="MarginContainer2" type="MarginContainer" parent="CanvasLayer/Main_Control/Avatar_Rec/AvatarPanel/VBoxContainer"]
+custom_minimum_size = Vector2(0, 5)
+layout_mode = 2
+
+[node name="HBox_Cash" type="HBoxContainer" parent="CanvasLayer/Main_Control/Avatar_Rec/AvatarPanel/VBoxContainer"]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+theme_override_constants/separation = 6
+alignment = 1
+
+[node name="Pop_Panel" type="Panel" parent="CanvasLayer/Main_Control/Avatar_Rec/AvatarPanel/VBoxContainer/HBox_Cash"]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+theme_override_styles/panel = ExtResource("10_tqtv8")
+
+[node name="Pop_Number" type="Label" parent="CanvasLayer/Main_Control/Avatar_Rec/AvatarPanel/VBoxContainer/HBox_Cash/Pop_Panel"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = -0.2375
+anchor_top = 0.08
+anchor_right = 1.2375
+anchor_bottom = 0.54
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7254902)
+theme_override_fonts/font = ExtResource("22_62siw")
+theme_override_font_sizes/font_size = 13
+text = "142K"
+horizontal_alignment = 1
+vertical_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="Pop" type="Label" parent="CanvasLayer/Main_Control/Avatar_Rec/AvatarPanel/VBoxContainer/HBox_Cash/Pop_Panel"]
+layout_mode = 1
+anchors_preset = -1
+anchor_top = 0.54
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.36862746)
+theme_override_fonts/font = ExtResource("21_urls0")
+theme_override_font_sizes/font_size = 13
+text = "Pop"
+horizontal_alignment = 1
+vertical_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="Land_Panel" type="Panel" parent="CanvasLayer/Main_Control/Avatar_Rec/AvatarPanel/VBoxContainer/HBox_Cash"]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+theme_override_styles/panel = ExtResource("10_tqtv8")
+
+[node name="Land_Number" type="Label" parent="CanvasLayer/Main_Control/Avatar_Rec/AvatarPanel/VBoxContainer/HBox_Cash/Land_Panel"]
+layout_mode = 1
+anchors_preset = -1
+anchor_top = 0.08
+anchor_right = 1.0
+anchor_bottom = 0.54
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7254902)
+theme_override_fonts/font = ExtResource("22_62siw")
+theme_override_font_sizes/font_size = 13
+text = "8.4%"
+horizontal_alignment = 1
+vertical_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="Land" type="Label" parent="CanvasLayer/Main_Control/Avatar_Rec/AvatarPanel/VBoxContainer/HBox_Cash/Land_Panel"]
+layout_mode = 1
+anchors_preset = -1
+anchor_top = 0.54
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.36862746)
+theme_override_fonts/font = ExtResource("21_urls0")
+theme_override_font_sizes/font_size = 13
+text = "Land"
+horizontal_alignment = 1
+vertical_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="Cash_Panel" type="Panel" parent="CanvasLayer/Main_Control/Avatar_Rec/AvatarPanel/VBoxContainer/HBox_Cash"]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+theme_override_styles/panel = ExtResource("10_tqtv8")
+
+[node name="Cash_Number" type="Label" parent="CanvasLayer/Main_Control/Avatar_Rec/AvatarPanel/VBoxContainer/HBox_Cash/Cash_Panel"]
+layout_mode = 1
+anchors_preset = -1
+anchor_top = 0.08
+anchor_right = 1.0
+anchor_bottom = 0.54
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7254902)
+theme_override_fonts/font = ExtResource("22_62siw")
+theme_override_font_sizes/font_size = 13
+text = "$1.5M"
+horizontal_alignment = 1
+vertical_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="Cash" type="Label" parent="CanvasLayer/Main_Control/Avatar_Rec/AvatarPanel/VBoxContainer/HBox_Cash/Cash_Panel"]
+layout_mode = 1
+anchors_preset = -1
+anchor_top = 0.54
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.36862746)
+theme_override_fonts/font = ExtResource("21_urls0")
+theme_override_font_sizes/font_size = 13
+text = "Cash"
+horizontal_alignment = 1
+vertical_alignment = 1
+metadata/_edit_use_anchors_ = true
 
 [connection signal="text_submitted" from="CanvasLayer/Main_Control/Misc_Control/Chat_Control/Chat_Rec/LineEdit" to="CanvasLayer/Main_Control/Misc_Control/Chat_Control" method="_on_line_edit_text_submitted"]

@@ -1,0 +1,4 @@
+[gd_resource type="FontVariation" format=3 uid="uid://23wqxrdv1uci"]
+
+[resource]
+variation_transform = Transform2D(1.005, 0.31, 0, 1.385, 0, 0)
