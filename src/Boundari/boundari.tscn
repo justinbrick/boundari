@@ -1,12 +1,12 @@
-[gd_scene load_steps=102 format=3 uid="uid://bvf7xj3oe6l6e"]
+[gd_scene load_steps=109 format=3 uid="uid://bvf7xj3oe6l6e"]
 
 [ext_resource type="Material" uid="uid://b33g2hecf433j" path="res://territory_shader.tres" id="1_8bxg0"]
 [ext_resource type="Texture2D" uid="uid://cxnyt7kxbwa6y" path="res://4639f7a3-5bf0-4561-8cb8-9831959b396b.png" id="1_ieay5"]
 [ext_resource type="Script" uid="uid://b03prub72qvax" path="res://Camera.cs" id="2_rft6w"]
 [ext_resource type="Shader" uid="uid://ccrx2iq3onidj" path="res://blurroundcorn.gdshader" id="4_enfkb"]
-[ext_resource type="Shader" uid="uid://xuspxhp7k1eb" path="res://blur.gdshader" id="4_itarl"]
 [ext_resource type="Script" uid="uid://5k1716wrxjer" path="res://main_control.gd" id="4_pdu2b"]
 [ext_resource type="Script" uid="uid://bbf0lhb2yu8x6" path="res://hoveroverhaul.gd" id="4_xc0m3"]
+[ext_resource type="Shader" uid="uid://oahprew5m7q8" path="res://blur.gdshader" id="5_ogqqv"]
 [ext_resource type="Texture2D" uid="uid://qepctrj10e6q" path="res://ui/buttons/port.svg" id="6_xc0m3"]
 [ext_resource type="Texture2D" uid="uid://b08ul63hc75jg" path="res://ui/buttons/city.svg" id="7_04lhv"]
 [ext_resource type="Texture2D" uid="uid://bqokbhm7d3jw" path="res://ui/buttons/factory.svg" id="7_ewirb"]
@@ -26,7 +26,6 @@
 [ext_resource type="Texture2D" uid="uid://bvan8mgxhs4a0" path="res://ui/speed3.svg" id="15_ddwe0"]
 [ext_resource type="Script" uid="uid://dcuc4uj2tiy8r" path="res://splitslider.gd" id="17_ta2ko"]
 [ext_resource type="Shader" uid="uid://d3sknjps5xcvh" path="res://leadericons.gdshader" id="19_fbxuu"]
-[ext_resource type="Texture2D" uid="uid://cpw4o088f2wj3" path="res://ui/attack.svg" id="19_vekao"]
 [ext_resource type="Script" uid="uid://c6gb3sv8bmm6b" path="res://chat.gd" id="20_04lhv"]
 [ext_resource type="Texture2D" uid="uid://v3vqee3p0pap" path="res://ui/aiden.jpg" id="20_ldsro"]
 [ext_resource type="Texture2D" uid="uid://cihixy1h635as" path="res://ui/justin.jpg" id="21_gjm0y"]
@@ -47,6 +46,7 @@
 [ext_resource type="Texture2D" uid="uid://bbnn05qkyvu5i" path="res://ui/exit.svg" id="31_xffgh"]
 [ext_resource type="Texture2D" uid="uid://cyef00tjve676" path="res://ui/steam2.svg" id="46_62siw"]
 [ext_resource type="Texture2D" uid="uid://d0q23xu83vcqh" path="res://ui/united-states.svg" id="46_ogqqv"]
+[ext_resource type="FontFile" uid="uid://clvp4a332psib" path="res://fonts/OldSansBlack.ttf" id="47_ogqqv"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_rblt2"]
 bg_color = Color(0, 0, 0, 0.29411766)
@@ -72,7 +72,7 @@ border_color = Color(2.0507386, 2.0507386, 2.0507386, 0.05490196)
 border_blend = true
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_ldsro"]
-shader = ExtResource("4_itarl")
+shader = ExtResource("5_ogqqv")
 shader_parameter/blur_amount = 2.6000001235
 shader_parameter/darken_amount = 1.0
 shader_parameter/noise_strength = 0.01600000076
@@ -257,7 +257,7 @@ shadow_color = Color(0, 0, 0, 0.19607843)
 shadow_size = 20
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_n3xjr"]
-shader = ExtResource("4_itarl")
+shader = ExtResource("5_ogqqv")
 shader_parameter/blur_amount = 2.6000001235
 shader_parameter/darken_amount = 0.70000003325
 shader_parameter/noise_strength = 0.01600000076
@@ -417,6 +417,13 @@ shader_parameter/corner_smooth_px = 1.0000000475
 shader_parameter/rect_size = Vector2(200, 260)
 shader_parameter/panel_alpha = 1.0
 
+[sub_resource type="FontVariation" id="FontVariation_ogqqv"]
+base_font = ExtResource("14_tepi4")
+
+[sub_resource type="FontVariation" id="FontVariation_jcive"]
+base_font = ExtResource("14_tepi4")
+variation_transform = Transform2D(1, 0.075, 0, 1, 0, 0)
+
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_wffjv"]
 bg_color = Color(0, 0, 0, 0.19215687)
 border_width_left = 2
@@ -434,6 +441,10 @@ corner_radius_bottom_left = 6
 variation_transform = Transform2D(1.005, 0.31, 0, 1.385, 0, 0)
 spacing_top = 2
 
+[sub_resource type="FontVariation" id="FontVariation_0fo8x"]
+variation_transform = Transform2D(1.005, 0.31, 0, 1.485, 0, 0)
+spacing_top = 3
+
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_ogqqv"]
 shader = ExtResource("4_enfkb")
 shader_parameter/blur_amount = 2.6000001235
@@ -447,6 +458,31 @@ shader_parameter/rect_size = Vector2(200, 90)
 shader_parameter/panel_alpha = 1.0
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_wffjv"]
+
+[sub_resource type="FontVariation" id="FontVariation_ws447"]
+variation_transform = Transform2D(1, 0.17, 0, 1, 0, 0)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_wtv1v"]
+bg_color = Color(0, 0, 0, 0.11372549)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(2.051, 2.051, 2.051, 0.055)
+border_blend = true
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="FontVariation" id="FontVariation_50e55"]
+base_font = ExtResource("14_tepi4")
+variation_embolden = -0.12
+spacing_glyph = 1
+
+[sub_resource type="FontVariation" id="FontVariation_ocr78"]
+base_font = ExtResource("47_ogqqv")
+variation_embolden = -0.12
 
 [node name="Node2D" type="Node2D"]
 
@@ -1673,7 +1709,6 @@ anchor_left = 0.18181819
 anchor_top = 0.2888889
 anchor_right = 0.4848485
 anchor_bottom = 0.73333335
-texture = ExtResource("19_vekao")
 expand_mode = 1
 metadata/_edit_use_anchors_ = true
 
@@ -1726,7 +1761,7 @@ offset_left = 1.0
 offset_right = 1.0
 theme_override_fonts/font = ExtResource("22_62siw")
 theme_override_font_sizes/font_size = 16
-text = "142,600"
+text = "142K / 203K"
 vertical_alignment = 1
 
 [node name="Pop_Rate" type="Label" parent="CanvasLayer/Main_Control/HBox_Info/Panel_Pop"]
@@ -2223,13 +2258,14 @@ horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="Display_Rec" type="ColorRect" parent="CanvasLayer/Main_Control"]
+visible = false
 material = SubResource("ShaderMaterial_62siw")
 layout_mode = 1
 anchors_preset = -1
 anchor_left = 0.88854164
-anchor_top = 0.6787037
+anchor_top = 0.712037
 anchor_right = 0.9927083
-anchor_bottom = 0.9194445
+anchor_bottom = 0.9185186
 grow_horizontal = 2
 grow_vertical = 2
 metadata/_edit_use_anchors_ = true
@@ -2247,7 +2283,7 @@ theme_override_styles/panel = ExtResource("10_tqtv8")
 layout_mode = 1
 anchors_preset = -1
 anchor_left = 0.04
-anchor_right = 0.84
+anchor_right = 0.96
 anchor_bottom = 0.99999976
 grow_horizontal = 2
 grow_vertical = 2
@@ -2281,13 +2317,27 @@ stretch_mode = 5
 custom_minimum_size = Vector2(6, 0)
 layout_mode = 2
 
-[node name="Label" type="Label" parent="CanvasLayer/Main_Control/Display_Rec/Panel/VBoxContainer/HBoxContainer"]
+[node name="Name" type="Label" parent="CanvasLayer/Main_Control/Display_Rec/Panel/VBoxContainer/HBoxContainer"]
+custom_minimum_size = Vector2(90, 0)
 layout_mode = 2
-theme_override_fonts/font = SubResource("FontVariation_urls0")
-theme_override_font_sizes/font_size = 16
+theme_override_fonts/font = SubResource("FontVariation_ogqqv")
+theme_override_font_sizes/font_size = 18
 text = "brunette"
-horizontal_alignment = 1
 vertical_alignment = 1
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="Name2" type="Label" parent="CanvasLayer/Main_Control/Display_Rec/Panel/VBoxContainer/HBoxContainer"]
+custom_minimum_size = Vector2(30, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.6509804)
+theme_override_fonts/font = SubResource("FontVariation_jcive")
+theme_override_font_sizes/font_size = 14
+text = "3rd"
+horizontal_alignment = 2
+vertical_alignment = 1
+clip_text = true
+text_overrun_behavior = 3
 
 [node name="MarginContainer3" type="MarginContainer" parent="CanvasLayer/Main_Control/Display_Rec/Panel/VBoxContainer"]
 custom_minimum_size = Vector2(0, 5)
@@ -2317,8 +2367,8 @@ vertical_alignment = 1
 [node name="Pop" type="Label" parent="CanvasLayer/Main_Control/Display_Rec/Panel/VBoxContainer/Panel_Pop"]
 layout_mode = 1
 anchors_preset = -1
-anchor_left = 0.19214287
-anchor_right = 0.83785737
+anchor_left = 0.18670812
+anchor_right = 0.8324226
 anchor_bottom = 1.0
 theme_override_fonts/font = ExtResource("22_62siw")
 theme_override_font_sizes/font_size = 13
@@ -2339,10 +2389,10 @@ anchor_left = 0.025714263
 anchor_top = 0.028571429
 anchor_right = 0.67142874
 anchor_bottom = 0.9714287
-offset_left = 1.0000005
+offset_left = 1.0
 offset_right = 1.0
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.22352941)
-theme_override_fonts/font = SubResource("FontVariation_wffjv")
+theme_override_fonts/font = SubResource("FontVariation_0fo8x")
 theme_override_font_sizes/font_size = 11
 text = "Cash"
 vertical_alignment = 1
@@ -2350,14 +2400,71 @@ vertical_alignment = 1
 [node name="Pop" type="Label" parent="CanvasLayer/Main_Control/Display_Rec/Panel/VBoxContainer/Panel_Cash"]
 layout_mode = 1
 anchors_preset = -1
-anchor_left = 0.22964287
-anchor_right = 0.87535733
+anchor_left = 0.21333852
+anchor_right = 0.859053
 anchor_bottom = 1.0
 theme_override_fonts/font = ExtResource("22_62siw")
 theme_override_font_sizes/font_size = 13
 text = "$1,520,660"
 vertical_alignment = 1
 metadata/_edit_use_anchors_ = true
+
+[node name="HBox_Assets1" type="HBoxContainer" parent="CanvasLayer/Main_Control/Display_Rec/Panel/VBoxContainer"]
+custom_minimum_size = Vector2(160, 35)
+layout_mode = 2
+alignment = 2
+
+[node name="Asset_Panel1" type="Panel" parent="CanvasLayer/Main_Control/Display_Rec/Panel/VBoxContainer/HBox_Assets1"]
+custom_minimum_size = Vector2(70, 35)
+layout_mode = 2
+size_flags_horizontal = 0
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("StyleBoxFlat_wffjv")
+
+[node name="Asset_Panel2" type="Panel" parent="CanvasLayer/Main_Control/Display_Rec/Panel/VBoxContainer/HBox_Assets1"]
+custom_minimum_size = Vector2(70, 35)
+layout_mode = 2
+size_flags_horizontal = 0
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("StyleBoxFlat_wffjv")
+
+[node name="HBox_Assets2" type="HBoxContainer" parent="CanvasLayer/Main_Control/Display_Rec/Panel/VBoxContainer"]
+custom_minimum_size = Vector2(160, 35)
+layout_mode = 2
+alignment = 2
+
+[node name="Asset_Panel1" type="Panel" parent="CanvasLayer/Main_Control/Display_Rec/Panel/VBoxContainer/HBox_Assets2"]
+custom_minimum_size = Vector2(70, 35)
+layout_mode = 2
+size_flags_horizontal = 0
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("StyleBoxFlat_wffjv")
+
+[node name="Asset_Panel2" type="Panel" parent="CanvasLayer/Main_Control/Display_Rec/Panel/VBoxContainer/HBox_Assets2"]
+custom_minimum_size = Vector2(70, 35)
+layout_mode = 2
+size_flags_horizontal = 0
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("StyleBoxFlat_wffjv")
+
+[node name="HBox_Assets3" type="HBoxContainer" parent="CanvasLayer/Main_Control/Display_Rec/Panel/VBoxContainer"]
+custom_minimum_size = Vector2(160, 35)
+layout_mode = 2
+alignment = 2
+
+[node name="Asset_Panel1" type="Panel" parent="CanvasLayer/Main_Control/Display_Rec/Panel/VBoxContainer/HBox_Assets3"]
+custom_minimum_size = Vector2(70, 35)
+layout_mode = 2
+size_flags_horizontal = 0
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("StyleBoxFlat_wffjv")
+
+[node name="Asset_Panel2" type="Panel" parent="CanvasLayer/Main_Control/Display_Rec/Panel/VBoxContainer/HBox_Assets3"]
+custom_minimum_size = Vector2(70, 35)
+layout_mode = 2
+size_flags_horizontal = 0
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("StyleBoxFlat_wffjv")
 
 [node name="Avatar_Rec" type="ColorRect" parent="CanvasLayer/Main_Control"]
 visible = false
@@ -2536,5 +2643,108 @@ text = "Cash"
 horizontal_alignment = 1
 vertical_alignment = 1
 metadata/_edit_use_anchors_ = true
+
+[node name="Options_Rec" type="ColorRect" parent="CanvasLayer/Main_Control"]
+material = SubResource("ShaderMaterial_62siw")
+clip_contents = true
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.8625
+anchor_top = 0.56203705
+anchor_right = 0.9927083
+anchor_bottom = 0.9185186
+grow_horizontal = 2
+grow_vertical = 2
+metadata/_edit_use_anchors_ = true
+
+[node name="Main_Panel" type="Panel" parent="CanvasLayer/Main_Control/Options_Rec"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = ExtResource("10_tqtv8")
+
+[node name="ScrollContainer" type="ScrollContainer" parent="CanvasLayer/Main_Control/Options_Rec/Main_Panel"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.044
+anchor_top = 0.1116883
+anchor_right = 0.992
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+metadata/_edit_use_anchors_ = true
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CanvasLayer/Main_Control/Options_Rec/Main_Panel/ScrollContainer"]
+layout_mode = 2
+metadata/_edit_use_anchors_ = true
+
+[node name="Label5" type="Label" parent="CanvasLayer/Main_Control/Options_Rec/Main_Panel/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_fonts/font = SubResource("FontVariation_ws447")
+theme_override_font_sizes/font_size = 12
+text = "Audio"
+
+[node name="Master_Panel" type="Panel" parent="CanvasLayer/Main_Control/Options_Rec/Main_Panel/ScrollContainer/VBoxContainer"]
+custom_minimum_size = Vector2(215, 50)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_wtv1v")
+
+[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/Main_Control/Options_Rec/Main_Panel/ScrollContainer/VBoxContainer/Master_Panel"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.037209302
+anchor_top = 0.04
+anchor_right = 0.9906977
+anchor_bottom = 0.66
+metadata/_edit_use_anchors_ = true
+
+[node name="Master_Label" type="Label" parent="CanvasLayer/Main_Control/Options_Rec/Main_Panel/ScrollContainer/VBoxContainer/Master_Panel/HBoxContainer"]
+layout_mode = 2
+theme_override_fonts/font = SubResource("FontVariation_50e55")
+theme_override_font_sizes/font_size = 18
+text = "Master"
+vertical_alignment = 2
+metadata/_edit_use_anchors_ = true
+
+[node name="Value_Label" type="Label" parent="CanvasLayer/Main_Control/Options_Rec/Main_Panel/ScrollContainer/VBoxContainer/Master_Panel/HBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.21176471)
+theme_override_fonts/font = SubResource("FontVariation_ocr78")
+theme_override_font_sizes/font_size = 15
+text = "100"
+horizontal_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="HSlider" type="HSlider" parent="CanvasLayer/Main_Control/Options_Rec/Main_Panel/ScrollContainer/VBoxContainer/Master_Panel"]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 0
+anchor_left = 0.037209302
+anchor_top = 0.58
+anchor_right = 0.96744186
+anchor_bottom = 0.9
+value = 100.0
+scrollable = false
+metadata/_edit_use_anchors_ = true
+
+[node name="Label2" type="Label" parent="CanvasLayer/Main_Control/Options_Rec/Main_Panel/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_fonts/font = SubResource("FontVariation_50e55")
+theme_override_font_sizes/font_size = 18
+text = "Music"
+
+[node name="Label3" type="Label" parent="CanvasLayer/Main_Control/Options_Rec/Main_Panel/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_fonts/font = SubResource("FontVariation_50e55")
+theme_override_font_sizes/font_size = 18
+text = "Effects"
+
+[node name="Label4" type="Label" parent="CanvasLayer/Main_Control/Options_Rec/Main_Panel/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_fonts/font = SubResource("FontVariation_50e55")
+theme_override_font_sizes/font_size = 18
+text = "Environment"
 
 [connection signal="text_submitted" from="CanvasLayer/Main_Control/Misc_Control/Chat_Control/Chat_Rec/LineEdit" to="CanvasLayer/Main_Control/Misc_Control/Chat_Control" method="_on_line_edit_text_submitted"]

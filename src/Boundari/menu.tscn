@@ -1,10 +1,51 @@
-[gd_scene load_steps=2 format=3 uid="uid://bk12lrum3nn28"]
+[gd_scene load_steps=6 format=3 uid="uid://bk12lrum3nn28"]
 
-[ext_resource type="Texture2D" uid="uid://cxnyt7kxbwa6y" path="res://4639f7a3-5bf0-4561-8cb8-9831959b396b.png" id="1_lti8b"]
+[ext_resource type="Shader" uid="uid://6vacgn1b474" path="res://menu.gdshader" id="1_ouk20"]
+[ext_resource type="Texture2D" uid="uid://ctpggmeisls7a" path="res://EPM.png" id="2_mae5d"]
+[ext_resource type="Shader" uid="uid://oahprew5m7q8" path="res://blur.gdshader" id="3_mae5d"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_4hy44"]
+shader = ExtResource("1_ouk20")
+shader_parameter/scroll_speed = 0.010000000475
+shader_parameter/distortion_strength = -0.789999990025
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ytr4m"]
+shader = ExtResource("3_mae5d")
+shader_parameter/blur_amount = 2.974000141265
+shader_parameter/darken_amount = 1.0
+shader_parameter/noise_strength = 0.01600000076
+shader_parameter/grain_scale = 150.0
+shader_parameter/noise_speed = 0.0
 
 [node name="Menu" type="Node2D"]
 
-[node name="4639f7a35Bf045618Cb89831959b396b" type="Sprite2D" parent="."]
-position = Vector2(576.75, 324)
-scale = Vector2(1.6125176, 1.3787234)
-texture = ExtResource("1_lti8b")
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="Control" type="Control" parent="CanvasLayer"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Map_Rect" type="TextureRect" parent="CanvasLayer/Control"]
+material = SubResource("ShaderMaterial_4hy44")
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("2_mae5d")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="ColorRect" type="ColorRect" parent="CanvasLayer/Control"]
+material = SubResource("ShaderMaterial_ytr4m")
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
