@@ -316,10 +316,10 @@ base_font = ExtResource("14_tepi4")
 spacing_glyph = 1
 spacing_bottom = -1
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ldsro"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ogqqv"]
 bg_color = Color(0, 0, 0, 0.07058824)
 border_width_right = 2
-border_color = Color(2.0507386, 2.0507386, 2.0507386, 0.05490196)
+border_color = Color(2.0507386, 2.0507386, 2.0507386, 0.19607843)
 border_blend = true
 corner_radius_top_left = 6
 corner_radius_bottom_left = 6
@@ -492,6 +492,7 @@ offset_left = -1504.0
 offset_top = -633.0
 offset_right = 1496.0
 offset_bottom = 633.0
+mouse_filter = 2
 
 [node name="Map" type="Sprite2D" parent="."]
 material = ExtResource("1_8bxg0")
@@ -513,8 +514,8 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 2
 script = ExtResource("4_pdu2b")
-popup_offset_y = 33.0
 
 [node name="HBox_AHudTEST" type="HBoxContainer" parent="CanvasLayer/Main_Control"]
 layout_mode = 0
@@ -1864,7 +1865,7 @@ anchor_bottom = 0.96
 offset_left = -1.3828278e-05
 offset_right = -1.5258789e-05
 size_flags_vertical = 4
-theme_override_styles/panel = SubResource("StyleBoxFlat_ldsro")
+theme_override_styles/panel = SubResource("StyleBoxFlat_ogqqv")
 metadata/_edit_use_anchors_ = true
 
 [node name="Label" type="Label" parent="CanvasLayer/Main_Control/HBox_Info/Leader_Panel/Place_Panel"]
@@ -2645,6 +2646,7 @@ vertical_alignment = 1
 metadata/_edit_use_anchors_ = true
 
 [node name="Options_Rec" type="ColorRect" parent="CanvasLayer/Main_Control"]
+visible = false
 material = SubResource("ShaderMaterial_62siw")
 clip_contents = true
 layout_mode = 1
