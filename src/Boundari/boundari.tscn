@@ -1,4 +1,4 @@
-[gd_scene load_steps=138 format=3 uid="uid://bvf7xj3oe6l6e"]
+[gd_scene load_steps=142 format=3 uid="uid://bvf7xj3oe6l6e"]
 
 [ext_resource type="Texture2D" uid="uid://cqjt3jll7jnoe" path="res://temperate.png" id="1_7on8u"]
 [ext_resource type="Material" uid="uid://b33g2hecf433j" path="res://territory_shader.tres" id="1_8bxg0"]
@@ -28,7 +28,9 @@
 [ext_resource type="Script" uid="uid://dcuc4uj2tiy8r" path="res://splitslider.gd" id="17_ta2ko"]
 [ext_resource type="Shader" uid="uid://d3sknjps5xcvh" path="res://leadericons.gdshader" id="19_fbxuu"]
 [ext_resource type="Script" uid="uid://c6gb3sv8bmm6b" path="res://chat.gd" id="20_04lhv"]
+[ext_resource type="FontVariation" uid="uid://b4d8a0clag06x" path="res://time_font.tres" id="20_5khtq"]
 [ext_resource type="Texture2D" uid="uid://v3vqee3p0pap" path="res://ui/aiden.jpg" id="20_ldsro"]
+[ext_resource type="FontVariation" uid="uid://bxermgifwb6rd" path="res://chashlog_font.tres" id="21_4ibk2"]
 [ext_resource type="Texture2D" uid="uid://cihixy1h635as" path="res://ui/justin.jpg" id="21_gjm0y"]
 [ext_resource type="StyleBox" uid="uid://22bs8d30p5ln" path="res://rounded_shadow.tres" id="21_tepi4"]
 [ext_resource type="FontVariation" uid="uid://23wqxrdv1uci" path="res://Pop_Fontvar.tres" id="21_urls0"]
@@ -277,6 +279,36 @@ shader_parameter/noise_strength = 0.01600000076
 shader_parameter/grain_scale = 150.0
 shader_parameter/noise_speed = 0.0
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_kthhr"]
+draw_center = false
+shadow_color = Color(0, 0, 0, 0.43137255)
+shadow_size = 20
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_7on8u"]
+shader = ExtResource("4_enfkb")
+shader_parameter/blur_amount = 3.0000001425
+shader_parameter/darken_amount = 0.770000036575
+shader_parameter/noise_strength = 0.01600000076
+shader_parameter/grain_scale = 150.0
+shader_parameter/noise_speed = 0.0
+shader_parameter/corner_radius_px = 6.000000285
+shader_parameter/corner_smooth_px = 1.0000000475
+shader_parameter/rect_size = Vector2(348, 400)
+shader_parameter/panel_alpha = 1.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_4ibk2"]
+bg_color = Color(0, 0, 0, 0.29411766)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(2.0507386, 2.0507386, 2.0507386, 0.23529412)
+border_blend = true
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ta2ko"]
 bg_color = Color(0, 0, 0, 0.29411766)
 border_width_left = 2
@@ -361,11 +393,6 @@ shader = ExtResource("19_fbxuu")
 shader_parameter/corner_radius_px = 24.0
 shader_parameter/edge_softness_px = 2.0
 shader_parameter/panel_alpha = 0.90000004275
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_kthhr"]
-draw_center = false
-shadow_color = Color(0, 0, 0, 0.43137255)
-shadow_size = 20
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_xc0m3"]
 shader = ExtResource("4_enfkb")
@@ -542,9 +569,10 @@ position = Vector2(959.99994, 540)
 scale = Vector2(2.7004218, 2.2978723)
 texture = ExtResource("1_ieay5")
 
-[node name="Camera2D" type="Camera2D" parent="."]
+[node name="Camera2D" type="Camera2D" parent="." node_paths=PackedStringArray("Bounds")]
 offset = Vector2(960, 540)
 script = ExtResource("4_7on8u")
+Bounds = NodePath("../Bounds")
 
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
 
@@ -1654,6 +1682,190 @@ grow_horizontal = 2
 grow_vertical = 2
 metadata/_edit_use_anchors_ = true
 
+[node name="Shadow_Control" type="Control" parent="CanvasLayer/Main_Control"]
+clip_contents = true
+layout_mode = 1
+anchor_left = 0.30572918
+anchor_top = 0.8888889
+anchor_right = 0.69427085
+anchor_bottom = 0.9444444
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+metadata/_edit_use_anchors_ = true
+
+[node name="Hud_Shadow" type="Panel" parent="CanvasLayer/Main_Control/Shadow_Control"]
+custom_minimum_size = Vector2(750, 0)
+layout_mode = 1
+anchors_preset = -1
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 2.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_kthhr")
+metadata/_edit_use_anchors_ = true
+
+[node name="Cash_Log" type="ColorRect" parent="CanvasLayer/Main_Control"]
+visible = false
+material = SubResource("ShaderMaterial_7on8u")
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.60625
+anchor_top = 0.5972222
+anchor_right = 0.7875
+anchor_bottom = 0.95555556
+metadata/_edit_use_anchors_ = true
+
+[node name="Cash_Panel" type="Panel" parent="CanvasLayer/Main_Control/Cash_Log"]
+custom_minimum_size = Vector2(350, 35)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -1.0
+offset_top = -1.0
+offset_right = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("StyleBoxFlat_4ibk2")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CanvasLayer/Main_Control/Cash_Log/Cash_Panel"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.02259887
+anchor_top = 0.019900497
+anchor_right = 0.97740114
+anchor_bottom = 0.91542286
+grow_horizontal = 2
+grow_vertical = 2
+metadata/_edit_use_anchors_ = true
+
+[node name="time" type="Label" parent="CanvasLayer/Main_Control/Cash_Log/Cash_Panel/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.5882353)
+theme_override_fonts/font = ExtResource("20_5khtq")
+theme_override_font_sizes/font_size = 9
+text = "9:08"
+
+[node name="Label" type="Label" parent="CanvasLayer/Main_Control/Cash_Log/Cash_Panel/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.5882353)
+theme_override_fonts/font = ExtResource("21_4ibk2")
+theme_override_font_sizes/font_size = 12
+text = "↳ Trade ship arrived in Egypt"
+
+[node name="time2" type="Label" parent="CanvasLayer/Main_Control/Cash_Log/Cash_Panel/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.5882353)
+theme_override_fonts/font = ExtResource("20_5khtq")
+theme_override_font_sizes/font_size = 9
+text = "9:11"
+
+[node name="Label2" type="Label" parent="CanvasLayer/Main_Control/Cash_Log/Cash_Panel/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.5882353)
+theme_override_fonts/font = ExtResource("21_4ibk2")
+theme_override_font_sizes/font_size = 12
+text = "↳ Trade ship arrived in Chile"
+
+[node name="time3" type="Label" parent="CanvasLayer/Main_Control/Cash_Log/Cash_Panel/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.5882353)
+theme_override_fonts/font = ExtResource("20_5khtq")
+theme_override_font_sizes/font_size = 9
+text = "9:15"
+
+[node name="Label3" type="Label" parent="CanvasLayer/Main_Control/Cash_Log/Cash_Panel/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.5882353)
+theme_override_fonts/font = ExtResource("21_4ibk2")
+theme_override_font_sizes/font_size = 12
+text = "↳ Captured trade ship from France"
+
+[node name="Label4" type="Label" parent="CanvasLayer/Main_Control/Cash_Log/Cash_Panel/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.5882353)
+theme_override_fonts/font = ExtResource("21_4ibk2")
+theme_override_font_sizes/font_size = 12
+text = "↳ Train arrived in Brazil"
+
+[node name="time4" type="Label" parent="CanvasLayer/Main_Control/Cash_Log/Cash_Panel/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.5882353)
+theme_override_fonts/font = ExtResource("20_5khtq")
+theme_override_font_sizes/font_size = 9
+text = "9:16"
+
+[node name="Label5" type="Label" parent="CanvasLayer/Main_Control/Cash_Log/Cash_Panel/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.5882353)
+theme_override_fonts/font = ExtResource("21_4ibk2")
+theme_override_font_sizes/font_size = 12
+text = "↳ Captured trade ship from France"
+
+[node name="time5" type="Label" parent="CanvasLayer/Main_Control/Cash_Log/Cash_Panel/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.5882353)
+theme_override_fonts/font = ExtResource("20_5khtq")
+theme_override_font_sizes/font_size = 9
+text = "9:19"
+
+[node name="Label6" type="Label" parent="CanvasLayer/Main_Control/Cash_Log/Cash_Panel/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.5882353)
+theme_override_fonts/font = ExtResource("21_4ibk2")
+theme_override_font_sizes/font_size = 12
+text = "↳ Trade ship captured by Mexico"
+
+[node name="Label7" type="Label" parent="CanvasLayer/Main_Control/Cash_Log/Cash_Panel/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.5882353)
+theme_override_fonts/font = ExtResource("21_4ibk2")
+theme_override_font_sizes/font_size = 12
+text = "↳ Trade ship arrived in Chile"
+
+[node name="Label8" type="Label" parent="CanvasLayer/Main_Control/Cash_Log/Cash_Panel/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.5882353)
+theme_override_fonts/font = ExtResource("21_4ibk2")
+theme_override_font_sizes/font_size = 12
+text = "↳ Trade ship arrived in Antarctica"
+
+[node name="time6" type="Label" parent="CanvasLayer/Main_Control/Cash_Log/Cash_Panel/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.5882353)
+theme_override_fonts/font = ExtResource("20_5khtq")
+theme_override_font_sizes/font_size = 9
+text = "9:21"
+
+[node name="Label9" type="Label" parent="CanvasLayer/Main_Control/Cash_Log/Cash_Panel/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.5882353)
+theme_override_fonts/font = ExtResource("21_4ibk2")
+theme_override_font_sizes/font_size = 12
+text = "↳ Train arrived in Brazil"
+
+[node name="time7" type="Label" parent="CanvasLayer/Main_Control/Cash_Log/Cash_Panel/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.5882353)
+theme_override_fonts/font = ExtResource("20_5khtq")
+theme_override_font_sizes/font_size = 9
+text = "9:22"
+
+[node name="Label10" type="Label" parent="CanvasLayer/Main_Control/Cash_Log/Cash_Panel/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.5882353)
+theme_override_fonts/font = ExtResource("21_4ibk2")
+theme_override_font_sizes/font_size = 12
+text = "↳ Trade ship captured by Mexico"
+
+[node name="Label11" type="Label" parent="CanvasLayer/Main_Control/Cash_Log/Cash_Panel/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.5882353)
+theme_override_fonts/font = ExtResource("21_4ibk2")
+theme_override_font_sizes/font_size = 12
+text = "↳ Trade ship captured by Sweden"
+
 [node name="HBox_Info" type="HBoxContainer" parent="CanvasLayer/Main_Control"]
 custom_minimum_size = Vector2(0, 45)
 layout_mode = 1
@@ -2050,30 +2262,7 @@ anchor_bottom = 0.9565196
 texture = ExtResource("31_xffgh")
 metadata/_edit_use_anchors_ = true
 
-[node name="Shadow_Control" type="Control" parent="CanvasLayer/Main_Control"]
-clip_contents = true
-layout_mode = 1
-anchor_left = 0.30572918
-anchor_top = 0.8888889
-anchor_right = 0.69427085
-anchor_bottom = 0.9444444
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-metadata/_edit_use_anchors_ = true
-
-[node name="Hud_Shadow" type="Panel" parent="CanvasLayer/Main_Control/Shadow_Control"]
-custom_minimum_size = Vector2(750, 0)
-layout_mode = 1
-anchors_preset = -1
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 2.0
-theme_override_styles/panel = SubResource("StyleBoxFlat_kthhr")
-metadata/_edit_use_anchors_ = true
-
 [node name="Misc_Control" type="Control" parent="CanvasLayer/Main_Control"]
-visible = false
 anchors_preset = 0
 offset_right = 40.0
 offset_bottom = 40.0

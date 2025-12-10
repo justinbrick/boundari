@@ -10,11 +10,12 @@ extends Button
 var expanded: bool = false
 
 func _ready() -> void:
-	# Make button look like plain text
-	add_theme_stylebox_override("normal", null)
-	add_theme_stylebox_override("hover", null)
-	add_theme_stylebox_override("pressed", null)
-	add_theme_stylebox_override("focus", null)
+	# Make button look like plain text (use empty StyleBoxes instead of null)
+	var empty_style := StyleBoxEmpty.new()
+	add_theme_stylebox_override("normal", empty_style)
+	add_theme_stylebox_override("hover", empty_style)
+	add_theme_stylebox_override("pressed", empty_style)
+	add_theme_stylebox_override("focus", empty_style)
 
 	mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 
