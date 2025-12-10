@@ -1,4 +1,4 @@
-[gd_scene load_steps=24 format=3 uid="uid://4qql0m7bcw05"]
+[gd_scene load_steps=25 format=3 uid="uid://4qql0m7bcw05"]
 
 [ext_resource type="Texture2D" uid="uid://c48dkbfdmafka" path="res://ui/radial/top.png" id="1_bknod"]
 [ext_resource type="Script" uid="uid://cxsh8k8m7fnjt" path="res://radial_menu.gd" id="1_vuy4x"]
@@ -45,6 +45,8 @@ shader_parameter/noise_strength = 0.01600000076
 shader_parameter/grain_scale = 150.0
 shader_parameter/noise_speed = 0.0
 
+[sub_resource type="BitMap" id="BitMap_vuy4x"]
+
 [node name="RadialMenu" type="Control"]
 layout_mode = 3
 anchors_preset = 0
@@ -71,20 +73,8 @@ grow_vertical = 2
 mouse_filter = 2
 texture = ExtResource("3_usxbp")
 
-[node name="TextureButton" type="TextureButton" parent="Control/T_Rect"]
-layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -190.0
-offset_top = -190.0
-offset_right = 190.0
-offset_bottom = 190.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 1
+[node name="TextureButton" type="TextureButton" parent="Control/T_Rect" groups=["radial_button"]]
+layout_mode = 0
 texture_normal = ExtResource("1_bknod")
 
 [node name="R_Rect" type="TextureRect" parent="Control"]
@@ -98,21 +88,9 @@ grow_vertical = 2
 mouse_filter = 2
 texture = ExtResource("7_uk7yg")
 
-[node name="TextureButton2" type="TextureButton" parent="Control/R_Rect"]
-layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -190.0
-offset_top = -190.0
-offset_right = 190.0
-offset_bottom = 190.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 1
+[node name="TextureButton2" type="TouchScreenButton" parent="Control/R_Rect" groups=["radial_button"]]
 texture_normal = ExtResource("2_km8kk")
+passby_press = true
 
 [node name="B_Rect" type="TextureRect" parent="Control"]
 material = SubResource("ShaderMaterial_rcdhe")
@@ -125,21 +103,9 @@ grow_vertical = 2
 mouse_filter = 2
 texture = ExtResource("9_q3lr3")
 
-[node name="TextureButton3" type="TextureButton" parent="Control/B_Rect"]
-layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -190.0
-offset_top = -190.0
-offset_right = 190.0
-offset_bottom = 190.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 1
+[node name="TextureButton3" type="TouchScreenButton" parent="Control/B_Rect" groups=["radial_button"]]
 texture_normal = ExtResource("3_larf4")
+passby_press = true
 
 [node name="L_Rect" type="TextureRect" parent="Control"]
 material = SubResource("ShaderMaterial_rcdhe")
@@ -152,21 +118,9 @@ grow_vertical = 2
 mouse_filter = 2
 texture = ExtResource("11_yycsc")
 
-[node name="TextureButton4" type="TextureButton" parent="Control/L_Rect"]
-layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -190.0
-offset_top = -190.0
-offset_right = 190.0
-offset_bottom = 190.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 1
+[node name="TextureButton4" type="TouchScreenButton" parent="Control/L_Rect" groups=["radial_button"]]
 texture_normal = ExtResource("4_m0d1i")
+passby_press = true
 
 [node name="TR_Rect" type="TextureRect" parent="Control"]
 material = SubResource("ShaderMaterial_ulr14")
@@ -179,21 +133,9 @@ grow_vertical = 2
 mouse_filter = 2
 texture = ExtResource("13_o5alb")
 
-[node name="TextureButton5" type="TextureButton" parent="Control/TR_Rect"]
-layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -190.0
-offset_top = -190.0
-offset_right = 190.0
-offset_bottom = 190.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 1
+[node name="TextureButton5" type="TouchScreenButton" parent="Control/TR_Rect" groups=["radial_button"]]
 texture_normal = ExtResource("5_t5h6i")
+passby_press = true
 
 [node name="BR_Rect" type="TextureRect" parent="Control"]
 material = SubResource("ShaderMaterial_pj10i")
@@ -206,21 +148,9 @@ grow_vertical = 2
 mouse_filter = 2
 texture = ExtResource("15_g14kg")
 
-[node name="TextureButton6" type="TextureButton" parent="Control/BR_Rect"]
-layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -190.0
-offset_top = -190.0
-offset_right = 190.0
-offset_bottom = 190.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 1
+[node name="TextureButton6" type="TouchScreenButton" parent="Control/BR_Rect" groups=["radial_button"]]
 texture_normal = ExtResource("15_rcdhe")
+passby_press = true
 
 [node name="BL_Rect" type="TextureRect" parent="Control"]
 material = SubResource("ShaderMaterial_ulr14")
@@ -233,21 +163,9 @@ grow_vertical = 2
 mouse_filter = 2
 texture = ExtResource("17_80ouo")
 
-[node name="TextureButton7" type="TextureButton" parent="Control/BL_Rect"]
-layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -190.0
-offset_top = -190.0
-offset_right = 190.0
-offset_bottom = 190.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 1
+[node name="TextureButton7" type="TouchScreenButton" parent="Control/BL_Rect" groups=["radial_button"]]
 texture_normal = ExtResource("7_8lgvv")
+passby_press = true
 
 [node name="TL_Rect" type="TextureRect" parent="Control"]
 material = SubResource("ShaderMaterial_ulr14")
@@ -260,21 +178,10 @@ grow_vertical = 2
 mouse_filter = 2
 texture = ExtResource("19_pvcoj")
 
-[node name="TextureButton8" type="TextureButton" parent="Control/TL_Rect"]
-layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -190.0
-offset_top = -190.0
-offset_right = 190.0
-offset_bottom = 190.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 1
+[node name="TextureButton8" type="TextureButton" parent="Control/TL_Rect" groups=["radial_button"]]
+layout_mode = 0
 texture_normal = ExtResource("8_nf5sk")
+texture_click_mask = SubResource("BitMap_vuy4x")
 
 [node name="Center_Rect" type="TextureRect" parent="Control"]
 material = SubResource("ShaderMaterial_ulr14")
@@ -287,19 +194,7 @@ grow_vertical = 2
 mouse_filter = 2
 texture = ExtResource("21_8kuak")
 
-[node name="TextureButton9" type="TextureButton" parent="Control/Center_Rect"]
+[node name="TextureButton9" type="TouchScreenButton" parent="Control/Center_Rect" groups=["radial_button"]]
 modulate = Color(1, 0.99607843, 1, 1)
-layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -190.0
-offset_top = -190.0
-offset_right = 190.0
-offset_bottom = 190.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 1
 texture_normal = ExtResource("9_km8kk")
+passby_press = true

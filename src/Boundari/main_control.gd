@@ -1,14 +1,14 @@
 extends Control
 
-@export var popup_offset_y: float = 4.0   # how high above the button the panel sits
+@export var popup_offset_y: float = 34.0   # how high above the button the panel sits
 
 @onready var buttons_row: HBoxContainer = $ButtonsRow
 @onready var info_panel: Panel = $InfoPanel
 @onready var vbox: VBoxContainer = $InfoPanel/VBoxContainer
-@onready var label1: Label = $InfoPanel/VBoxContainer/Label
-@onready var label2: Label = $InfoPanel/VBoxContainer/Label2
+@onready var label1: Label = $InfoPanel/VBoxContainer/Header
+@onready var label2: Label = $InfoPanel/VBoxContainer/Description
 @onready var hbox_cash: HBoxContainer = $InfoPanel/VBoxContainer/HBox_Cash
-@onready var label3: Label = $InfoPanel/VBoxContainer/HBox_Cash/Label3
+@onready var label3: Label = $InfoPanel/VBoxContainer/HBox_Cash/Amount
 
 # ============================================================
 # RADIAL MENU SETUP

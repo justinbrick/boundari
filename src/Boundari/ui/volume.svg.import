@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b6n4e5xt8rfqy"
-path="res://.godot/imported/Boundari.png-1e19b7a5867f71be91678397e4029a39.ctex"
+uid="uid://cya6ne0qbce53"
+path="res://.godot/imported/volume.svg-6d1c020dc4cb61ff1cb0bdf13b9fb2d9.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Boundari.png"
-dest_files=["res://.godot/imported/Boundari.png-1e19b7a5867f71be91678397e4029a39.ctex"]
+source_file="res://ui/volume.svg"
+dest_files=["res://.godot/imported/volume.svg-6d1c020dc4cb61ff1cb0bdf13b9fb2d9.ctex"]
 
 [params]
 
@@ -38,3 +38,6 @@ process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
 detect_3d/compress_to=1
+svg/scale=1.0
+editor/scale_with_editor_scale=false
+editor/convert_colors_with_editor_theme=false

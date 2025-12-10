@@ -1,9 +1,8 @@
-[gd_scene load_steps=138 format=3 uid="uid://bvf7xj3oe6l6e"]
+[gd_scene load_steps=122 format=3 uid="uid://bvf7xj3oe6l6e"]
 
-[ext_resource type="Texture2D" uid="uid://cqjt3jll7jnoe" path="res://temperate.png" id="1_7on8u"]
 [ext_resource type="Material" uid="uid://b33g2hecf433j" path="res://territory_shader.tres" id="1_8bxg0"]
 [ext_resource type="Texture2D" uid="uid://cxnyt7kxbwa6y" path="res://4639f7a3-5bf0-4561-8cb8-9831959b396b.png" id="1_ieay5"]
-[ext_resource type="Script" uid="uid://b03prub72qvax" path="res://Camera.cs" id="4_7on8u"]
+[ext_resource type="Script" uid="uid://b03prub72qvax" path="res://Camera.cs" id="2_rft6w"]
 [ext_resource type="Shader" uid="uid://ccrx2iq3onidj" path="res://blurroundcorn.gdshader" id="4_enfkb"]
 [ext_resource type="Script" uid="uid://5k1716wrxjer" path="res://main_control.gd" id="4_pdu2b"]
 [ext_resource type="Script" uid="uid://bbf0lhb2yu8x6" path="res://hoveroverhaul.gd" id="4_xc0m3"]
@@ -45,21 +44,11 @@
 [ext_resource type="Texture2D" uid="uid://dtptu6l5ug7bj" path="res://ui/rando.jpg" id="26_ta2ko"]
 [ext_resource type="Texture2D" uid="uid://cjpjwtye5wlx6" path="res://ui/settings.svg" id="30_xp78s"]
 [ext_resource type="Texture2D" uid="uid://bbnn05qkyvu5i" path="res://ui/exit.svg" id="31_xffgh"]
-[ext_resource type="Script" uid="uid://cypeqiofjrcnb" path="res://settings_button.gd" id="34_ceysn"]
+[ext_resource type="Script" uid="uid://bano2e6t0xy16" path="res://open_menu.gd" id="34_jcive"]
 [ext_resource type="Texture2D" uid="uid://cyef00tjve676" path="res://ui/steam2.svg" id="46_62siw"]
 [ext_resource type="Texture2D" uid="uid://d0q23xu83vcqh" path="res://ui/united-states.svg" id="46_ogqqv"]
 [ext_resource type="Script" uid="uid://c1yebxloxmqxv" path="res://audio_section.gd" id="47_wffjv"]
-[ext_resource type="Texture2D" uid="uid://bbq4oymjqf087" path="res://ui/small_icons/small_port.svg" id="48_j4nhx"]
-[ext_resource type="Texture2D" uid="uid://dkb72dnlw8vu7" path="res://ui/arrow.svg" id="49_0fo8x"]
-[ext_resource type="FontFile" uid="uid://clvp4a332psib" path="res://fonts/OldSansBlack.ttf" id="49_5khtq"]
-[ext_resource type="Texture2D" uid="uid://cxfxtwobwb4ok" path="res://ui/small_icons/small_city.svg" id="49_qmx4u"]
-[ext_resource type="Texture2D" uid="uid://b3oe8eldx5fc7" path="res://ui/small_icons/small_factory.svg" id="50_jucne"]
-[ext_resource type="Texture2D" uid="uid://b1xgbo31tqfph" path="res://ui/small_icons/small_defense.svg" id="51_jucne"]
-[ext_resource type="FontVariation" uid="uid://d08irtmb50dr7" path="res://drop_font.tres" id="51_wtv1v"]
-[ext_resource type="Texture2D" uid="uid://bgga3xbfmxpmn" path="res://ui/small_icons/small_silo.svg" id="52_ceysn"]
-[ext_resource type="Texture2D" uid="uid://cjwbjfkgi3iti" path="res://ui/small_icons/small_sam.svg" id="53_7on8u"]
-[ext_resource type="StyleBox" uid="uid://dfa84hwau7ebg" path="res://option_panel.tres" id="54_ocr78"]
-[ext_resource type="Script" uid="uid://cbk446pded3d" path="res://options_rect.gd" id="55_ceysn"]
+[ext_resource type="Texture2D" uid="uid://ctr7q7gtqa33i" path="res://NAT_2_WLR.png" id="48_wffjv"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_rblt2"]
 bg_color = Color(0, 0, 0, 0.29411766)
@@ -472,12 +461,6 @@ spacing_top = 2
 variation_transform = Transform2D(1.005, 0.31, 0, 1.485, 0, 0)
 spacing_top = 3
 
-[sub_resource type="FontVariation" id="FontVariation_4ibk2"]
-base_font = ExtResource("49_5khtq")
-
-[sub_resource type="FontVariation" id="FontVariation_m1ktc"]
-base_font = ExtResource("49_5khtq")
-
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_wffjv"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_jcive"]
@@ -487,10 +470,6 @@ base_font = ExtResource("49_5khtq")
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_50e55"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_ws447"]
-
-[sub_resource type="FontVariation" id="FontVariation_ocr78"]
-base_font = ExtResource("51_wtv1v")
-spacing_top = -2
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_wtv1v"]
 
@@ -502,10 +481,6 @@ spacing_top = -2
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_qmx4u"]
 
-[sub_resource type="FontVariation" id="FontVariation_g1444"]
-base_font = ExtResource("51_wtv1v")
-spacing_top = -3
-
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_jucne"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_ceysn"]
@@ -515,9 +490,6 @@ spacing_top = -3
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_5khtq"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_4ibk2"]
-
-[sub_resource type="FontVariation" id="FontVariation_qmx4u"]
-base_font = ExtResource("51_wtv1v")
 
 [node name="Node2D" type="Node2D"]
 
@@ -531,10 +503,6 @@ mouse_filter = 2
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 
-[node name="Map2" type="Sprite2D" parent="."]
-position = Vector2(960, 540)
-texture = ExtResource("1_7on8u")
-
 [node name="Map" type="Sprite2D" parent="."]
 visible = false
 material = ExtResource("1_8bxg0")
@@ -542,9 +510,10 @@ position = Vector2(959.99994, 540)
 scale = Vector2(2.7004218, 2.2978723)
 texture = ExtResource("1_ieay5")
 
-[node name="Camera2D" type="Camera2D" parent="."]
+[node name="Camera2D" type="Camera2D" parent="." node_paths=PackedStringArray("Bounds")]
 offset = Vector2(960, 540)
-script = ExtResource("4_7on8u")
+script = ExtResource("2_rft6w")
+Bounds = NodePath("../Bounds")
 
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
 
@@ -637,7 +606,7 @@ metadata/_edit_use_anchors_ = true
 custom_minimum_size = Vector2(25, 0)
 layout_mode = 2
 
-[node name="Port" type="Label" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names"]
+[node name="Port_Label" type="Label" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names"]
 custom_minimum_size = Vector2(50, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
@@ -651,7 +620,7 @@ metadata/_edit_use_anchors_ = true
 custom_minimum_size = Vector2(6, 0)
 layout_mode = 2
 
-[node name="City" type="Label" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names"]
+[node name="Port_Label2" type="Label" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names"]
 custom_minimum_size = Vector2(50, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
@@ -665,7 +634,7 @@ metadata/_edit_use_anchors_ = true
 custom_minimum_size = Vector2(6, 0)
 layout_mode = 2
 
-[node name="Factory" type="Label" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names"]
+[node name="Port_Label3" type="Label" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names"]
 custom_minimum_size = Vector2(50, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
@@ -679,7 +648,7 @@ metadata/_edit_use_anchors_ = true
 custom_minimum_size = Vector2(6, 0)
 layout_mode = 2
 
-[node name="Defense" type="Label" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names"]
+[node name="Port_Label4" type="Label" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names"]
 custom_minimum_size = Vector2(50, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
@@ -693,7 +662,7 @@ metadata/_edit_use_anchors_ = true
 custom_minimum_size = Vector2(38, 0)
 layout_mode = 2
 
-[node name="Silo" type="Label" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names"]
+[node name="Port_Label5" type="Label" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names"]
 custom_minimum_size = Vector2(50, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
@@ -707,7 +676,7 @@ metadata/_edit_use_anchors_ = true
 custom_minimum_size = Vector2(6, 0)
 layout_mode = 2
 
-[node name="Sam" type="Label" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names"]
+[node name="Port_Label6" type="Label" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names"]
 custom_minimum_size = Vector2(50, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
@@ -721,7 +690,7 @@ metadata/_edit_use_anchors_ = true
 custom_minimum_size = Vector2(40, 0)
 layout_mode = 2
 
-[node name="Warship" type="Label" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names"]
+[node name="Port_Label7" type="Label" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names"]
 custom_minimum_size = Vector2(50, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
@@ -735,13 +704,13 @@ metadata/_edit_use_anchors_ = true
 custom_minimum_size = Vector2(6, 0)
 layout_mode = 2
 
-[node name="Viper" type="Label" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names"]
+[node name="Port_Label8" type="Label" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names"]
 custom_minimum_size = Vector2(50, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
 theme_override_fonts/font = SubResource("FontVariation_ok40o")
 theme_override_font_sizes/font_size = 9
-text = "Viper"
+text = "Proton"
 horizontal_alignment = 1
 metadata/_edit_use_anchors_ = true
 
@@ -749,13 +718,13 @@ metadata/_edit_use_anchors_ = true
 custom_minimum_size = Vector2(6, 0)
 layout_mode = 2
 
-[node name="Falcon" type="Label" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names"]
+[node name="Port_Label9" type="Label" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names"]
 custom_minimum_size = Vector2(50, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
 theme_override_fonts/font = SubResource("FontVariation_ok40o")
 theme_override_font_sizes/font_size = 9
-text = "Falcon"
+text = "Neutron"
 horizontal_alignment = 1
 metadata/_edit_use_anchors_ = true
 
@@ -763,13 +732,13 @@ metadata/_edit_use_anchors_ = true
 custom_minimum_size = Vector2(6, 0)
 layout_mode = 2
 
-[node name="Raptor" type="Label" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names"]
+[node name="Port_Label10" type="Label" parent="CanvasLayer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names"]
 custom_minimum_size = Vector2(50, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
 theme_override_fonts/font = SubResource("FontVariation_ok40o")
 theme_override_font_sizes/font_size = 9
-text = "Raptor"
+text = "Atomizer"
 horizontal_alignment = 1
 metadata/_edit_use_anchors_ = true
 
@@ -1549,7 +1518,7 @@ expand_mode = 1
 custom_minimum_size = Vector2(60, 0)
 layout_mode = 2
 
-[node name="Viper_Button" type="Button" parent="CanvasLayer/Main_Control/ButtonsRow/Control9"]
+[node name="Proton_Button" type="Button" parent="CanvasLayer/Main_Control/ButtonsRow/Control9"]
 layout_mode = 0
 offset_right = 60.0
 offset_bottom = 90.0
@@ -1561,11 +1530,11 @@ theme_override_styles/disabled = SubResource("StyleBoxEmpty_04lhv")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_ewirb")
 icon_alignment = 1
 script = ExtResource("4_xc0m3")
-line1 = "Viper Missile [8]"
+line1 = "Proton Missile [8]"
 line2 = "Missile with a small radius"
 line3 = "1.5M"
 
-[node name="TextureRect" type="TextureRect" parent="CanvasLayer/Main_Control/ButtonsRow/Control9/Viper_Button"]
+[node name="TextureRect" type="TextureRect" parent="CanvasLayer/Main_Control/ButtonsRow/Control9/Proton_Button"]
 material = SubResource("ShaderMaterial_ok40o")
 layout_mode = 0
 offset_right = 60.0
@@ -1577,7 +1546,7 @@ expand_mode = 1
 custom_minimum_size = Vector2(60, 0)
 layout_mode = 2
 
-[node name="Falcon_Button" type="Button" parent="CanvasLayer/Main_Control/ButtonsRow/Control10"]
+[node name="Neutron_Button" type="Button" parent="CanvasLayer/Main_Control/ButtonsRow/Control10"]
 layout_mode = 0
 offset_right = 60.0
 offset_bottom = 90.0
@@ -1589,11 +1558,11 @@ theme_override_styles/disabled = SubResource("StyleBoxEmpty_04lhv")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_ewirb")
 icon_alignment = 1
 script = ExtResource("4_xc0m3")
-line1 = "Falcon Missile [9]"
+line1 = "Neutron Missile [9]"
 line2 = "Missile with a large radius"
 line3 = "10M"
 
-[node name="TextureRect" type="TextureRect" parent="CanvasLayer/Main_Control/ButtonsRow/Control10/Falcon_Button"]
+[node name="TextureRect" type="TextureRect" parent="CanvasLayer/Main_Control/ButtonsRow/Control10/Neutron_Button"]
 material = SubResource("ShaderMaterial_rblt2")
 layout_mode = 0
 offset_right = 60.0
@@ -1605,7 +1574,7 @@ expand_mode = 1
 custom_minimum_size = Vector2(60, 0)
 layout_mode = 2
 
-[node name="Raptor_Button" type="Button" parent="CanvasLayer/Main_Control/ButtonsRow/Control11"]
+[node name="Atomizer_Button" type="Button" parent="CanvasLayer/Main_Control/ButtonsRow/Control11"]
 layout_mode = 0
 offset_right = 60.0
 offset_bottom = 90.0
@@ -1617,11 +1586,11 @@ theme_override_styles/disabled = SubResource("StyleBoxEmpty_04lhv")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_ewirb")
 icon_alignment = 1
 script = ExtResource("4_xc0m3")
-line1 = "Raptor Bomb [0]"
+line1 = "Atomizer Bomb [0]"
 line2 = "Indefensible nuclear warhead"
 line3 = "70M"
 
-[node name="TextureRect" type="TextureRect" parent="CanvasLayer/Main_Control/ButtonsRow/Control11/Raptor_Button"]
+[node name="TextureRect" type="TextureRect" parent="CanvasLayer/Main_Control/ButtonsRow/Control11/Atomizer_Button"]
 material = SubResource("ShaderMaterial_o10ms")
 layout_mode = 0
 offset_right = 60.0
@@ -2006,15 +1975,12 @@ metadata/_edit_use_anchors_ = true
 [node name="Settings_Button" type="Button" parent="CanvasLayer/Main_Control/HBox_Info/Leader_Panel/VBox_Misc"]
 custom_minimum_size = Vector2(23, 23)
 layout_mode = 2
-focus_mode = 0
-mouse_default_cursor_shape = 2
 theme_override_styles/normal = ExtResource("23_7tbuw")
 theme_override_styles/pressed = ExtResource("24_4aj2s")
 theme_override_styles/hover = ExtResource("25_p1vly")
 icon_alignment = 1
-expand_icon = true
-script = ExtResource("34_ceysn")
-options_rect_path = NodePath("../../../../HBox_BR/Options_Rect")
+script = ExtResource("34_jcive")
+target_path = NodePath("../../../../HBoxContainer/Options_Rect")
 
 [node name="TextureRect" type="TextureRect" parent="CanvasLayer/Main_Control/HBox_Info/Leader_Panel/VBox_Misc/Settings_Button"]
 layout_mode = 1
@@ -2034,8 +2000,6 @@ layout_mode = 2
 [node name="Exit_Button" type="Button" parent="CanvasLayer/Main_Control/HBox_Info/Leader_Panel/VBox_Misc"]
 custom_minimum_size = Vector2(23, 23)
 layout_mode = 2
-focus_mode = 0
-mouse_default_cursor_shape = 2
 theme_override_styles/normal = ExtResource("23_7tbuw")
 theme_override_styles/pressed = ExtResource("24_4aj2s")
 theme_override_styles/hover = ExtResource("25_p1vly")
@@ -2043,10 +2007,10 @@ theme_override_styles/hover = ExtResource("25_p1vly")
 [node name="TextureRect" type="TextureRect" parent="CanvasLayer/Main_Control/HBox_Info/Leader_Panel/VBox_Misc/Exit_Button"]
 layout_mode = 1
 anchors_preset = -1
-anchor_left = 0.043467645
-anchor_top = 0.043476127
-anchor_right = 0.95651114
-anchor_bottom = 0.9565196
+anchor_left = 0.25
+anchor_top = 0.225
+anchor_right = 0.7499878
+anchor_bottom = 0.775
 texture = ExtResource("31_xffgh")
 metadata/_edit_use_anchors_ = true
 
@@ -2263,7 +2227,7 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 0
 
-[node name="Header" type="Label" parent="CanvasLayer/Main_Control/InfoPanel/VBoxContainer"]
+[node name="Label" type="Label" parent="CanvasLayer/Main_Control/InfoPanel/VBoxContainer"]
 custom_minimum_size = Vector2(0, 30)
 layout_mode = 2
 theme_override_fonts/font = SubResource("FontVariation_urls0")
@@ -2272,10 +2236,10 @@ text = "Text [1]"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="Description" type="Label" parent="CanvasLayer/Main_Control/InfoPanel/VBoxContainer"]
+[node name="Label2" type="Label" parent="CanvasLayer/Main_Control/InfoPanel/VBoxContainer"]
 layout_mode = 2
 theme_override_fonts/font = SubResource("FontVariation_urls0")
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 11
 text = "Description listing uses"
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -2289,7 +2253,7 @@ layout_mode = 2
 theme_override_constants/separation = 2
 alignment = 1
 
-[node name="Amount" type="Label" parent="CanvasLayer/Main_Control/InfoPanel/VBoxContainer/HBox_Cash"]
+[node name="Label3" type="Label" parent="CanvasLayer/Main_Control/InfoPanel/VBoxContainer/HBox_Cash"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.5686275, 1, 0.5372549, 1)
 theme_override_fonts/font = SubResource("FontVariation_urls0")
@@ -2298,7 +2262,7 @@ text = "X-K"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="Cash" type="Label" parent="CanvasLayer/Main_Control/InfoPanel/VBoxContainer/HBox_Cash"]
+[node name="Label4" type="Label" parent="CanvasLayer/Main_Control/InfoPanel/VBoxContainer/HBox_Cash"]
 layout_mode = 2
 theme_override_fonts/font = SubResource("FontVariation_urls0")
 theme_override_font_sizes/font_size = 11
@@ -2484,21 +2448,20 @@ horizontal_alignment = 1
 vertical_alignment = 1
 metadata/_edit_use_anchors_ = true
 
-[node name="HBox_BR" type="HBoxContainer" parent="CanvasLayer/Main_Control"]
+[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/Main_Control"]
 layout_mode = 0
 offset_left = 1522.0
-offset_top = 748.0
+offset_top = 626.0
 offset_right = 1906.0
 offset_bottom = 1000.0
 alignment = 2
 
-[node name="Display" type="Control" parent="CanvasLayer/Main_Control/HBox_BR"]
+[node name="Control" type="Control" parent="CanvasLayer/Main_Control/HBoxContainer"]
 custom_minimum_size = Vector2(180, 0)
 layout_mode = 2
 size_flags_vertical = 8
-mouse_filter = 2
 
-[node name="Display_Rec" type="ColorRect" parent="CanvasLayer/Main_Control/HBox_BR/Display"]
+[node name="Display_Rec" type="ColorRect" parent="CanvasLayer/Main_Control/HBoxContainer/Control"]
 material = SubResource("ShaderMaterial_62siw")
 layout_mode = 1
 anchors_preset = 7
@@ -2507,13 +2470,13 @@ anchor_top = 1.0
 anchor_right = 0.5
 anchor_bottom = 1.0
 offset_left = -86.0
-offset_top = -252.0
+offset_top = -223.0
 offset_right = 90.0
 grow_horizontal = 2
 grow_vertical = 0
 mouse_filter = 2
 
-[node name="Panel" type="Panel" parent="CanvasLayer/Main_Control/HBox_BR/Display/Display_Rec"]
+[node name="Panel" type="Panel" parent="CanvasLayer/Main_Control/HBoxContainer/Control/Display_Rec"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -2522,7 +2485,7 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = ExtResource("10_tqtv8")
 
-[node name="VBoxContainer" type="VBoxContainer" parent="CanvasLayer/Main_Control/HBox_BR/Display/Display_Rec/Panel"]
+[node name="VBoxContainer" type="VBoxContainer" parent="CanvasLayer/Main_Control/HBoxContainer/Control/Display_Rec/Panel"]
 layout_mode = 1
 anchors_preset = -1
 anchor_left = 0.044444464
@@ -2530,15 +2493,15 @@ anchor_right = 0.9611111
 anchor_bottom = 1.0
 metadata/_edit_use_anchors_ = true
 
-[node name="MarginContainer2" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_BR/Display/Display_Rec/Panel/VBoxContainer"]
+[node name="MarginContainer2" type="MarginContainer" parent="CanvasLayer/Main_Control/HBoxContainer/Control/Display_Rec/Panel/VBoxContainer"]
 custom_minimum_size = Vector2(0, 6)
 layout_mode = 2
 
-[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBox_BR/Display/Display_Rec/Panel/VBoxContainer"]
+[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBoxContainer/Control/Display_Rec/Panel/VBoxContainer"]
 layout_mode = 2
 theme_override_constants/separation = 0
 
-[node name="Site" type="TextureRect" parent="CanvasLayer/Main_Control/HBox_BR/Display/Display_Rec/Panel/VBoxContainer/HBoxContainer"]
+[node name="Site" type="TextureRect" parent="CanvasLayer/Main_Control/HBoxContainer/Control/Display_Rec/Panel/VBoxContainer/HBoxContainer"]
 modulate = Color(1, 1, 1, 0.13725491)
 custom_minimum_size = Vector2(20, 20)
 layout_mode = 2
@@ -2546,11 +2509,11 @@ texture = ExtResource("46_62siw")
 expand_mode = 1
 stretch_mode = 5
 
-[node name="MarginContainer2" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_BR/Display/Display_Rec/Panel/VBoxContainer/HBoxContainer"]
+[node name="MarginContainer2" type="MarginContainer" parent="CanvasLayer/Main_Control/HBoxContainer/Control/Display_Rec/Panel/VBoxContainer/HBoxContainer"]
 custom_minimum_size = Vector2(6, 0)
 layout_mode = 2
 
-[node name="Flag" type="TextureRect" parent="CanvasLayer/Main_Control/HBox_BR/Display/Display_Rec/Panel/VBoxContainer/HBoxContainer"]
+[node name="Flag" type="TextureRect" parent="CanvasLayer/Main_Control/HBoxContainer/Control/Display_Rec/Panel/VBoxContainer/HBoxContainer"]
 modulate = Color(1, 1, 1, 0.80784315)
 custom_minimum_size = Vector2(20, 20)
 layout_mode = 2
@@ -2558,11 +2521,11 @@ texture = ExtResource("46_ogqqv")
 expand_mode = 1
 stretch_mode = 5
 
-[node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_BR/Display/Display_Rec/Panel/VBoxContainer/HBoxContainer"]
+[node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/Main_Control/HBoxContainer/Control/Display_Rec/Panel/VBoxContainer/HBoxContainer"]
 custom_minimum_size = Vector2(6, 0)
 layout_mode = 2
 
-[node name="Name" type="Label" parent="CanvasLayer/Main_Control/HBox_BR/Display/Display_Rec/Panel/VBoxContainer/HBoxContainer"]
+[node name="Name" type="Label" parent="CanvasLayer/Main_Control/HBoxContainer/Control/Display_Rec/Panel/VBoxContainer/HBoxContainer"]
 custom_minimum_size = Vector2(75, 0)
 layout_mode = 2
 theme_override_fonts/font = SubResource("FontVariation_ogqqv")
@@ -2572,7 +2535,7 @@ vertical_alignment = 1
 clip_text = true
 text_overrun_behavior = 3
 
-[node name="Place" type="Label" parent="CanvasLayer/Main_Control/HBox_BR/Display/Display_Rec/Panel/VBoxContainer/HBoxContainer"]
+[node name="Name2" type="Label" parent="CanvasLayer/Main_Control/HBoxContainer/Control/Display_Rec/Panel/VBoxContainer/HBoxContainer"]
 custom_minimum_size = Vector2(30, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 0.6509804)
@@ -2584,50 +2547,17 @@ vertical_alignment = 1
 clip_text = true
 text_overrun_behavior = 3
 
-[node name="MarginContainer3" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_BR/Display/Display_Rec/Panel/VBoxContainer"]
+[node name="MarginContainer3" type="MarginContainer" parent="CanvasLayer/Main_Control/HBoxContainer/Control/Display_Rec/Panel/VBoxContainer"]
 custom_minimum_size = Vector2(0, 5)
 layout_mode = 2
 
-[node name="Panel_Land" type="Panel" parent="CanvasLayer/Main_Control/HBox_BR/Display/Display_Rec/Panel/VBoxContainer"]
+[node name="Panel_Pop" type="Panel" parent="CanvasLayer/Main_Control/HBoxContainer/Control/Display_Rec/Panel/VBoxContainer"]
 custom_minimum_size = Vector2(0, 25)
 layout_mode = 2
 size_flags_vertical = 4
 theme_override_styles/panel = SubResource("StyleBoxFlat_wffjv")
 
-[node name="Land" type="Label" parent="CanvasLayer/Main_Control/HBox_BR/Display/Display_Rec/Panel/VBoxContainer/Panel_Land"]
-layout_mode = 1
-anchors_preset = -1
-anchor_left = 0.025714263
-anchor_top = 0.028571429
-anchor_right = 0.67142874
-anchor_bottom = 0.9714287
-offset_left = 1.0000005
-offset_right = 1.0
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.22352941)
-theme_override_fonts/font = SubResource("FontVariation_wffjv")
-theme_override_font_sizes/font_size = 11
-text = "Land"
-vertical_alignment = 1
-
-[node name="Land_Amount" type="Label" parent="CanvasLayer/Main_Control/HBox_BR/Display/Display_Rec/Panel/VBoxContainer/Panel_Land"]
-layout_mode = 1
-anchors_preset = -1
-anchor_left = 0.23018637
-anchor_right = 0.87590086
-anchor_bottom = 1.0
-theme_override_fonts/font = ExtResource("22_62siw")
-theme_override_font_sizes/font_size = 13
-text = "8.2%"
-vertical_alignment = 1
-metadata/_edit_use_anchors_ = true
-
-[node name="Panel_Pop" type="Panel" parent="CanvasLayer/Main_Control/HBox_BR/Display/Display_Rec/Panel/VBoxContainer"]
-custom_minimum_size = Vector2(0, 25)
-layout_mode = 2
-size_flags_vertical = 4
-theme_override_styles/panel = SubResource("StyleBoxFlat_wffjv")
-
-[node name="Pop" type="Label" parent="CanvasLayer/Main_Control/HBox_BR/Display/Display_Rec/Panel/VBoxContainer/Panel_Pop"]
+[node name="Pop_Label" type="Label" parent="CanvasLayer/Main_Control/HBoxContainer/Control/Display_Rec/Panel/VBoxContainer/Panel_Pop"]
 layout_mode = 1
 anchors_preset = -1
 anchor_left = 0.025714263
@@ -2642,11 +2572,11 @@ theme_override_font_sizes/font_size = 11
 text = "Pop"
 vertical_alignment = 1
 
-[node name="Pop_Amount" type="Label" parent="CanvasLayer/Main_Control/HBox_BR/Display/Display_Rec/Panel/VBoxContainer/Panel_Pop"]
+[node name="Pop" type="Label" parent="CanvasLayer/Main_Control/HBoxContainer/Control/Display_Rec/Panel/VBoxContainer/Panel_Pop"]
 layout_mode = 1
 anchors_preset = -1
-anchor_left = 0.19291928
-anchor_right = 0.8386338
+anchor_left = 0.18670812
+anchor_right = 0.8324226
 anchor_bottom = 1.0
 theme_override_fonts/font = ExtResource("22_62siw")
 theme_override_font_sizes/font_size = 13
@@ -2654,13 +2584,13 @@ text = "142,600"
 vertical_alignment = 1
 metadata/_edit_use_anchors_ = true
 
-[node name="Panel_Cash" type="Panel" parent="CanvasLayer/Main_Control/HBox_BR/Display/Display_Rec/Panel/VBoxContainer"]
+[node name="Panel_Cash" type="Panel" parent="CanvasLayer/Main_Control/HBoxContainer/Control/Display_Rec/Panel/VBoxContainer"]
 custom_minimum_size = Vector2(0, 25)
 layout_mode = 2
 size_flags_vertical = 4
 theme_override_styles/panel = SubResource("StyleBoxFlat_wffjv")
 
-[node name="Cash" type="Label" parent="CanvasLayer/Main_Control/HBox_BR/Display/Display_Rec/Panel/VBoxContainer/Panel_Cash"]
+[node name="Pop_Label" type="Label" parent="CanvasLayer/Main_Control/HBoxContainer/Control/Display_Rec/Panel/VBoxContainer/Panel_Cash"]
 layout_mode = 1
 anchors_preset = -1
 anchor_left = 0.025714263
@@ -2675,11 +2605,11 @@ theme_override_font_sizes/font_size = 11
 text = "Cash"
 vertical_alignment = 1
 
-[node name="Cash_Amount" type="Label" parent="CanvasLayer/Main_Control/HBox_BR/Display/Display_Rec/Panel/VBoxContainer/Panel_Cash"]
+[node name="Pop" type="Label" parent="CanvasLayer/Main_Control/HBoxContainer/Control/Display_Rec/Panel/VBoxContainer/Panel_Cash"]
 layout_mode = 1
 anchors_preset = -1
-anchor_left = 0.22576089
-anchor_right = 0.8714754
+anchor_left = 0.21333852
+anchor_right = 0.859053
 anchor_bottom = 1.0
 theme_override_fonts/font = ExtResource("22_62siw")
 theme_override_font_sizes/font_size = 13
@@ -2687,211 +2617,71 @@ text = "$1,520,660"
 vertical_alignment = 1
 metadata/_edit_use_anchors_ = true
 
-[node name="HBox_Row1" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBox_BR/Display/Display_Rec/Panel/VBoxContainer"]
+[node name="HBox_Assets1" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBoxContainer/Control/Display_Rec/Panel/VBoxContainer"]
+custom_minimum_size = Vector2(160, 35)
 layout_mode = 2
 alignment = 2
 
-[node name="Port" type="Panel" parent="CanvasLayer/Main_Control/HBox_BR/Display/Display_Rec/Panel/VBoxContainer/HBox_Row1"]
+[node name="Asset_Panel1" type="Panel" parent="CanvasLayer/Main_Control/HBoxContainer/Control/Display_Rec/Panel/VBoxContainer/HBox_Assets1"]
 custom_minimum_size = Vector2(70, 35)
 layout_mode = 2
 size_flags_horizontal = 0
 size_flags_vertical = 4
 theme_override_styles/panel = SubResource("StyleBoxFlat_wffjv")
 
-[node name="TextureRect" type="TextureRect" parent="CanvasLayer/Main_Control/HBox_BR/Display/Display_Rec/Panel/VBoxContainer/HBox_Row1/Port"]
-layout_mode = 1
-anchors_preset = -1
-anchor_right = 0.5
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-texture = ExtResource("48_j4nhx")
-metadata/_edit_use_anchors_ = true
-
-[node name="Label" type="Label" parent="CanvasLayer/Main_Control/HBox_BR/Display/Display_Rec/Panel/VBoxContainer/HBox_Row1/Port"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 35.177734
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_fonts/font = SubResource("FontVariation_4ibk2")
-theme_override_font_sizes/font_size = 14
-text = "6"
-horizontal_alignment = 1
-vertical_alignment = 1
-
-[node name="City" type="Panel" parent="CanvasLayer/Main_Control/HBox_BR/Display/Display_Rec/Panel/VBoxContainer/HBox_Row1"]
-custom_minimum_size = Vector2(70, 0)
+[node name="Asset_Panel2" type="Panel" parent="CanvasLayer/Main_Control/HBoxContainer/Control/Display_Rec/Panel/VBoxContainer/HBox_Assets1"]
+custom_minimum_size = Vector2(70, 35)
 layout_mode = 2
 size_flags_horizontal = 0
+size_flags_vertical = 4
 theme_override_styles/panel = SubResource("StyleBoxFlat_wffjv")
 
-[node name="TextureRect" type="TextureRect" parent="CanvasLayer/Main_Control/HBox_BR/Display/Display_Rec/Panel/VBoxContainer/HBox_Row1/City"]
-layout_mode = 1
-anchors_preset = -1
-anchor_right = 0.5
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-texture = ExtResource("49_qmx4u")
-metadata/_edit_use_anchors_ = true
-
-[node name="Label" type="Label" parent="CanvasLayer/Main_Control/HBox_BR/Display/Display_Rec/Panel/VBoxContainer/HBox_Row1/City"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 35.177734
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_fonts/font = SubResource("FontVariation_4ibk2")
-theme_override_font_sizes/font_size = 14
-text = "17"
-horizontal_alignment = 1
-vertical_alignment = 1
-
-[node name="HBox_Row2" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBox_BR/Display/Display_Rec/Panel/VBoxContainer"]
+[node name="HBox_Assets2" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBoxContainer/Control/Display_Rec/Panel/VBoxContainer"]
 custom_minimum_size = Vector2(160, 35)
 layout_mode = 2
 alignment = 2
 
-[node name="Factory" type="Panel" parent="CanvasLayer/Main_Control/HBox_BR/Display/Display_Rec/Panel/VBoxContainer/HBox_Row2"]
-custom_minimum_size = Vector2(70, 0)
+[node name="Asset_Panel1" type="Panel" parent="CanvasLayer/Main_Control/HBoxContainer/Control/Display_Rec/Panel/VBoxContainer/HBox_Assets2"]
+custom_minimum_size = Vector2(70, 35)
 layout_mode = 2
 size_flags_horizontal = 0
+size_flags_vertical = 4
 theme_override_styles/panel = SubResource("StyleBoxFlat_wffjv")
 
-[node name="TextureRect" type="TextureRect" parent="CanvasLayer/Main_Control/HBox_BR/Display/Display_Rec/Panel/VBoxContainer/HBox_Row2/Factory"]
-layout_mode = 1
-anchors_preset = -1
-anchor_right = 0.5
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-texture = ExtResource("50_jucne")
-metadata/_edit_use_anchors_ = true
-
-[node name="Label" type="Label" parent="CanvasLayer/Main_Control/HBox_BR/Display/Display_Rec/Panel/VBoxContainer/HBox_Row2/Factory"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 35.177734
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_fonts/font = SubResource("FontVariation_m1ktc")
-theme_override_font_sizes/font_size = 14
-text = "3"
-horizontal_alignment = 1
-vertical_alignment = 1
-
-[node name="Defense" type="Panel" parent="CanvasLayer/Main_Control/HBox_BR/Display/Display_Rec/Panel/VBoxContainer/HBox_Row2"]
-custom_minimum_size = Vector2(70, 0)
+[node name="Asset_Panel2" type="Panel" parent="CanvasLayer/Main_Control/HBoxContainer/Control/Display_Rec/Panel/VBoxContainer/HBox_Assets2"]
+custom_minimum_size = Vector2(70, 35)
 layout_mode = 2
 size_flags_horizontal = 0
+size_flags_vertical = 4
 theme_override_styles/panel = SubResource("StyleBoxFlat_wffjv")
 
-[node name="TextureRect" type="TextureRect" parent="CanvasLayer/Main_Control/HBox_BR/Display/Display_Rec/Panel/VBoxContainer/HBox_Row2/Defense"]
-layout_mode = 1
-anchors_preset = -1
-anchor_right = 0.5
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-texture = ExtResource("51_jucne")
-metadata/_edit_use_anchors_ = true
-
-[node name="Label" type="Label" parent="CanvasLayer/Main_Control/HBox_BR/Display/Display_Rec/Panel/VBoxContainer/HBox_Row2/Defense"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 35.177734
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_fonts/font = SubResource("FontVariation_m1ktc")
-theme_override_font_sizes/font_size = 14
-text = "8"
-horizontal_alignment = 1
-vertical_alignment = 1
-
-[node name="HBox_Row3" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBox_BR/Display/Display_Rec/Panel/VBoxContainer"]
+[node name="HBox_Assets3" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBoxContainer/Control/Display_Rec/Panel/VBoxContainer"]
 custom_minimum_size = Vector2(160, 35)
 layout_mode = 2
 alignment = 2
 
-[node name="Silo" type="Panel" parent="CanvasLayer/Main_Control/HBox_BR/Display/Display_Rec/Panel/VBoxContainer/HBox_Row3"]
-custom_minimum_size = Vector2(70, 0)
+[node name="Asset_Panel1" type="Panel" parent="CanvasLayer/Main_Control/HBoxContainer/Control/Display_Rec/Panel/VBoxContainer/HBox_Assets3"]
+custom_minimum_size = Vector2(70, 35)
 layout_mode = 2
 size_flags_horizontal = 0
+size_flags_vertical = 4
 theme_override_styles/panel = SubResource("StyleBoxFlat_wffjv")
 
-[node name="TextureRect" type="TextureRect" parent="CanvasLayer/Main_Control/HBox_BR/Display/Display_Rec/Panel/VBoxContainer/HBox_Row3/Silo"]
-layout_mode = 1
-anchors_preset = -1
-anchor_right = 0.5
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-texture = ExtResource("52_ceysn")
-metadata/_edit_use_anchors_ = true
-
-[node name="Label" type="Label" parent="CanvasLayer/Main_Control/HBox_BR/Display/Display_Rec/Panel/VBoxContainer/HBox_Row3/Silo"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 35.177734
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_fonts/font = SubResource("FontVariation_m1ktc")
-theme_override_font_sizes/font_size = 14
-text = "1"
-horizontal_alignment = 1
-vertical_alignment = 1
-
-[node name="Sam" type="Panel" parent="CanvasLayer/Main_Control/HBox_BR/Display/Display_Rec/Panel/VBoxContainer/HBox_Row3"]
-custom_minimum_size = Vector2(70, 0)
+[node name="Asset_Panel2" type="Panel" parent="CanvasLayer/Main_Control/HBoxContainer/Control/Display_Rec/Panel/VBoxContainer/HBox_Assets3"]
+custom_minimum_size = Vector2(70, 35)
 layout_mode = 2
 size_flags_horizontal = 0
+size_flags_vertical = 4
 theme_override_styles/panel = SubResource("StyleBoxFlat_wffjv")
 
-[node name="TextureRect" type="TextureRect" parent="CanvasLayer/Main_Control/HBox_BR/Display/Display_Rec/Panel/VBoxContainer/HBox_Row3/Sam"]
-layout_mode = 1
-anchors_preset = -1
-anchor_right = 0.5
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-texture = ExtResource("53_7on8u")
-metadata/_edit_use_anchors_ = true
-
-[node name="Label" type="Label" parent="CanvasLayer/Main_Control/HBox_BR/Display/Display_Rec/Panel/VBoxContainer/HBox_Row3/Sam"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 35.177734
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_fonts/font = SubResource("FontVariation_m1ktc")
-theme_override_font_sizes/font_size = 14
-text = "3"
-horizontal_alignment = 1
-vertical_alignment = 1
-
-[node name="Options_Rect" type="ColorRect" parent="CanvasLayer/Main_Control/HBox_BR"]
-visible = false
+[node name="Options_Rect" type="ColorRect" parent="CanvasLayer/Main_Control/HBoxContainer"]
 material = SubResource("ShaderMaterial_62siw")
 clip_contents = true
 custom_minimum_size = Vector2(200, 0)
 layout_mode = 2
-script = ExtResource("55_ceysn")
 metadata/_edit_use_anchors_ = true
 
-[node name="Options_Panel" type="Panel" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect"]
+[node name="Options_Panel" type="Panel" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -2900,438 +2690,262 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = ExtResource("10_tqtv8")
 
-[node name="ScrollContainer" type="ScrollContainer" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel"]
+[node name="ScrollContainer" type="ScrollContainer" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect/Options_Panel"]
 layout_mode = 1
 anchors_preset = -1
 anchor_left = 0.055
-anchor_top = 0.029411765
 anchor_right = 0.945
-anchor_bottom = 0.96791446
+anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-horizontal_scroll_mode = 3
-vertical_scroll_mode = 3
 metadata/_edit_use_anchors_ = true
 
-[node name="VBoxContainer" type="VBoxContainer" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer"]
+[node name="VBoxContainer" type="VBoxContainer" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect/Options_Panel/ScrollContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_vertical = 3
 
-[node name="Options" type="Button" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer"]
+[node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 8)
+layout_mode = 2
+
+[node name="Audio" type="Button" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer"]
 layout_mode = 2
 mouse_default_cursor_shape = 2
-theme_override_fonts/font = ExtResource("51_wtv1v")
-theme_override_font_sizes/font_size = 14
 theme_override_styles/normal = SubResource("StyleBoxEmpty_wffjv")
 theme_override_styles/pressed = SubResource("StyleBoxEmpty_jcive")
 theme_override_styles/hover = SubResource("StyleBoxEmpty_0fo8x")
 theme_override_styles/disabled = SubResource("StyleBoxEmpty_50e55")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_ws447")
-text = "Options"
-alignment = 0
-script = ExtResource("47_wffjv")
-target_path = NodePath("../VBox_Options")
-arrow_path = NodePath("Arrow_Rect")
-expanded_by_default = true
-
-[node name="Underline" type="ColorRect" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/Options"]
-visible = false
-layout_mode = 1
-anchors_preset = -1
-anchor_top = 0.8695652
-anchor_right = 0.2977528
-anchor_bottom = 0.9130435
-color = Color(0.8, 0.8, 0.8, 0.25490198)
-metadata/_edit_use_anchors_ = true
-
-[node name="Arrow_Rect" type="TextureRect" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/Options"]
-layout_mode = 1
-anchors_preset = -1
-anchor_left = 0.29213482
-anchor_top = 0.06658756
-anchor_right = 0.37640452
-anchor_bottom = 0.9489405
-grow_horizontal = 2
-grow_vertical = 2
-pivot_offset = Vector2(8, 7)
-texture = ExtResource("49_0fo8x")
-stretch_mode = 2
-metadata/_edit_use_anchors_ = true
-
-[node name="VBox_Options" type="VBoxContainer" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer"]
-layout_mode = 2
-
-[node name="Audio" type="Button" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Options"]
-layout_mode = 2
-mouse_default_cursor_shape = 2
-theme_override_fonts/font = ExtResource("51_wtv1v")
-theme_override_font_sizes/font_size = 14
-theme_override_styles/normal = SubResource("StyleBoxEmpty_wffjv")
-theme_override_styles/pressed = SubResource("StyleBoxEmpty_jcive")
-theme_override_styles/hover = SubResource("StyleBoxEmpty_0fo8x")
-theme_override_styles/disabled = SubResource("StyleBoxEmpty_50e55")
-theme_override_styles/focus = SubResource("StyleBoxEmpty_ws447")
-text = "∙ Audio"
+text = "Audio"
 alignment = 0
 script = ExtResource("47_wffjv")
 target_path = NodePath("../VBox_Audio")
-arrow_path = NodePath("Arrow_Rect")
 
-[node name="Underline" type="ColorRect" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Options/Audio"]
-visible = false
+[node name="Underline" type="ColorRect" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/Audio"]
 layout_mode = 1
 anchors_preset = -1
-anchor_left = 0.050561797
 anchor_top = 0.8695652
-anchor_right = 0.26966292
+anchor_right = 0.252809
 anchor_bottom = 0.9130435
-color = Color(0.8, 0.8, 0.8, 0.25490198)
+color = Color(0.80049086, 0.8004908, 0.8004906, 1)
 metadata/_edit_use_anchors_ = true
 
-[node name="Arrow_Rect" type="TextureRect" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Options/Audio"]
-layout_mode = 1
-anchors_preset = -1
-anchor_left = 0.25842696
-anchor_top = 0.17541108
-anchor_right = 0.34269667
-anchor_bottom = 1.0577638
-grow_horizontal = 2
-grow_vertical = 2
-pivot_offset = Vector2(8, 7)
-texture = ExtResource("49_0fo8x")
-stretch_mode = 2
-metadata/_edit_use_anchors_ = true
-
-[node name="VBox_Audio" type="VBoxContainer" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Options"]
+[node name="VBox_Audio" type="VBoxContainer" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer"]
 visible = false
 layout_mode = 2
 
-[node name="Master" type="Panel" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Options/VBox_Audio"]
-custom_minimum_size = Vector2(0, 20)
-layout_mode = 2
-theme_override_styles/panel = ExtResource("54_ocr78")
-
-[node name="Master_Label" type="Label" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Options/VBox_Audio/Master"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_colors/font_color = Color(0.8745098, 0.8745098, 0.8745098, 1)
-theme_override_fonts/font = SubResource("FontVariation_ocr78")
-theme_override_font_sizes/font_size = 14
-text = "∙ ∙ Master"
-
-[node name="Music" type="Panel" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Options/VBox_Audio"]
-custom_minimum_size = Vector2(0, 20)
-layout_mode = 2
-theme_override_styles/panel = ExtResource("54_ocr78")
-
-[node name="Music" type="Label" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Options/VBox_Audio/Music"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_colors/font_color = Color(0.8745098, 0.8745098, 0.8745098, 1)
-theme_override_fonts/font = SubResource("FontVariation_ocr78")
-theme_override_font_sizes/font_size = 14
-text = "∙ ∙ Music"
-
-[node name="SFX" type="Panel" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Options/VBox_Audio"]
-custom_minimum_size = Vector2(0, 20)
-layout_mode = 2
-theme_override_styles/panel = ExtResource("54_ocr78")
-
-[node name="SFX" type="Label" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Options/VBox_Audio/SFX"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_colors/font_color = Color(0.8745098, 0.8745098, 0.8745098, 1)
-theme_override_fonts/font = SubResource("FontVariation_ocr78")
-theme_override_font_sizes/font_size = 14
-text = "∙ ∙ SFX"
-
-[node name="Env" type="Panel" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Options/VBox_Audio"]
-custom_minimum_size = Vector2(0, 20)
-layout_mode = 2
-theme_override_styles/panel = ExtResource("54_ocr78")
-
-[node name="Env" type="Label" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Options/VBox_Audio/Env"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_colors/font_color = Color(0.8745098, 0.8745098, 0.8745098, 1)
-theme_override_fonts/font = SubResource("FontVariation_ocr78")
-theme_override_font_sizes/font_size = 14
-text = "∙ ∙ Environment"
-
-[node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Options/VBox_Audio"]
+[node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Audio"]
 custom_minimum_size = Vector2(0, 5)
 layout_mode = 2
 
-[node name="Gameplay" type="Button" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Options"]
+[node name="Master_Label" type="Label" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Audio"]
+layout_mode = 2
+theme_override_fonts/font = ExtResource("22_62siw")
+theme_override_font_sizes/font_size = 20
+text = "Master"
+
+[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Audio"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+
+[node name="ColorRect" type="ColorRect" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Audio/HBoxContainer"]
+custom_minimum_size = Vector2(20, 0)
+layout_mode = 2
+
+[node name="HScrollBar" type="HScrollBar" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Audio/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+
+[node name="ColorRect" type="ColorRect" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Audio"]
+custom_minimum_size = Vector2(0, 2)
+layout_mode = 2
+
+[node name="Music_Label" type="Label" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Audio"]
+layout_mode = 2
+theme_override_fonts/font = ExtResource("22_62siw")
+text = "Music"
+
+[node name="HBoxContainer2" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Audio"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+
+[node name="ColorRect" type="ColorRect" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Audio/HBoxContainer2"]
+custom_minimum_size = Vector2(20, 0)
+layout_mode = 2
+
+[node name="HScrollBar" type="HScrollBar" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Audio/HBoxContainer2"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+
+[node name="SFX_Label" type="Label" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Audio"]
+layout_mode = 2
+theme_override_fonts/font = ExtResource("22_62siw")
+text = "Sound effects"
+
+[node name="HBoxContainer3" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Audio"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+
+[node name="ColorRect" type="ColorRect" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Audio/HBoxContainer3"]
+custom_minimum_size = Vector2(20, 0)
+layout_mode = 2
+
+[node name="HScrollBar" type="HScrollBar" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Audio/HBoxContainer3"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+
+[node name="Env_Label" type="Label" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Audio"]
+layout_mode = 2
+theme_override_fonts/font = ExtResource("22_62siw")
+text = "Environment"
+
+[node name="HBoxContainer4" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Audio"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+
+[node name="ColorRect" type="ColorRect" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Audio/HBoxContainer4"]
+custom_minimum_size = Vector2(20, 0)
+layout_mode = 2
+
+[node name="HScrollBar" type="HScrollBar" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Audio/HBoxContainer4"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+
+[node name="Gameplay" type="Button" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer"]
 layout_mode = 2
 mouse_default_cursor_shape = 2
-theme_override_colors/font_color = Color(0.8745098, 0.8745098, 0.8745098, 1)
-theme_override_fonts/font = ExtResource("51_wtv1v")
-theme_override_font_sizes/font_size = 14
 theme_override_styles/normal = SubResource("StyleBoxEmpty_wtv1v")
 theme_override_styles/pressed = SubResource("StyleBoxEmpty_ocr78")
 theme_override_styles/hover = SubResource("StyleBoxEmpty_j4nhx")
 theme_override_styles/disabled = SubResource("StyleBoxEmpty_g1444")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_qmx4u")
-text = "∙ Gameplay"
+text = "Gameplay"
 alignment = 0
 script = ExtResource("47_wffjv")
 target_path = NodePath("../VBox_Game")
-arrow_path = NodePath("Arrow_Rect")
 
-[node name="Underline" type="ColorRect" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Options/Gameplay"]
-visible = false
+[node name="Underline" type="ColorRect" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/Gameplay"]
 layout_mode = 1
 anchors_preset = -1
 anchor_top = 0.8695652
-anchor_right = 0.33146068
+anchor_right = 0.43820226
 anchor_bottom = 0.9130435
-offset_left = 9.0
-offset_right = 16.0
-color = Color(0.8, 0.8, 0.8, 0.25490198)
-
-[node name="Arrow_Rect" type="TextureRect" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Options/Gameplay"]
-layout_mode = 1
-anchors_preset = -1
-anchor_left = 0.41573033
-anchor_top = 0.17541103
-anchor_right = 0.50000006
-anchor_bottom = 1.0577638
-grow_horizontal = 2
-grow_vertical = 2
-pivot_offset = Vector2(8, 7)
-texture = ExtResource("49_0fo8x")
-stretch_mode = 2
+color = Color(0.80049086, 0.8004908, 0.8004906, 1)
 metadata/_edit_use_anchors_ = true
 
-[node name="VBox_Game" type="VBoxContainer" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Options"]
+[node name="VBox_Game" type="VBoxContainer" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer"]
 visible = false
 layout_mode = 2
 
-[node name="Panel" type="Panel" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Options/VBox_Game"]
+[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Game"]
 custom_minimum_size = Vector2(0, 20)
 layout_mode = 2
-theme_override_styles/panel = ExtResource("54_ocr78")
 
-[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Options/VBox_Game/Panel"]
-custom_minimum_size = Vector2(0, 20)
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="Master_Label" type="Label" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Options/VBox_Game/Panel/HBoxContainer"]
-custom_minimum_size = Vector2(150, 0)
+[node name="Master_Label" type="Label" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Game/HBoxContainer"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.8745098, 0.8745098, 0.8745098, 1)
-theme_override_fonts/font = SubResource("FontVariation_g1444")
-theme_override_font_sizes/font_size = 14
-text = "∙ ∙ Display skins"
-vertical_alignment = 1
+theme_override_fonts/font = ExtResource("22_62siw")
+text = "Master"
 
-[node name="CheckBox" type="CheckBox" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Options/VBox_Game/Panel/HBoxContainer"]
-layout_mode = 2
-focus_mode = 0
-mouse_default_cursor_shape = 2
-
-[node name="Panel3" type="Panel" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Options/VBox_Game"]
+[node name="HBoxContainer2" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Game"]
 custom_minimum_size = Vector2(0, 20)
 layout_mode = 2
-theme_override_styles/panel = ExtResource("54_ocr78")
 
-[node name="HBoxContainer2" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Options/VBox_Game/Panel3"]
-custom_minimum_size = Vector2(0, 20)
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="Music_Label" type="Label" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Options/VBox_Game/Panel3/HBoxContainer2"]
-custom_minimum_size = Vector2(150, 0)
+[node name="Music_Label" type="Label" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Game/HBoxContainer2"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.8745098, 0.8745098, 0.8745098, 1)
-theme_override_fonts/font = SubResource("FontVariation_g1444")
-theme_override_font_sizes/font_size = 14
-text = "∙ ∙ Hide names"
-vertical_alignment = 1
+theme_override_fonts/font = ExtResource("22_62siw")
+text = "Music"
 
-[node name="CheckBox" type="CheckBox" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Options/VBox_Game/Panel3/HBoxContainer2"]
-layout_mode = 2
-focus_mode = 0
-mouse_default_cursor_shape = 2
-
-[node name="Panel4" type="Panel" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Options/VBox_Game"]
+[node name="HBoxContainer3" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Game"]
 custom_minimum_size = Vector2(0, 20)
 layout_mode = 2
-theme_override_styles/panel = ExtResource("54_ocr78")
 
-[node name="HBoxContainer3" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Options/VBox_Game/Panel4"]
-custom_minimum_size = Vector2(0, 20)
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="SFX_Label" type="Label" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Options/VBox_Game/Panel4/HBoxContainer3"]
-custom_minimum_size = Vector2(150, 0)
+[node name="SFX_Label" type="Label" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Game/HBoxContainer3"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.8745098, 0.8745098, 0.8745098, 1)
-theme_override_fonts/font = SubResource("FontVariation_g1444")
-theme_override_font_sizes/font_size = 14
-text = "∙ ∙ Hide lobby ID's"
-vertical_alignment = 1
+theme_override_fonts/font = ExtResource("22_62siw")
+text = "Sound effects"
 
-[node name="CheckBox" type="CheckBox" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Options/VBox_Game/Panel4/HBoxContainer3"]
-layout_mode = 2
-focus_mode = 0
-mouse_default_cursor_shape = 2
-
-[node name="Panel5" type="Panel" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Options/VBox_Game"]
+[node name="HBoxContainer4" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Game"]
 custom_minimum_size = Vector2(0, 20)
 layout_mode = 2
-theme_override_styles/panel = ExtResource("54_ocr78")
 
-[node name="HBoxContainer4" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Options/VBox_Game/Panel5"]
-custom_minimum_size = Vector2(0, 20)
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="Env_Label" type="Label" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Options/VBox_Game/Panel5/HBoxContainer4"]
-custom_minimum_size = Vector2(150, 0)
+[node name="Env_Label" type="Label" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Game/HBoxContainer4"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.8745098, 0.8745098, 0.8745098, 1)
-theme_override_fonts/font = SubResource("FontVariation_g1444")
-theme_override_font_sizes/font_size = 14
-text = "∙ ∙ Performance"
-vertical_alignment = 1
+theme_override_fonts/font = ExtResource("22_62siw")
+text = "Environment"
 
-[node name="CheckBox" type="CheckBox" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Options/VBox_Game/Panel5/HBoxContainer4"]
-layout_mode = 2
-focus_mode = 0
-mouse_default_cursor_shape = 2
-
-[node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Options/VBox_Game"]
-custom_minimum_size = Vector2(0, 5)
-layout_mode = 2
-
-[node name="Keybindings" type="Button" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Options"]
+[node name="Keybindings" type="Button" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer"]
 layout_mode = 2
 mouse_default_cursor_shape = 2
-theme_override_fonts/font = ExtResource("51_wtv1v")
-theme_override_font_sizes/font_size = 14
 theme_override_styles/normal = SubResource("StyleBoxEmpty_jucne")
 theme_override_styles/pressed = SubResource("StyleBoxEmpty_ceysn")
 theme_override_styles/hover = SubResource("StyleBoxEmpty_7on8u")
 theme_override_styles/disabled = SubResource("StyleBoxEmpty_5khtq")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_4ibk2")
-text = "∙ Keybindings"
+text = "Keybindings"
 alignment = 0
 script = ExtResource("47_wffjv")
 target_path = NodePath("../VBox_Keys")
-arrow_path = NodePath("Arrow_Rect")
 
-[node name="Underline" type="ColorRect" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Options/Keybindings"]
-visible = false
+[node name="Underline" type="ColorRect" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/Keybindings"]
 layout_mode = 1
 anchors_preset = -1
 anchor_top = 0.8695652
-anchor_right = 0.41011235
-anchor_bottom = 0.94117737
-offset_left = 8.0
-offset_right = 18.0
-color = Color(0.8, 0.8, 0.8, 0.25490198)
-
-[node name="Arrow_Rect" type="TextureRect" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Options/Keybindings"]
-layout_mode = 1
-anchors_preset = -1
-anchor_left = 0.51123595
-anchor_top = 0.17541103
-anchor_right = 0.59550565
-anchor_bottom = 1.0577638
-grow_horizontal = 2
-grow_vertical = 2
-pivot_offset = Vector2(8, 7)
-texture = ExtResource("49_0fo8x")
-stretch_mode = 2
+anchor_right = 0.5280899
+anchor_bottom = 0.9130435
+color = Color(0.80049086, 0.8004908, 0.8004906, 1)
 metadata/_edit_use_anchors_ = true
 
-[node name="VBox_Keys" type="VBoxContainer" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Options"]
+[node name="VBox_Keys" type="VBoxContainer" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer"]
 visible = false
 layout_mode = 2
 
-[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Options/VBox_Keys"]
+[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Keys"]
 custom_minimum_size = Vector2(0, 20)
 layout_mode = 2
 
-[node name="Master_Label" type="Label" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Options/VBox_Keys/HBoxContainer"]
+[node name="Master_Label" type="Label" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Keys/HBoxContainer"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.8745098, 0.8745098, 0.8745098, 1)
-theme_override_fonts/font = SubResource("FontVariation_qmx4u")
-theme_override_font_sizes/font_size = 14
-text = "∙ ∙ Port"
+theme_override_fonts/font = ExtResource("22_62siw")
+text = "Port"
 
-[node name="HBoxContainer2" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Options/VBox_Keys"]
+[node name="HBoxContainer2" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Keys"]
 custom_minimum_size = Vector2(0, 20)
 layout_mode = 2
 
-[node name="Music_Label" type="Label" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Options/VBox_Keys/HBoxContainer2"]
+[node name="Music_Label" type="Label" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Keys/HBoxContainer2"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.8745098, 0.8745098, 0.8745098, 1)
-theme_override_fonts/font = SubResource("FontVariation_qmx4u")
-theme_override_font_sizes/font_size = 14
-text = "∙ ∙ City"
+theme_override_fonts/font = ExtResource("22_62siw")
+text = "City"
 
-[node name="HBoxContainer3" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Options/VBox_Keys"]
+[node name="HBoxContainer3" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Keys"]
 custom_minimum_size = Vector2(0, 20)
 layout_mode = 2
 
-[node name="SFX_Label" type="Label" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Options/VBox_Keys/HBoxContainer3"]
+[node name="SFX_Label" type="Label" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Keys/HBoxContainer3"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.8745098, 0.8745098, 0.8745098, 1)
-theme_override_fonts/font = SubResource("FontVariation_qmx4u")
-theme_override_font_sizes/font_size = 14
-text = "∙ ∙ Factory"
+theme_override_fonts/font = ExtResource("22_62siw")
+text = "Factory"
 
-[node name="HBoxContainer4" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Options/VBox_Keys"]
+[node name="HBoxContainer4" type="HBoxContainer" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Keys"]
 custom_minimum_size = Vector2(0, 20)
 layout_mode = 2
 
-[node name="Env_Label" type="Label" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Options/VBox_Keys/HBoxContainer4"]
+[node name="Env_Label" type="Label" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Keys/HBoxContainer4"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.8745098, 0.8745098, 0.8745098, 1)
-theme_override_fonts/font = SubResource("FontVariation_qmx4u")
-theme_override_font_sizes/font_size = 14
-text = "∙ ∙ Defense"
+theme_override_fonts/font = ExtResource("22_62siw")
+text = "Defense"
 
-[node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/Main_Control/HBox_BR/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer/VBox_Options/VBox_Keys"]
-custom_minimum_size = Vector2(0, 5)
+[node name="RichTextLabel" type="RichTextLabel" parent="CanvasLayer/Main_Control/HBoxContainer/Options_Rect/Options_Panel/ScrollContainer/VBoxContainer"]
 layout_mode = 2
+bbcode_enabled = true
+
+[node name="Nat2Wlr" type="Sprite2D" parent="."]
+position = Vector2(968, 540)
+scale = Vector2(0.100092605, 0.1)
+texture = ExtResource("48_wffjv")
 
 [connection signal="text_submitted" from="CanvasLayer/Main_Control/Misc_Control/Chat_Control/Chat_Rec/LineEdit" to="CanvasLayer/Main_Control/Misc_Control/Chat_Control" method="_on_line_edit_text_submitted"]

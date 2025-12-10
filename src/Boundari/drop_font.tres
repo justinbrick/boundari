@@ -1,0 +1,7 @@
+[gd_resource type="FontVariation" load_steps=2 format=3 uid="uid://d08irtmb50dr7"]
+
+[ext_resource type="FontVariation" uid="uid://b037rp8hgy35q" path="res://Pop_Numbervar.tres" id="1_2qvpg"]
+
+[resource]
+base_font = ExtResource("1_2qvpg")
+spacing_glyph = 1
