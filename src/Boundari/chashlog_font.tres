@@ -2,4 +2,4 @@
 
 [resource]
 variation_embolden = -0.08
-variation_transform = Transform2D(1, 0, 0, 0.98, 0, 0)
+variation_transform = Transform2D(1, 0.105, 0, 0.98, 0, 0)

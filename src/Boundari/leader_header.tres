@@ -1,0 +1,8 @@
+[gd_resource type="FontVariation" load_steps=2 format=3 uid="uid://b8iravuvg1npx"]
+
+[ext_resource type="FontFile" uid="uid://r2ps7q3ddsib" path="res://fonts/HWYGWDE.TTF" id="1_5qxl8"]
+
+[resource]
+base_font = ExtResource("1_5qxl8")
+spacing_glyph = 1
+spacing_top = 1

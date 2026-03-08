@@ -1,0 +1,298 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   id="Capa_1"
+   enable-background="new 0 0 512 512"
+   height="64"
+   viewBox="0 0 64 64"
+   width="64"
+   version="1.1"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs9">
+    <filter
+       style="color-interpolation-filters:sRGB"
+       id="filter19"
+       x="0"
+       y="0"
+       width="1"
+       height="1">
+      <feColorMatrix
+         type="hueRotate"
+         values="180"
+         result="fbSourceGraphic"
+         in="SourceGraphic"
+         id="feColorMatrix13" />
+      <feColorMatrix
+         values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 -0.2125 -0.7154 -0.0721 1 0 "
+         in="SourceGraphic"
+         result="result1"
+         id="feColorMatrix14" />
+      <feColorMatrix
+         type="hueRotate"
+         values="0"
+         id="feColorMatrix15" />
+      <feColorMatrix
+         values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0 "
+         result="result3"
+         id="feColorMatrix16" />
+      <feComposite
+         in2="result3"
+         result="result6"
+         operator="atop"
+         id="feComposite16" />
+      <feComposite
+         in2="result6"
+         operator="arithmetic"
+         k2="0.5"
+         k1="0.5"
+         k3="0.5"
+         in="result6"
+         result="result4"
+         id="feComposite17"
+         k4="0" />
+      <feBlend
+         in2="fbSourceGraphic"
+         mode="normal"
+         result="result2"
+         in="result4"
+         id="feBlend17" />
+      <feComposite
+         in2="result2"
+         operator="arithmetic"
+         k2="1"
+         result="result5"
+         id="feComposite18"
+         k1="0"
+         k3="0"
+         k4="0" />
+      <feComposite
+         in2="SourceGraphic"
+         operator="in"
+         result="result5"
+         id="feComposite19" />
+    </filter>
+    <filter
+       style="color-interpolation-filters:sRGB"
+       id="filter25"
+       x="0"
+       y="0"
+       width="1"
+       height="1">
+      <feColorMatrix
+         type="hueRotate"
+         values="180"
+         result="fbSourceGraphic"
+         in="SourceGraphic"
+         id="feColorMatrix19" />
+      <feColorMatrix
+         values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 -0.2125 -0.7154 -0.0721 1 0 "
+         in="SourceGraphic"
+         result="result1"
+         id="feColorMatrix20" />
+      <feColorMatrix
+         type="hueRotate"
+         values="0"
+         id="feColorMatrix21" />
+      <feColorMatrix
+         values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0 "
+         result="result3"
+         id="feColorMatrix22" />
+      <feComposite
+         in2="result3"
+         result="result6"
+         operator="atop"
+         id="feComposite22" />
+      <feComposite
+         in2="result6"
+         operator="arithmetic"
+         k2="0.5"
+         k1="0.5"
+         k3="0.5"
+         in="result6"
+         result="result4"
+         id="feComposite23"
+         k4="0" />
+      <feBlend
+         in2="fbSourceGraphic"
+         mode="normal"
+         result="result2"
+         in="result4"
+         id="feBlend23" />
+      <feComposite
+         in2="result2"
+         operator="arithmetic"
+         k2="1"
+         result="result5"
+         id="feComposite24"
+         k1="0"
+         k3="0"
+         k4="0" />
+      <feComposite
+         in2="SourceGraphic"
+         operator="in"
+         result="result5"
+         id="feComposite25" />
+    </filter>
+    <filter
+       style="color-interpolation-filters:sRGB"
+       id="filter31"
+       x="0"
+       y="0"
+       width="1"
+       height="1">
+      <feColorMatrix
+         type="hueRotate"
+         values="180"
+         result="fbSourceGraphic"
+         in="SourceGraphic"
+         id="feColorMatrix25" />
+      <feColorMatrix
+         values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 -0.2125 -0.7154 -0.0721 1 0 "
+         in="SourceGraphic"
+         result="result1"
+         id="feColorMatrix26" />
+      <feColorMatrix
+         type="hueRotate"
+         values="0"
+         id="feColorMatrix27" />
+      <feColorMatrix
+         values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0 "
+         result="result3"
+         id="feColorMatrix28" />
+      <feComposite
+         in2="result3"
+         result="result6"
+         operator="atop"
+         id="feComposite28" />
+      <feComposite
+         in2="result6"
+         operator="arithmetic"
+         k2="0.5"
+         k1="0.5"
+         k3="0.5"
+         in="result6"
+         result="result4"
+         id="feComposite29"
+         k4="0" />
+      <feBlend
+         in2="fbSourceGraphic"
+         mode="normal"
+         result="result2"
+         in="result4"
+         id="feBlend29" />
+      <feComposite
+         in2="result2"
+         operator="arithmetic"
+         k2="1"
+         result="result5"
+         id="feComposite30"
+         k1="0"
+         k3="0"
+         k4="0" />
+      <feComposite
+         in2="SourceGraphic"
+         operator="in"
+         result="result5"
+         id="feComposite31" />
+    </filter>
+    <filter
+       style="color-interpolation-filters:sRGB"
+       id="filter37"
+       x="0"
+       y="0"
+       width="1"
+       height="1">
+      <feColorMatrix
+         type="hueRotate"
+         values="180"
+         result="fbSourceGraphic"
+         in="SourceGraphic"
+         id="feColorMatrix31" />
+      <feColorMatrix
+         values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 -0.2125 -0.7154 -0.0721 1 0 "
+         in="SourceGraphic"
+         result="result1"
+         id="feColorMatrix32" />
+      <feColorMatrix
+         type="hueRotate"
+         values="0"
+         id="feColorMatrix33" />
+      <feColorMatrix
+         values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0 "
+         result="result3"
+         id="feColorMatrix34" />
+      <feComposite
+         in2="result3"
+         result="result6"
+         operator="atop"
+         id="feComposite34" />
+      <feComposite
+         in2="result6"
+         operator="arithmetic"
+         k2="0.5"
+         k1="0.5"
+         k3="0.5"
+         in="result6"
+         result="result4"
+         id="feComposite35"
+         k4="0" />
+      <feBlend
+         in2="fbSourceGraphic"
+         mode="normal"
+         result="result2"
+         in="result4"
+         id="feBlend35" />
+      <feComposite
+         in2="result2"
+         operator="arithmetic"
+         k2="1"
+         result="result5"
+         id="feComposite36"
+         k1="0"
+         k3="0"
+         k4="0" />
+      <feComposite
+         in2="SourceGraphic"
+         operator="in"
+         result="result5"
+         id="feComposite37" />
+    </filter>
+  </defs>
+  <circle
+     fill="#ffe07d"
+     id="circle3"
+     transform="matrix(0.19218758,0,0,0.19218758,-17.20002,-34.40004)"
+     r="166.504"
+     cy="345.496"
+     cx="256"
+     clip-path="none"
+     mask="none"
+     style="filter:url(#filter37)" />
+  <path
+     d="m 359.377,214.972 c 22.523,28.399 35.98,64.315 35.98,103.377 0,91.958 -74.546,166.504 -166.504,166.504 -39.062,0 -74.978,-13.457 -103.377,-35.98 C 155.975,487.33 203.104,512 256,512 c 91.958,0 166.504,-74.546 166.504,-166.504 0,-52.896 -24.67,-100.025 -63.127,-130.524 z"
+     fill="#ffd064"
+     id="path4"
+     transform="matrix(0.19218758,0,0,0.19218758,-17.20002,-34.40004)"
+     clip-path="none"
+     mask="none"
+     style="filter:url(#filter31)" />
+  <circle
+     fill="#ebb044"
+     id="circle5"
+     transform="matrix(0.19218758,0,0,0.19218758,-17.20002,-34.40004)"
+     r="126.688"
+     cy="345.496"
+     cx="256"
+     clip-path="none"
+     mask="none"
+     style="filter:url(#filter25)" />
+  <path
+     d="m 265.332,286.356 14.337,29.05 32.059,4.658 c 8.536,1.24 11.944,11.73 5.767,17.75 l -23.198,22.612 5.476,31.929 c 1.458,8.501 -7.465,14.984 -15.099,10.97 L 256,388.251 227.326,403.326 c -7.634,4.014 -16.557,-2.469 -15.099,-10.97 l 5.476,-31.929 -23.198,-22.612 c -6.176,-6.021 -2.768,-16.51 5.767,-17.75 l 32.059,-4.658 14.337,-29.05 c 3.817,-7.736 14.847,-7.736 18.664,-0.001 z"
+     fill="#ffe07d"
+     id="path6"
+     transform="matrix(0.19218758,0,0,0.19218758,-17.20002,-34.40004)"
+     clip-path="none"
+     mask="none"
+     style="filter:url(#filter19)" />
+</svg>
