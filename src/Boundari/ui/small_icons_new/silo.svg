@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   id="Capa_1"
+   enable-background="new 0 0 505.73 505.73"
+   height="32"
+   viewBox="0 0 31.608125 31.608125"
+   width="32"
+   version="1.1"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs4" />
+  <g
+     id="g4"
+     transform="matrix(0.06250601,0,0,0.06250601,0.08084959,0)"
+     style="fill:#ffffff;fill-opacity:1">
+    <path
+       d="m 357.905,273.09 -72.13,72.13 62.94,62.93 72.12,-72.12 z"
+       id="path1"
+       style="fill:#ffffff;fill-opacity:1" />
+    <g
+       id="g2"
+       style="fill:#ffffff;fill-opacity:1">
+      <path
+         d="m 25.406,367.06 h 116.998 v 114 H 25.406 Z"
+         transform="matrix(0.707,-0.707,0.707,0.707,-275.28,183.534)"
+         id="path2"
+         style="fill:#ffffff;fill-opacity:1" />
+    </g>
+    <g
+       id="g3"
+       style="fill:#ffffff;fill-opacity:1">
+      <path
+         d="m 126.045,301.31 -19.87,19.87 80.61,80.61 269.68,-269.68 47.03,-92.44 -36.02,-36.02 -92.41,48.63 -79.38,79.39 -15.52,-15.51 16.29,-38.95 L 218.365,0 93.915,124.45 l 78.12,77.24 38.83,-16.24 15.52,15.52 -79.13,79.13 c -13.024,-13.026 -37.626,-37.641 -50.91,-50.92 l -21.21,21.22 c 7.629,7.627 50.91,50.91 50.91,50.91 z"
+         id="path3"
+         style="fill:#ffffff;fill-opacity:1" />
+    </g>
+  </g>
+</svg>
