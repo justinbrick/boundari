@@ -39,12 +39,13 @@ func _input(event: InputEvent) -> void:
 				dragging = true
 				drag_start_mouse = get_viewport().get_mouse_position()
 				drag_start_camera = position
-				Input.set_custom_mouse_cursor(cursor_grab)
 			else:
 				dragging = false
 				Input.set_custom_mouse_cursor(cursor_open)
 
 	if event is InputEventMouseMotion and dragging:
+		if Input.get_mouse_button_mask() & MOUSE_BUTTON_MASK_LEFT:
+			Input.set_custom_mouse_cursor(cursor_grab)
 		var delta_mouse := get_viewport().get_mouse_position() - drag_start_mouse
 		position = drag_start_camera - delta_mouse * (1.0 / zoom.x)
 
