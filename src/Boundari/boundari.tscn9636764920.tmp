@@ -1,4 +1,4 @@
-[gd_scene load_steps=201 format=4 uid="uid://bvf7xj3oe6l6e"]
+[gd_scene load_steps=195 format=4 uid="uid://bvf7xj3oe6l6e"]
 
 [ext_resource type="Texture2D" uid="uid://c1ujkyu52c6ak" path="res://maps/urafailure.png" id="1_bxyxm"]
 [ext_resource type="Texture2D" uid="uid://b8h6ldx5thxu1" path="res://maps/boundari_stretched_stiched_ratioed.png" id="2_jqbn1"]
@@ -32,7 +32,6 @@
 [ext_resource type="StyleBox" uid="uid://mtdnv5kx3xlq" path="res://button_Pressbasic.tres" id="24_4aj2s"]
 [ext_resource type="StyleBox" uid="uid://45ouge3p0o2q" path="res://grabber_pressed.tres" id="24_o5262"]
 [ext_resource type="StyleBox" uid="uid://2ikkgpetawba" path="res://scroll_background.tres" id="25_1u143"]
-[ext_resource type="FontVariation" uid="uid://dp5awpqw77lrb" path="res://settings_font.tres" id="25_285xx"]
 [ext_resource type="StyleBox" uid="uid://vvkdwwnf1ujw" path="res://button_Hoverbasic.tres" id="25_p1vly"]
 [ext_resource type="StyleBox" uid="uid://bhvsn2legrha7" path="res://uibox_pressed.tres" id="26_jqbn1"]
 [ext_resource type="FontFile" uid="uid://dd2fj5b2vxjq3" path="res://fonts/Exo2-VariableFont_wght.ttf" id="26_o5262"]
@@ -65,7 +64,6 @@
 [ext_resource type="StyleBox" uid="uid://cixeecdtnem5o" path="res://top_settings_hover.tres" id="59_fpsoq"]
 [ext_resource type="Texture2D" uid="uid://d2nvryh3dwq7t" path="res://ui/misc/power.svg" id="60_7on8u"]
 [ext_resource type="Script" uid="uid://bgtk27fcsrm5v" path="res://button_fade.gd" id="60_285xx"]
-[ext_resource type="FontVariation" uid="uid://rvlr50muvneh" path="res://settings_option.tres" id="60_o5262"]
 [ext_resource type="Texture2D" uid="uid://b60yd1ck4nc8a" path="res://ui/settings_small/video.svg" id="61_bxyxm"]
 [ext_resource type="Texture2D" uid="uid://br21r0g5foao" path="res://ui/settings_small/gameplay.svg" id="62_p0wbd"]
 [ext_resource type="Texture2D" uid="uid://bjqhe5v5id852" path="res://ui/settings_small/audio.svg" id="63_2q8dx"]
@@ -404,6 +402,10 @@ expand_margin_left = 4.0
 expand_margin_top = 4.0
 expand_margin_right = 4.0
 expand_margin_bottom = 4.0
+
+[sub_resource type="FontVariation" id="FontVariation_cjpii"]
+base_font = ExtResource("26_o5262")
+variation_embolden = 0.35
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_1u143"]
 bg_color = Color(0, 0, 0, 0.33333334)
@@ -8588,58 +8590,9 @@ corner_detail = 5
 shadow_color = Color(0, 0, 0, 0.23529412)
 shadow_size = 20
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_285xx"]
-shader = ExtResource("4_enfkb")
-shader_parameter/blur_amount = 4.250000201875
-shader_parameter/darken_amount = 0.8490000403275
-shader_parameter/noise_strength = 0.01600000076
-shader_parameter/grain_scale = 150.0
-shader_parameter/noise_speed = 0.0
-shader_parameter/corner_radius_px = 16.00000076
-shader_parameter/corner_smooth_px = 1.0000000475
-shader_parameter/rect_size = Vector2(390, 408)
-shader_parameter/panel_alpha = 1.0
-
-[sub_resource type="FontVariation" id="FontVariation_o5262"]
-base_font = ExtResource("26_o5262")
-variation_embolden = 0.91
-variation_transform = Transform2D(1, 0, 0, 1.035, 0, 0)
-spacing_glyph = 1
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_g4pvr"]
-bg_color = Color(1, 1, 1, 0)
-border_color = Color(1, 1, 1, 0.3529412)
-corner_detail = 5
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_3vkhs"]
-content_margin_left = 4.0
-content_margin_top = 4.0
-content_margin_right = 4.0
-content_margin_bottom = 4.0
-bg_color = Color(1, 1, 1, 0)
-draw_center = false
-border_color = Color(0.8, 0.8, 0.8, 0)
-corner_detail = 5
-expand_margin_left = 2.0
-expand_margin_top = 2.0
-expand_margin_right = 2.0
-expand_margin_bottom = 2.0
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_wahd8"]
-content_margin_left = 8.0
-content_margin_top = 4.0
-content_margin_right = 8.0
-content_margin_bottom = 4.0
-bg_color = Color(0.101960786, 0.101960786, 0.101960786, 0)
-corner_radius_top_left = 3
-corner_radius_top_right = 3
-corner_radius_bottom_right = 3
-corner_radius_bottom_left = 3
-corner_detail = 5
-
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_xiaxg"]
 shader = ExtResource("4_enfkb")
-shader_parameter/blur_amount = 4.00000019
+shader_parameter/blur_amount = 3.600000171
 shader_parameter/darken_amount = 0.906000043035
 shader_parameter/noise_strength = 0.01600000076
 shader_parameter/grain_scale = 150.0
@@ -8666,7 +8619,7 @@ content_margin_left = 4.0
 content_margin_top = 4.0
 content_margin_right = 4.0
 content_margin_bottom = 4.0
-bg_color = Color(1, 1, 1, 0.15686275)
+bg_color = Color(1, 1, 1, 0.11764706)
 corner_radius_top_left = 12
 corner_radius_top_right = 12
 corner_radius_bottom_right = 12
@@ -9999,7 +9952,7 @@ layout_mode = 2
 custom_minimum_size = Vector2(46, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_fonts/font = SubResource("FontVariation_cjpii")
 text = "3.7M"
 horizontal_alignment = 2
 vertical_alignment = 1
@@ -10017,7 +9970,7 @@ vertical_alignment = 1
 custom_minimum_size = Vector2(46, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_fonts/font = SubResource("FontVariation_cjpii")
 text = "429K"
 horizontal_alignment = 2
 vertical_alignment = 1
@@ -10034,7 +9987,7 @@ vertical_alignment = 1
 custom_minimum_size = Vector2(64, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_fonts/font = SubResource("FontVariation_cjpii")
 text = "31.0%"
 horizontal_alignment = 2
 vertical_alignment = 1
@@ -10051,7 +10004,7 @@ vertical_alignment = 1
 custom_minimum_size = Vector2(150, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_fonts/font = SubResource("FontVariation_cjpii")
 text = "S.A.P | Bananas"
 horizontal_alignment = 2
 vertical_alignment = 1
@@ -10068,7 +10021,7 @@ vertical_alignment = 1
 custom_minimum_size = Vector2(25, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_fonts/font = SubResource("FontVariation_cjpii")
 text = "1"
 horizontal_alignment = 2
 vertical_alignment = 1
@@ -10084,7 +10037,7 @@ layout_mode = 2
 custom_minimum_size = Vector2(46, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_fonts/font = SubResource("FontVariation_cjpii")
 text = "2.2M"
 horizontal_alignment = 2
 vertical_alignment = 1
@@ -10102,7 +10055,7 @@ vertical_alignment = 1
 custom_minimum_size = Vector2(46, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_fonts/font = SubResource("FontVariation_cjpii")
 text = "213K"
 horizontal_alignment = 2
 vertical_alignment = 1
@@ -10119,7 +10072,7 @@ vertical_alignment = 1
 custom_minimum_size = Vector2(64, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_fonts/font = SubResource("FontVariation_cjpii")
 text = "22.6%"
 horizontal_alignment = 2
 vertical_alignment = 1
@@ -10136,7 +10089,7 @@ vertical_alignment = 1
 custom_minimum_size = Vector2(150, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_fonts/font = SubResource("FontVariation_cjpii")
 text = "justin"
 horizontal_alignment = 2
 vertical_alignment = 1
@@ -10153,7 +10106,7 @@ vertical_alignment = 1
 custom_minimum_size = Vector2(25, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_fonts/font = SubResource("FontVariation_cjpii")
 text = "2"
 horizontal_alignment = 2
 vertical_alignment = 1
@@ -10169,7 +10122,7 @@ layout_mode = 2
 custom_minimum_size = Vector2(46, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_fonts/font = SubResource("FontVariation_cjpii")
 text = "1.5M"
 horizontal_alignment = 2
 vertical_alignment = 1
@@ -10187,7 +10140,7 @@ vertical_alignment = 1
 custom_minimum_size = Vector2(46, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892, 18.892, 18.892, 0.776)
-theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_fonts/font = SubResource("FontVariation_cjpii")
 text = "142K"
 horizontal_alignment = 2
 vertical_alignment = 1
@@ -10204,7 +10157,7 @@ vertical_alignment = 1
 custom_minimum_size = Vector2(64, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_fonts/font = SubResource("FontVariation_cjpii")
 text = "13.3%"
 horizontal_alignment = 2
 vertical_alignment = 1
@@ -10221,7 +10174,7 @@ vertical_alignment = 1
 custom_minimum_size = Vector2(150, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_fonts/font = SubResource("FontVariation_cjpii")
 text = "brunette"
 horizontal_alignment = 2
 vertical_alignment = 1
@@ -10238,7 +10191,7 @@ vertical_alignment = 1
 custom_minimum_size = Vector2(25, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_fonts/font = SubResource("FontVariation_cjpii")
 text = "3"
 horizontal_alignment = 2
 vertical_alignment = 1
@@ -10254,7 +10207,7 @@ layout_mode = 2
 custom_minimum_size = Vector2(46, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_fonts/font = SubResource("FontVariation_cjpii")
 text = "775K"
 horizontal_alignment = 2
 vertical_alignment = 1
@@ -10272,7 +10225,7 @@ vertical_alignment = 1
 custom_minimum_size = Vector2(46, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_fonts/font = SubResource("FontVariation_cjpii")
 text = "87K"
 horizontal_alignment = 2
 vertical_alignment = 1
@@ -10289,7 +10242,7 @@ vertical_alignment = 1
 custom_minimum_size = Vector2(64, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_fonts/font = SubResource("FontVariation_cjpii")
 text = "8.5%"
 horizontal_alignment = 2
 vertical_alignment = 1
@@ -10306,7 +10259,7 @@ vertical_alignment = 1
 custom_minimum_size = Vector2(150, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_fonts/font = SubResource("FontVariation_cjpii")
 text = "Big \"Momala\" Chungus"
 horizontal_alignment = 2
 vertical_alignment = 1
@@ -10325,7 +10278,7 @@ vertical_alignment = 1
 custom_minimum_size = Vector2(25, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_fonts/font = SubResource("FontVariation_cjpii")
 text = "4"
 horizontal_alignment = 2
 vertical_alignment = 1
@@ -10341,7 +10294,7 @@ layout_mode = 2
 custom_minimum_size = Vector2(46, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_fonts/font = SubResource("FontVariation_cjpii")
 text = "301K"
 horizontal_alignment = 2
 vertical_alignment = 1
@@ -10359,7 +10312,7 @@ vertical_alignment = 1
 custom_minimum_size = Vector2(46, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_fonts/font = SubResource("FontVariation_cjpii")
 text = "34K"
 horizontal_alignment = 2
 vertical_alignment = 1
@@ -10376,7 +10329,7 @@ vertical_alignment = 1
 custom_minimum_size = Vector2(64, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_fonts/font = SubResource("FontVariation_cjpii")
 text = "5.7%"
 horizontal_alignment = 2
 vertical_alignment = 1
@@ -10393,7 +10346,7 @@ vertical_alignment = 1
 custom_minimum_size = Vector2(150, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_fonts/font = SubResource("FontVariation_cjpii")
 text = "GyroAim"
 horizontal_alignment = 2
 vertical_alignment = 1
@@ -10410,7 +10363,7 @@ vertical_alignment = 1
 custom_minimum_size = Vector2(25, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_fonts/font = SubResource("FontVariation_cjpii")
 text = "5"
 horizontal_alignment = 2
 vertical_alignment = 1
@@ -10426,7 +10379,7 @@ layout_mode = 2
 custom_minimum_size = Vector2(46, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_fonts/font = SubResource("FontVariation_cjpii")
 text = "40K"
 horizontal_alignment = 2
 vertical_alignment = 1
@@ -10444,7 +10397,7 @@ vertical_alignment = 1
 custom_minimum_size = Vector2(46, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_fonts/font = SubResource("FontVariation_cjpii")
 text = "19K"
 horizontal_alignment = 2
 vertical_alignment = 1
@@ -10461,7 +10414,7 @@ vertical_alignment = 1
 custom_minimum_size = Vector2(64, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_fonts/font = SubResource("FontVariation_cjpii")
 text = "3.0%"
 horizontal_alignment = 2
 vertical_alignment = 1
@@ -10478,7 +10431,7 @@ vertical_alignment = 1
 custom_minimum_size = Vector2(150, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_fonts/font = SubResource("FontVariation_cjpii")
 text = "goo goo ga ga"
 horizontal_alignment = 2
 vertical_alignment = 1
@@ -10495,7 +10448,7 @@ vertical_alignment = 1
 custom_minimum_size = Vector2(25, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_fonts/font = SubResource("FontVariation_cjpii")
 text = "6"
 horizontal_alignment = 2
 vertical_alignment = 1
@@ -10511,7 +10464,7 @@ layout_mode = 2
 custom_minimum_size = Vector2(46, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_fonts/font = SubResource("FontVariation_cjpii")
 text = "12K"
 horizontal_alignment = 2
 vertical_alignment = 1
@@ -10529,7 +10482,7 @@ vertical_alignment = 1
 custom_minimum_size = Vector2(46, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_fonts/font = SubResource("FontVariation_cjpii")
 text = "7K"
 horizontal_alignment = 2
 vertical_alignment = 1
@@ -10546,7 +10499,7 @@ vertical_alignment = 1
 custom_minimum_size = Vector2(64, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_fonts/font = SubResource("FontVariation_cjpii")
 text = "2.1%"
 horizontal_alignment = 2
 vertical_alignment = 1
@@ -10563,7 +10516,7 @@ vertical_alignment = 1
 custom_minimum_size = Vector2(150, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_fonts/font = SubResource("FontVariation_cjpii")
 text = "Dr_Tip"
 horizontal_alignment = 2
 vertical_alignment = 1
@@ -10580,7 +10533,7 @@ vertical_alignment = 1
 custom_minimum_size = Vector2(25, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_fonts/font = SubResource("FontVariation_cjpii")
 text = "7"
 horizontal_alignment = 2
 vertical_alignment = 1
@@ -10596,7 +10549,7 @@ layout_mode = 2
 custom_minimum_size = Vector2(46, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_fonts/font = SubResource("FontVariation_cjpii")
 text = "5K"
 horizontal_alignment = 2
 vertical_alignment = 1
@@ -10614,7 +10567,7 @@ vertical_alignment = 1
 custom_minimum_size = Vector2(46, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_fonts/font = SubResource("FontVariation_cjpii")
 text = "3K"
 horizontal_alignment = 2
 vertical_alignment = 1
@@ -10631,7 +10584,7 @@ vertical_alignment = 1
 custom_minimum_size = Vector2(64, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_fonts/font = SubResource("FontVariation_cjpii")
 text = "1.7%"
 horizontal_alignment = 2
 vertical_alignment = 1
@@ -10648,7 +10601,7 @@ vertical_alignment = 1
 custom_minimum_size = Vector2(150, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_fonts/font = SubResource("FontVariation_cjpii")
 text = "carl"
 horizontal_alignment = 2
 vertical_alignment = 1
@@ -10665,7 +10618,7 @@ vertical_alignment = 1
 custom_minimum_size = Vector2(25, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_fonts/font = SubResource("FontVariation_cjpii")
 text = "8"
 horizontal_alignment = 2
 vertical_alignment = 1
@@ -10703,7 +10656,7 @@ layout_mode = 2
 custom_minimum_size = Vector2(25, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_fonts/font = SubResource("FontVariation_cjpii")
 text = "3"
 vertical_alignment = 1
 
@@ -10718,7 +10671,7 @@ vertical_alignment = 1
 custom_minimum_size = Vector2(150, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_fonts/font = SubResource("FontVariation_cjpii")
 text = "brunette"
 vertical_alignment = 1
 
@@ -10733,7 +10686,7 @@ vertical_alignment = 1
 custom_minimum_size = Vector2(64, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_fonts/font = SubResource("FontVariation_cjpii")
 text = "13.3%"
 vertical_alignment = 1
 
@@ -10748,7 +10701,7 @@ vertical_alignment = 1
 custom_minimum_size = Vector2(46, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892, 18.892, 18.892, 0.776)
-theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_fonts/font = SubResource("FontVariation_cjpii")
 text = "142K"
 vertical_alignment = 1
 
@@ -10763,7 +10716,7 @@ vertical_alignment = 1
 custom_minimum_size = Vector2(46, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_fonts/font = SubResource("FontVariation_cjpii")
 text = "1.5M"
 vertical_alignment = 1
 autowrap_mode = 2
@@ -12440,378 +12393,6 @@ anchors_preset = 10
 anchor_right = 1.0
 offset_bottom = 101.0
 grow_horizontal = 2
-mouse_filter = 1
-
-[node name="Profile_Shadow" type="Panel" parent="Main_Layer/Main_Control/Options_LayerNEW/Control"]
-layout_mode = 1
-anchors_preset = -1
-anchor_left = 0.3984375
-anchor_top = 0.5049505
-anchor_right = 0.6015625
-anchor_bottom = 4.811881
-offset_bottom = -27.0
-grow_horizontal = 2
-mouse_filter = 1
-theme_override_styles/panel = SubResource("StyleBoxFlat_812tb")
-
-[node name="Profile_Panel" type="Panel" parent="Main_Layer/Main_Control/Options_LayerNEW/Control/Profile_Shadow"]
-material = SubResource("ShaderMaterial_285xx")
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 1
-
-[node name="VBoxContainer" type="VBoxContainer" parent="Main_Layer/Main_Control/Options_LayerNEW/Control/Profile_Shadow/Profile_Panel"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 20.0
-offset_right = -20.0
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_constants/separation = 0
-
-[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_Control/Options_LayerNEW/Control/Profile_Shadow/Profile_Panel/VBoxContainer"]
-custom_minimum_size = Vector2(0, 60)
-layout_mode = 2
-
-[node name="Label2" type="Label" parent="Main_Layer/Main_Control/Options_LayerNEW/Control/Profile_Shadow/Profile_Panel/VBoxContainer"]
-layout_mode = 2
-theme_override_colors/font_color = Color(1, 1, 1, 1)
-theme_override_fonts/font = SubResource("FontVariation_o5262")
-theme_override_font_sizes/font_size = 20
-text = "Profile"
-
-[node name="MarginContainer2" type="MarginContainer" parent="Main_Layer/Main_Control/Options_LayerNEW/Control/Profile_Shadow/Profile_Panel/VBoxContainer"]
-custom_minimum_size = Vector2(0, 18)
-layout_mode = 2
-
-[node name="Name_Line" type="LineEdit" parent="Main_Layer/Main_Control/Options_LayerNEW/Control/Profile_Shadow/Profile_Panel/VBoxContainer"]
-custom_minimum_size = Vector2(180, 0)
-layout_mode = 2
-size_flags_horizontal = 0
-theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
-theme_override_colors/font_placeholder_color = Color(1, 1, 1, 0.3529412)
-theme_override_fonts/font = ExtResource("25_285xx")
-theme_override_font_sizes/font_size = 24
-theme_override_styles/normal = SubResource("StyleBoxFlat_g4pvr")
-theme_override_styles/focus = SubResource("StyleBoxFlat_3vkhs")
-placeholder_text = "Username"
-expand_to_text_length = true
-context_menu_enabled = false
-emoji_menu_enabled = false
-
-[node name="MarginContainer4" type="MarginContainer" parent="Main_Layer/Main_Control/Options_LayerNEW/Control/Profile_Shadow/Profile_Panel/VBoxContainer"]
-custom_minimum_size = Vector2(0, 4)
-layout_mode = 2
-
-[node name="HBoxContainer5" type="HBoxContainer" parent="Main_Layer/Main_Control/Options_LayerNEW/Control/Profile_Shadow/Profile_Panel/VBoxContainer"]
-layout_mode = 2
-theme_override_constants/separation = 6
-
-[node name="Clan_Line" type="LineEdit" parent="Main_Layer/Main_Control/Options_LayerNEW/Control/Profile_Shadow/Profile_Panel/VBoxContainer/HBoxContainer5"]
-layout_mode = 2
-size_flags_horizontal = 0
-theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
-theme_override_colors/font_placeholder_color = Color(1, 1, 1, 0.3529412)
-theme_override_fonts/font = ExtResource("25_285xx")
-theme_override_font_sizes/font_size = 24
-theme_override_styles/normal = SubResource("StyleBoxFlat_g4pvr")
-theme_override_styles/focus = SubResource("StyleBoxFlat_3vkhs")
-placeholder_text = "Clan"
-max_length = 4
-expand_to_text_length = true
-context_menu_enabled = false
-emoji_menu_enabled = false
-caret_blink = true
-
-[node name="MarginContainer3" type="MarginContainer" parent="Main_Layer/Main_Control/Options_LayerNEW/Control/Profile_Shadow/Profile_Panel/VBoxContainer"]
-custom_minimum_size = Vector2(0, 6)
-layout_mode = 2
-
-[node name="Video_Shadow" type="Panel" parent="Main_Layer/Main_Control/Options_LayerNEW/Control"]
-visible = false
-layout_mode = 1
-anchors_preset = -1
-anchor_left = 0.3984375
-anchor_top = 0.5049505
-anchor_right = 0.6015625
-anchor_bottom = 4.811881
-offset_bottom = -27.0
-grow_horizontal = 2
-mouse_filter = 1
-theme_override_styles/panel = SubResource("StyleBoxFlat_812tb")
-
-[node name="Video_Panel" type="Panel" parent="Main_Layer/Main_Control/Options_LayerNEW/Control/Video_Shadow"]
-material = SubResource("ShaderMaterial_285xx")
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 1
-
-[node name="VBoxContainer" type="VBoxContainer" parent="Main_Layer/Main_Control/Options_LayerNEW/Control/Video_Shadow/Video_Panel"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 20.0
-offset_right = -20.0
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_constants/separation = 0
-
-[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_Control/Options_LayerNEW/Control/Video_Shadow/Video_Panel/VBoxContainer"]
-custom_minimum_size = Vector2(0, 60)
-layout_mode = 2
-
-[node name="Label2" type="Label" parent="Main_Layer/Main_Control/Options_LayerNEW/Control/Video_Shadow/Video_Panel/VBoxContainer"]
-layout_mode = 2
-theme_override_colors/font_color = Color(1, 1, 1, 1)
-theme_override_fonts/font = SubResource("FontVariation_o5262")
-theme_override_font_sizes/font_size = 20
-text = "Video"
-
-[node name="MarginContainer2" type="MarginContainer" parent="Main_Layer/Main_Control/Options_LayerNEW/Control/Video_Shadow/Video_Panel/VBoxContainer"]
-custom_minimum_size = Vector2(0, 12)
-layout_mode = 2
-
-[node name="HBoxContainer5" type="HBoxContainer" parent="Main_Layer/Main_Control/Options_LayerNEW/Control/Video_Shadow/Video_Panel/VBoxContainer"]
-custom_minimum_size = Vector2(0, 50)
-layout_mode = 2
-
-[node name="Label" type="Label" parent="Main_Layer/Main_Control/Options_LayerNEW/Control/Video_Shadow/Video_Panel/VBoxContainer/HBoxContainer5"]
-layout_mode = 2
-theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
-theme_override_fonts/font = ExtResource("25_285xx")
-theme_override_font_sizes/font_size = 20
-text = "Display"
-
-[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_Control/Options_LayerNEW/Control/Video_Shadow/Video_Panel/VBoxContainer/HBoxContainer5"]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="MenuButton" type="OptionButton" parent="Main_Layer/Main_Control/Options_LayerNEW/Control/Video_Shadow/Video_Panel/VBoxContainer/HBoxContainer5"]
-layout_mode = 2
-theme_override_colors/font_color = Color(1, 1, 1, 1)
-theme_override_fonts/font = ExtResource("60_o5262")
-theme_override_font_sizes/font_size = 18
-theme_override_styles/normal = SubResource("StyleBoxFlat_wahd8")
-selected = 0
-item_count = 1
-popup/item_0/text = "LG ULTRAGEAR FHD"
-popup/item_0/id = 0
-
-[node name="HBoxContainer3" type="HBoxContainer" parent="Main_Layer/Main_Control/Options_LayerNEW/Control/Video_Shadow/Video_Panel/VBoxContainer"]
-custom_minimum_size = Vector2(0, 50)
-layout_mode = 2
-
-[node name="Label" type="Label" parent="Main_Layer/Main_Control/Options_LayerNEW/Control/Video_Shadow/Video_Panel/VBoxContainer/HBoxContainer3"]
-layout_mode = 2
-theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
-theme_override_fonts/font = ExtResource("25_285xx")
-theme_override_font_sizes/font_size = 20
-text = "Display Mode"
-
-[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_Control/Options_LayerNEW/Control/Video_Shadow/Video_Panel/VBoxContainer/HBoxContainer3"]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="MenuButton" type="OptionButton" parent="Main_Layer/Main_Control/Options_LayerNEW/Control/Video_Shadow/Video_Panel/VBoxContainer/HBoxContainer3"]
-layout_mode = 2
-theme_override_colors/font_color = Color(1, 1, 1, 1)
-theme_override_fonts/font = ExtResource("60_o5262")
-theme_override_font_sizes/font_size = 18
-theme_override_styles/normal = SubResource("StyleBoxFlat_wahd8")
-selected = 0
-item_count = 3
-popup/item_0/text = "FULLSCREEN"
-popup/item_0/id = 0
-popup/item_1/text = "WINDOWED"
-popup/item_1/id = 1
-popup/item_2/text = "BORDERLESS"
-popup/item_2/id = 2
-
-[node name="HBoxContainer2" type="HBoxContainer" parent="Main_Layer/Main_Control/Options_LayerNEW/Control/Video_Shadow/Video_Panel/VBoxContainer"]
-custom_minimum_size = Vector2(0, 50)
-layout_mode = 2
-
-[node name="Label" type="Label" parent="Main_Layer/Main_Control/Options_LayerNEW/Control/Video_Shadow/Video_Panel/VBoxContainer/HBoxContainer2"]
-layout_mode = 2
-theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
-theme_override_fonts/font = ExtResource("25_285xx")
-theme_override_font_sizes/font_size = 20
-text = "Aspect Ratio"
-
-[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_Control/Options_LayerNEW/Control/Video_Shadow/Video_Panel/VBoxContainer/HBoxContainer2"]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="MenuButton" type="OptionButton" parent="Main_Layer/Main_Control/Options_LayerNEW/Control/Video_Shadow/Video_Panel/VBoxContainer/HBoxContainer2"]
-layout_mode = 2
-theme_override_colors/font_color = Color(1, 1, 1, 1)
-theme_override_fonts/font = ExtResource("60_o5262")
-theme_override_font_sizes/font_size = 18
-theme_override_styles/normal = SubResource("StyleBoxFlat_wahd8")
-selected = 1
-item_count = 5
-popup/item_0/text = "4:3"
-popup/item_0/id = 0
-popup/item_1/text = "16:9"
-popup/item_1/id = 1
-popup/item_2/text = "16:10"
-popup/item_2/id = 2
-popup/item_3/text = "21:9"
-popup/item_3/id = 3
-popup/item_4/text = "32:9"
-popup/item_4/id = 4
-
-[node name="HBoxContainer" type="HBoxContainer" parent="Main_Layer/Main_Control/Options_LayerNEW/Control/Video_Shadow/Video_Panel/VBoxContainer"]
-custom_minimum_size = Vector2(0, 50)
-layout_mode = 2
-
-[node name="Label" type="Label" parent="Main_Layer/Main_Control/Options_LayerNEW/Control/Video_Shadow/Video_Panel/VBoxContainer/HBoxContainer"]
-layout_mode = 2
-theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
-theme_override_fonts/font = ExtResource("25_285xx")
-theme_override_font_sizes/font_size = 20
-text = "Resolution"
-
-[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_Control/Options_LayerNEW/Control/Video_Shadow/Video_Panel/VBoxContainer/HBoxContainer"]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="MenuButton" type="OptionButton" parent="Main_Layer/Main_Control/Options_LayerNEW/Control/Video_Shadow/Video_Panel/VBoxContainer/HBoxContainer"]
-layout_mode = 2
-theme_override_colors/font_color = Color(1, 1, 1, 1)
-theme_override_fonts/font = ExtResource("60_o5262")
-theme_override_font_sizes/font_size = 18
-theme_override_styles/normal = SubResource("StyleBoxFlat_wahd8")
-selected = 9
-item_count = 22
-popup/item_0/text = "640X480"
-popup/item_0/id = 0
-popup/item_1/text = "800X600"
-popup/item_1/id = 1
-popup/item_2/text = "1024X768"
-popup/item_2/id = 2
-popup/item_3/text = "1280X960"
-popup/item_3/id = 3
-popup/item_4/text = "1400X1050"
-popup/item_4/id = 4
-popup/item_5/text = "1600X1200"
-popup/item_5/id = 5
-popup/item_6/text = "1280X720"
-popup/item_6/id = 6
-popup/item_7/text = "1366X768"
-popup/item_7/id = 7
-popup/item_8/text = "1600X900"
-popup/item_8/id = 8
-popup/item_9/text = "1920X1080"
-popup/item_9/id = 9
-popup/item_10/text = "2560X1440"
-popup/item_10/id = 10
-popup/item_11/text = "3840X2160"
-popup/item_11/id = 11
-popup/item_12/text = "1280X800"
-popup/item_12/id = 12
-popup/item_13/text = "1440X900"
-popup/item_13/id = 13
-popup/item_14/text = "1680X1050"
-popup/item_14/id = 14
-popup/item_15/text = "1920X1200"
-popup/item_15/id = 15
-popup/item_16/text = "2560X1600"
-popup/item_16/id = 16
-popup/item_17/text = "2560X1080"
-popup/item_17/id = 17
-popup/item_18/text = "3440X1440"
-popup/item_18/id = 18
-popup/item_19/text = "3840X1600"
-popup/item_19/id = 19
-popup/item_20/text = "3840X1080"
-popup/item_20/id = 20
-popup/item_21/text = "5120X1440"
-popup/item_21/id = 21
-
-[node name="HBoxContainer6" type="HBoxContainer" parent="Main_Layer/Main_Control/Options_LayerNEW/Control/Video_Shadow/Video_Panel/VBoxContainer"]
-custom_minimum_size = Vector2(0, 50)
-layout_mode = 2
-
-[node name="Label" type="Label" parent="Main_Layer/Main_Control/Options_LayerNEW/Control/Video_Shadow/Video_Panel/VBoxContainer/HBoxContainer6"]
-layout_mode = 2
-theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
-theme_override_fonts/font = ExtResource("25_285xx")
-theme_override_font_sizes/font_size = 20
-text = "Refresh Rate"
-
-[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_Control/Options_LayerNEW/Control/Video_Shadow/Video_Panel/VBoxContainer/HBoxContainer6"]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="MenuButton" type="OptionButton" parent="Main_Layer/Main_Control/Options_LayerNEW/Control/Video_Shadow/Video_Panel/VBoxContainer/HBoxContainer6"]
-layout_mode = 2
-theme_override_colors/font_color = Color(1, 1, 1, 1)
-theme_override_fonts/font = ExtResource("60_o5262")
-theme_override_font_sizes/font_size = 18
-theme_override_styles/normal = SubResource("StyleBoxFlat_wahd8")
-selected = 2
-item_count = 6
-popup/item_0/text = "60 HZ"
-popup/item_0/id = 0
-popup/item_1/text = "75 HZ"
-popup/item_1/id = 1
-popup/item_2/text = "144 HZ"
-popup/item_2/id = 2
-popup/item_3/text = "165 HZ"
-popup/item_3/id = 3
-popup/item_4/text = "240 HZ"
-popup/item_4/id = 4
-popup/item_5/text = "360 HZ"
-popup/item_5/id = 5
-
-[node name="HBoxContainer4" type="HBoxContainer" parent="Main_Layer/Main_Control/Options_LayerNEW/Control/Video_Shadow/Video_Panel/VBoxContainer"]
-custom_minimum_size = Vector2(0, 50)
-layout_mode = 2
-
-[node name="Label" type="Label" parent="Main_Layer/Main_Control/Options_LayerNEW/Control/Video_Shadow/Video_Panel/VBoxContainer/HBoxContainer4"]
-layout_mode = 2
-theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
-theme_override_fonts/font = ExtResource("25_285xx")
-theme_override_font_sizes/font_size = 20
-text = "Brightness"
-
-[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_Control/Options_LayerNEW/Control/Video_Shadow/Video_Panel/VBoxContainer/HBoxContainer4"]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="HBox" type="VBoxContainer" parent="Main_Layer/Main_Control/Options_LayerNEW/Control/Video_Shadow/Video_Panel/VBoxContainer/HBoxContainer4"]
-layout_mode = 2
-alignment = 1
-
-[node name="HSlider" type="HSlider" parent="Main_Layer/Main_Control/Options_LayerNEW/Control/Video_Shadow/Video_Panel/VBoxContainer/HBoxContainer4/HBox"]
-custom_minimum_size = Vector2(180, 0)
-layout_mode = 2
-size_flags_horizontal = 4
-focus_mode = 3
-theme_override_constants/center_grabber = 1
-theme_override_constants/grabber_offset = -12
-theme_override_constants/tick_offset = -3
-theme_override_icons/grabber = ExtResource("31_l6ikw")
-theme_override_icons/grabber_highlight = ExtResource("31_l6ikw")
-theme_override_styles/slider = SubResource("StyleBoxFlat_l6ikw")
-theme_override_styles/grabber_area = SubResource("StyleBoxFlat_8yhk8")
-theme_override_styles/grabber_area_highlight = SubResource("StyleBoxFlat_fpsoq")
-max_value = 200.0
-value = 100.0
-scrollable = false
-metadata/_edit_use_anchors_ = true
 
 [node name="Options_Shadow" type="Panel" parent="Main_Layer/Main_Control/Options_LayerNEW/Control"]
 layout_mode = 1
@@ -12826,7 +12407,6 @@ offset_right = 195.0
 offset_bottom = 30.0
 grow_horizontal = 2
 grow_vertical = 2
-mouse_filter = 1
 theme_override_styles/panel = SubResource("StyleBoxFlat_812tb")
 
 [node name="Options_Panel" type="Panel" parent="Main_Layer/Main_Control/Options_LayerNEW/Control"]
@@ -12843,7 +12423,6 @@ offset_right = 195.0
 offset_bottom = 30.0
 grow_horizontal = 2
 grow_vertical = 2
-mouse_filter = 1
 
 [node name="HBoxContainer" type="HBoxContainer" parent="Main_Layer/Main_Control/Options_LayerNEW/Control/Options_Panel"]
 layout_mode = 1
@@ -12864,7 +12443,7 @@ theme_override_styles/pressed = SubResource("StyleBoxFlat_ri5to")
 theme_override_styles/hover = ExtResource("59_fpsoq")
 theme_override_styles/focus = SubResource("StyleBoxFlat_y52gj")
 script = ExtResource("60_285xx")
-fade_duration = 0.12
+fade_duration = 0.5
 
 [node name="Control" type="Control" parent="Main_Layer/Main_Control/Options_LayerNEW/Control/Options_Panel/HBoxContainer/Personal"]
 custom_minimum_size = Vector2(30, 30)
@@ -12903,7 +12482,6 @@ theme_override_styles/pressed = SubResource("StyleBoxFlat_ri5to")
 theme_override_styles/hover = ExtResource("59_fpsoq")
 theme_override_styles/focus = SubResource("StyleBoxFlat_y52gj")
 script = ExtResource("60_285xx")
-fade_duration = 0.12
 
 [node name="Control" type="Control" parent="Main_Layer/Main_Control/Options_LayerNEW/Control/Options_Panel/HBoxContainer/Video"]
 custom_minimum_size = Vector2(30, 30)
@@ -12942,7 +12520,6 @@ theme_override_styles/pressed = SubResource("StyleBoxFlat_ri5to")
 theme_override_styles/hover = ExtResource("59_fpsoq")
 theme_override_styles/focus = SubResource("StyleBoxFlat_y52gj")
 script = ExtResource("60_285xx")
-fade_duration = 0.12
 
 [node name="Control" type="Control" parent="Main_Layer/Main_Control/Options_LayerNEW/Control/Options_Panel/HBoxContainer/Audio"]
 custom_minimum_size = Vector2(30, 30)
@@ -12981,7 +12558,6 @@ theme_override_styles/pressed = SubResource("StyleBoxFlat_ri5to")
 theme_override_styles/hover = ExtResource("59_fpsoq")
 theme_override_styles/focus = SubResource("StyleBoxFlat_y52gj")
 script = ExtResource("60_285xx")
-fade_duration = 0.12
 
 [node name="Control" type="Control" parent="Main_Layer/Main_Control/Options_LayerNEW/Control/Options_Panel/HBoxContainer/Gameplay"]
 custom_minimum_size = Vector2(30, 30)
@@ -13020,7 +12596,6 @@ theme_override_styles/pressed = SubResource("StyleBoxFlat_ri5to")
 theme_override_styles/hover = ExtResource("59_fpsoq")
 theme_override_styles/focus = SubResource("StyleBoxFlat_y52gj")
 script = ExtResource("60_285xx")
-fade_duration = 0.12
 
 [node name="Control" type="Control" parent="Main_Layer/Main_Control/Options_LayerNEW/Control/Options_Panel/HBoxContainer/Keybinds"]
 custom_minimum_size = Vector2(30, 30)
@@ -13059,7 +12634,6 @@ theme_override_styles/pressed = SubResource("StyleBoxFlat_ri5to")
 theme_override_styles/hover = ExtResource("59_fpsoq")
 theme_override_styles/focus = SubResource("StyleBoxFlat_y52gj")
 script = ExtResource("60_285xx")
-fade_duration = 0.12
 
 [node name="Control" type="Control" parent="Main_Layer/Main_Control/Options_LayerNEW/Control/Options_Panel/HBoxContainer/Exit"]
 custom_minimum_size = Vector2(30, 30)
