@@ -1,7 +1,6 @@
 [gd_scene format=4 uid="uid://bvf7xj3oe6l6e"]
 
 [ext_resource type="Texture2D" uid="uid://c1ujkyu52c6ak" path="res://maps/urafailure.png" id="1_bxyxm"]
-[ext_resource type="Script" uid="uid://dtgy2we6fa4kj" path="res://TerrainGenerator.gd" id="1_o5262"]
 [ext_resource type="Shader" uid="uid://by4x4n8pkrxox" path="res://terrain.gdshader" id="2_fruhh"]
 [ext_resource type="Texture2D" uid="uid://b8h6ldx5thxu1" path="res://maps/boundari_stretched_stiched_ratioed.png" id="2_jqbn1"]
 [ext_resource type="Script" uid="uid://bod8lxotiicpa" path="res://camera_2d.gd" id="4_1u143"]
@@ -8985,8 +8984,6 @@ expand_margin_right = 2.0
 expand_margin_bottom = 2.0
 
 [node name="Node2D" type="Node2D" unique_id=1680915766]
-script = ExtResource("1_o5262")
-noise_seed = 666
 
 [node name="MapDisplay" type="Sprite2D" parent="." unique_id=1126381259]
 material = SubResource("ShaderMaterial_mwd57")
