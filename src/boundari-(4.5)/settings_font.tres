@@ -1,0 +1,8 @@
+[gd_resource type="FontVariation" load_steps=2 format=3 uid="uid://dp5awpqw77lrb"]
+
+[ext_resource type="FontFile" uid="uid://dd2fj5b2vxjq3" path="res://fonts/Exo2-VariableFont_wght.ttf" id="1_2qtoc"]
+
+[resource]
+base_font = ExtResource("1_2qtoc")
+variation_embolden = 0.35
+variation_transform = Transform2D(1, 0, 0, 1.035, 0, 0)

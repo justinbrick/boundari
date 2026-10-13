@@ -1,4 +1,7 @@
-[gd_resource type="Theme" load_steps=6 format=3 uid="uid://rury42jurrbq"]
+[gd_resource type="Theme" format=3 uid="uid://rury42jurrbq"]
+
+[ext_resource type="FontFile" uid="uid://dd2fj5b2vxjq3" path="res://fonts/Exo2-VariableFont_wght.ttf" id="1_rw53w"]
+[ext_resource type="Texture2D" uid="uid://bi52ppwxwva63" path="res://ui/misc/empty.svg" id="2_rw53w"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ntbjj"]
 content_margin_left = 8.0
@@ -41,9 +44,36 @@ corner_radius_top_right = 6
 corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
 
+[sub_resource type="FontVariation" id="FontVariation_b6i3p"]
+base_font = ExtResource("1_rw53w")
+variation_embolden = -0.2
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_2td35"]
+bg_color = Color(0.156315, 0.15631485, 0.15631494, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_7ljfl"]
+content_margin_top = 8.0
+content_margin_bottom = 8.0
+bg_color = Color(0.19650203, 0.19650194, 0.19650188, 1)
+border_color = Color(1, 1, 1, 1)
+border_blend = true
+
 [resource]
+OptionButton/colors/font_color = Color(1, 1, 1, 1)
 OptionButton/styles/disabled = SubResource("StyleBoxFlat_ntbjj")
 OptionButton/styles/focus = SubResource("StyleBoxFlat_colrm")
 OptionButton/styles/hover = SubResource("StyleBoxFlat_rw53w")
 OptionButton/styles/normal = SubResource("StyleBoxFlat_4w4fa")
 OptionButton/styles/pressed = SubResource("StyleBoxFlat_b6i3p")
+PopupMenu/colors/font_color = Color(1, 1, 1, 1)
+PopupMenu/colors/font_hover_color = Color(1, 1, 1, 1)
+PopupMenu/constants/item_start_padding = -14
+PopupMenu/constants/v_separation = 16
+PopupMenu/font_sizes/font_size = 18
+PopupMenu/fonts/font = SubResource("FontVariation_b6i3p")
+PopupMenu/icons/radio_checked = ExtResource("2_rw53w")
+PopupMenu/icons/radio_checked_disabled = ExtResource("2_rw53w")
+PopupMenu/icons/radio_unchecked = ExtResource("2_rw53w")
+PopupMenu/icons/radio_unchecked_disabled = ExtResource("2_rw53w")
+PopupMenu/styles/hover = SubResource("StyleBoxFlat_2td35")
+PopupMenu/styles/panel = SubResource("StyleBoxFlat_7ljfl")

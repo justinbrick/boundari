@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   id="Capa_1"
+   enable-background="new 0 0 512 512"
+   height="32"
+   viewBox="0 0 32 32"
+   width="32"
+   version="1.1"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs5" />
+  <g
+     id="g5"
+     transform="scale(0.0625)"
+     style="fill:#ffffff;fill-opacity:1">
+    <path
+       d="M 30,30 H 91 V 0 H 0 v 91 h 30 z"
+       id="path1"
+       style="fill:#ffffff;fill-opacity:1" />
+    <path
+       d="m 421,30 h 61 v 61 h 30 V 0 h -91 z"
+       id="path2"
+       style="fill:#ffffff;fill-opacity:1" />
+    <path
+       d="M 91,482 H 30 V 421 H 0 v 91 h 91 z"
+       id="path3"
+       style="fill:#ffffff;fill-opacity:1" />
+    <path
+       d="m 482,482 h -61 v 30 h 91 v -91 h -30 z"
+       id="path4"
+       style="fill:#ffffff;fill-opacity:1" />
+    <circle
+       cx="256"
+       cy="256"
+       r="45"
+       id="circle4"
+       style="fill:#ffffff;fill-opacity:1" />
+    <path
+       d="M 256,121 C 118.144,121 12.759,241.117 8.379,246.229 L 0,256 8.379,265.771 C 12.759,270.883 118.144,391 256,391 393.856,391 499.241,270.883 503.621,265.771 L 512,256 503.621,246.229 C 499.241,241.117 393.856,121 256,121 Z m 0,210 c -41.353,0 -75,-33.647 -75,-75 0,-41.353 33.647,-75 75,-75 41.353,0 75,33.647 75,75 0,41.353 -33.647,75 -75,75 z"
+       id="path5"
+       style="fill:#ffffff;fill-opacity:1" />
+  </g>
+</svg>
