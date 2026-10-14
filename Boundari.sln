@@ -9,6 +9,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Boundari", "src\Boundari\Bo
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Boundari.Tests", "src\Boundari.Tests\Boundari.Tests.csproj", "{91709275-F5A1-45CA-AECB-7C2664B549EE}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{8EF20395-945A-460D-8D2C-56FA57492A4C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MapBuilder", "tools\MapBuilder\MapBuilder.csproj", "{F29BF96C-4D9D-46A0-BBF7-1F261F59C281}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -26,9 +30,14 @@ Global
 		{91709275-F5A1-45CA-AECB-7C2664B549EE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{91709275-F5A1-45CA-AECB-7C2664B549EE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{91709275-F5A1-45CA-AECB-7C2664B549EE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F29BF96C-4D9D-46A0-BBF7-1F261F59C281}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F29BF96C-4D9D-46A0-BBF7-1F261F59C281}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F29BF96C-4D9D-46A0-BBF7-1F261F59C281}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F29BF96C-4D9D-46A0-BBF7-1F261F59C281}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{6D2614E0-730A-4866-AB4F-CA5ABA0A5D80} = {003E0346-7855-49EF-B491-BC715C0AAAE9}
 		{91709275-F5A1-45CA-AECB-7C2664B549EE} = {003E0346-7855-49EF-B491-BC715C0AAAE9}
+		{F29BF96C-4D9D-46A0-BBF7-1F261F59C281} = {8EF20395-945A-460D-8D2C-56FA57492A4C}
 	EndGlobalSection
 EndGlobal

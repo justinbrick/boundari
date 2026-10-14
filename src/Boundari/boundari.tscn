@@ -1,7 +1,6 @@
 [gd_scene format=4 uid="uid://bvf7xj3oe6l6e"]
 
 [ext_resource type="Texture2D" uid="uid://c1ujkyu52c6ak" path="res://maps/urafailure.png" id="1_bxyxm"]
-[ext_resource type="Shader" uid="uid://by4x4n8pkrxox" path="res://terrain.gdshader" id="2_fruhh"]
 [ext_resource type="Texture2D" uid="uid://b8h6ldx5thxu1" path="res://maps/boundari_stretched_stiched_ratioed.png" id="2_jqbn1"]
 [ext_resource type="Script" uid="uid://bod8lxotiicpa" path="res://camera_2d.gd" id="4_1u143"]
 [ext_resource type="Shader" uid="uid://ccrx2iq3onidj" path="res://blurroundcorn.gdshader" id="4_enfkb"]
@@ -79,38 +78,8 @@
 [ext_resource type="Theme" uid="uid://rury42jurrbq" path="res://optionsbutton.tres" id="67_g4pvr"]
 [ext_resource type="Texture2D" uid="uid://sjvfkq16caan" path="res://ui/misc/arrow.svg" id="68_1u143"]
 [ext_resource type="Script" uid="uid://dxnd7b4onrclb" path="res://gameplay_panel.gd" id="69_1u143"]
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_mwd57"]
-shader = ExtResource("2_fruhh")
-shader_parameter/sobel_step = 0.5
-shader_parameter/ocean_threshold = 0.42
-shader_parameter/hill_threshold = 0.3170000150575
-shader_parameter/mountain_threshold = 0.5450000258875
-shader_parameter/biome_split = 0.750000035625
-shader_parameter/biome_softness = 0.18
-shader_parameter/relief_strength = 0.750000035625
-shader_parameter/relief_exaggeration = 32.0
-shader_parameter/light_angle_deg = 315.0
-shader_parameter/shadow_floor = 0.150000007125
-shader_parameter/flat_relief_scale = 1.194000056715
-shader_parameter/hill_relief_scale = 1.650000078375
-shader_parameter/mtn_relief_scale = 3.57200014592
-shader_parameter/grass_patch_scale = 1.950000045125
-shader_parameter/desert_wisp_scale = 2.05600005016
-shader_parameter/COL_OCEAN_DEEP = Color(0.21960784, 0.32156864, 0.4509804, 1)
-shader_parameter/COL_OCEAN_SHALLOW = Color(0.32, 0.46, 0.58, 1)
-shader_parameter/COL_GRASS_FLAT_LO = Color(0.42, 0.5, 0.3, 1)
-shader_parameter/COL_GRASS_FLAT_HI = Color(0.55, 0.61, 0.38, 1)
-shader_parameter/COL_GRASS_HILL_LO = Color(0.38, 0.46, 0.27, 1)
-shader_parameter/COL_GRASS_HILL_HI = Color(0.5, 0.56, 0.34, 1)
-shader_parameter/COL_GRASS_MTN_LO = Color(0.6208564, 0.59682953, 0.497119, 1)
-shader_parameter/COL_GRASS_MTN_HI = Color(0.8028168, 0.77273333, 0.68995124, 1)
-shader_parameter/COL_DESE_FLAT_LO = Color(0.68, 0.58, 0.36, 1)
-shader_parameter/COL_DESE_FLAT_HI = Color(0.78, 0.7, 0.5, 1)
-shader_parameter/COL_DESE_HILL_LO = Color(0.6, 0.46, 0.28, 1)
-shader_parameter/COL_DESE_HILL_HI = Color(0.75, 0.6, 0.38, 1)
-shader_parameter/COL_DESE_MTN_LO = Color(0.5, 0.38, 0.24, 1)
-shader_parameter/COL_DESE_MTN_HI = Color(0.68, 0.54, 0.36, 1)
+[ext_resource type="Script" uid="uid://divxtioscd01k" path="res://game/view/MapView.cs" id="bw_mapview"]
+[ext_resource type="Script" uid="uid://b17hmp882uwcy" path="res://game/World.cs" id="bw_world"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_7on8u"]
 bg_color = Color(0, 0, 0, 0.29411766)
@@ -8984,9 +8953,10 @@ expand_margin_right = 2.0
 expand_margin_bottom = 2.0
 
 [node name="Node2D" type="Node2D" unique_id=1680915766]
+script = ExtResource("bw_world")
 
 [node name="MapDisplay" type="Sprite2D" parent="." unique_id=1126381259]
-material = SubResource("ShaderMaterial_mwd57")
+script = ExtResource("bw_mapview")
 
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=727559316]
 visible = false
@@ -8997,6 +8967,7 @@ texture = ExtResource("1_bxyxm")
 offset = Vector2(960, 540)
 
 [node name="Sprite2D2" type="Sprite2D" parent="." unique_id=56929510]
+visible = false
 texture_filter = 1
 texture = ExtResource("2_jqbn1")
 centered = false
@@ -12769,7 +12740,7 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_fonts/font = SubResource("FontVariation_mwd57")
 theme_override_font_sizes/font_size = 14
-text = "Lc"
+text = "Rc"
 horizontal_alignment = 1
 vertical_alignment = 1
 
@@ -12811,7 +12782,7 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_fonts/font = SubResource("FontVariation_mwd57")
 theme_override_font_sizes/font_size = 14
-text = "Rc"
+text = "Lc"
 horizontal_alignment = 1
 vertical_alignment = 1
 

@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Turns real-world geographic data (tools/data) into Boundari .bmap files.
+    See README.md in this folder for how to run it.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+  </PropertyGroup>
+
+  <!-- Share the game's map code directly (no Godot dependency needed). -->
+  <ItemGroup>
+    <Compile Include="..\..\src\Boundari\game\core\*.cs" Link="Shared\core\%(Filename)%(Extension)" />
+    <Compile Include="..\..\src\Boundari\game\map\*.cs" Link="Shared\map\%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

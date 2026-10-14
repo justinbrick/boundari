@@ -1,0 +1,111 @@
+using System.Linq;
+using Boundari.Map;
+using Xunit;
+
+public class MapGeneratorTests
+{
+    // Smaller than the real map so the tests stay fast.
+    private static MapGenSettings Small() => new() { Width = 640, Height = 400, MinIslandTiles = 8, MinLakeTiles = 30 };
+
+    [Fact]
+    public void SameSeed_GivesIdenticalMap()
+    {
+        var a = MapGenerator.Generate(42, Small());
+        var b = MapGenerator.Generate(42, Small());
+
+        Assert.Equal(a.Terrain, b.Terrain);
+        Assert.Equal(a.CoastField, b.CoastField);
+        Assert.Equal(a.Elevation, b.Elevation);
+    }
+
+    [Fact]
+    public void DifferentSeeds_GiveDifferentMaps()
+    {
+        var a = MapGenerator.Generate(1, Small());
+        var b = MapGenerator.Generate(2, Small());
+
+        Assert.NotEqual(a.Terrain, b.Terrain);
+    }
+
+    [Theory]
+    [InlineData(1UL)]
+    [InlineData(777UL)]
+    [InlineData(12345UL)]
+    [InlineData(2024UL)]
+    [InlineData(99999UL)]
+    public void Map_HasSeveralContinents_AndSensibleLandShare(ulong seed)
+    {
+        var map = MapGenerator.Generate(seed, Small());
+
+        double landShare = (double)map.LandTileCount / map.TileCount;
+        Assert.InRange(landShare, 0.18, 0.5);
+        Assert.True(map.CountLandmasses((int)(map.LandTileCount * 0.04)) >= 2);
+    }
+
+    [Fact]
+    public void MapEdge_IsAlwaysOcean()
+    {
+        var map = MapGenerator.Generate(5, Small());
+
+        for (int x = 0; x < map.Width; x++)
+        {
+            Assert.Equal(TerrainType.Ocean, map.Terrain[map.Index(x, 0)]);
+            Assert.Equal(TerrainType.Ocean, map.Terrain[map.Index(x, map.Height - 1)]);
+        }
+        for (int y = 0; y < map.Height; y++)
+        {
+            Assert.Equal(TerrainType.Ocean, map.Terrain[map.Index(0, y)]);
+            Assert.Equal(TerrainType.Ocean, map.Terrain[map.Index(map.Width - 1, y)]);
+        }
+    }
+
+    [Fact]
+    public void LandTiles_MatchCoastField_AndHaveALandmass()
+    {
+        var map = MapGenerator.Generate(8, Small());
+
+        for (int i = 0; i < map.TileCount; i++)
+        {
+            Assert.Equal(map.CoastField[i] > 0, map.IsLand(i));
+            Assert.Equal(map.IsLand(i), map.LandmassId[i] != GameMap.NoLandmass);
+        }
+        Assert.Equal(map.LandTileCount, map.LandmassSizes.Sum());
+    }
+
+    [Fact]
+    public void AllTerrainTypes_Appear()
+    {
+        var map = MapGenerator.Generate(3, Small());
+
+        Assert.Contains(TerrainType.Plains, map.Terrain);
+        Assert.Contains(TerrainType.Highlands, map.Terrain);
+        Assert.Contains(TerrainType.Mountains, map.Terrain);
+    }
+}
+
+public class MapFileTests
+{
+    [Fact]
+    public void WriteThenRead_KeepsTheMap()
+    {
+        var map = MapGenerator.Generate(11, new MapGenSettings { Width = 300, Height = 200, MinIslandTiles = 8, MinLakeTiles = 30 });
+        map.Name = "Test";
+
+        using var stream = new System.IO.MemoryStream();
+        MapFile.Write(map, stream);
+        stream.Position = 0;
+        var loaded = MapFile.Read(stream);
+
+        Assert.Equal("Test", loaded.Name);
+        Assert.Equal(map.Width, loaded.Width);
+        Assert.Equal(map.Terrain, loaded.Terrain);
+        Assert.Equal(map.LandTileCount, loaded.LandTileCount);
+        Assert.Equal(map.LandmassSizes, loaded.LandmassSizes);
+        // Fields are stored as 16-bit floats, so allow a little rounding.
+        for (int i = 0; i < map.TileCount; i++)
+        {
+            Assert.Equal(map.CoastField[i], loaded.CoastField[i], 0.002f);
+            Assert.Equal(map.Elevation[i], loaded.Elevation[i], 0.002f);
+        }
+    }
+}

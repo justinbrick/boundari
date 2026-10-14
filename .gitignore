@@ -6,3 +6,6 @@
 **/.vscode/
 **/bin
 **/obj
+
+# Downloaded map source data (re-download with tools/download-data.ps1)
+tools/data/

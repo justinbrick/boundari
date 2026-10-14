@@ -1,0 +1,64 @@
+using System;
+using System.IO;
+using System.IO.Compression;
+
+namespace Boundari.Map;
+
+/// <summary>
+/// Reads and writes .bmap files: pre-built maps (e.g. real-world maps made by
+/// tools/MapBuilder). Gzipped binary: header, then terrain, coast field and
+/// elevation per tile (the two fields as 16-bit floats).
+/// </summary>
+public static class MapFile
+{
+    private const uint Magic = 0x50414D42; // "BMAP"
+    private const int Version = 1;
+
+    public static void Write(GameMap map, Stream output)
+    {
+        using var gzip = new GZipStream(output, CompressionLevel.SmallestSize, leaveOpen: true);
+        using var w = new BinaryWriter(gzip);
+        w.Write(Magic);
+        w.Write(Version);
+        w.Write(map.Name);
+        w.Write(map.Width);
+        w.Write(map.Height);
+        w.Write(map.Seed);
+        foreach (var t in map.Terrain)
+            w.Write((byte)t);
+        foreach (float v in map.CoastField)
+            w.Write((Half)v);
+        foreach (float v in map.Elevation)
+            w.Write((Half)v);
+    }
+
+    public static GameMap Read(Stream input)
+    {
+        using var gzip = new GZipStream(input, CompressionMode.Decompress, leaveOpen: true);
+        using var r = new BinaryReader(gzip);
+        if (r.ReadUInt32() != Magic)
+            throw new InvalidDataException("Not a Boundari map file.");
+        int version = r.ReadInt32();
+        if (version != Version)
+            throw new InvalidDataException($"Unsupported map file version {version}.");
+
+        string name = r.ReadString();
+        int width = r.ReadInt32();
+        int height = r.ReadInt32();
+        ulong seed = r.ReadUInt64();
+        var map = new GameMap(width, height, seed) { Name = name };
+
+        byte[] terrain = r.ReadBytes(map.TileCount);
+        if (terrain.Length != map.TileCount)
+            throw new EndOfStreamException("Map file is truncated.");
+        for (int i = 0; i < map.TileCount; i++)
+            map.Terrain[i] = (TerrainType)terrain[i];
+        for (int i = 0; i < map.TileCount; i++)
+            map.CoastField[i] = (float)r.ReadHalf();
+        for (int i = 0; i < map.TileCount; i++)
+            map.Elevation[i] = (float)r.ReadHalf();
+
+        MapProcessing.LabelLandmasses(map);
+        return map;
+    }
+}
