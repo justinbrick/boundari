@@ -5,8 +5,8 @@ $data = Join-Path $PSScriptRoot 'data'
 New-Item -ItemType Directory -Force (Join-Path $data 'terrarium3') | Out-Null
 New-Item -ItemType Directory -Force (Join-Path $data 'terrarium6') | Out-Null
 
-# Coastlines and lakes: 50m detail for the world map, 10m for regional maps (Europe).
-foreach ($name in 'ne_50m_land', 'ne_50m_lakes', 'ne_10m_land', 'ne_10m_lakes') {
+# Coastlines and lakes (50m detail for the world map, 10m for regional maps) and rivers.
+foreach ($name in 'ne_50m_land', 'ne_50m_lakes', 'ne_10m_land', 'ne_10m_lakes', 'ne_10m_rivers_lake_centerlines') {
     $url = "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/$name.geojson"
     Invoke-WebRequest $url -OutFile (Join-Path $data "$name.geojson")
 }

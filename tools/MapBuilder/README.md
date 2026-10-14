@@ -5,7 +5,7 @@ Players never need this: the built `.bmap` files ship with the game.
 
 ## Use
 
-1. Get the source data once (about 33 MB, saved to `tools/data/`, not committed):
+1. Get the source data once (about 40 MB, saved to `tools/data/`, not committed):
    `powershell -File tools/download-data.ps1`
 2. Set up the Python tools once (used to read land-cover data):
    `python -m venv tools/.venv` then `tools/.venv/Scripts/python.exe -m pip install rasterio`
@@ -25,11 +25,14 @@ Natural Earth detail level, and the smallest island/lake to keep.
 3. Elevation is averaged from terrain tiles over each tile's area and mapped to plains
    (< 350 m), highlands (< 2000 m) and mountains.
 4. Tiny islands and lakes are removed with the same code the random generator uses.
-5. Maps with `LandCoverScale` get real land cover (farmland, meadow, forest, rock, snow,
+5. Rivers (Natural Earth river lines, up to `RiverMaxRank`) are cut into the map as real,
+   connected water tiles, `RiverWidth` tiles wide for the biggest and never narrower than
+   1.6 tiles, so boats can always get through.
+6. Maps with `LandCoverScale` get real land cover (farmland, meadow, forest, rock, snow,
    small lakes and rivers) on a grid finer than the game tiles. `tools/landcover/worldcover.py`
    reads only the small built-in overviews of ESA WorldCover over the internet (about
    25 s for Europe) and caches the result in `tools/data/worldcover/`. Towns are filled in
-   with the surrounding land on purpose.
+   with the surrounding land on purpose, and so are ponds under ~60 km² and thin river slivers.
 
 ## Credits (must be shown in the game's credits)
 
