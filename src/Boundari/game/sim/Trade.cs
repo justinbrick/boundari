@@ -73,6 +73,8 @@ public static class TradeRules
     /// <summary>The N in this roll's 1-in-N chance of sending a ship.</summary>
     public static int SpawnOdds(int rejections, int shipsAtSea)
     {
+        if (shipsAtSea >= MaxTradeShips)
+            return int.MaxValue; // hard cap: no new ships
         double saturation = Saturation(shipsAtSea);
         if (saturation <= 0)
             return int.MaxValue;
