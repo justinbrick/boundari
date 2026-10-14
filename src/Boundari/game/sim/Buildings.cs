@@ -17,6 +17,9 @@ public sealed class Building
     public readonly int Tile;
     public ushort Owner { get; internal set; }
 
+    /// <summary>True once the building is gone (its land was abandoned).</summary>
+    public bool Removed { get; internal set; }
+
     internal Building(BuildingType type, int tile, ushort owner)
     {
         Type = type;

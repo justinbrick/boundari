@@ -12,9 +12,9 @@ namespace Boundari.View;
 public partial class MapOverlay : Node2D
 {
     // Building icon size: about this many tiles across, but never smaller/larger than these pixels.
-    private const float BuildingTiles = 9;
-    private const float MinBuildingPixels = 16;
-    private const float MaxBuildingPixels = 40;
+    private const float BuildingTiles = 11; // just under the 12-tile spacing, so icons never overlap
+    private const float MinBuildingPixels = 32;
+    private const float MaxBuildingPixels = 80;
     private const float BoatPixels = 18;
 
     private static readonly Dictionary<BuildingType, string> IconFiles = new()
@@ -94,12 +94,21 @@ public partial class MapOverlay : Node2D
             DrawBuilding(ghost, at, size, _me is null ? tint : ColorOf(_me.Id), 0.75f, tint);
         }
 
-        // --- Boats (drawn one tick behind, like territory, so they glide) ---
+        // --- Trade ships: just the ship, no lines ---
         float boatSize = BoatPixels / zoom;
+        foreach (var ship in _game.TradeShips)
+        {
+            long progress = ship.Progress - Balance.TradeShipSpeedPerTick + (long)(Balance.TradeShipSpeedPerTick * _tickFraction);
+            var (pos, heading) = AlongPath(ship.Path, Math.Max(0, progress), w);
+            DrawBoat(pos, heading, boatSize * 0.8f, ColorOf(ship.Owner.Id), trade: true);
+        }
+
+        // --- Transport boats (drawn one tick behind, like territory, so they glide) ---
         foreach (var boat in _game.Boats)
         {
             long progress = boat.Progress - Balance.BoatSpeedPerTick + (long)(Balance.BoatSpeedPerTick * _tickFraction);
             var (pos, heading) = AlongPath(boat.Path, Math.Max(0, progress), w);
+            DrawTrail(boat, Math.Max(0, progress), pos, w, zoom);
             if (boat.Owner == _me)
                 DrawRoute(boat, progress, w, zoom);
             DrawBoat(pos, heading, boatSize, ColorOf(boat.Owner.Id));
@@ -151,7 +160,22 @@ public partial class MapOverlay : Node2D
         return points;
     }
 
-    private void DrawBoat(Vector2 at, float heading, float size, Color owner)
+    /// <summary>A solid line along the water the boat has already crossed.</summary>
+    private void DrawTrail(Boat boat, long progress, Vector2 boatPos, int w, float zoom)
+    {
+        int upTo = (int)Math.Min(progress / 1000, boat.Path.Length - 1);
+        if (upTo < 1)
+            return;
+        // About one point every couple of pixels is plenty.
+        int step = Math.Max(1, (int)(2.5f / Math.Max(zoom, 0.01f)));
+        var points = new List<Vector2>(upTo / step + 2);
+        for (int i = 0; i <= upTo; i += step)
+            points.Add(TileCentre(boat.Path[i], w));
+        points.Add(boatPos);
+        DrawPolyline(points.ToArray(), new Color(ColorOf(boat.Owner.Id).Darkened(0.15f), 0.85f), 2f / zoom, true);
+    }
+
+    private void DrawBoat(Vector2 at, float heading, float size, Color owner, bool trade = false)
     {
         float l = size, hw = size * 0.32f;
         Vector2[] hull =
@@ -162,11 +186,18 @@ public partial class MapOverlay : Node2D
         var rot = Transform2D.Identity.Rotated(heading);
         for (int i = 0; i < hull.Length; i++)
             hull[i] = at + rot * hull[i];
-        DrawColoredPolygon(hull, owner.Lerp(Colors.White, 0.2f));
+        DrawColoredPolygon(hull, owner.Lerp(Colors.White, trade ? 0.5f : 0.2f));
         var closed = new Vector2[hull.Length + 1];
         hull.CopyTo(closed, 0);
         closed[^1] = hull[0];
         DrawPolyline(closed, owner.Darkened(0.55f), size * 0.1f, true);
+        if (trade) // a little cargo box on deck sets trade ships apart from troop boats
+        {
+            var box = new Vector2[] { new(-l * 0.18f, -hw * 0.45f), new(l * 0.12f, -hw * 0.45f), new(l * 0.12f, hw * 0.45f), new(-l * 0.18f, hw * 0.45f) };
+            for (int i = 0; i < box.Length; i++)
+                box[i] = at + rot * box[i];
+            DrawColoredPolygon(box, owner.Darkened(0.35f));
+        }
     }
 
     /// <summary>A faint dotted line showing where your boat is heading.</summary>

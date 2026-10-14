@@ -28,6 +28,13 @@ public sealed class SimpleBot
     private readonly Player _player;
     private readonly Rng _rng;
     private int _nextThink;
+    private int _nextPortCheck;
+
+    // Bots build a port when they can afford one (one per this many tiles, up to a few),
+    // so there are partners to trade with.
+    private const int TilesPerPort = 20_000;
+    private const int MaxPorts = 3;
+    private const int NoCoastRetryTicks = 600;
 
     public SimpleBot(Game game, Player player, Rng rng)
     {
@@ -37,11 +44,35 @@ public sealed class SimpleBot
         _nextThink = _rng.RangeInt(0, MaxThinkTicks); // stagger bots so they don't all act at once
     }
 
+    private void TryBuildPort()
+    {
+        if (_game.Tick < _nextPortCheck || _player.Gold < Balance.BuildingCost(BuildingType.Port))
+            return;
+        int wanted = Math.Min(MaxPorts, 1 + _player.TileCount / TilesPerPort);
+        if (_game.CountBuildings(_player, BuildingType.Port) >= wanted)
+            return;
+
+        var coast = new System.Collections.Generic.List<int>(_player.Coast);
+        coast.Sort(); // HashSet order isn't guaranteed; keep every machine identical
+        for (int tries = 0; tries < 20 && coast.Count > 0; tries++)
+        {
+            int tile = coast[_rng.RangeInt(0, coast.Count - 1)];
+            if (_game.CanBuild(_player, BuildingType.Port, tile))
+            {
+                _game.Submit(new BuildIntent(_player.Id, BuildingType.Port, tile));
+                return;
+            }
+        }
+        _nextPortCheck = _game.Tick + NoCoastRetryTicks; // landlocked or crowded: try again later
+    }
+
     public void Think()
     {
         if (_game.Tick < _nextThink || !_player.HasSpawned || !_player.IsAlive)
             return;
         _nextThink = _game.Tick + _rng.RangeInt(MinThinkTicks, MaxThinkTicks);
+
+        TryBuildPort();
 
         if (_player.Troops * 100 < _player.MaxTroops * ReadyPercent)
             return;

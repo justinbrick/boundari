@@ -39,9 +39,11 @@ group_uniforms water;
 uniform vec4 water_color : source_color = vec4(0.37, 0.63, 0.78, 1.0);
 // Thin solid line along every shore, and a very faint glow out into the water.
 uniform vec4 shoreline_color : source_color = vec4(0.72, 0.89, 0.98, 1.0);
-uniform float shoreline_pixels : hint_range(0.5, 4.0) = 1.4;
-uniform float shore_glow_strength : hint_range(0.0, 1.0) = 0.16;
-uniform float shore_glow_tiles : hint_range(0.2, 6.0) = 1.5;
+// Shoreline thickness in tiles (so it scales with the map), but never thinner than this many pixels.
+uniform float shoreline_tiles : hint_range(0.05, 2.0) = 0.32;
+uniform float shoreline_min_pixels : hint_range(0.5, 4.0) = 1.2;
+uniform float shore_glow_strength : hint_range(0.0, 1.0) = 0.32;
+uniform float shore_glow_tiles : hint_range(0.2, 6.0) = 2.5;
 
 group_uniforms territory;
 uniform bool show_territory = true;
@@ -381,9 +383,11 @@ void fragment() {
 	float glow = (1.0 - land) * exp(-max(-shore_dist, 0.0) / glow_width) * shore_glow_strength;
 	color = mix(color, shoreline_color.rgb, glow);
 
-	// Thin solid shoreline just on the water side, constant on-screen thickness.
-	float d_px = -shore_dist / px; // pixels out from the shore
-	float shore_line = smoothstep(-0.6, 0.0, d_px) * (1.0 - smoothstep(shoreline_pixels - 0.5, shoreline_pixels + 0.5, d_px));
+	// Solid shoreline just on the water side: a set thickness in tiles, at least a pixel or so.
+	float out_tiles = -shore_dist; // tiles out from the shore
+	float line_width = max(shoreline_tiles, shoreline_min_pixels * px);
+	float shore_line = smoothstep(-0.6 * px, 0.0, out_tiles)
+		* (1.0 - smoothstep(line_width - 0.5 * px, line_width + 0.5 * px, out_tiles));
 	color = mix(color, shoreline_color.rgb, shore_line);
 
 	if (show_territory) {

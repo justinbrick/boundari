@@ -26,8 +26,12 @@ public static class Balance
     public const long GrowthDivisor = 110;
 
     // --- Gold ---
-    public const long BaseGoldPerSecond = 100;
-    public const long GoldPerTilePerSecond = 1;
+    // Like OpenFront: a flat income (bots earn half), with trade as the main way to get rich.
+    public const long PlayerGoldPerTick = 100;
+    public const long BotGoldPerTick = 50;
+
+    // Trade ships sail at this speed (thousandths of a tile per tick).
+    public const long TradeShipSpeedPerTick = 1500;
 
     // --- Attacking ---
     // Troops it costs to take one plains tile of empty land.
@@ -160,6 +164,5 @@ public static class Balance
         return Math.Max(growth, 1);
     }
 
-    public static long GoldPerTick(int tiles) =>
-        (BaseGoldPerSecond + tiles * GoldPerTilePerSecond) / TicksPerSecond;
+    public static long GoldPerTick(Player player) => player.IsBot ? BotGoldPerTick : PlayerGoldPerTick;
 }

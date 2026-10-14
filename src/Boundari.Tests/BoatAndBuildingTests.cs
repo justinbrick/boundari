@@ -71,3 +71,22 @@ public class BoatAndBuildingTests
     private static void GiveGold(Player p, long gold) =>
         typeof(Player).GetProperty(nameof(Player.Gold))!.SetValue(p, gold);
 }
+
+public class TradeTests
+{
+    [Fact]
+    public void TradeGold_PunishesShortRoutes_AndKeepsGrowingWithDistance()
+    {
+        Assert.True(TradeRules.Gold(50) < 5_000);
+        Assert.True(TradeRules.Gold(300) > 35_000 && TradeRules.Gold(300) < 60_000);
+        Assert.True(TradeRules.Gold(1000) > TradeRules.Gold(600));
+    }
+
+    [Fact]
+    public void SpawnOdds_PityTimerAndFleetDamping()
+    {
+        Assert.True(TradeRules.SpawnOdds(5, 0) < TradeRules.SpawnOdds(0, 0));   // failed rolls raise the odds
+        Assert.True(TradeRules.SpawnOdds(0, 600) > TradeRules.SpawnOdds(0, 50)); // big fleets slow spawning
+        Assert.Equal(int.MaxValue, TradeRules.SpawnOdds(0, TradeRules.MaxTradeShips));
+    }
+}

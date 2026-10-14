@@ -14,10 +14,16 @@ public sealed class Player
 
     public long Troops { get; internal set; }
     public long Gold { get; internal set; }
+
+    /// <summary>Total gold this player's trade ships have earned for them.</summary>
+    public long TradeGold { get; internal set; }
     public int TileCount { get; internal set; }
 
     /// <summary>Owned tiles that touch land owned by someone else (or nobody).</summary>
     public readonly HashSet<int> Border = new();
+
+    /// <summary>Owned tiles that touch water a boat can use (where ports and boats launch).</summary>
+    public readonly HashSet<int> Coast = new();
 
     public bool HasSpawned { get; internal set; }
 

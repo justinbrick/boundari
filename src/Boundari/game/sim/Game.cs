@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using Boundari.Core;
 using Boundari.Map;
 
@@ -36,11 +37,20 @@ public sealed class Game
     /// <summary>Tiles whose owner changed since the renderer last cleared this list.</summary>
     public readonly List<int> ChangedTiles = new();
 
+    /// <summary>Time spent per part of a tick (bots, economy+boats, trade, attacks), in Stopwatch ticks. For profiling only.</summary>
+    public readonly long[] Profile = new long[4];
+
     private readonly List<Player> _players = new() { null! }; // index = id; 0 is "nobody"
     private readonly List<Attack> _attacks = new();
     private readonly List<Boat> _boats = new();
     private readonly Dictionary<int, Building> _buildings = new(); // by tile
+    private readonly List<TradeShip> _tradeShips = new();
+    private readonly Dictionary<Building, PortTrade> _ports = new();
+    private readonly Dictionary<(int, int), int[]?> _tradeRoutes = new();
+    private int _routesPlannedThisTick;
+    private const int MaxRoutesPlannedPerTick = 1;
     private Waterways? _waterways;
+    private readonly bool[]? _coastal;
     private readonly List<Intent> _pending = new();
     private readonly List<SimpleBot> _bots = new();
     private readonly Rng _rng;
@@ -53,6 +63,10 @@ public sealed class Game
         SpawnPhaseTicks = spawnPhaseTicks;
         Owner = new ushort[map.TileCount];
         CostTenths = Balance.TileCostTenths(map);
+        _coastal = new bool[map.TileCount];
+        Span<int> bodies = stackalloc int[4];
+        for (int t = 0; t < map.TileCount; t++)
+            _coastal[t] = map.IsLand(t) && Waterways.TouchingBodies(t, bodies) > 0;
         _rng = new Rng(seed);
     }
 
@@ -60,8 +74,9 @@ public sealed class Game
     public IReadOnlyList<Attack> Attacks => _attacks;
     public IReadOnlyList<Boat> Boats => _boats;
     public IEnumerable<Building> Buildings => _buildings.Values;
+    public IReadOnlyList<TradeShip> TradeShips => _tradeShips;
 
-    /// <summary>Water bodies and sea routes; worked out the first time a boat sails.</summary>
+    /// <summary>Water bodies and sea routes for boats (worked out on first use; World.cs does it at match start).</summary>
     public Waterways Waterways => _waterways ??= new Waterways(Map);
     public Player? GetPlayer(ushort id) => id > 0 && id < _players.Count ? _players[id] : null;
     public int SecondsUntilStart => Math.Max(0, (SpawnPhaseTicks - Tick + Balance.TicksPerSecond - 1) / Balance.TicksPerSecond);
@@ -115,11 +130,22 @@ public sealed class Game
             return;
         }
 
+        long t0 = Stopwatch.GetTimestamp();
         foreach (var bot in _bots)
             bot.Think();
+        long t1 = Stopwatch.GetTimestamp();
         GrowEconomies();
         SailBoats();
+        long t2 = Stopwatch.GetTimestamp();
+        RunPorts();
+        SailTradeShips();
+        long t3 = Stopwatch.GetTimestamp();
         AdvanceAttacks();
+        long t4 = Stopwatch.GetTimestamp();
+        Profile[0] += t1 - t0;
+        Profile[1] += t2 - t1;
+        Profile[2] += t3 - t2;
+        Profile[3] += t4 - t3;
         Tick++;
     }
 
@@ -145,7 +171,10 @@ public sealed class Game
                 break;
             case BuildIntent build when Phase == GamePhase.Running && CanBuild(player, build.Type, build.Tile):
                 player.Gold -= Balance.BuildingCost(build.Type);
-                _buildings[build.Tile] = new Building(build.Type, build.Tile, player.Id);
+                var building = new Building(build.Type, build.Tile, player.Id);
+                _buildings[build.Tile] = building;
+                if (build.Type == BuildingType.Port)
+                    _ports[building] = new PortTrade(_rng.Fork(), Tick % TradeRules.PortCheckTicks);
                 break;
         }
     }
@@ -226,7 +255,7 @@ public sealed class Game
             if (!p.HasSpawned || p.TileCount == 0)
                 continue;
             p.Troops = Math.Max(0, p.Troops + Balance.TroopGrowth(p.Troops, p.TileCount));
-            p.Gold += Balance.GoldPerTick(p.TileCount);
+            p.Gold += Balance.GoldPerTick(p);
             if (newSecond)
             {
                 p.TroopsPerSecond = p.Troops - _troopsLastSecond[id];
@@ -274,13 +303,7 @@ public sealed class Game
     }
 
     /// <summary>Land tile touching sea-connected water (or a lake): where ports and boats work.</summary>
-    public bool IsCoastal(int tile)
-    {
-        if (!Map.IsLand(tile))
-            return false;
-        Span<int> bodies = stackalloc int[4];
-        return Waterways.TouchingBodies(tile, bodies) > 0;
-    }
+    public bool IsCoastal(int tile) => tile >= 0 && tile < Map.TileCount && _coastal![tile];
 
     // ------------------------------------------------------------------
     //  Boats
@@ -335,16 +358,12 @@ public sealed class Game
         // Which water bodies does the player have a shore on?
         var ways = Waterways;
         var myBodies = new HashSet<int>();
-        var myShores = new List<int>();
+        var myShores = new List<int>(player.Coast);
+        myShores.Sort(); // HashSet order isn't guaranteed; keep every machine identical
         Span<int> bodies = stackalloc int[4];
-        for (int t = 0; t < Map.TileCount; t++)
+        foreach (int t in myShores)
         {
-            if (Owner[t] != player.Id)
-                continue;
             int n = ways.TouchingBodies(t, bodies);
-            if (n == 0)
-                continue;
-            myShores.Add(t);
             for (int k = 0; k < n; k++)
                 myBodies.Add(bodies[k]);
         }
@@ -454,6 +473,124 @@ public sealed class Game
         int count = LandNeighbours(tile, nb);
         for (int k = 0; k < count; k++)
             Enqueue(attack, nb[k], attack.Clock);
+    }
+
+    // ------------------------------------------------------------------
+    //  Trade
+    // ------------------------------------------------------------------
+
+    /// <summary>Each port rolls now and then to send a trade ship to another player's port.</summary>
+    private void RunPorts()
+    {
+        _routesPlannedThisTick = 0;
+        foreach (var (port, trade) in _ports)
+        {
+            if ((Tick + trade.CheckOffset) % TradeRules.PortCheckTicks != 0)
+                continue;
+            int odds = TradeRules.SpawnOdds(trade.Rejections, _tradeShips.Count);
+            if (odds == int.MaxValue || trade.Rng.RangeInt(0, odds - 1) != 0)
+            {
+                trade.Rejections++;
+                continue;
+            }
+            trade.Rejections = 0;
+
+            var destination = PickTradePartner(port, trade.Rng);
+            if (destination is null)
+                continue;
+            if (!_tradeRoutes.ContainsKey((port.Tile, destination.Tile)) && _routesPlannedThisTick >= MaxRoutesPlannedPerTick)
+            {
+                trade.Rejections++; // busy planning other routes: try again on the next roll
+                continue;
+            }
+            int[]? route = TradeRoute(port, destination);
+            if (route is not null && route.Length > 1)
+                _tradeShips.Add(new TradeShip(_players[port.Owner], port, destination, route));
+        }
+    }
+
+    /// <summary>
+    /// A random port of another player on the same water. Every candidate counts once; the
+    /// nearest few (but not too-near) count twice, so trade favours sensible routes.
+    /// </summary>
+    private Building? PickTradePartner(Building port, Rng rng)
+    {
+        Span<int> bodies = stackalloc int[4];
+        int n = Waterways.TouchingBodies(port.Tile, bodies);
+        int px = port.Tile % Map.Width, py = port.Tile / Map.Width;
+        var candidates = new List<(Building Port, int Distance)>();
+        Span<int> other = stackalloc int[4];
+        foreach (var dest in _ports.Keys)
+        {
+            if (dest.Owner == port.Owner || !_players[dest.Owner].IsAlive)
+                continue;
+            int m = Waterways.TouchingBodies(dest.Tile, other);
+            bool sameWater = false;
+            for (int i = 0; i < n && !sameWater; i++)
+                for (int j = 0; j < m && !sameWater; j++)
+                    sameWater = bodies[i] == other[j];
+            if (!sameWater)
+                continue;
+            int d = Math.Abs(dest.Tile % Map.Width - px) + Math.Abs(dest.Tile / Map.Width - py);
+            candidates.Add((dest, d));
+        }
+        if (candidates.Count == 0)
+            return null;
+        candidates.Sort((a, b) => a.Distance != b.Distance ? a.Distance.CompareTo(b.Distance) : a.Port.Tile.CompareTo(b.Port.Tile));
+
+        var weighted = new List<Building>();
+        int bonus = TradeRules.ProximityBonusPorts(candidates.Count);
+        for (int i = 0; i < candidates.Count; i++)
+        {
+            weighted.Add(candidates[i].Port);
+            if (i < bonus && candidates[i].Distance >= TradeRules.ShortRangeDebuffTiles)
+                weighted.Add(candidates[i].Port);
+        }
+        return weighted[rng.RangeInt(0, weighted.Count - 1)];
+    }
+
+    /// <summary>Sea route between two ports (remembered, since the same pairs trade again and again).</summary>
+    private int[]? TradeRoute(Building from, Building to)
+    {
+        if (_tradeRoutes.TryGetValue((from.Tile, to.Tile), out var cached))
+            return cached;
+        int[]? route = null;
+        Span<int> bodies = stackalloc int[4];
+        int n = Waterways.TouchingBodies(from.Tile, bodies);
+        for (int i = 0; i < n && route is null; i++)
+        {
+            int a = Waterways.ShoreWater(from.Tile, bodies[i]), b = Waterways.ShoreWater(to.Tile, bodies[i]);
+            if (a >= 0 && b >= 0)
+                route = Waterways.FindPath(a, b);
+        }
+        _tradeRoutes[(from.Tile, to.Tile)] = route;
+        _routesPlannedThisTick++;
+        return route;
+    }
+
+    private void SailTradeShips()
+    {
+        for (int i = 0; i < _tradeShips.Count; i++)
+        {
+            var ship = _tradeShips[i];
+            // Cancelled if the destination is gone, or now belongs to the ship's own side.
+            if (ship.To.Removed || ship.To.Owner == ship.Owner.Id || !ship.Owner.IsAlive)
+            {
+                _tradeShips.RemoveAt(i--);
+                continue;
+            }
+            ship.Progress += Balance.TradeShipSpeedPerTick;
+            if (!ship.Arrived)
+                continue;
+            _tradeShips.RemoveAt(i--);
+
+            // Both ends profit: whoever owns each port when the ship docks.
+            long gold = TradeRules.Gold(ship.Path.Length);
+            if (!ship.From.Removed)
+                _players[ship.From.Owner].Gold += gold;
+            _players[ship.To.Owner].Gold += gold;
+            ship.Owner.TradeGold += gold;
+        }
     }
 
     // ------------------------------------------------------------------
@@ -589,20 +726,31 @@ public sealed class Game
         Owner[tile] = newOwner;
         ChangedTiles.Add(tile);
 
+        bool coastal = _coastal![tile];
         if (old != Nobody)
         {
             var oldPlayer = _players[old];
             oldPlayer.TileCount--;
             oldPlayer.Border.Remove(tile);
+            if (coastal)
+                oldPlayer.Coast.Remove(tile);
         }
         if (newOwner != Nobody)
+        {
             _players[newOwner].TileCount++;
+            if (coastal)
+                _players[newOwner].Coast.Add(tile);
+        }
 
         // Buildings change hands with their land (and vanish if the land is abandoned).
         if (_buildings.TryGetValue(tile, out var building))
         {
             if (newOwner == Nobody)
+            {
                 _buildings.Remove(tile);
+                _ports.Remove(building);
+                building.Removed = true;
+            }
             else
                 building.Owner = newOwner;
         }

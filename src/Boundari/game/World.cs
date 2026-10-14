@@ -240,11 +240,38 @@ public partial class World : Node2D
             StopPlacing();
             return;
         }
-        int tile = _view.TileAt(GetGlobalMousePosition());
+        int tile = PlacementTile(type2, _view.TileAt(GetGlobalMousePosition()));
         if (tile < 0)
             _overlay.ClearGhost();
         else
             _overlay.SetGhost(type2, tile, _game.CanBuild(_me, type2, tile));
+    }
+
+    // How far (in screen pixels) a port snaps to your nearest coastline.
+    private const float PortSnapPixels = 70;
+
+    /// <summary>
+    /// Where a building would actually go for the tile under the mouse. Ports snap like
+    /// a magnet to the nearest stretch of your own coast that they can be built on.
+    /// </summary>
+    private int PlacementTile(BuildingType type, int tile)
+    {
+        if (tile < 0 || type != BuildingType.Port || _game.CanBuild(_me, type, tile))
+            return tile;
+        float zoom = Math.Max(_camera.Zoom.X, 0.01f);
+        int radius = Math.Clamp((int)(PortSnapPixels / zoom), 6, 400);
+        int x0 = tile % _map.Width, y0 = tile / _map.Width, best = -1;
+        long bestDist = long.MaxValue;
+        foreach (int t in _me.Coast)
+        {
+            long dx = t % _map.Width - x0, dy = t / _map.Width - y0, d = dx * dx + dy * dy;
+            if (d <= (long)radius * radius && d < bestDist && _game.CanBuild(_me, type, t))
+            {
+                bestDist = d;
+                best = t;
+            }
+        }
+        return best >= 0 ? best : tile;
     }
 
     /// <summary>Boats troops towards the land at this tile (B key, or a click on land you can't walk to).</summary>
@@ -271,22 +298,23 @@ public partial class World : Node2D
     private void OnMapClicked(Vector2 worldPosition)
     {
         int tile = _view.TileAt(worldPosition);
-        if (tile < 0 || !_map.IsLand(tile))
-            return;
-
-        if (_game.Phase == GamePhase.Spawning)
+        if (_placing is { } type && _game.Phase == GamePhase.Running)
         {
-            _game.Submit(new SpawnIntent(_me.Id, tile));
-            return;
-        }
-        if (_placing is { } type)
-        {
+            tile = PlacementTile(type, tile); // ports snap to the coast, even from a click on the water
             if (_game.CanBuild(_me, type, tile))
             {
                 _game.Submit(new BuildIntent(_me.Id, type, tile));
                 if (!Input.IsKeyPressed(Key.Shift)) // hold Shift to place several
                     StopPlacing();
             }
+            return;
+        }
+        if (tile < 0 || !_map.IsLand(tile))
+            return;
+
+        if (_game.Phase == GamePhase.Spawning)
+        {
+            _game.Submit(new SpawnIntent(_me.Id, tile));
             return;
         }
         ushort target = _game.Owner[tile];
@@ -352,6 +380,7 @@ public partial class World : Node2D
         _game = new Game(_map, RandomSeed());
         _me = _game.AddPlayer("You");
         _game.AddBots(_args.Bots ?? Bots);
+        _ = _game.Waterways; // prepare sea routes now, not on the first boat
         _labels.SetGame(_game);
         _overlay.SetGame(_game, _me);
         _placing = null;

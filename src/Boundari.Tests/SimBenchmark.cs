@@ -34,21 +34,29 @@ public class SimBenchmark
         game.AddBots(int.TryParse(Environment.GetEnvironmentVariable("BOUNDARI_BOTS"), out int n) ? n : 120);
         var timer = Stopwatch.StartNew();
         long worst = 0;
-        for (int minute = 1; minute <= 5; minute++)
+        var worstPart = new long[4];
+        int minutes = int.TryParse(Environment.GetEnvironmentVariable("BOUNDARI_MINUTES"), out int m) ? m : 5;
+        for (int minute = 1; minute <= minutes; minute++)
         {
             for (int t = 0; t < 60 * Balance.TicksPerSecond; t++)
             {
                 long start = timer.ElapsedTicks;
+                var before = (long[])game.Profile.Clone();
                 game.Step();
                 worst = Math.Max(worst, timer.ElapsedTicks - start);
+                for (int k = 0; k < 4; k++)
+                    worstPart[k] = Math.Max(worstPart[k], game.Profile[k] - before[k]);
                 game.ChangedTiles.Clear();
             }
             int owned = game.Owner.Count(o => o != Game.Nobody);
             var top = game.Players.OrderByDescending(p => p.TileCount).First();
             _out.WriteLine($"minute {minute}: {100.0 * owned / map.LandTileCount:F0}% land owned, " +
                            $"{game.Players.Count(p => p.IsAlive)} alive, biggest {top.Name} {top.TileCount} tiles, " +
-                           $"{game.Attacks.Count} attacks, avg {timer.Elapsed.TotalMilliseconds / (minute * 600):F2} ms/tick, " +
-                           $"worst {worst * 1000.0 / Stopwatch.Frequency:F1} ms");
+                           $"{game.Attacks.Count} attacks, {game.Buildings.Count(b => b.Type == BuildingType.Port)} ports, " +
+                           $"{game.TradeShips.Count} trade ships, trade gold {game.Players.Sum(p => p.TradeGold):N0}, avg {timer.Elapsed.TotalMilliseconds / (minute * 600.0):F2} ms/tick, " +
+                           $"worst {worst * 1000.0 / Stopwatch.Frequency:F1} ms | ms total: bots {game.Profile[0] * 1000 / Stopwatch.Frequency}, " +
+                           $"econ {game.Profile[1] * 1000 / Stopwatch.Frequency}, trade {game.Profile[2] * 1000 / Stopwatch.Frequency}, attacks {game.Profile[3] * 1000 / Stopwatch.Frequency} | worst parts ms: " +
+                           string.Join("/", worstPart.Select(x => x * 1000 / Stopwatch.Frequency)));
         }
     }
 }
@@ -80,6 +88,15 @@ public class BoatBenchmark
         game.Submit(new SpawnIntent(me.Id, brest));
         game.Step();
         game.Step();
+        var ways = game.Waterways;
+        int Sea(double lon, double lat) { int t = Tile(lon, lat); return map.IsWater(t) ? t : -1; }
+        foreach (var (name, a, b) in new[] { ("Biscay-Irish Sea", Sea(-5, 47), Sea(-5.5, 53.5)), ("Biscay-Aegean", Sea(-5, 47), Sea(25, 38)),
+                                             ("Biscay-Baltic", Sea(-5, 47), Sea(20, 58)), ("Biscay-Aegean again", Sea(-5, 47), Sea(25, 38)) })
+        {
+            var t0 = Stopwatch.StartNew();
+            var path = a >= 0 && b >= 0 ? ways.FindPath(a, b) : null;
+            _out.WriteLine($"path {name}: {path?.Length ?? -1} tiles, {t0.ElapsedMilliseconds} ms");
+        }
         foreach (var (name, lon, lat) in new[] { ("Ireland", -8.0, 53.0), ("Iceland", -19.0, 64.8), ("Greece", 22.5, 39.5), ("Finland", 25.0, 62.0) })
         {
             var timer = Stopwatch.StartNew();

@@ -57,7 +57,7 @@ public sealed class GameHud
         Set(_maxTroops, FormatCount(me.MaxTroops));
         Set(_troopRate, (me.TroopsPerSecond >= 0 ? "+" : "") + me.TroopsPerSecond.ToString("N0", CultureInfo.InvariantCulture) + "/s");
         Set(_cash, "$" + me.Gold.ToString("N0", CultureInfo.InvariantCulture));
-        long goldPerSecond = me.TileCount > 0 ? Balance.GoldPerTick(me.TileCount) * Balance.TicksPerSecond : 0;
+        long goldPerSecond = me.TileCount > 0 ? Balance.GoldPerTick(me) * Balance.TicksPerSecond : 0;
         Set(_cashRate, "+" + goldPerSecond.ToString("N0", CultureInfo.InvariantCulture) + "/s");
         Set(_attackTroops, FormatCount(me.Troops * AttackRatioPercent / 100));
 
