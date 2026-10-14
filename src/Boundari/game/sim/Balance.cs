@@ -58,6 +58,16 @@ public static class Balance
     // territories stay solid instead of growing spiky fingers.
     public static readonly int[] SurroundedTravelPercent = { 100, 100, 55, 25, 8 };
 
+    // Attacks slow down as they run out of troops, easing into a crawl before they stop
+    // (like OpenFront). Below this share of the troops sent (percent), speed drops in
+    // proportion to what's left, down to the minimum speed (permille of full speed).
+    public const int SlowdownBelowPercent = 40;
+    public const int MinSpeedPermille = 60;
+
+    // How much terrain affects the troops a tile costs, in percent of its effect on speed.
+    // 100 = forest costs as many extra troops as it adds time; 0 = terrain only slows you.
+    public const int TerrainTroopCostPercent = 50;
+
     // Safety cap so one huge attack can't stall a tick.
     public const int MaxTilesPerTick = 6000;
 

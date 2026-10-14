@@ -50,6 +50,7 @@ public partial class World : Node2D
     private MapView _view = null!;
     private Camera2D _camera = null!;
     private GameHud _hud = null!;
+    private TerritoryLabels _labels = null!;
     private GameMap _map = null!;
     private string _mapId = "";
     private Args _args;
@@ -66,6 +67,9 @@ public partial class World : Node2D
         _camera = GetNode<Camera2D>("Camera2D");
         _hud = new GameHud(this);
         _view.SetPalette(MakePalette(4096));
+        _labels = new TerritoryLabels { Name = "TerritoryLabels" };
+        AddChild(_labels);
+        MoveChild(_labels, _view.GetIndex() + 1); // just above the map, below the HUD
 
         _args = ParseArgs();
         _view.ShowHillshade = !_args.NoHillshade;
@@ -215,6 +219,7 @@ public partial class World : Node2D
         _game = new Game(_map, RandomSeed());
         _me = _game.AddPlayer("You");
         _game.AddBots(_args.Bots ?? Bots);
+        _labels.SetGame(_game);
 
         if (_args.Autoplay)
             AutoSpawn();

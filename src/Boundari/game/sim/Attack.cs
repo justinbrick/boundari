@@ -15,6 +15,9 @@ public sealed class Attack
     public readonly ushort TargetId; // 0 = empty land
     public long Troops { get; internal set; }
 
+    /// <summary>All troops ever sent into this attack (it slows down as Troops runs low).</summary>
+    internal long TroopsSent;
+
     // Front tiles by arrival time. A tile may sit in the queue more than once (re-added
     // with an earlier time as more of its neighbours fall); stale copies are skipped.
     internal readonly PriorityQueue<int, long> Front = new();

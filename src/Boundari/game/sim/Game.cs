@@ -58,11 +58,11 @@ public sealed class Game
     public Player? GetPlayer(ushort id) => id > 0 && id < _players.Count ? _players[id] : null;
     public int SecondsUntilStart => Math.Max(0, (SpawnPhaseTicks - Tick + Balance.TicksPerSecond - 1) / Balance.TicksPerSecond);
 
-    public Player AddPlayer(string name, bool isBot = false)
+    public Player AddPlayer(string name, bool isBot = false, string flag = "")
     {
         if (_players.Count >= ushort.MaxValue - 1)
             throw new InvalidOperationException("Too many players.");
-        var player = new Player((ushort)_players.Count, name, isBot) { Troops = Balance.StartTroops };
+        var player = new Player((ushort)_players.Count, name, isBot, flag) { Troops = Balance.StartTroops };
         _players.Add(player);
         return player;
     }
@@ -71,9 +71,16 @@ public sealed class Game
     public void AddBots(int count)
     {
         var spawns = new List<int>();
+        var countries = new List<(string Code, string Name)>(Countries.All);
         for (int b = 0; b < count; b++)
         {
-            var bot = AddPlayer($"Bot {b + 1}", isBot: true);
+            // Each bot gets a different country's name and flag (numbered if we run out).
+            int pick = _rng.RangeInt(0, countries.Count - 1);
+            var (code, name) = countries[pick];
+            countries.RemoveAt(pick);
+            if (countries.Count == 0)
+                countries.AddRange(Countries.All);
+            var bot = AddPlayer(b < Countries.All.Length ? name : $"{name} {b / Countries.All.Length + 1}", isBot: true, flag: code);
             _bots.Add(new SimpleBot(this, bot, new Rng(_rng.Fork())));
             int tile = FindBotSpawn(spawns);
             if (tile >= 0)
@@ -165,9 +172,12 @@ public sealed class Game
 
     private int FindBotSpawn(List<int> taken)
     {
+        // Best of many random tries: the spot furthest from existing spawns. On crowded
+        // maps that may be closer than MinSpawnSpacing, which beats not spawning at all.
+        long wanted = (long)Balance.MinSpawnSpacing * Balance.MinSpawnSpacing;
         int best = -1;
         long bestDist = -1;
-        for (int tries = 0; tries < 80; tries++)
+        for (int tries = 0; tries < 80 && bestDist < wanted; tries++)
         {
             int t = _rng.RangeInt(0, Map.TileCount - 1);
             if (!Map.IsLand(t) || Owner[t] != Nobody || Map.LandmassSizes[Map.LandmassId[t]] < 1100)
@@ -178,7 +188,7 @@ public sealed class Game
                 long dx = t % Map.Width - s % Map.Width, dy = t / Map.Width - s / Map.Width;
                 d = Math.Min(d, dx * dx + dy * dy);
             }
-            if (d >= (long)Balance.MinSpawnSpacing * Balance.MinSpawnSpacing && d > bestDist)
+            if (d > bestDist)
             {
                 bestDist = d;
                 best = t;
@@ -238,6 +248,7 @@ public sealed class Game
 
         attacker.Troops -= troops;
         attack.Troops += troops;
+        attack.TroopsSent += troops;
         if (isNew)
             _attacks.Add(attack);
     }
@@ -248,7 +259,7 @@ public sealed class Game
         for (int a = 0; a < _attacks.Count; a++)
         {
             var attack = _attacks[a];
-            attack.Clock += Balance.WaveSpeedPerTick;
+            attack.Clock += Balance.WaveSpeedPerTick * SpeedPermille(attack) / 1000;
             int budget = Balance.MaxTilesPerTick;
             var defender = GetPlayer(attack.TargetId);
 
@@ -308,9 +319,17 @@ public sealed class Game
         attack.Front.Enqueue(tile, Math.Max(from, attack.Clock - Balance.WaveSpeedPerTick) + travel);
     }
 
+    /// <summary>Full speed until the attack runs low on troops, then easing down to a crawl.</summary>
+    private static long SpeedPermille(Attack attack)
+    {
+        long threshold = Math.Max(1, attack.TroopsSent * Balance.SlowdownBelowPercent / 100);
+        return Math.Clamp(attack.Troops * 1000 / threshold, Balance.MinSpeedPermille, 1000);
+    }
+
     private long TileCost(int tile, Player? defender)
     {
-        long terrain = CostTenths[tile];
+        // Terrain counts fully towards crossing time, but only partly towards troop cost.
+        long terrain = 10 + (CostTenths[tile] - 10) * Balance.TerrainTroopCostPercent / 100;
         long cost = Balance.NeutralTileCost * terrain / 10;
         if (defender is not null)
             cost += Density(defender) * Balance.DefenderDensityCostTenths * terrain / 100;

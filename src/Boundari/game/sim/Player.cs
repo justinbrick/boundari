@@ -9,6 +9,9 @@ public sealed class Player
     public readonly string Name;
     public readonly bool IsBot;
 
+    /// <summary>Flag code (ISO country code, e.g. "pl"), or empty for none.</summary>
+    public readonly string Flag;
+
     public long Troops { get; internal set; }
     public long Gold { get; internal set; }
     public int TileCount { get; internal set; }
@@ -28,11 +31,12 @@ public sealed class Player
 
     public long MaxTroops => Balance.MaxTroops(TileCount);
 
-    internal Player(ushort id, string name, bool isBot)
+    internal Player(ushort id, string name, bool isBot, string flag)
     {
         Id = id;
         Name = name;
         IsBot = isBot;
+        Flag = flag;
     }
 
     public override string ToString() => $"{Name} (#{Id})";
