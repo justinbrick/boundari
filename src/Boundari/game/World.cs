@@ -12,7 +12,7 @@ namespace Boundari;
 /// Root of the game scene: loads or generates the map, shows it, and frames the camera.
 ///
 /// Keys (temporary, for testing):
-///   M — load the world map
+///   M — switch between the built-in maps (Europe, World)
 ///   R — new random map
 ///   T — toggle demo territories (fake nations, to preview borders)
 ///
@@ -27,16 +27,19 @@ namespace Boundari;
 public partial class World : Node2D
 {
     /// <summary>Map to load at start (res://maps/ID.bmap). Empty means a random map.</summary>
-    [Export] public string StartMap { get; set; } = "world";
+    [Export] public string StartMap { get; set; } = "europe";
     [Export] public ulong Seed { get; set; }
     [Export] public int MapWidth { get; set; } = 2000;
     [Export] public int MapHeight { get; set; } = 1250;
     [Export] public int DemoNations { get; set; } = 40;
 
+    private static readonly string[] BuiltInMaps = { "europe", "world" };
+
     private MapView _view = null!;
     private Camera2D _camera = null!;
     private GameMap _map = null!;
     private bool _demo;
+    private string _mapId = "";
 
     public override void _Ready()
     {
@@ -62,7 +65,8 @@ public partial class World : Node2D
         switch (key.Keycode)
         {
             case Key.M:
-                if (LoadMap("world"))
+                int next = (Array.IndexOf(BuiltInMaps, _mapId) + 1) % BuiltInMaps.Length;
+                if (LoadMap(BuiltInMaps[next]))
                     FrameCamera(1, null);
                 break;
             case Key.R:
@@ -80,6 +84,7 @@ public partial class World : Node2D
     {
         var timer = Stopwatch.StartNew();
         var map = MapGenerator.Generate(seed, new MapGenSettings { Width = MapWidth, Height = MapHeight });
+        _mapId = "random";
         Show(map, $"Random map, seed {seed}", timer.ElapsedMilliseconds);
     }
 
@@ -98,6 +103,7 @@ public partial class World : Node2D
         {
             using var stream = new MemoryStream(bytes);
             var map = MapFile.Read(stream);
+            _mapId = id;
             Show(map, map.Name, timer.ElapsedMilliseconds);
             return true;
         }

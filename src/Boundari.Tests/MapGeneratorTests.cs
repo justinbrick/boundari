@@ -109,3 +109,42 @@ public class MapFileTests
         }
     }
 }
+
+public class MapGeoTests
+{
+    [Fact]
+    public void MapFile_KeepsRealWorldLocation()
+    {
+        var map = MapGenerator.Generate(4, new MapGenSettings { Width = 200, Height = 150, MinIslandTiles = 8, MinLakeTiles = 30 });
+        map.Geo = new MapGeo(-25, 45, 33, 72, 50);
+
+        using var stream = new System.IO.MemoryStream();
+        MapFile.Write(map, stream);
+        stream.Position = 0;
+
+        Assert.Equal(map.Geo, MapFile.Read(stream).Geo);
+    }
+
+    [Fact]
+    public void Geo_ConvertsBetweenTilesAndDegrees()
+    {
+        var geo = new MapGeo(-25, 45, 33, 72, 50);
+        int width = 2000, height = geo.HeightFor(width);
+
+        Assert.Equal(-25, geo.LonAt(0, width), 6);
+        Assert.Equal(72, geo.LatAt(0, height), 6);
+        Assert.Equal(1000, geo.TileX(geo.LonAt(1000, width), width), 6);
+        Assert.Equal(500, geo.TileY(geo.LatAt(500, height), height), 6);
+    }
+
+    [Theory]
+    [InlineData(0f)]
+    [InlineData(120f)]
+    [InlineData(350f)]
+    [InlineData(1500f)]
+    [InlineData(4800f)]
+    public void ElevationScale_RoundTrips(float metres)
+    {
+        Assert.Equal(metres, ElevationScale.ToMetres(ElevationScale.ToElevation(metres)), 0.5f);
+    }
+}

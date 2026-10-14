@@ -27,6 +27,9 @@ public sealed class GameMap
     /// <summary>Display name, e.g. "World". Empty for random maps.</summary>
     public string Name { get; set; } = "";
 
+    /// <summary>Real-world location, or null for random maps.</summary>
+    public MapGeo? Geo { get; set; }
+
     public readonly TerrainType[] Terrain;
 
     /// <summary>Signed field: above 0 is land, below 0 is water. The coastline is where it crosses 0.</summary>

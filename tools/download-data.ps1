@@ -3,8 +3,10 @@
 $ErrorActionPreference = 'Stop'
 $data = Join-Path $PSScriptRoot 'data'
 New-Item -ItemType Directory -Force (Join-Path $data 'terrarium3') | Out-Null
+New-Item -ItemType Directory -Force (Join-Path $data 'terrarium6') | Out-Null
 
-foreach ($name in 'ne_50m_land', 'ne_50m_lakes') {
+# Coastlines and lakes: 50m detail for the world map, 10m for regional maps (Europe).
+foreach ($name in 'ne_50m_land', 'ne_50m_lakes', 'ne_10m_land', 'ne_10m_lakes') {
     $url = "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/$name.geojson"
     Invoke-WebRequest $url -OutFile (Join-Path $data "$name.geojson")
 }
@@ -14,6 +16,13 @@ foreach ($x in 0..7) {
     foreach ($y in 0..7) {
         $url = "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/3/$x/$y.png"
         Invoke-WebRequest $url -OutFile (Join-Path $data "terrarium3\${x}_$y.png")
+    }
+}
+# Elevation, zoom level 6, only the tiles covering the Europe map.
+foreach ($x in 27..40) {
+    foreach ($y in 13..25) {
+        $url = "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/6/$x/$y.png"
+        Invoke-WebRequest $url -OutFile (Join-Path $data "terrarium6\${x}_$y.png")
     }
 }
 Write-Host "Done: $data"

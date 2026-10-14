@@ -12,7 +12,7 @@ namespace Boundari.Map;
 public static class MapFile
 {
     private const uint Magic = 0x50414D42; // "BMAP"
-    private const int Version = 1;
+    private const int Version = 2; // 2: added real-world location
 
     public static void Write(GameMap map, Stream output)
     {
@@ -24,6 +24,15 @@ public static class MapFile
         w.Write(map.Width);
         w.Write(map.Height);
         w.Write(map.Seed);
+        w.Write(map.Geo is not null);
+        if (map.Geo is { } geo)
+        {
+            w.Write(geo.LonMin);
+            w.Write(geo.LonMax);
+            w.Write(geo.LatMin);
+            w.Write(geo.LatMax);
+            w.Write(geo.StandardParallel);
+        }
         foreach (var t in map.Terrain)
             w.Write((byte)t);
         foreach (float v in map.CoastField)
@@ -39,7 +48,7 @@ public static class MapFile
         if (r.ReadUInt32() != Magic)
             throw new InvalidDataException("Not a Boundari map file.");
         int version = r.ReadInt32();
-        if (version != Version)
+        if (version is < 1 or > Version)
             throw new InvalidDataException($"Unsupported map file version {version}.");
 
         string name = r.ReadString();
@@ -47,6 +56,8 @@ public static class MapFile
         int height = r.ReadInt32();
         ulong seed = r.ReadUInt64();
         var map = new GameMap(width, height, seed) { Name = name };
+        if (version >= 2 && r.ReadBoolean())
+            map.Geo = new MapGeo(r.ReadDouble(), r.ReadDouble(), r.ReadDouble(), r.ReadDouble(), r.ReadDouble());
 
         byte[] terrain = r.ReadBytes(map.TileCount);
         if (terrain.Length != map.TileCount)

@@ -13,6 +13,7 @@ public sealed record MapSpec(
     string Name,
     double LonMin, double LonMax,
     double LatMin, double LatMax,
+    double StandardParallel, // latitude where tiles are exactly square (0 = plain lon/lat grid)
     int Width,
     string Detail,        // Natural Earth scale: "50m" (world) or "10m" (regional, more detailed)
     int ElevationZoom,    // terrain tile zoom level in tools/data/terrarium{zoom}
@@ -23,9 +24,10 @@ public static class Program
 {
     private static readonly MapSpec[] Specs =
     {
-        // Equirectangular (plain longitude/latitude grid), like OpenFront's world map.
-        // Antarctica is cut off below 58°S.
-        new("world", "World", -180, 180, -58, 84, 2400, "50m", 3, MinIslandTiles: 12, MinLakeTiles: 20),
+        // Plain longitude/latitude grid, like OpenFront's world map. Antarctica is cut off below 58°S.
+        new("world", "World", -180, 180, -58, 84, 0, 2400, "50m", 3, MinIslandTiles: 12, MinLakeTiles: 20),
+        // Iceland to the Urals' foothills, Scandinavia's tip to North Africa. ~2.5 km per tile.
+        new("europe", "Europe", -25, 45, 33, 72, 50, 2000, "10m", 6, MinIslandTiles: 20, MinLakeTiles: 30),
     };
 
     // Coast field units per tile of distance. Matches the scale of the random
@@ -34,13 +36,6 @@ public static class Program
 
     // Within this many tiles of a coastline, distances are exact (from the vector edges).
     private const double ExactBand = 3.0;
-
-    // Elevation (metres) to the 0..1 scale the game uses. Terrain types split at
-    // 0.55 (plains/highlands) and 0.85 (highlands/mountains).
-    private static readonly (float Metres, float Value)[] ElevationCurve =
-    {
-        (0, 0f), (350, 0.55f), (2000, 0.85f), (5500, 1f),
-    };
 
     public static int Main(string[] args)
     {
@@ -73,14 +68,15 @@ public static class Program
 
     public static GameMap Build(MapSpec spec, string dataDir)
     {
+        var geo = new MapGeo(spec.LonMin, spec.LonMax, spec.LatMin, spec.LatMax, spec.StandardParallel);
         int width = spec.Width;
-        int height = (int)Math.Round(width * (spec.LatMax - spec.LatMin) / (spec.LonMax - spec.LonMin));
-        var map = new GameMap(width, height, seed: 0) { Name = spec.Name };
+        int height = geo.HeightFor(width);
+        var map = new GameMap(width, height, seed: 0) { Name = spec.Name, Geo = geo };
 
-        double TileX(double lon) => (lon - spec.LonMin) / (spec.LonMax - spec.LonMin) * width;
-        double TileY(double lat) => (spec.LatMax - lat) / (spec.LatMax - spec.LatMin) * height;
-        List<TileRing> Project(List<Ring> rings) =>
-            rings.Select(r => new TileRing(r.Lon.Select(TileX).ToArray(), r.Lat.Select(TileY).ToArray())).ToList();
+        List<TileRing> Project(List<Ring> rings) => rings
+            .Select(r => new TileRing(r.Lon.Select(lon => geo.TileX(lon, width)).ToArray(),
+                                      r.Lat.Select(lat => geo.TileY(lat, height)).ToArray()))
+            .ToList();
 
         var land = Project(GeoJson.LoadRings(Path.Combine(dataDir, $"ne_{spec.Detail}_land.geojson")));
         var lakes = Project(GeoJson.LoadRings(Path.Combine(dataDir, $"ne_{spec.Detail}_lakes.geojson")));
@@ -110,21 +106,28 @@ public static class Program
 
         // 3. Real elevation.
         var elevation = new ElevationSource(Path.Combine(dataDir, $"terrarium{spec.ElevationZoom}"), spec.ElevationZoom);
-        for (int y = 0; y < height; y++)
+        // Average several samples across each tile rather than reading one point: one
+        // point per tile picks up random noise, which shows as blotchy patches.
+        const int Sub = 3;
+        System.Threading.Tasks.Parallel.For(0, height, y =>
         {
-            double lat = spec.LatMax - (y + 0.5) / height * (spec.LatMax - spec.LatMin);
             for (int x = 0; x < width; x++)
             {
-                double lon = spec.LonMin + (x + 0.5) / width * (spec.LonMax - spec.LonMin);
-                map.Elevation[map.Index(x, y)] = MetresToElevation(elevation.Sample(lon, lat));
+                float sum = 0;
+                for (int sy = 0; sy < Sub; sy++)
+                    for (int sx = 0; sx < Sub; sx++)
+                        sum += elevation.Sample(geo.LonAt(x + (sx + 0.5) / Sub, width), geo.LatAt(y + (sy + 0.5) / Sub, height));
+                map.Elevation[map.Index(x, y)] = ElevationScale.ToElevation(sum / (Sub * Sub));
             }
-        }
+        });
+        if (elevation.MissingTiles > 0)
+            Console.WriteLine($"  warning: {elevation.MissingTiles} elevation tiles missing (treated as sea level)");
 
         // 4. Same clean-up and classification as random maps.
         MapProcessing.RemoveSmallLandmasses(map, spec.MinIslandTiles);
         MapProcessing.ClassifyWater(map, spec.MinLakeTiles);
         DropRemovedFeatures(map);
-        MapProcessing.AssignTerrain(map, 0.55f, 0.85f);
+        MapProcessing.AssignTerrain(map, ElevationScale.PlainsEnd, ElevationScale.HighlandsEnd);
         MapProcessing.LabelLandmasses(map);
         return map;
     }
@@ -152,20 +155,6 @@ public static class Program
             float v = map.CoastField[i];
             map.CoastField[i] = land[i] ? Math.Max(v, remaining) : Math.Min(v, -remaining);
         }
-    }
-
-    private static float MetresToElevation(float metres)
-    {
-        if (metres <= ElevationCurve[0].Metres)
-            return 0;
-        for (int i = 1; i < ElevationCurve.Length; i++)
-        {
-            var (m0, v0) = ElevationCurve[i - 1];
-            var (m1, v1) = ElevationCurve[i];
-            if (metres <= m1)
-                return v0 + (metres - m0) / (m1 - m0) * (v1 - v0);
-        }
-        return 1;
     }
 
     private static string FindRepoRoot()
