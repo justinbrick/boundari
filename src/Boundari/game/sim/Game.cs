@@ -47,6 +47,11 @@ public sealed class Game
     private readonly List<TradeShip> _tradeShips = new();
     private readonly List<Warship> _warships = new();
     private readonly List<Shell> _shells = new();
+    private readonly List<Building> _constructing = new();
+    private readonly Dictionary<Building, Station> _stations = new();
+    private readonly List<Railroad> _railroads = new();
+    private readonly List<Train> _trains = new();
+    private bool _clustersDirty;
     private int _nextWarshipId = 1;
     private readonly Dictionary<Building, PortTrade> _ports = new();
     private readonly Dictionary<(int, int), int[]?> _tradeRoutes = new();
@@ -81,6 +86,11 @@ public sealed class Game
     public IReadOnlyList<TradeShip> TradeShips => _tradeShips;
     public IReadOnlyList<Warship> Warships => _warships;
     public IReadOnlyList<Shell> Shells => _shells;
+    public IReadOnlyList<Railroad> Railroads => _railroads;
+    public IReadOnlyList<Train> Trains => _trains;
+
+    /// <summary>Tsar Bombas launched so far (each one makes the next dearer).</summary>
+    public int TsarBombasLaunched { get; internal set; }
 
     /// <summary>Water bodies and sea routes for boats (worked out on first use; World.cs does it at match start).</summary>
     public Waterways Waterways => _waterways ??= new Waterways(Map);
@@ -91,7 +101,7 @@ public sealed class Game
     {
         if (_players.Count >= ushort.MaxValue - 1)
             throw new InvalidOperationException("Too many players.");
-        var player = new Player((ushort)_players.Count, name, isBot, flag) { Troops = Balance.StartTroops };
+        var player = new Player((ushort)_players.Count, name, isBot, flag) { Troops = isBot ? Balance.BotStartTroops : Balance.StartTroops };
         _players.Add(player);
         return player;
     }
@@ -145,6 +155,8 @@ public sealed class Game
         long t2 = Stopwatch.GetTimestamp();
         RunPorts();
         SailTradeShips();
+        FinishConstruction();
+        RunTrains();
         RunWarships();
         FlyShells();
         long te = Stopwatch.GetTimestamp();
@@ -190,8 +202,16 @@ public sealed class Game
             case BuildIntent build when Phase == GamePhase.Running && CanBuild(player, build.Type, build.Tile):
                 player.Gold -= BuildingCost(player, build.Type);
                 player.Constructed[(int)build.Type]++;
-                var building = new Building(build.Type, build.Tile, player.Id);
+                if (UpgradeTarget(player, build.Type, build.Tile) is { } existing)
+                {
+                    existing.Level++; // stacking: one more level, straight away (like OpenFront's upgrades)
+                    if (existing.Type == BuildingType.City && existing.IsReady(Tick))
+                        player.CityLevels++;
+                    break;
+                }
+                var building = new Building(build.Type, build.Tile, player.Id, Tick, Tick + Balance.ConstructionTicks(build.Type));
                 _buildings[build.Tile] = building;
+                _constructing.Add(building);
                 if (build.Type == BuildingType.Port)
                     _ports[building] = new PortTrade(_rng.Fork(), Tick % TradeRules.PortCheckTicks);
                 break;
@@ -231,7 +251,7 @@ public sealed class Game
             }
         }
         player.HasSpawned = true;
-        player.Troops = Balance.StartTroops;
+        player.Troops = player.IsBot ? Balance.BotStartTroops : Balance.StartTroops;
     }
 
     private int FindBotSpawn(List<int> taken)
@@ -273,7 +293,7 @@ public sealed class Game
             var p = _players[id];
             if (!p.HasSpawned || p.TileCount == 0)
                 continue;
-            p.Troops = Math.Max(0, p.Troops + Balance.TroopGrowth(p.Troops, p.TileCount));
+            p.Troops = Math.Max(0, p.Troops + Balance.TroopGrowth(p.Troops, p.MaxTroops, p.IsBot));
             p.Gold += Balance.GoldPerTick(p);
             if (newSecond)
             {
@@ -296,11 +316,45 @@ public sealed class Game
     /// <summary>Price of the player's next building of this type (rises with each one, like OpenFront).</summary>
     public long BuildingCost(Player player, BuildingType type)
     {
-        int Count(BuildingType t) => Math.Min(type == BuildingType.Warship ? CountWarships(player) : CountBuildings(player, t), player.Constructed[(int)t]);
+        // Like OpenFront: every level you own counts (a building still under construction
+        // counts once), but never more than you built yourself.
+        int Count(BuildingType t) => Math.Min(t == BuildingType.Warship ? CountWarships(player) : CountLevels(player, t), player.Constructed[(int)t]);
         int owned = type is BuildingType.Port or BuildingType.Factory
             ? Count(BuildingType.Port) + Count(BuildingType.Factory)
             : Count(type);
         return Balance.BuildingCost(type, owned);
+    }
+
+    /// <summary>Total levels of this building type the player owns (under construction counts once).</summary>
+    public int CountLevels(Player player, BuildingType type)
+    {
+        int n = 0;
+        foreach (var b in _buildings.Values)
+            if (b.Owner == player.Id && b.Type == type)
+                n += b.IsReady(Tick) ? b.Level : 1;
+        return n;
+    }
+
+    /// <summary>
+    /// The player's own finished building of this type that a new one placed here would
+    /// stack onto (the nearest within building spacing), or null.
+    /// </summary>
+    public Building? UpgradeTarget(Player player, BuildingType type, int tile)
+    {
+        if (!Balance.Stackable(type) || tile < 0 || tile >= Map.TileCount)
+            return null;
+        int spacing = Balance.MinBuildingSpacing, x = tile % Map.Width, y = tile / Map.Width;
+        Building? best = null;
+        long bestDist = long.MaxValue;
+        foreach (var b in _buildings.Values)
+        {
+            if (b.Owner != player.Id || b.Type != type || !b.IsReady(Tick))
+                continue;
+            long dx = b.Tile % Map.Width - x, dy = b.Tile / Map.Width - y, d = dx * dx + dy * dy;
+            if (d < (long)spacing * spacing && d < bestDist)
+                (best, bestDist) = (b, d);
+        }
+        return best;
     }
 
     public int CountBuildings(Player player, BuildingType type)
@@ -318,9 +372,13 @@ public sealed class Game
         if (type == BuildingType.Warship)
             return Phase == GamePhase.Running && player.IsAlive && player.Gold >= BuildingCost(player, type)
                 && WarshipLaunch(player, tile).Port is not null;
-        if (Phase != GamePhase.Running || tile < 0 || tile >= Map.TileCount || Owner[tile] != player.Id)
+        if (Phase != GamePhase.Running || tile < 0 || tile >= Map.TileCount)
             return false;
         if (player.Gold < BuildingCost(player, type))
+            return false;
+        if (UpgradeTarget(player, type, tile) is not null)
+            return true; // stacking onto one of ours
+        if (Owner[tile] != player.Id)
             return false;
         if (type == BuildingType.Port && !IsCoastal(tile))
             return false;
@@ -486,7 +544,7 @@ public sealed class Game
             return;
         }
         var defender = GetPlayer(target);
-        long cost = TileCost(tile, defender);
+        long cost = TileCost(tile, player, defender);
         if (boat.Troops <= cost)
             return; // too few to even take the beach
         if (defender is not null)
@@ -517,15 +575,18 @@ public sealed class Game
         PlanTradeRoutes();
         foreach (var (port, trade) in _ports)
         {
-            if ((Tick + trade.CheckOffset) % TradeRules.PortCheckTicks != 0)
+            if (!port.IsReady(Tick) || (Tick + trade.CheckOffset) % TradeRules.PortCheckTicks != 0)
                 continue;
-            int odds = TradeRules.SpawnOdds(trade.Rejections, _tradeShips.Count);
-            if (odds == int.MaxValue || trade.Rng.RangeInt(0, odds - 1) != 0)
+            // One roll per level (like OpenFront), with a pity timer between failed rolls.
+            bool send = false;
+            for (int level = 0; level < port.Level && !send; level++)
             {
-                trade.Rejections++;
-                continue;
+                int odds = TradeRules.SpawnOdds(trade.Rejections, _tradeShips.Count);
+                send = odds != int.MaxValue && trade.Rng.RangeInt(0, odds - 1) == 0;
+                trade.Rejections = send ? 0 : trade.Rejections + 1;
             }
-            trade.Rejections = 0;
+            if (!send)
+                continue;
 
             var destination = PickTradePartner(port, trade.Rng);
             if (destination is null)
@@ -554,7 +615,7 @@ public sealed class Game
         Span<int> other = stackalloc int[4];
         foreach (var dest in _ports.Keys)
         {
-            if (dest.Owner == port.Owner || !_players[dest.Owner].IsAlive)
+            if (dest.Owner == port.Owner || !_players[dest.Owner].IsAlive || !dest.IsReady(Tick))
                 continue;
             int m = Waterways.TouchingBodies(dest.Tile, other);
             bool sameWater = false;
@@ -574,9 +635,13 @@ public sealed class Game
         int bonus = TradeRules.ProximityBonusPorts(candidates.Count);
         for (int i = 0; i < candidates.Count; i++)
         {
-            weighted.Add(candidates[i].Port);
-            if (i < bonus && candidates[i].Distance >= TradeRules.ShortRangeDebuffTiles)
+            // Higher-level ports are likelier destinations: one entry per level.
+            for (int level = 0; level < candidates[i].Port.Level; level++)
+            {
                 weighted.Add(candidates[i].Port);
+                if (i < bonus && candidates[i].Distance >= TradeRules.ShortRangeDebuffTiles)
+                    weighted.Add(candidates[i].Port);
+            }
         }
         return weighted[rng.RangeInt(0, weighted.Count - 1)];
     }
@@ -654,6 +719,408 @@ public sealed class Game
     }
 
     // ------------------------------------------------------------------
+    //  Buildings: construction, capture, effects
+    // ------------------------------------------------------------------
+
+    /// <summary>Price of a bomb (OpenFront's prices; Tsar Bombas get dearer with each one launched).</summary>
+    public long NukeCost(NukeType type) => type switch
+    {
+        NukeType.Moab => Balance.MoabCost,
+        NukeType.FatMan => Balance.FatManCost,
+        _ => Balance.TsarBombaBaseCost + TsarBombasLaunched * Balance.TsarBombaCostPerLaunch,
+    };
+
+    /// <summary>True if this tile is within range of one of the owner's finished defense posts.</summary>
+    public bool DefendedByPost(int tile, ushort owner)
+    {
+        if (owner == Nobody)
+            return false;
+        var posts = _players[owner].DefensePosts;
+        if (posts.Count == 0)
+            return false;
+        int x = tile % Map.Width, y = tile / Map.Width, r = Balance.DefensePostRange;
+        foreach (int post in posts)
+        {
+            int dx = post % Map.Width - x, dy = post / Map.Width - y;
+            if (dx * dx + dy * dy <= r * r)
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>Buildings start working once built.</summary>
+    private void FinishConstruction()
+    {
+        for (int i = 0; i < _constructing.Count; i++)
+        {
+            var b = _constructing[i];
+            if (b.Removed)
+            {
+                _constructing.RemoveAt(i--);
+                continue;
+            }
+            if (!b.IsReady(Tick))
+                continue;
+            _constructing.RemoveAt(i--);
+            Activate(b, _players[b.Owner]);
+            if (b.Type == BuildingType.Factory)
+                OnFactoryBuilt(b);
+            else if (b.Type is BuildingType.City or BuildingType.Port && FactoryNear(b.Tile))
+                AddStation(b);
+        }
+    }
+
+    /// <summary>Applies a finished building's lasting effect for its owner.</summary>
+    private void Activate(Building b, Player owner)
+    {
+        if (b.Type == BuildingType.City)
+            owner.CityLevels += b.Level;
+        else if (b.Type == BuildingType.Defense)
+            owner.DefensePosts.Add(b.Tile);
+    }
+
+    private void Deactivate(Building b, Player owner)
+    {
+        if (b.Type == BuildingType.City)
+            owner.CityLevels -= b.Level;
+        else if (b.Type == BuildingType.Defense)
+            owner.DefensePosts.Remove(b.Tile);
+    }
+
+    private void TransferBuilding(Building b, ushort newOwner)
+    {
+        if (b.IsReady(Tick))
+        {
+            Deactivate(b, _players[b.Owner]);
+            Activate(b, _players[newOwner]);
+        }
+        b.Owner = newOwner;
+    }
+
+    private void RemoveBuilding(Building b)
+    {
+        if (b.IsReady(Tick))
+            Deactivate(b, _players[b.Owner]);
+        _buildings.Remove(b.Tile);
+        _ports.Remove(b);
+        b.Removed = true;
+        RemoveStation(b);
+    }
+
+    // ------------------------------------------------------------------
+    //  Railroads and trains (factories)
+    // ------------------------------------------------------------------
+
+    private bool FactoryNear(int tile)
+    {
+        int x = tile % Map.Width, y = tile / Map.Width, r = RailRules.StationMaxRange;
+        foreach (var s in _stations.Keys)
+        {
+            if (s.Type != BuildingType.Factory)
+                continue;
+            int dx = s.Tile % Map.Width - x, dy = s.Tile / Map.Width - y;
+            if (dx * dx + dy * dy <= r * r)
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>A new factory: it becomes a station, and so does every city, port or factory around it.</summary>
+    private void OnFactoryBuilt(Building factory)
+    {
+        AddStation(factory);
+        int x = factory.Tile % Map.Width, y = factory.Tile / Map.Width, r = RailRules.StationMaxRange;
+        var nearby = new List<(Building B, int D)>();
+        foreach (var b in _buildings.Values)
+        {
+            if (b == factory || _stations.ContainsKey(b) || !b.IsReady(Tick)
+                || b.Type is not (BuildingType.City or BuildingType.Port or BuildingType.Factory))
+                continue;
+            int dx = b.Tile % Map.Width - x, dy = b.Tile / Map.Width - y, d = dx * dx + dy * dy;
+            if (d <= r * r)
+                nearby.Add((b, d));
+        }
+        nearby.Sort((a, b) => a.D != b.D ? a.D.CompareTo(b.D) : a.B.Tile.CompareTo(b.B.Tile));
+        foreach (var (b, _) in nearby)
+            AddStation(b);
+    }
+
+    /// <summary>
+    /// Makes a station and lays rail to nearby stations (closest first), skipping ones that
+    /// are too close or already within a few stops on the network.
+    /// </summary>
+    private void AddStation(Building b)
+    {
+        if (_stations.ContainsKey(b))
+            return;
+        var station = new Station(b);
+        if (b.Type == BuildingType.Factory)
+            station.Rng = new Rng(_rng.Fork());
+        _stations[b] = station;
+        _clustersDirty = true;
+
+        int x = b.Tile % Map.Width, y = b.Tile / Map.Width;
+        int max = RailRules.StationMaxRange, min = RailRules.StationMinRange;
+        var nearby = new List<(Station S, int D)>();
+        foreach (var other in _stations.Values)
+        {
+            if (other == station)
+                continue;
+            int dx = other.Building.Tile % Map.Width - x, dy = other.Building.Tile / Map.Width - y, d = dx * dx + dy * dy;
+            if (d <= max * max && d > min * min)
+                nearby.Add((other, d));
+        }
+        nearby.Sort((a, c) => a.D != c.D ? a.D.CompareTo(c.D) : a.S.Building.Tile.CompareTo(c.S.Building.Tile));
+        foreach (var (other, _) in nearby)
+        {
+            if (Hops(station, other, RailRules.AlreadyConnectedHops) >= 0)
+                continue; // already well connected that way
+            int[]? path = RailPath(b.Tile, other.Building.Tile);
+            if (path is null)
+                continue;
+            var rail = new Railroad(station, other, path);
+            station.Rails.Add(rail);
+            other.Rails.Add(rail);
+            _railroads.Add(rail);
+        }
+    }
+
+    private void RemoveStation(Building b)
+    {
+        if (!_stations.Remove(b, out var station))
+            return;
+        foreach (var rail in station.Rails)
+        {
+            rail.Other(station).Rails.Remove(rail);
+            _railroads.Remove(rail);
+        }
+        station.Rails.Clear();
+        _clustersDirty = true;
+    }
+
+    /// <summary>Stops between two stations on the network (fewest), up to a limit; -1 if further or not linked.</summary>
+    private static int Hops(Station from, Station to, int limit)
+    {
+        var frontier = new List<Station> { from };
+        var seen = new HashSet<Station> { from };
+        for (int hops = 1; hops <= limit && frontier.Count > 0; hops++)
+        {
+            var next = new List<Station>();
+            foreach (var s in frontier)
+                foreach (var n in s.Neighbours())
+                {
+                    if (n == to)
+                        return hops;
+                    if (seen.Add(n))
+                        next.Add(n);
+                }
+            frontier = next;
+        }
+        return -1;
+    }
+
+    /// <summary>A rail route over land (any owner's) between two tiles, at most MaxRailLength long; null if none.</summary>
+    private int[]? RailPath(int from, int to)
+    {
+        int w = Map.Width, h = Map.Height, tx = to % w, ty = to / w;
+        var cost = new Dictionary<int, int> { [from] = 0 };
+        var cameFrom = new Dictionary<int, int>();
+        var open = new PriorityQueue<int, int>();
+        open.Enqueue(from, 0);
+        int expanded = 0;
+        while (open.TryDequeue(out int cur, out _) && expanded++ < 40_000)
+        {
+            if (cur == to)
+            {
+                var path = new List<int> { cur };
+                while (cameFrom.TryGetValue(cur, out int prev))
+                    path.Add(cur = prev);
+                path.Reverse();
+                return path.Count <= RailRules.MaxRailLength ? path.ToArray() : null;
+            }
+            int cx = cur % w, cy = cur / w, g = cost[cur];
+            if (g / 10 > RailRules.MaxRailLength)
+                continue;
+            for (int dy = -1; dy <= 1; dy++)
+                for (int dx = -1; dx <= 1; dx++)
+                {
+                    int nx = cx + dx, ny = cy + dy;
+                    if ((dx == 0 && dy == 0) || nx < 0 || ny < 0 || nx >= w || ny >= h)
+                        continue;
+                    int n = ny * w + nx;
+                    if (!Map.IsLand(n) || (dx != 0 && dy != 0 && (!Map.IsLand(cy * w + nx) || !Map.IsLand(ny * w + cx))))
+                        continue;
+                    int ng = g + (dx != 0 && dy != 0 ? 14 : 10);
+                    if (cost.TryGetValue(n, out int old) && old <= ng)
+                        continue;
+                    cost[n] = ng;
+                    cameFrom[n] = cur;
+                    int hx = Math.Abs(nx - tx), hy = Math.Abs(ny - ty);
+                    open.Enqueue(n, ng + 10 * Math.Max(hx, hy) + 4 * Math.Min(hx, hy));
+                }
+        }
+        return null;
+    }
+
+    private void UpdateClusters()
+    {
+        if (!_clustersDirty)
+            return;
+        _clustersDirty = false;
+        foreach (var s in _stations.Values)
+            s.Cluster = -1;
+        int next = 0;
+        var stack = new Stack<Station>();
+        foreach (var start in StationsInOrder())
+        {
+            if (start.Cluster >= 0)
+                continue;
+            start.Cluster = next;
+            stack.Push(start);
+            while (stack.Count > 0)
+                foreach (var n in stack.Pop().Neighbours())
+                    if (n.Cluster < 0)
+                    {
+                        n.Cluster = next;
+                        stack.Push(n);
+                    }
+            next++;
+        }
+    }
+
+    /// <summary>Stations in a fixed order (by tile), so every machine makes the same choices.</summary>
+    private List<Station> StationsInOrder()
+    {
+        var list = new List<Station>(_stations.Values);
+        list.Sort((a, b) => a.Building.Tile.CompareTo(b.Building.Tile));
+        return list;
+    }
+
+    /// <summary>Factories send out trains; trains run their routes and pay out at each city or port.</summary>
+    private void RunTrains()
+    {
+        UpdateClusters();
+        if (_stations.Count > 0)
+        {
+            var ordered = StationsInOrder();
+            int trainUnits = _trains.Count * RailRules.UnitsPerTrain;
+            foreach (var factory in ordered)
+            {
+                if (factory.Building.Type != BuildingType.Factory || factory.Rng is null
+                    || Tick < factory.LastTrainTick + RailRules.TrainCooldownTicks)
+                    continue;
+                var owner = _players[factory.Building.Owner];
+                int odds = RailRules.SpawnOdds(CountBuildings(owner, BuildingType.Factory), trainUnits);
+                bool go = false;
+                for (int i = 0; i < factory.Building.Level && !go; i++)
+                    go = odds != int.MaxValue && factory.Rng.RangeInt(0, odds - 1) == 0;
+                if (!go)
+                    continue;
+
+                // A random trade stop (city or port) on the same network.
+                Station? destination = null;
+                int seen = 0;
+                foreach (var s in ordered)
+                    if (s != factory && s.Cluster == factory.Cluster && s.IsTradeStop && factory.Rng.RangeInt(0, seen++) == 0)
+                        destination = s;
+                if (destination is null)
+                    continue;
+                var train = MakeTrain(owner, factory, destination);
+                if (train is null)
+                    continue;
+                _trains.Add(train);
+                factory.LastTrainTick = Tick;
+                trainUnits += RailRules.UnitsPerTrain;
+            }
+        }
+
+        for (int i = 0; i < _trains.Count; i++)
+        {
+            var train = _trains[i];
+            if (!train.Source.Active || !train.Destination.Active || !train.Owner.IsAlive)
+            {
+                _trains.RemoveAt(i--);
+                continue;
+            }
+            train.Progress += RailRules.TrainSpeedPerTick;
+            int at = (int)Math.Min(train.Progress / 1000, train.Tiles.Length - 1);
+            while (train.NextStop < train.Stops.Length && at >= train.StopTileIndex[train.NextStop])
+            {
+                var stop = train.Stops[train.NextStop++];
+                if (stop.Active && stop.IsTradeStop)
+                {
+                    var stationOwner = _players[stop.Building.Owner];
+                    long gold = RailRules.TrainGold(stationOwner == train.Owner, train.TradeStopsVisited);
+                    if (stationOwner != train.Owner) // both sides share in someone else's stop
+                    {
+                        stationOwner.Gold += gold;
+                        stationOwner.TrainGold += gold;
+                    }
+                    train.Owner.Gold += gold;
+                    train.Owner.TrainGold += gold;
+                    train.TradeStopsVisited++;
+                }
+            }
+            if (train.NextStop >= train.Stops.Length)
+                _trains.RemoveAt(i--);
+        }
+    }
+
+    /// <summary>Shortest route over the rail network (by track length) from a factory to a stop.</summary>
+    private Train? MakeTrain(Player owner, Station from, Station to)
+    {
+        var dist = new Dictionary<Station, int> { [from] = 0 };
+        var prev = new Dictionary<Station, (Station S, Railroad R)>();
+        var open = new PriorityQueue<Station, int>();
+        open.Enqueue(from, 0);
+        while (open.TryDequeue(out var s, out int d))
+        {
+            if (d > dist[s])
+                continue;
+            if (s == to)
+                break;
+            foreach (var rail in s.Rails)
+            {
+                var n = rail.Other(s);
+                int nd = d + rail.Tiles.Length;
+                if (dist.TryGetValue(n, out int old) && old <= nd)
+                    continue;
+                dist[n] = nd;
+                prev[n] = (s, rail);
+                open.Enqueue(n, nd);
+            }
+        }
+        if (!prev.ContainsKey(to))
+            return null;
+
+        var stops = new List<Station> { to };
+        var rails = new List<Railroad>();
+        for (var s = to; s != from; )
+        {
+            var (p, r) = prev[s];
+            rails.Add(r);
+            stops.Add(p);
+            s = p;
+        }
+        stops.Reverse();
+        rails.Reverse();
+
+        var tiles = new List<int>();
+        var stopIndex = new int[stops.Count];
+        for (int i = 0; i < rails.Count; i++)
+        {
+            var rail = rails[i];
+            bool forward = rail.A == stops[i];
+            var seg = rail.Tiles;
+            int startAt = tiles.Count == 0 ? 0 : 1; // don't repeat the shared station tile
+            for (int k = startAt; k < seg.Length; k++)
+                tiles.Add(forward ? seg[k] : seg[seg.Length - 1 - k]);
+            stopIndex[i + 1] = tiles.Count - 1;
+        }
+        return new Train(owner, stops.ToArray(), tiles.ToArray(), stopIndex);
+    }
+
+    // ------------------------------------------------------------------
     //  Warships
     // ------------------------------------------------------------------
 
@@ -677,7 +1144,7 @@ public sealed class Game
         long bestDist = (long)WarshipRules.MaxDistanceFromPort * WarshipRules.MaxDistanceFromPort + 1;
         foreach (var port in _ports.Keys)
         {
-            if (port.Owner != player.Id || Waterways.ShoreWater(port.Tile, body) < 0)
+            if (port.Owner != player.Id || !port.IsReady(Tick) || Waterways.ShoreWater(port.Tile, body) < 0)
                 continue;
             long dx = port.Tile % Map.Width - x, dy = port.Tile / Map.Width - y, d = dx * dx + dy * dy;
             if (d < bestDist || (d == bestDist && best is not null && port.Tile < best.Tile))
@@ -1099,7 +1566,7 @@ public sealed class Game
                     continue;
                 }
 
-                long cost = TileCost(tile, defender);
+                long cost = TileCost(tile, attack.Attacker, defender);
                 if (attack.Troops < cost)
                     break;
                 attack.Front.Dequeue();
@@ -1117,7 +1584,7 @@ public sealed class Game
             // Drop stale entries so the checks below look at a real front tile.
             while (attack.Front.TryPeek(out int top, out _) && (Owner[top] != attack.TargetId || !Touches(top, attack.Attacker.Id)))
                 attack.Front.Dequeue();
-            bool outOfTroops = attack.Front.Count > 0 && attack.Troops < TileCost(attack.Front.Peek(), defender);
+            bool outOfTroops = attack.Front.Count > 0 && attack.Troops < TileCost(attack.Front.Peek(), attack.Attacker, defender);
             if (attack.Front.Count == 0 || outOfTroops || !attack.Attacker.IsAlive)
             {
                 attack.Attacker.Troops += attack.Troops; // survivors come home
@@ -1143,6 +1610,8 @@ public sealed class Game
         long travel = Balance.TravelUnit * CostTenths[tile] / 10
             * _rng.RangeInt(Balance.TravelRandomMinPercent, Balance.TravelRandomMaxPercent) / 100
             * Balance.SurroundedTravelPercent[own] / 100;
+        if (DefendedByPost(tile, attack.TargetId))
+            travel *= Balance.DefensePostSpeedFactor;
         attack.Front.Enqueue(tile, Math.Max(from, attack.Clock - Balance.WaveSpeedPerTick) + travel);
     }
 
@@ -1153,13 +1622,15 @@ public sealed class Game
         return Math.Clamp(attack.Troops * 1000 / threshold, Balance.MinSpeedPermille, 1000);
     }
 
-    private long TileCost(int tile, Player? defender)
+    private long TileCost(int tile, Player attacker, Player? defender)
     {
         // Terrain counts fully towards crossing time, but only partly towards troop cost.
         long terrain = 10 + (CostTenths[tile] - 10) * Balance.TerrainTroopCostPercent / 100;
-        long cost = Balance.NeutralTileCost * terrain / 10;
+        long cost = (attacker.IsBot ? Balance.BotNeutralTileCost : Balance.NeutralTileCost) * terrain / 10;
         if (defender is not null)
             cost += Density(defender) * Balance.DefenderDensityCostTenths * terrain / 100;
+        if (defender is not null && DefendedByPost(tile, defender.Id))
+            cost *= Balance.DefensePostTroopFactor;
         return Math.Max(cost, 1);
     }
 
@@ -1199,17 +1670,14 @@ public sealed class Game
                 _players[newOwner].Coast.Add(tile);
         }
 
-        // Buildings change hands with their land (and vanish if the land is abandoned).
+        // Buildings change hands with their land. Defense posts are destroyed instead (as in
+        // OpenFront), and anything on abandoned land vanishes.
         if (_buildings.TryGetValue(tile, out var building))
         {
-            if (newOwner == Nobody)
-            {
-                _buildings.Remove(tile);
-                _ports.Remove(building);
-                building.Removed = true;
-            }
+            if (newOwner == Nobody || building.Type == BuildingType.Defense)
+                RemoveBuilding(building);
             else
-                building.Owner = newOwner;
+                TransferBuilding(building, newOwner);
         }
 
         UpdateBorder(tile);

@@ -40,6 +40,8 @@ public partial class MapOverlay : Node2D
     private BuildingType? _ghostType;
     private int _ghostTile = -1;
     private bool _ghostValid;
+    private bool _ghostStacks;  // placing on top of one of ours: adds a level
+    private int _ghostLevel = 1;
 
     public override void _Ready()
     {
@@ -68,6 +70,9 @@ public partial class MapOverlay : Node2D
         _ghostType = type;
         _ghostTile = tile;
         _ghostValid = valid;
+        var target = _game is not null && _me is not null ? _game.UpgradeTarget(_me, type, tile) : null;
+        _ghostStacks = target is not null;
+        _ghostLevel = target is null ? 1 : target.Level + 1;
     }
 
     public void ClearGhost()
@@ -85,18 +90,46 @@ public partial class MapOverlay : Node2D
         float zoom = GetViewport().GetCamera2D()?.Zoom.X ?? 1;
         int w = _game.Map.Width;
 
+        // --- Railroads and trains (under the buildings) ---
+        DrawRails(zoom, w);
+
         // --- Buildings ---
         float size = IconPixels(zoom, MinBuildingPixels, MaxBuildingPixels, BuildingTiles) / zoom;
         foreach (var b in _game.Buildings)
-            DrawBuilding(b.Type, TileCentre(b.Tile, w), size, ColorOf(b.Owner), 1f);
+        {
+            var at = TileCentre(b.Tile, w);
+            bool ready = b.IsReady(_game.Tick);
+            DrawBuilding(b.Type, at, size, ColorOf(b.Owner), ready ? 1f : 0.55f);
+            if (!ready) // construction progress ring
+            {
+                float done = Math.Clamp((float)(_game.Tick - b.StartTick) / Math.Max(1, b.ReadyTick - b.StartTick), 0, 1);
+                DrawArc(at, size * 0.62f, -Mathf.Pi / 2, -Mathf.Pi / 2 + Mathf.Tau * done, 32, Colors.White, size * 0.08f, true);
+            }
+            if (b.Level > 1 && size * zoom >= GlyphMinPixels)
+                DrawLevel(at + new Vector2(size * 0.42f, -size * 0.42f), b.Level, size, zoom);
+        }
 
-        // --- Placement preview, with the no-build radius around it ---
+        // --- Placement preview, with the no-build radius and what the building reaches ---
         if (_ghostType is { } ghost && _ghostTile >= 0)
         {
             var at = TileCentre(_ghostTile, w);
             var tint = _ghostValid ? new Color(0.45f, 0.95f, 0.5f) : new Color(1f, 0.35f, 0.3f);
-            DrawCircle(at, Balance.MinBuildingSpacing, new Color(tint, 0.12f));
-            DrawArc(at, Balance.MinBuildingSpacing, 0, Mathf.Tau, 48, new Color(tint, 0.6f), 1.5f / zoom);
+            if (!_ghostStacks)
+            {
+                DrawCircle(at, Balance.MinBuildingSpacing, new Color(tint, 0.12f));
+                DrawArc(at, Balance.MinBuildingSpacing, 0, Mathf.Tau, 48, new Color(tint, 0.6f), 1.5f / zoom);
+            }
+            float reach = ghost switch
+            {
+                BuildingType.Defense => Balance.DefensePostRange,
+                BuildingType.Sam => Balance.SamRange(_ghostLevel),
+                BuildingType.Factory => RailRules.StationMaxRange,
+                _ => 0,
+            };
+            if (reach > 0)
+                DrawArc(at, reach, 0, Mathf.Tau, 96, new Color(1, 1, 1, 0.55f), 1.5f / zoom, true);
+            if (_ghostStacks && size * zoom >= GlyphMinPixels)
+                DrawLevel(at + new Vector2(size * 0.42f, -size * 0.42f), _ghostLevel, size, zoom, plus: true);
             if (ghost == BuildingType.Warship)
                 DrawWarship(at, 0, IconPixels(zoom, WarshipPixels, WarshipPixels, 1) / zoom, _me is null ? tint : ColorOf(_me.Id), 1f, tint);
             else
@@ -169,6 +202,52 @@ public partial class MapOverlay : Node2D
             points[i] = at + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * r * scale;
         }
         return points;
+    }
+
+    /// <summary>A small level badge in the corner of a building ("+3" while previewing a stack).</summary>
+    private void DrawLevel(Vector2 at, int level, float size, float zoom, bool plus = false)
+    {
+        string text = (plus ? "+" : "") + level;
+        float r = size * 0.24f;
+        DrawCircle(at, r, new Color(0.08f, 0.09f, 0.1f, 0.9f));
+        int fontSize = Math.Max(1, (int)(r * 1.3f));
+        var font = ThemeDB.FallbackFont;
+        var extent = font.GetStringSize(text, HorizontalAlignment.Left, -1, fontSize);
+        DrawString(font, at + new Vector2(-extent.X / 2, fontSize * 0.36f), text, HorizontalAlignment.Left, -1, fontSize, Colors.White);
+    }
+
+    /// <summary>Railroads as thin dark lines, trains as short strings of cars along them.</summary>
+    private void DrawRails(float zoom, int w)
+    {
+        var railColour = new Color(0.18f, 0.16f, 0.14f, 0.75f);
+        float railWidth = Math.Max(1.2f / zoom, 0.25f);
+        int step = Math.Max(1, (int)(2f / Math.Max(zoom, 0.01f)));
+        foreach (var rail in _game!.Railroads)
+        {
+            var points = new List<Vector2>(rail.Tiles.Length / step + 2);
+            for (int i = 0; i < rail.Tiles.Length; i += step)
+                points.Add(TileCentre(rail.Tiles[i], w));
+            points.Add(TileCentre(rail.Tiles[^1], w));
+            if (points.Count >= 2)
+                DrawPolyline(points.ToArray(), railColour, railWidth, true);
+        }
+
+        float car = Math.Max(3f / zoom, 0.6f);
+        foreach (var train in _game.Trains)
+        {
+            float progress = (train.Progress - RailRules.TrainSpeedPerTick + RailRules.TrainSpeedPerTick * _tickFraction) / 1000f;
+            var colour = ColorOf(train.Owner.Id);
+            for (int c = 0; c < 6; c++) // engine + 5 cars, a couple of tiles apart
+            {
+                float along = progress - c * 1.6f;
+                if (along < 0)
+                    break;
+                int i = Math.Min((int)along, train.Tiles.Length - 1);
+                int j = Math.Min(i + 1, train.Tiles.Length - 1);
+                var pos = TileCentre(train.Tiles[i], w).Lerp(TileCentre(train.Tiles[j], w), along - (int)along);
+                DrawRect(new Rect2(pos - new Vector2(car, car) / 2, new Vector2(car, car)), c == 0 ? colour.Darkened(0.4f) : colour);
+            }
+        }
     }
 
     /// <summary>

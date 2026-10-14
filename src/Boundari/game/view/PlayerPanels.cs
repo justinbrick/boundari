@@ -158,7 +158,7 @@ public sealed class PlayerPanels
                 attacking += a.Troops;
         Set(_infoAttacking, GameHud.FormatCount(attacking));
         foreach (var (type, label) in _infoBuildings)
-            Set(label, game.CountBuildings(p, type).ToString(CultureInfo.InvariantCulture));
+            Set(label, game.CountLevels(p, type).ToString(CultureInfo.InvariantCulture));
     }
 
     private Texture2D? Flag(string code)

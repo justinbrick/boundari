@@ -14,16 +14,14 @@ public static class Balance
     // --- Spawning ---
     public const int SpawnPhaseTicks = 10 * TicksPerSecond;
     public const int SpawnRadius = 6;
-    public const long StartTroops = 11_000;
+    // Like OpenFront: humans start with 25K troops, bots with 10K.
+    public const long StartTroops = 25_000;
+    public const long BotStartTroops = 10_000;
     public const int MinSpawnSpacing = 45; // tiles between bot spawns
 
-    // --- Troops ---
-    public const long BaseMaxTroops = 22_000;
-    public const long MaxTroopsPerTile = 25;
-
-    // Troops grow fastest at half capacity and slow down as they fill up.
-    // Bigger divisor = slower growth.
-    public const long GrowthDivisor = 110;
+    // --- Troops (OpenFront's formulas) ---
+    // Cap: 2 x (tiles^0.6 x 1000 + 50,000), plus 250K per city level; bots get a third.
+    public const long CityTroopIncrease = 250_000;
 
     // --- Gold ---
     // Like OpenFront: a flat income (bots earn half), with trade as the main way to get rich.
@@ -34,8 +32,10 @@ public static class Balance
     public const long TradeShipSpeedPerTick = 1500;
 
     // --- Attacking ---
-    // Troops it costs to take one plains tile of empty land.
-    public const long NeutralTileCost = 5;
+    // Troops it costs to take one farmland tile of empty land (OpenFront: 80/5 for
+    // players, 80/10 for bots, scaled by terrain).
+    public const long NeutralTileCost = 16;
+    public const long BotNeutralTileCost = 8;
 
     // Extra cost per tile when attacking a player, per troop of their density
     // (troops per tile), in tenths: 12 = 1.2x their density.
@@ -81,7 +81,41 @@ public static class Balance
     public const int BoatLandingSearchTiles = 200_000;
 
     // --- Buildings ---
-    public const int MinBuildingSpacing = 12;       // tiles between any two buildings
+    public const int MinBuildingSpacing = 15;       // tiles between any two buildings (OpenFront)
+
+    /// <summary>How long a new building takes before it works (OpenFront's times).</summary>
+    public static int ConstructionTicks(BuildingType type) => type switch
+    {
+        BuildingType.City or BuildingType.Factory => 2 * TicksPerSecond,
+        BuildingType.Port or BuildingType.Defense => 5 * TicksPerSecond,
+        BuildingType.Silo => 10 * TicksPerSecond,
+        BuildingType.Sam => 30 * TicksPerSecond,
+        _ => 0,
+    };
+
+    /// <summary>Buildings that level up when you build the same thing on top of them.</summary>
+    public static bool Stackable(BuildingType type) =>
+        type is BuildingType.Port or BuildingType.City or BuildingType.Factory or BuildingType.Silo or BuildingType.Sam;
+
+    // --- Defense posts ---
+    // Land within this range of a defender's post costs attackers 5x the troops and
+    // takes them 3x as long to take.
+    public const int DefensePostRange = 30;
+    public const int DefensePostTroopFactor = 5;
+    public const int DefensePostSpeedFactor = 3;
+
+    // --- SAMs and silos (for when nukes arrive) ---
+    public const int SamCooldownTicks = 90;
+    public const int SiloCooldownTicks = 90;
+
+    /// <summary>SAM reach in tiles: 70 at level 1, growing towards 150.</summary>
+    public static int SamRange(int level) => 150 - 480 / (level + 5);
+
+    // --- Nukes (OpenFront prices) ---
+    public const long MoabCost = 750_000;         // OpenFront's atom bomb
+    public const long FatManCost = 5_000_000;     // OpenFront's hydrogen bomb
+    public const long TsarBombaBaseCost = 25_000_000; // OpenFront's MIRV ...
+    public const long TsarBombaCostPerLaunch = 15_000_000; // ... plus this per one launched in the game
 
     /// <summary>
     /// What the next one costs, given how many the player already has (OpenFront's
@@ -157,16 +191,23 @@ public static class Balance
         return costs;
     }
 
-    public static long MaxTroops(int tiles) => BaseMaxTroops + tiles * MaxTroopsPerTile;
-
-    /// <summary>Troops gained this tick (or lost, when over capacity).</summary>
-    public static long TroopGrowth(long troops, int tiles)
+    /// <summary>Troop cap, as in OpenFront.</summary>
+    public static long MaxTroops(int tiles, int cityLevels, bool isBot)
     {
-        long max = MaxTroops(tiles);
-        if (troops >= max)
-            return -Math.Max(1, (troops - max) / 100); // slowly shed troops above capacity
-        long growth = troops * (max - troops) / (max * GrowthDivisor);
-        return Math.Max(growth, 1);
+        double cap = 2 * (Math.Pow(tiles, 0.6) * 1000 + 50_000) + cityLevels * (double)CityTroopIncrease;
+        return (long)(isBot ? cap / 3 : cap);
+    }
+
+    /// <summary>
+    /// Troops gained this tick, as in OpenFront: (10 + troops^0.73 / 4), scaled by how
+    /// much room is left under the cap (bots grow at half speed). Over the cap you drop to it.
+    /// </summary>
+    public static long TroopGrowth(long troops, long max, bool isBot)
+    {
+        double toAdd = (10 + Math.Pow(troops, 0.73) / 4) * (1 - (double)troops / Math.Max(1, max));
+        if (isBot)
+            toAdd *= 0.5;
+        return Math.Min(troops + (long)toAdd, max) - troops;
     }
 
     public static long GoldPerTick(Player player) => player.IsBot ? BotGoldPerTick : PlayerGoldPerTick;

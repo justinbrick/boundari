@@ -18,16 +18,36 @@ public sealed class Building
     public readonly int Tile;
     public ushort Owner { get; internal set; }
 
-    /// <summary>True once the building is gone (its land was abandoned).</summary>
+    /// <summary>True once the building is gone (abandoned, or a defense post that was captured).</summary>
     public bool Removed { get; internal set; }
 
-    internal Building(BuildingType type, int tile, ushort owner)
+    /// <summary>Stacked levels: build the same thing on top to raise it (see <see cref="Balance.Stackable"/>).</summary>
+    public int Level { get; internal set; } = 1;
+
+    /// <summary>Tick when construction finishes; until then it does nothing.</summary>
+    public readonly int ReadyTick;
+    public readonly int StartTick;
+
+    public bool IsReady(int tick) => tick >= ReadyTick;
+
+    internal Building(BuildingType type, int tile, ushort owner, int startTick, int readyTick)
     {
         Type = type;
         Tile = tile;
         Owner = owner;
+        StartTick = startTick;
+        ReadyTick = readyTick;
     }
 }
 
 /// <summary>Place a building. Rules are checked in <see cref="Game.CanBuild"/>.</summary>
 public sealed record BuildIntent(ushort PlayerId, BuildingType Type, int Tile) : Intent(PlayerId);
+
+/// <summary>The three bombs (not launchable yet; prices only). MOAB = OpenFront's atom bomb,
+/// Fat Man = hydrogen bomb, Tsar Bomba = MIRV.</summary>
+public enum NukeType : byte
+{
+    Moab,
+    FatMan,
+    TsarBomba,
+}

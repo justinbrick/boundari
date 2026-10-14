@@ -63,11 +63,21 @@ public partial class World : Node2D
         (BuildingType.Warship, "Control8/Ship_Button"),
     };
 
+    // Bomb buttons (prices only for now): MOAB = OpenFront's atom bomb, Fat Man = hydrogen bomb,
+    // Tsar Bomba = MIRV.
+    private static readonly (NukeType Type, string Button)[] NukeButtons =
+    {
+        (NukeType.Moab, "Control9/Viper_Button"), (NukeType.FatMan, "Control10/Falcon_Button"),
+        (NukeType.TsarBomba, "Control11/Raptor_Button"),
+    };
+    private readonly System.Collections.Generic.List<(NukeType Type, Button Button)> _nukeButtons = new();
+
     private MapOverlay _overlay = null!;
     private BuildingType? _placing;
     private readonly System.Collections.Generic.List<(BuildingType Type, Button Button)> _buildButtons = new();
     private Color[] _palette = Array.Empty<Color>();
     private Vector2? _showcaseFocus;
+    private int _showcaseRailFocus = -1;
 
     private MapView _view = null!;
     private Camera2D _camera = null!;
@@ -100,6 +110,9 @@ public partial class World : Node2D
         AddChild(_labels);
         MoveChild(_labels, _overlay.GetIndex() + 1);
 
+        foreach (var (nuke, path) in NukeButtons)
+            if (GetNodeOrNull<Button>("Main_Layer/Main_Control/ButtonsRow/" + path) is { } button)
+                _nukeButtons.Add((nuke, button));
         foreach (var (type, path) in BuildButtons)
             if (GetNodeOrNull<Button>("Main_Layer/Main_Control/ButtonsRow/" + path) is { } button)
             {
@@ -240,6 +253,16 @@ public partial class World : Node2D
             if ((string)button.Get("line3") != price)
                 button.Set("line3", price);
         }
+        foreach (var (nuke, button) in _nukeButtons)
+        {
+            long cost = _game.NukeCost(nuke);
+            float alpha = _me.Gold >= cost && _game.Phase == GamePhase.Running ? 1f : 0.4f;
+            if (button.Modulate.A != alpha)
+                button.Modulate = new Color(1, 1, 1, alpha);
+            string price = GameHud.FormatCount(cost);
+            if ((string)button.Get("line3") != price)
+                button.Set("line3", price);
+        }
         if (_placing is not { } type2)
             return;
         if (_me.Gold < _game.BuildingCost(_me, type2) || !_me.IsAlive)
@@ -263,6 +286,9 @@ public partial class World : Node2D
     /// </summary>
     private int PlacementTile(BuildingType type, int tile)
     {
+        // Pointing at (or near) one of your own buildings of this type: stack onto it.
+        if (_game.UpgradeTarget(_me, type, tile) is { } existing)
+            return existing.Tile;
         if (tile < 0 || type != BuildingType.Port || _game.CanBuild(_me, type, tile))
             return tile;
         float zoom = Math.Max(_camera.Zoom.X, 0.01f);
@@ -443,6 +469,44 @@ public partial class World : Node2D
                 _game.Step();
             }
         }
+        // A small rail network: cities spread around a factory, one city stacked twice.
+        var centre = mine[mine.Count / 2];
+        int Dist2(int t) { int dx = t % _map.Width - centre % _map.Width, dy = t / _map.Width - centre / _map.Width; return dx * dx + dy * dy; }
+        foreach (int ring in new[] { 40, 55, 70, 85 })
+        {
+            int city = mine.Where(t => Math.Abs(Math.Sqrt(Dist2(t)) - ring) < 4).FirstOrDefault(t => _game.CanBuild(_me, BuildingType.City, t), -1);
+            if (city >= 0)
+            {
+                _game.Submit(new BuildIntent(_me.Id, BuildingType.City, city));
+                _game.Step();
+            }
+        }
+        for (int t = 0; t < 30; t++)
+            _game.Step();
+        var firstCity = _game.Buildings.FirstOrDefault(b => b.Type == BuildingType.City && b.Owner == _me.Id);
+        for (int stack = 0; stack < 2 && firstCity is not null; stack++)
+        {
+            _game.Submit(new BuildIntent(_me.Id, BuildingType.City, firstCity.Tile));
+            _game.Step();
+        }
+        int factorySite = mine.OrderBy(Dist2).FirstOrDefault(t => _game.CanBuild(_me, BuildingType.Factory, t), -1);
+        if (factorySite >= 0)
+        {
+            _game.Submit(new BuildIntent(_me.Id, BuildingType.Factory, factorySite));
+            for (int t = 0; t < 400; t++)
+                _game.Step();
+        }
+        // One more city, just ordered, to show the construction ring.
+        int late = mine.FirstOrDefault(t => _game.CanBuild(_me, BuildingType.City, t), -1);
+        if (late >= 0)
+        {
+            _game.Submit(new BuildIntent(_me.Id, BuildingType.City, late));
+            _game.Step();
+        }
+        GD.Print($"showcase: {_game.Railroads.Count} railroads, {_game.Trains.Count} trains, train gold {_me.TrainGold:N0}, " +
+                 $"cities {_game.CountLevels(_me, BuildingType.City)} levels, max troops {_me.MaxTroops:N0}");
+        _showcaseRailFocus = factorySite;
+
         // Nearby land across water (often just over a river): try candidates until a boat can go.
         int home = _map.LandmassId[mine[0]], hx = mine[0] % _map.Width, hy = mine[0] / _map.Width;
         var targets = Enumerable.Range(0, _map.TileCount)
@@ -459,7 +523,9 @@ public partial class World : Node2D
         for (int t = 0; t < 10; t++)
             _game.Step();
         var at = new Vector2(mine[mine.Count / 2] % _map.Width, mine[mine.Count / 2] / _map.Width);
-        if (_game.Warships.Count > 0)
+        if (_args.ShowcaseFocus == "rails" && _showcaseRailFocus >= 0)
+            at = new Vector2(_showcaseRailFocus % _map.Width, _showcaseRailFocus / _map.Width);
+        else if (_game.Warships.Count > 0)
             at = new Vector2(_game.Warships[0].Tile % _map.Width, _game.Warships[0].Tile / _map.Width);
         _showcaseFocus = at / new Vector2(_map.Width, _map.Height);
         GD.Print($"showcase: {_game.Buildings.Count()} buildings, {_game.Warships.Count} warships at {string.Join(",", _game.Warships.Select(w => (w.Tile % _map.Width, w.Tile / _map.Width)))}, {_game.Boats.Count} boats, centre {at / new Vector2(_map.Width, _map.Height)}");
@@ -503,12 +569,12 @@ public partial class World : Node2D
     }
 
     private record struct Args(string? Map, ulong? Seed, int? Bots, bool Autoplay, int Ticks,
-        bool NoHillshade, float Zoom, Vector2? Focus, string? Screenshot, bool Perf, Vector2? Hover, bool HoverLeader, bool Showcase);
+        bool NoHillshade, float Zoom, Vector2? Focus, string? Screenshot, bool Perf, Vector2? Hover, bool HoverLeader, bool Showcase, string? ShowcaseFocus);
 
     private static Args ParseArgs()
     {
         var inv = System.Globalization.CultureInfo.InvariantCulture;
-        var args = new Args(null, null, null, false, 0, false, 1, null, null, false, null, false, false);
+        var args = new Args(null, null, null, false, 0, false, 1, null, null, false, null, false, false, null);
         foreach (string arg in OS.GetCmdlineUserArgs())
         {
             string[] kv = arg.TrimStart('-').Split('=', 2);
@@ -528,7 +594,7 @@ public partial class World : Node2D
                     break;
                 case "screenshot": args.Screenshot = value; break;
                 case "perf": args.Perf = true; break;
-                case "showcase": args.Showcase = true; break;
+                case "showcase": args.Showcase = true; args.ShowcaseFocus = value; break;
                 case "hover" when value == "leader": args.HoverLeader = true; break;
                 case "hover":
                     string[] hv = value.Split(',');

@@ -191,7 +191,8 @@ public class CombatTests
             gold.SetValue(p, 10_000_000L);
             game.Submit(new BuildIntent(p.Id, BuildingType.Port, home));
         }
-        game.Step();
+        for (int t = 0; t <= Balance.ConstructionTicks(BuildingType.Port); t++)
+            game.Step(); // ports take a few seconds to build
         Assert.Equal(1, game.CountBuildings(a, BuildingType.Port));
         Assert.Equal(1, game.CountBuildings(b, BuildingType.Port));
 

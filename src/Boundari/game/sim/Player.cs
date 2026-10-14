@@ -42,7 +42,16 @@ public sealed class Player
     /// <summary>Troops gained over the last second, for the HUD.</summary>
     public long TroopsPerSecond { get; internal set; }
 
-    public long MaxTroops => Balance.MaxTroops(TileCount);
+    public long MaxTroops => Balance.MaxTroops(TileCount, CityLevels, IsBot);
+
+    /// <summary>Levels of finished cities this player owns (each adds to the troop cap).</summary>
+    public int CityLevels { get; internal set; }
+
+    /// <summary>Tiles of this player's finished defense posts.</summary>
+    internal readonly List<int> DefensePosts = new();
+
+    /// <summary>Gold earned from trains (theirs or others' stopping at their stations).</summary>
+    public long TrainGold { get; internal set; }
 
     internal Player(ushort id, string name, bool isBot, string flag)
     {
