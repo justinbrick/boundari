@@ -38,6 +38,9 @@ public sealed class Game
 
     private readonly List<Player> _players = new() { null! }; // index = id; 0 is "nobody"
     private readonly List<Attack> _attacks = new();
+    private readonly List<Boat> _boats = new();
+    private readonly Dictionary<int, Building> _buildings = new(); // by tile
+    private Waterways? _waterways;
     private readonly List<Intent> _pending = new();
     private readonly List<SimpleBot> _bots = new();
     private readonly Rng _rng;
@@ -55,6 +58,11 @@ public sealed class Game
 
     public IReadOnlyList<Player> Players => _players.GetRange(1, _players.Count - 1);
     public IReadOnlyList<Attack> Attacks => _attacks;
+    public IReadOnlyList<Boat> Boats => _boats;
+    public IEnumerable<Building> Buildings => _buildings.Values;
+
+    /// <summary>Water bodies and sea routes; worked out the first time a boat sails.</summary>
+    public Waterways Waterways => _waterways ??= new Waterways(Map);
     public Player? GetPlayer(ushort id) => id > 0 && id < _players.Count ? _players[id] : null;
     public int SecondsUntilStart => Math.Max(0, (SpawnPhaseTicks - Tick + Balance.TicksPerSecond - 1) / Balance.TicksPerSecond);
 
@@ -110,6 +118,7 @@ public sealed class Game
         foreach (var bot in _bots)
             bot.Think();
         GrowEconomies();
+        SailBoats();
         AdvanceAttacks();
         Tick++;
     }
@@ -130,6 +139,13 @@ public sealed class Game
                 break;
             case AttackIntent attack when Phase == GamePhase.Running:
                 StartAttack(player, attack.TargetId, attack.RatioPercent);
+                break;
+            case BoatIntent boat when Phase == GamePhase.Running:
+                LaunchBoat(player, boat.Tile, boat.RatioPercent);
+                break;
+            case BuildIntent build when Phase == GamePhase.Running && CanBuild(player, build.Type, build.Tile):
+                player.Gold -= Balance.BuildingCost(build.Type);
+                _buildings[build.Tile] = new Building(build.Type, build.Tile, player.Id);
                 break;
         }
     }
@@ -221,6 +237,227 @@ public sealed class Game
 
     // ------------------------------------------------------------------
     //  Attacks
+    // ------------------------------------------------------------------
+
+    // ------------------------------------------------------------------
+    //  Buildings
+    // ------------------------------------------------------------------
+
+    public Building? BuildingAt(int tile) => _buildings.GetValueOrDefault(tile);
+
+    public int CountBuildings(Player player, BuildingType type)
+    {
+        int n = 0;
+        foreach (var b in _buildings.Values)
+            if (b.Owner == player.Id && b.Type == type)
+                n++;
+        return n;
+    }
+
+    /// <summary>Whether the player may place this building here right now (and can afford it).</summary>
+    public bool CanBuild(Player player, BuildingType type, int tile)
+    {
+        if (Phase != GamePhase.Running || tile < 0 || tile >= Map.TileCount || Owner[tile] != player.Id)
+            return false;
+        if (player.Gold < Balance.BuildingCost(type))
+            return false;
+        if (type == BuildingType.Port && !IsCoastal(tile))
+            return false;
+        int spacing = Balance.MinBuildingSpacing, x = tile % Map.Width, y = tile / Map.Width;
+        foreach (var b in _buildings.Values)
+        {
+            int dx = b.Tile % Map.Width - x, dy = b.Tile / Map.Width - y;
+            if (dx * dx + dy * dy < spacing * spacing)
+                return false;
+        }
+        return true;
+    }
+
+    /// <summary>Land tile touching sea-connected water (or a lake): where ports and boats work.</summary>
+    public bool IsCoastal(int tile)
+    {
+        if (!Map.IsLand(tile))
+            return false;
+        Span<int> bodies = stackalloc int[4];
+        return Waterways.TouchingBodies(tile, bodies) > 0;
+    }
+
+    // ------------------------------------------------------------------
+    //  Boats
+    // ------------------------------------------------------------------
+
+    /// <summary>
+    /// True if the player can attack the owner of this tile over land: some of the
+    /// player's border on the same landmass touches that owner. Otherwise it takes a boat.
+    /// </summary>
+    public bool CanReachByLand(Player player, int tile)
+    {
+        if (tile < 0 || !Map.IsLand(tile))
+            return false;
+        ushort target = Owner[tile];
+        int landmass = Map.LandmassId[tile];
+        Span<int> nb = stackalloc int[4];
+        foreach (int t in player.Border)
+        {
+            if (Map.LandmassId[t] != landmass)
+                continue;
+            int count = LandNeighbours(t, nb);
+            for (int k = 0; k < count; k++)
+                if (Owner[nb[k]] == target)
+                    return true;
+        }
+        return false;
+    }
+
+    public int BoatsAtSea(Player player)
+    {
+        int n = 0;
+        foreach (var b in _boats)
+            if (b.Owner == player)
+                n++;
+        return n;
+    }
+
+    /// <summary>
+    /// Sends troops by sea: picks the shore nearest the clicked tile that the player can
+    /// reach by water, the player's own shore closest to it, and sails between them.
+    /// </summary>
+    private void LaunchBoat(Player player, int tile, int ratioPercent)
+    {
+        if (tile < 0 || tile >= Map.TileCount || !Map.IsLand(tile) || Owner[tile] == player.Id)
+            return;
+        if (BoatsAtSea(player) >= Balance.MaxBoatsPerPlayer)
+            return;
+        long troops = player.Troops * Math.Clamp(ratioPercent, 1, 100) / 100;
+        if (troops <= 0)
+            return;
+
+        // Which water bodies does the player have a shore on?
+        var ways = Waterways;
+        var myBodies = new HashSet<int>();
+        var myShores = new List<int>();
+        Span<int> bodies = stackalloc int[4];
+        for (int t = 0; t < Map.TileCount; t++)
+        {
+            if (Owner[t] != player.Id)
+                continue;
+            int n = ways.TouchingBodies(t, bodies);
+            if (n == 0)
+                continue;
+            myShores.Add(t);
+            for (int k = 0; k < n; k++)
+                myBodies.Add(bodies[k]);
+        }
+        if (myShores.Count == 0)
+            return; // no water access
+
+        // Landing: nearest land tile to the click (on its landmass) on one of those waters.
+        int landing = -1, landingBody = Waterways.NoBody;
+        var queue = new Queue<int>();
+        var seen = new HashSet<int> { tile };
+        queue.Enqueue(tile);
+        Span<int> nb = stackalloc int[4];
+        while (queue.Count > 0 && seen.Count < Balance.BoatLandingSearchTiles)
+        {
+            int t = queue.Dequeue();
+            if (Owner[t] != player.Id)
+            {
+                int n = ways.TouchingBodies(t, bodies);
+                for (int k = 0; k < n && landing < 0; k++)
+                    if (myBodies.Contains(bodies[k]))
+                    {
+                        landing = t;
+                        landingBody = bodies[k];
+                    }
+                if (landing >= 0)
+                    break;
+            }
+            int count = LandNeighbours(t, nb);
+            for (int k = 0; k < count; k++)
+                if (seen.Add(nb[k]))
+                    queue.Enqueue(nb[k]);
+        }
+        if (landing < 0)
+            return;
+
+        // Launch from the player's shore on that water closest to the landing.
+        int lx = landing % Map.Width, ly = landing / Map.Width;
+        int source = -1;
+        long best = long.MaxValue;
+        foreach (int t in myShores)
+        {
+            if (ways.ShoreWater(t, landingBody) < 0)
+                continue;
+            long dx = t % Map.Width - lx, dy = t / Map.Width - ly, d = dx * dx + dy * dy;
+            if (d < best)
+            {
+                best = d;
+                source = t;
+            }
+        }
+        if (source < 0)
+            return;
+
+        int[]? path = ways.FindPath(ways.ShoreWater(source, landingBody), ways.ShoreWater(landing, landingBody));
+        if (path is null)
+            return;
+        player.Troops -= troops;
+        _boats.Add(new Boat(player, troops, landing, path));
+    }
+
+    private void SailBoats()
+    {
+        for (int i = 0; i < _boats.Count; i++)
+        {
+            var boat = _boats[i];
+            if (!boat.Owner.IsAlive)
+            {
+                _boats.RemoveAt(i--); // nobody left to land for
+                continue;
+            }
+            boat.Progress += Balance.BoatSpeedPerTick;
+            if (!boat.Arrived)
+                continue;
+            _boats.RemoveAt(i--);
+            Land(boat);
+        }
+    }
+
+    /// <summary>The boat's troops come ashore and attack whoever owns the landing tile.</summary>
+    private void Land(Boat boat)
+    {
+        var player = boat.Owner;
+        int tile = boat.LandingTile;
+        ushort target = Owner[tile];
+        if (target == player.Id)
+        {
+            player.Troops += boat.Troops; // already ours: troops just come home
+            return;
+        }
+        var defender = GetPlayer(target);
+        long cost = TileCost(tile, defender);
+        if (boat.Troops <= cost)
+            return; // too few to even take the beach
+        if (defender is not null)
+            defender.Troops = Math.Max(0, defender.Troops - DefenderLoss(defender));
+        SetOwner(tile, player.Id);
+
+        var attack = _attacks.Find(a => a.Attacker == player && a.TargetId == target);
+        if (attack is null)
+        {
+            attack = new Attack(player, target, 0);
+            _attacks.Add(attack);
+        }
+        attack.Troops += boat.Troops - cost;
+        attack.TroopsSent += boat.Troops - cost;
+        Span<int> nb = stackalloc int[4];
+        int count = LandNeighbours(tile, nb);
+        for (int k = 0; k < count; k++)
+            Enqueue(attack, nb[k], attack.Clock);
+    }
+
+    // ------------------------------------------------------------------
+    //  Attacks (continued)
     // ------------------------------------------------------------------
 
     private void StartAttack(Player attacker, ushort targetId, int ratioPercent)
@@ -360,6 +597,15 @@ public sealed class Game
         }
         if (newOwner != Nobody)
             _players[newOwner].TileCount++;
+
+        // Buildings change hands with their land (and vanish if the land is abandoned).
+        if (_buildings.TryGetValue(tile, out var building))
+        {
+            if (newOwner == Nobody)
+                _buildings.Remove(tile);
+            else
+                building.Owner = newOwner;
+        }
 
         UpdateBorder(tile);
         Span<int> nb = stackalloc int[4];

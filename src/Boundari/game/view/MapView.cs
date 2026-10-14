@@ -49,13 +49,6 @@ public partial class MapView : Sprite2D
         set => _material.SetShaderParameter("show_hillshade", value);
     }
 
-    /// <summary>Elevation contour lines.</summary>
-    public bool ShowContours
-    {
-        get => (bool)_material.GetShaderParameter("show_contours");
-        set => _material.SetShaderParameter("show_contours", value);
-    }
-
     public override void _Ready()
     {
         Centered = false;

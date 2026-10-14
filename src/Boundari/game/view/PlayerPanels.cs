@@ -32,7 +32,7 @@ public sealed class PlayerPanels
     private readonly Control? _info;
     private readonly TextureRect? _infoFlag;
     private readonly Label? _infoName, _infoPlace, _infoLand, _infoCash, _infoTroops, _infoMaxTroops, _infoAttacking;
-    private readonly Label?[] _infoBuildings;
+    private readonly List<(BuildingType Type, Label Label)> _infoBuildings = new();
 
     private readonly Dictionary<string, Texture2D?> _flags = new();
     private double _sinceRefresh = LeaderboardRefreshSeconds;
@@ -55,13 +55,12 @@ public sealed class PlayerPanels
         _infoMaxTroops = root.GetNodeOrNull<Label>(InfoBox + "Panel_Pop/HBoxContainer/HBoxContainer2/Pop2");
         _infoAttacking = root.GetNodeOrNull<Label>(InfoBox + "Panel_Attacking/HBoxContainer/Attack_Amount");
 
-        // Building counts (port, city, ...): nothing can be built yet, so they read 0.
-        var buildings = new List<Label?>();
+        // Building counts: each cell in the panel is named after its building.
         foreach (string row in new[] { "HBox_Row1", "HBox_Row2", "HBox_Row3" })
             if (root.GetNodeOrNull(InfoBox + row) is { } r)
                 foreach (var cell in r.GetChildren())
-                    buildings.Add(cell.GetNodeOrNull<Label>("Label"));
-        _infoBuildings = buildings.ToArray();
+                    if (Enum.TryParse<BuildingType>(cell.Name, true, out var type) && cell.GetNodeOrNull<Label>("Label") is { } label)
+                        _infoBuildings.Add((type, label));
         if (_info is not null)
             _info.Visible = false;
     }
@@ -158,8 +157,8 @@ public sealed class PlayerPanels
             if (a.Attacker == p)
                 attacking += a.Troops;
         Set(_infoAttacking, GameHud.FormatCount(attacking));
-        foreach (var label in _infoBuildings)
-            Set(label, "0");
+        foreach (var (type, label) in _infoBuildings)
+            Set(label, game.CountBuildings(p, type).ToString(CultureInfo.InvariantCulture));
     }
 
     private Texture2D? Flag(string code)

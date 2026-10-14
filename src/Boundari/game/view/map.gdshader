@@ -1,8 +1,8 @@
 shader_type canvas_item;
 
 // Draws the whole map in a flat, cartographic style: solid land-cover colours
-// with crisp edges, flat water, optional hill shading and contour lines
-// (toggled separately), and territories on top. Every pixel is computed from smooth data, so
+// with crisp edges, flat water with a light shoreline, optional hill shading,
+// and territories on top. Every pixel is computed from smooth data, so
 // shapes stay sharp and curved at any zoom.
 
 // R = coast field (> 0 is land, coastline at 0), G = elevation (0..1).
@@ -32,17 +32,16 @@ uniform float metres_per_tile = 2500.0;
 
 group_uniforms topography;
 uniform bool show_hillshade = true;
-uniform bool show_contours = true;
 uniform float relief_strength : hint_range(0.0, 1.0) = 0.5;
 uniform float relief_exaggeration : hint_range(0.0, 20.0) = 5.0;
-// Metres between contour lines (doubles automatically when lines get too dense).
-uniform float contour_interval = 100.0;
-uniform float contour_opacity : hint_range(0.0, 1.0) = 0.3;
 
 group_uniforms water;
 uniform vec4 water_color : source_color = vec4(0.37, 0.63, 0.78, 1.0);
-uniform vec4 coastline_color : source_color = vec4(0.16, 0.30, 0.40, 1.0);
-uniform float coastline_opacity : hint_range(0.0, 1.0) = 0.35;
+// Thin solid line along every shore, and a very faint glow out into the water.
+uniform vec4 shoreline_color : source_color = vec4(0.72, 0.89, 0.98, 1.0);
+uniform float shoreline_pixels : hint_range(0.5, 4.0) = 1.4;
+uniform float shore_glow_strength : hint_range(0.0, 1.0) = 0.16;
+uniform float shore_glow_tiles : hint_range(0.2, 6.0) = 1.5;
 
 group_uniforms territory;
 uniform bool show_territory = true;
@@ -369,26 +368,23 @@ void fragment() {
 		ground *= mix(1.0, shade, relief_strength);
 	}
 
-	if (show_contours) {
-		// Contour lines, about one pixel wide. The spacing doubles when zoomed out so
-		// lines never crowd closer than a few pixels.
-		float m = to_metres(elev);
-		float fwm = max(fwidth(m), 1e-3);
-		float interval = contour_interval * exp2(max(0.0, ceil(log2(fwm * 6.0 / contour_interval))));
-		float nearest = round(m / interval);
-		float dist = abs(m - nearest * interval);
-		float line = 1.0 - smoothstep(0.4 * fwm, 1.2 * fwm, dist);
-		line *= step(0.5, nearest); // the 0 m line is the coastline
-		float major = mod(nearest, 5.0) < 0.5 ? 1.6 : 1.0;
-		ground = mix(ground, ground * 0.5, clamp(line * contour_opacity * major, 0.0, 1.0));
-	}
-
 	ground = mix(ground, flat_ground, cover_water); // water stays flat
 	vec3 color = mix(water_color.rgb, ground, land);
 
-	// Thin coastline, constant on-screen thickness.
-	float coast_line = 1.0 - smoothstep(0.6, 1.4, abs(h) / fw);
-	color = mix(color, coastline_color.rgb, coast_line * coastline_opacity);
+	// Distance to the shore in tiles (negative out in the water).
+	float h_slope = max(length(vec2(tx1.r - tx0.r, ty1.r - ty0.r) * 0.5), 1e-5);
+	float shore_dist = h / h_slope;
+	float px = max(tiles_per_px, 1e-5);
+
+	// Very subtle glow just offshore, never thinner than a few pixels.
+	float glow_width = max(shore_glow_tiles, 5.0 * px);
+	float glow = (1.0 - land) * exp(-max(-shore_dist, 0.0) / glow_width) * shore_glow_strength;
+	color = mix(color, shoreline_color.rgb, glow);
+
+	// Thin solid shoreline just on the water side, constant on-screen thickness.
+	float d_px = -shore_dist / px; // pixels out from the shore
+	float shore_line = smoothstep(-0.6, 0.0, d_px) * (1.0 - smoothstep(shoreline_pixels - 0.5, shoreline_pixels + 0.5, d_px));
+	color = mix(color, shoreline_color.rgb, shore_line);
 
 	if (show_territory) {
 		int id;
@@ -398,7 +394,7 @@ void fragment() {
 			vec3 nation = texelFetch(palette_tex, ivec2(id & 255, id >> 8), 0).rgb;
 
 			// Distance to the coastline in tiles, so territories get an outline along the shore too.
-			float coast_dist = h / max(length(vec2(tx1.r - tx0.r, ty1.r - ty0.r) * 0.5), 1e-4);
+			float coast_dist = shore_dist;
 
 			// Borders never get thinner than ~1 pixel, so they don't flicker when zoomed out.
 			float edge_aa = max(fwidth(edge), 1e-5);

@@ -71,6 +71,25 @@ public static class Balance
     // Safety cap so one huge attack can't stall a tick.
     public const int MaxTilesPerTick = 6000;
 
+    // --- Boats ---
+    public const int MaxBoatsPerPlayer = 3;
+    public const long BoatSpeedPerTick = 1500;      // thousandths of a tile: 15 tiles a second
+    public const int BoatLandingSearchTiles = 200_000;
+
+    // --- Buildings ---
+    public const int MinBuildingSpacing = 12;       // tiles between any two buildings
+
+    public static long BuildingCost(BuildingType type) => type switch
+    {
+        BuildingType.Port => 300_000,
+        BuildingType.City => 300_000,
+        BuildingType.Factory => 300_000,
+        BuildingType.Defense => 100_000,
+        BuildingType.Silo => 2_000_000,
+        BuildingType.Sam => 3_000_000,
+        _ => long.MaxValue,
+    };
+
     // --- Terrain difficulty ---
     // Multipliers in tenths (10 = normal) for both the troops it takes to capture a tile
     // and how long the attack wave takes to cross it. A tile's value is its land cover

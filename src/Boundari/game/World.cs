@@ -16,11 +16,14 @@ namespace Boundari;
 /// Controls:
 ///   Left click (no drag) — during the spawn phase: pick/move your start.
 ///                          Afterwards: expand into empty land, or attack a neighbour,
-///                          using the attack ratio slider's share of your troops.
+///                          using the attack ratio slider's share of your troops. If the
+///                          target can't be reached over land, troops go by boat.
+///   B — send a boat to the land under the mouse
+///   1-6 or hotbar buttons — place a port, city, factory, defense, silo or SAM
+///                          (left click to place, right click / Esc / same key to cancel)
 ///   M — switch map (Europe, World) and start a new match
 ///   R — new random map and match
 ///   H — toggle hill shading
-///   C — toggle contour lines
 ///
 /// Command-line options (after "--" when launching Godot):
 ///   --map=ID           load res://maps/ID.bmap ("random" for a generated map)
@@ -29,11 +32,11 @@ namespace Boundari;
 ///   --autoplay         spawn the human player automatically (for testing)
 ///   --ticks=N          fast-forward the match N ticks at start
 ///   --no-hillshade     start with hill shading off
-///   --no-contours      start with contour lines off
 ///   --zoom=Z           start zoomed in (1 = whole map)
 ///   --focus=X,Y        centre the camera on this point, as 0..1 fractions of the map
 ///   --screenshot=PATH  save a screenshot after loading, then quit
 ///   --perf             print the frame rate every 2 seconds
+///   --showcase         (testing) after --autoplay: build one of everything and launch a boat
 ///   --hover=X,Y        pretend the mouse is over this map point (0..1 fractions), for screenshots;
 ///                      --hover=leader hovers the biggest player
 /// </summary>
@@ -49,6 +52,20 @@ public partial class World : Node2D
     private const float ClickMaxDrag = 6; // pixels; more than this is a camera drag, not a click
 
     private static readonly string[] BuiltInMaps = { "europe", "world" };
+
+    // Hotbar buttons in boundari.tscn, in hotkey order (1-6).
+    private static readonly (BuildingType Type, string Button)[] BuildButtons =
+    {
+        (BuildingType.Port, "Control2/Port_Button"), (BuildingType.City, "Control3/Barracks_Button"),
+        (BuildingType.Factory, "Control4/Fac_Button"), (BuildingType.Defense, "Control5/Def_Button"),
+        (BuildingType.Silo, "Control6/Silo_Button"), (BuildingType.Sam, "Control7/Sam_Button"),
+    };
+
+    private MapOverlay _overlay = null!;
+    private BuildingType? _placing;
+    private readonly System.Collections.Generic.List<(BuildingType Type, Button Button)> _buildButtons = new();
+    private Color[] _palette = Array.Empty<Color>();
+    private Vector2? _showcaseFocus;
 
     private MapView _view = null!;
     private Camera2D _camera = null!;
@@ -71,18 +88,30 @@ public partial class World : Node2D
         _camera = GetNode<Camera2D>("Camera2D");
         _hud = new GameHud(this);
         _panels = new PlayerPanels(this);
-        _view.SetPalette(MakePalette(4096));
+        _palette = MakePalette(4096);
+        _view.SetPalette(_palette);
+        _overlay = new MapOverlay { Name = "MapOverlay" };
+        AddChild(_overlay);
+        MoveChild(_overlay, _view.GetIndex() + 1); // just above the map, below the HUD
+        _overlay.SetPalette(_palette);
         _labels = new TerritoryLabels { Name = "TerritoryLabels" };
         AddChild(_labels);
-        MoveChild(_labels, _view.GetIndex() + 1); // just above the map, below the HUD
+        MoveChild(_labels, _overlay.GetIndex() + 1);
+
+        foreach (var (type, path) in BuildButtons)
+            if (GetNodeOrNull<Button>("Main_Layer/Main_Control/ButtonsRow/" + path) is { } button)
+            {
+                var t = type;
+                button.Pressed += () => TogglePlacing(t);
+                _buildButtons.Add((type, button));
+            }
 
         _args = ParseArgs();
         _view.ShowHillshade = !_args.NoHillshade;
-        _view.ShowContours = !_args.NoContours;
         string mapId = _args.Seed is not null ? "random" : _args.Map ?? StartMap;
         if (mapId is "" or "random" || !LoadMap(mapId))
             Generate(_args.Seed ?? (Seed != 0 ? Seed : RandomSeed()));
-        FrameCamera(_args.Zoom, _args.Focus);
+        FrameCamera(_args.Zoom, _args.Focus ?? _showcaseFocus);
 
         if (_args.Screenshot is not null)
             SaveScreenshotAndQuit(_args.Screenshot);
@@ -111,13 +140,30 @@ public partial class World : Node2D
 
         _view.FlushTerritory();
         _view.SetVisualTime(_game.Tick - 1 + (float)(_tickTime / tickLength));
+        _overlay.SetTickFraction((float)(_tickTime / tickLength));
+        UpdatePlacing();
         _hud.Update(_game, _me);
         var hovered = HoveredPlayer();
         _panels.Update(_game, _me, hovered, delta);
     }
 
+    public override void _Input(InputEvent e)
+    {
+        // Esc cancels placement before the options menu can grab it.
+        if (_placing is not null && e is InputEventKey { Pressed: true, Keycode: Key.Escape })
+        {
+            StopPlacing();
+            GetViewport().SetInputAsHandled();
+        }
+    }
+
     public override void _UnhandledInput(InputEvent e)
     {
+        if (e is InputEventMouseButton { ButtonIndex: MouseButton.Right, Pressed: true } && _placing is not null)
+        {
+            StopPlacing();
+            return;
+        }
         if (e is not InputEventMouseButton { ButtonIndex: MouseButton.Left } button)
             return;
         if (button.Pressed)
@@ -150,10 +196,64 @@ public partial class World : Node2D
             case Key.H:
                 _view.ShowHillshade = !_view.ShowHillshade;
                 break;
-            case Key.C:
-                _view.ShowContours = !_view.ShowContours;
+            case Key.B:
+                SendBoat(_view.TileAt(GetGlobalMousePosition()));
+                break;
+            case >= Key.Key1 and <= Key.Key6:
+                TogglePlacing(BuildButtons[key.Keycode - Key.Key1].Type);
                 break;
         }
+    }
+
+    // ------------------------------------------------------------------
+    //  Building placement
+    // ------------------------------------------------------------------
+
+    private void TogglePlacing(BuildingType type)
+    {
+        if (_placing == type)
+            StopPlacing();
+        else if (_game.Phase == GamePhase.Running && _me.IsAlive && _me.Gold >= Balance.BuildingCost(type))
+            _placing = type;
+    }
+
+    private void StopPlacing()
+    {
+        _placing = null;
+        _overlay.ClearGhost();
+    }
+
+    /// <summary>Moves the placement preview with the mouse and greys out buttons you can't afford.</summary>
+    private void UpdatePlacing()
+    {
+        foreach (var (type, button) in _buildButtons)
+        {
+            bool affordable = _me.Gold >= Balance.BuildingCost(type) && _game.Phase == GamePhase.Running;
+            float alpha = affordable ? 1f : 0.4f;
+            if (button.Modulate.A != alpha)
+                button.Modulate = new Color(1, 1, 1, alpha);
+        }
+        if (_placing is not { } type2)
+            return;
+        if (_me.Gold < Balance.BuildingCost(type2) || !_me.IsAlive)
+        {
+            StopPlacing();
+            return;
+        }
+        int tile = _view.TileAt(GetGlobalMousePosition());
+        if (tile < 0)
+            _overlay.ClearGhost();
+        else
+            _overlay.SetGhost(type2, tile, _game.CanBuild(_me, type2, tile));
+    }
+
+    /// <summary>Boats troops towards the land at this tile (B key, or a click on land you can't walk to).</summary>
+    private void SendBoat(int tile)
+    {
+        if (tile < 0 || !_map.IsLand(tile) || _game.Phase != GamePhase.Running || !_me.HasSpawned || !_me.IsAlive)
+            return;
+        if (_game.Owner[tile] != _me.Id)
+            _game.Submit(new BoatIntent(_me.Id, tile, _hud.AttackRatioPercent));
     }
 
     /// <summary>The player whose territory is under the mouse (ignoring the HUD), or null.</summary>
@@ -179,9 +279,23 @@ public partial class World : Node2D
             _game.Submit(new SpawnIntent(_me.Id, tile));
             return;
         }
+        if (_placing is { } type)
+        {
+            if (_game.CanBuild(_me, type, tile))
+            {
+                _game.Submit(new BuildIntent(_me.Id, type, tile));
+                if (!Input.IsKeyPressed(Key.Shift)) // hold Shift to place several
+                    StopPlacing();
+            }
+            return;
+        }
         ushort target = _game.Owner[tile];
-        if (target != _me.Id && _me.IsAlive && _me.HasSpawned)
+        if (target == _me.Id || !_me.IsAlive || !_me.HasSpawned)
+            return;
+        if (_game.CanReachByLand(_me, tile))
             _game.Submit(new AttackIntent(_me.Id, target, _hud.AttackRatioPercent));
+        else
+            SendBoat(tile);
     }
 
     // ------------------------------------------------------------------
@@ -239,11 +353,15 @@ public partial class World : Node2D
         _me = _game.AddPlayer("You");
         _game.AddBots(_args.Bots ?? Bots);
         _labels.SetGame(_game);
+        _overlay.SetGame(_game, _me);
+        _placing = null;
 
         if (_args.Autoplay)
             AutoSpawn();
         for (int t = 0; t < _args.Ticks; t++)
             _game.Step();
+        if (_args.Showcase)
+            Showcase();
 
         _view.SetOwners(_game.Owner);
         _game.ChangedTiles.Clear();
@@ -257,13 +375,54 @@ public partial class World : Node2D
         for (int tries = 0; tries < 1000; tries++)
         {
             int t = rng.RangeInt(0, _map.TileCount - 1);
-            if (_map.IsLand(t) && _game.Owner[t] == Game.Nobody && _map.LandmassSizes[_map.LandmassId[t]] > 10_000)
+            if (_map.IsLand(t) && _game.Owner[t] == Game.Nobody && _map.LandmassSizes[_map.LandmassId[t]] > 10_000
+                && (!_args.Showcase || _game.IsCoastal(t)))
             {
                 _game.Submit(new SpawnIntent(_me.Id, t));
                 _game.Step();
                 return;
             }
         }
+    }
+
+    /// <summary>Testing aid: one of each building on your land, and a boat heading off.</summary>
+    private void Showcase()
+    {
+        for (int wave = 0; wave < 4; wave++)
+        {
+            _game.Submit(new AttackIntent(_me.Id, Game.Nobody, 90));
+            for (int t = 0; t < 150; t++)
+                _game.Step();
+        }
+        typeof(Player).GetProperty(nameof(Player.Gold))!.SetValue(_me, 20_000_000L);
+        var mine = Enumerable.Range(0, _map.TileCount).Where(t => _game.Owner[t] == _me.Id).ToList();
+        foreach (BuildingType type in Enum.GetValues<BuildingType>())
+        {
+            int tile = mine.FirstOrDefault(t => _game.CanBuild(_me, type, t), -1);
+            if (tile >= 0)
+            {
+                _game.Submit(new BuildIntent(_me.Id, type, tile));
+                _game.Step();
+            }
+        }
+        // Nearby land across water (often just over a river): try candidates until a boat can go.
+        int home = _map.LandmassId[mine[0]], hx = mine[0] % _map.Width, hy = mine[0] / _map.Width;
+        var targets = Enumerable.Range(0, _map.TileCount)
+            .Where(t => _map.IsLand(t) && _map.LandmassId[t] != home && _map.LandmassSizes[_map.LandmassId[t]] > 2000
+                        && Math.Abs(t % _map.Width - hx) + Math.Abs(t / _map.Width - hy) > 60)
+            .OrderBy(t => Math.Abs(t % _map.Width - hx) + Math.Abs(t / _map.Width - hy)).Take(4000).Where((_, k) => k % 200 == 0);
+        foreach (int far in targets)
+        {
+            _game.Submit(new BoatIntent(_me.Id, far, 40));
+            _game.Step();
+            if (_game.Boats.Count > 0)
+                break;
+        }
+        for (int t = 0; t < 10; t++)
+            _game.Step();
+        var at = new Vector2(mine[mine.Count / 2] % _map.Width, mine[mine.Count / 2] / _map.Width);
+        _showcaseFocus = at / new Vector2(_map.Width, _map.Height);
+        GD.Print($"showcase: {_game.Buildings.Count()} buildings, {_game.Boats.Count} boats, centre {at / new Vector2(_map.Width, _map.Height)}");
     }
 
     private void FrameCamera(float zoom, Vector2? focus)
@@ -304,12 +463,12 @@ public partial class World : Node2D
     }
 
     private record struct Args(string? Map, ulong? Seed, int? Bots, bool Autoplay, int Ticks,
-        bool NoHillshade, bool NoContours, float Zoom, Vector2? Focus, string? Screenshot, bool Perf, Vector2? Hover, bool HoverLeader);
+        bool NoHillshade, float Zoom, Vector2? Focus, string? Screenshot, bool Perf, Vector2? Hover, bool HoverLeader, bool Showcase);
 
     private static Args ParseArgs()
     {
         var inv = System.Globalization.CultureInfo.InvariantCulture;
-        var args = new Args(null, null, null, false, 0, false, false, 1, null, null, false, null, false);
+        var args = new Args(null, null, null, false, 0, false, 1, null, null, false, null, false, false);
         foreach (string arg in OS.GetCmdlineUserArgs())
         {
             string[] kv = arg.TrimStart('-').Split('=', 2);
@@ -322,7 +481,6 @@ public partial class World : Node2D
                 case "autoplay": args.Autoplay = true; break;
                 case "ticks": args.Ticks = int.Parse(value, inv); break;
                 case "no-hillshade": args.NoHillshade = true; break;
-                case "no-contours": args.NoContours = true; break;
                 case "zoom": args.Zoom = float.Parse(value, inv); break;
                 case "focus":
                     string[] xy = value.Split(',');
@@ -330,6 +488,7 @@ public partial class World : Node2D
                     break;
                 case "screenshot": args.Screenshot = value; break;
                 case "perf": args.Perf = true; break;
+                case "showcase": args.Showcase = true; break;
                 case "hover" when value == "leader": args.HoverLeader = true; break;
                 case "hover":
                     string[] hv = value.Split(',');
