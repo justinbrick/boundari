@@ -148,3 +148,25 @@ public class MapGeoTests
         Assert.Equal(metres, ElevationScale.ToMetres(ElevationScale.ToElevation(metres)), 0.5f);
     }
 }
+
+public class LandCoverTests
+{
+    [Fact]
+    public void MapFile_KeepsLandCover()
+    {
+        var map = MapGenerator.Generate(6, new MapGenSettings { Width = 120, Height = 80, MinIslandTiles = 8, MinLakeTiles = 30 });
+        map.Cover = new LandCover(4, map.Width, map.Height);
+        for (int i = 0; i < map.Cover.Cells.Length; i++)
+            map.Cover.Cells[i] = (CoverType)(i % 7);
+
+        using var stream = new System.IO.MemoryStream();
+        MapFile.Write(map, stream);
+        stream.Position = 0;
+        var loaded = MapFile.Read(stream).Cover;
+
+        Assert.NotNull(loaded);
+        Assert.Equal(4, loaded!.Scale);
+        Assert.Equal(map.Width * 4, loaded.Width);
+        Assert.Equal(map.Cover.Cells, loaded.Cells);
+    }
+}

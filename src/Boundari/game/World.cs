@@ -15,11 +15,13 @@ namespace Boundari;
 ///   M — switch between the built-in maps (Europe, World)
 ///   R — new random map
 ///   T — toggle demo territories (fake nations, to preview borders)
+///   C — toggle topography (hill shading and contour lines)
 ///
 /// Command-line options (after "--" when launching Godot):
 ///   --map=ID           load res://maps/ID.bmap ("random" for a generated map)
 ///   --seed=N           generate a random map with this seed
 ///   --demo             start with demo territories on
+///   --no-topo          start with topography off
 ///   --zoom=Z           start zoomed in (1 = whole map)
 ///   --focus=X,Y        centre the camera on this point, as 0..1 fractions of the map
 ///   --screenshot=PATH  save a screenshot after loading, then quit
@@ -49,6 +51,7 @@ public partial class World : Node2D
 
         var args = ParseArgs();
         _demo = args.Demo;
+        _view.ShowTopography = !args.NoTopo;
         string mapId = args.Seed is not null ? "random" : args.Map ?? StartMap;
         if (mapId is "" or "random" || !LoadMap(mapId))
             Generate(args.Seed ?? (Seed != 0 ? Seed : RandomSeed()));
@@ -76,6 +79,9 @@ public partial class World : Node2D
             case Key.T:
                 _demo = !_demo;
                 ApplyDemo();
+                break;
+            case Key.C:
+                _view.ShowTopography = !_view.ShowTopography;
                 break;
         }
     }
@@ -168,11 +174,11 @@ public partial class World : Node2D
         GetTree().Quit();
     }
 
-    private record struct Args(string? Map, ulong? Seed, bool Demo, float Zoom, Vector2? Focus, string? Screenshot);
+    private record struct Args(string? Map, ulong? Seed, bool Demo, bool NoTopo, float Zoom, Vector2? Focus, string? Screenshot);
 
     private static Args ParseArgs()
     {
-        var args = new Args(null, null, false, 1, null, null);
+        var args = new Args(null, null, false, false, 1, null, null);
         foreach (string arg in OS.GetCmdlineUserArgs())
         {
             string[] kv = arg.TrimStart('-').Split('=', 2);
@@ -182,6 +188,7 @@ public partial class World : Node2D
                 case "map": args.Map = value; break;
                 case "seed": args.Seed = ulong.Parse(value); break;
                 case "demo": args.Demo = true; break;
+                case "no-topo": args.NoTopo = true; break;
                 case "zoom": args.Zoom = float.Parse(value, System.Globalization.CultureInfo.InvariantCulture); break;
                 case "focus":
                     string[] xy = value.Split(',');

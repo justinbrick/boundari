@@ -7,7 +7,9 @@ Players never need this: the built `.bmap` files ship with the game.
 
 1. Get the source data once (about 33 MB, saved to `tools/data/`, not committed):
    `powershell -File tools/download-data.ps1`
-2. Build a map from the repo root:
+2. Set up the Python tools once (used to read land-cover data):
+   `python -m venv tools/.venv` then `tools/.venv/Scripts/python.exe -m pip install rasterio`
+3. Build a map from the repo root:
    `dotnet run -c Release --project tools/MapBuilder -- europe` (or `world`)
    (no map name = build all of them)
 
@@ -23,14 +25,17 @@ Natural Earth detail level, and the smallest island/lake to keep.
 3. Elevation is averaged from terrain tiles over each tile's area and mapped to plains
    (< 350 m), highlands (< 2000 m) and mountains.
 4. Tiny islands and lakes are removed with the same code the random generator uses.
-
-Lighting, shadows, forests and snow are not stored in the map file. The game works them
-out when a map loads (`src/Boundari/game/view/MapVisuals.cs`), so the look can be tuned
-without rebuilding maps.
+5. Maps with `LandCoverScale` get real land cover (farmland, meadow, forest, rock, snow,
+   small lakes and rivers) on a grid finer than the game tiles. `tools/landcover/worldcover.py`
+   reads only the small built-in overviews of ESA WorldCover over the internet (about
+   25 s for Europe) and caches the result in `tools/data/worldcover/`. Towns are filled in
+   with the surrounding land on purpose.
 
 ## Credits (must be shown in the game's credits)
 
 - Coastlines and lakes: **Natural Earth** (naturalearthdata.com), public domain.
+- Land cover: **ESA WorldCover 2021** (CC BY 4.0). "© ESA WorldCover project 2021 /
+  Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover consortium."
 - Elevation: **Terrain Tiles** on AWS Open Data, made by Mapzen, with data from
   SRTM, GMTED2010, ETOPO1 and others. See
   https://github.com/tilezen/joerd/blob/master/docs/attribution.md

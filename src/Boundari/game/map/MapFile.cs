@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.IO.Compression;
+using System.Runtime.InteropServices;
 
 namespace Boundari.Map;
 
@@ -12,7 +13,7 @@ namespace Boundari.Map;
 public static class MapFile
 {
     private const uint Magic = 0x50414D42; // "BMAP"
-    private const int Version = 2; // 2: added real-world location
+    private const int Version = 3; // 2: real-world location, 3: land cover
 
     public static void Write(GameMap map, Stream output)
     {
@@ -32,6 +33,12 @@ public static class MapFile
             w.Write(geo.LatMin);
             w.Write(geo.LatMax);
             w.Write(geo.StandardParallel);
+        }
+        w.Write(map.Cover is not null);
+        if (map.Cover is { } cover)
+        {
+            w.Write(cover.Scale);
+            w.Write(MemoryMarshal.AsBytes(cover.Cells.AsSpan()));
         }
         foreach (var t in map.Terrain)
             w.Write((byte)t);
@@ -58,6 +65,15 @@ public static class MapFile
         var map = new GameMap(width, height, seed) { Name = name };
         if (version >= 2 && r.ReadBoolean())
             map.Geo = new MapGeo(r.ReadDouble(), r.ReadDouble(), r.ReadDouble(), r.ReadDouble(), r.ReadDouble());
+        if (version >= 3 && r.ReadBoolean())
+        {
+            var cover = new LandCover(r.ReadInt32(), width, height);
+            byte[] cells = r.ReadBytes(cover.Cells.Length);
+            if (cells.Length != cover.Cells.Length)
+                throw new EndOfStreamException("Map file is truncated.");
+            cells.CopyTo(MemoryMarshal.AsBytes(cover.Cells.AsSpan()));
+            map.Cover = cover;
+        }
 
         byte[] terrain = r.ReadBytes(map.TileCount);
         if (terrain.Length != map.TileCount)

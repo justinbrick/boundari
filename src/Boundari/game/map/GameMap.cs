@@ -30,6 +30,9 @@ public sealed class GameMap
     /// <summary>Real-world location, or null for random maps.</summary>
     public MapGeo? Geo { get; set; }
 
+    /// <summary>Real land cover (forests, fields...), or null if the map has none.</summary>
+    public LandCover? Cover { get; set; }
+
     public readonly TerrainType[] Terrain;
 
     /// <summary>Signed field: above 0 is land, below 0 is water. The coastline is where it crosses 0.</summary>
