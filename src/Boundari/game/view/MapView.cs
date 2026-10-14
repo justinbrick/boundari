@@ -17,6 +17,9 @@ public partial class MapView : Sprite2D
 
     private const int PaletteSize = 256; // 256x256 = one colour per possible owner id
 
+    // Shade is stored in a byte as Shade / ShadeRange.
+    private const float ShadeRange = 2f;
+
     private ShaderMaterial _material = null!;
     private GameMap? _map;
 
@@ -60,6 +63,20 @@ public partial class MapView : Sprite2D
         var terrainTexture = ImageTexture.CreateFromImage(Image.CreateFromData(w, h, false, Image.Format.Rgh, terrain));
         Texture = terrainTexture; // also sizes the sprite: 1 world unit per tile
         _material.SetShaderParameter("terrain_tex", terrainTexture);
+
+        // Lighting, vegetation and snow, one byte each per tile.
+        var visuals = MapVisuals.Compute(map);
+        var look = new byte[w * h * 4];
+        for (int i = 0; i < map.TileCount; i++)
+        {
+            look[i * 4] = ToByte(visuals.Shade[i] / ShadeRange);
+            look[i * 4 + 1] = ToByte(visuals.Vegetation[i]);
+            look[i * 4 + 2] = ToByte(visuals.Snow[i]);
+            look[i * 4 + 3] = 255;
+        }
+        var lookTexture = ImageTexture.CreateFromImage(Image.CreateFromData(w, h, false, Image.Format.Rgba8, look));
+        _material.SetShaderParameter("look_tex", lookTexture);
+        _material.SetShaderParameter("shade_range", ShadeRange);
         _material.SetShaderParameter("map_size", new Vector2(w, h));
 
         _ownerBytes = new byte[w * h * 2];
@@ -95,6 +112,8 @@ public partial class MapView : Sprite2D
             _paletteImage.SetPixel(id % PaletteSize, id / PaletteSize, colors[id]);
         _paletteTexture.Update(_paletteImage);
     }
+
+    private static byte ToByte(float v) => (byte)Math.Clamp((int)MathF.Round(v * 255f), 0, 255);
 
     /// <summary>World position (tile units) to tile index, or -1 if off the map.</summary>
     public int TileAt(Vector2 worldPos)
