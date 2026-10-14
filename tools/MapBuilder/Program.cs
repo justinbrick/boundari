@@ -19,16 +19,20 @@ public sealed record MapSpec(
     int ElevationZoom,    // terrain tile zoom level in tools/data/terrarium{zoom}
     int MinIslandTiles,   // smaller islands are dropped
     int MinLakeTiles,     // smaller lakes are filled in
-    int LandCoverScale);  // land-cover cells per tile side (0 = no land cover)
+    int LandCoverScale,   // land-cover cells per tile side (0 = no land cover)
+    int RiverMaxRank,     // include rivers up to this Natural Earth rank (0 = biggest; -1 = none)
+    double RiverWidth);   // width in tiles of the biggest rivers; smaller ones are narrower
 
 public static class Program
 {
     private static readonly MapSpec[] Specs =
     {
         // Plain longitude/latitude grid, like OpenFront's world map. Antarctica is cut off below 58°S.
-        new("world", "World", -180, 180, -58, 84, 0, 2400, "50m", 3, MinIslandTiles: 12, MinLakeTiles: 20, LandCoverScale: 0),
+        new("world", "World", -180, 180, -58, 84, 0, 2400, "50m", 3, MinIslandTiles: 12, MinLakeTiles: 20, LandCoverScale: 0,
+            RiverMaxRank: 3, RiverWidth: 2.0),
         // Iceland to the Urals' foothills, Scandinavia's tip to North Africa. ~2.5 km per tile.
-        new("europe", "Europe", -25, 45, 33, 72, 50, 2000, "10m", 6, MinIslandTiles: 20, MinLakeTiles: 30, LandCoverScale: 4),
+        new("europe", "Europe", -25, 45, 33, 72, 50, 2000, "10m", 6, MinIslandTiles: 20, MinLakeTiles: 30, LandCoverScale: 4,
+            RiverMaxRank: 7, RiverWidth: 2.6),
     };
 
     // Coast field units per tile of distance. Matches the scale of the random
@@ -37,6 +41,10 @@ public static class Program
 
     // Within this many tiles of a coastline, distances are exact (from the vector edges).
     private const double ExactBand = 3.0;
+
+    // Rivers narrower than this (in tiles) could break into separate puddles on the tile
+    // grid, which boats couldn't use. 1.6 keeps even diagonal stretches connected.
+    private const double MinRiverWidth = 1.6;
 
     public static int Main(string[] args)
     {
@@ -84,6 +92,14 @@ public static class Program
         var land = Project(GeoJson.LoadRings(Path.Combine(dataDir, $"ne_{spec.Detail}_land.geojson")));
         var lakes = Project(GeoJson.LoadRings(Path.Combine(dataDir, $"ne_{spec.Detail}_lakes.geojson")));
 
+        // Rivers are real water: boats can use them and they split the land.
+        var rivers = spec.RiverMaxRank < 0
+            ? new List<(TileRing, double)>()
+            : GeoJson.LoadRivers(Path.Combine(dataDir, "ne_10m_rivers_lake_centerlines.geojson"), spec.RiverMaxRank)
+                .Select(r => (Project(new List<Ring> { r.Line })[0], RiverHalfWidth(spec, r.Rank)))
+                .ToList();
+        float[] river = Rasterizer.RiverDistance(rivers, width, height, ExactBand);
+
         // 1. Which tile centres are land.
         bool[] inLand = Rasterizer.Fill(land, width, height);
         bool[] inLake = Rasterizer.Fill(lakes, width, height);
@@ -91,18 +107,25 @@ public static class Program
         var isWater = new bool[map.TileCount];
         for (int i = 0; i < map.TileCount; i++)
         {
-            isLand[i] = inLand[i] && !inLake[i];
+            isLand[i] = inLand[i] && !inLake[i] && river[i] >= 0;
             isWater[i] = !isLand[i];
         }
 
-        // 2. Signed distance to the coast: exact near the shore, approximate further away.
+        // 2. Signed distance to the coast and river banks: exact near the shore,
+        //    approximate further away.
         float[] edge = Rasterizer.EdgeDistance(land.Concat(lakes).ToList(), width, height, ExactBand);
         float[] toLand = Rasterizer.DistanceTransform(isLand, width, height);
         float[] toWater = Rasterizer.DistanceTransform(isWater, width, height);
         for (int i = 0; i < map.TileCount; i++)
         {
+            bool inRiver = river[i] < 0;
+            bool coastLand = inLand[i] && !inLake[i];
+            float near = isLand[i] ? Math.Min(edge[i], river[i])
+                : coastLand ? -river[i]                    // in a river: measure to its banks
+                : inRiver ? Math.Max(edge[i], -river[i])   // river running out into the sea or a lake
+                : edge[i];
             float far = Math.Max((isLand[i] ? toWater[i] : toLand[i]) - 0.5f, (float)ExactBand);
-            float d = edge[i] < ExactBand ? edge[i] : far;
+            float d = near < ExactBand ? near : far;
             d = Math.Max(d, 0.05f); // a tile centre exactly on the line still needs a side
             map.CoastField[i] = (isLand[i] ? d : -d) * FieldPerTile;
         }
@@ -133,6 +156,13 @@ public static class Program
         MapProcessing.AssignTerrain(map, ElevationScale.PlainsEnd, ElevationScale.HighlandsEnd);
         MapProcessing.LabelLandmasses(map);
         return map;
+    }
+
+    /// <summary>Half a river's width in tiles: the most important rivers are widest.</summary>
+    private static double RiverHalfWidth(MapSpec spec, int rank)
+    {
+        double share = rank <= 3 ? 1.0 : rank <= 5 ? 0.85 : 0.7;
+        return Math.Max(spec.RiverWidth * share, MinRiverWidth) / 2;
     }
 
     /// <summary>

@@ -18,6 +18,11 @@ public static class LandCoverBuilder
     // version of the sea or coast. Our coastline already draws that, so drop them.
     private const float CoastFringeTiles = 1.5f;
 
+    // Smallest lake worth showing: ~150 cells is about 60 km² on the Europe map. Thin
+    // features (river slivers) need some cells fully surrounded by water to stay.
+    private const int MinLakeCells = 150;
+    private const int MinLakeInteriorCells = 40;
+
     public static LandCover Build(GameMap map, MapSpec spec, string root)
     {
         var geo = map.Geo ?? throw new InvalidOperationException("Land cover needs a real-world map.");
@@ -45,7 +50,10 @@ public static class LandCoverBuilder
             }
         }
 
-        // 2. Fill the gaps from the nearest real cover (spreads outwards one cell at a time).
+        // 2. Drop tiny ponds and thin river slivers (real rivers are cut into the map itself).
+        DropSmallWater(cells, cover.Width, cover.Height);
+
+        // 3. Fill the gaps from the nearest real cover (spreads outwards one cell at a time).
         FillFromNeighbours(cells, cover.Width, cover.Height);
         for (int i = 0; i < cells.Length; i++)
             cover.Cells[i] = cells[i] == Unassigned ? CoverType.Farmland : (CoverType)cells[i];
@@ -112,6 +120,53 @@ public static class LandCoverBuilder
         float top = map.CoastField[map.Index(x0, y0)] * (1 - u) + map.CoastField[map.Index(x1, y0)] * u;
         float bottom = map.CoastField[map.Index(x0, y1)] * (1 - u) + map.CoastField[map.Index(x1, y1)] * u;
         return top * (1 - v) + bottom * v;
+    }
+
+    /// <summary>
+    /// Marks water patches for filling unless they're a proper lake: big enough, and
+    /// wide enough to have some cells completely surrounded by water.
+    /// </summary>
+    private static void DropSmallWater(byte[] cells, int w, int h)
+    {
+        const byte WaterCell = (byte)CoverType.Water;
+        var visited = new bool[cells.Length];
+        var queue = new int[cells.Length];
+        for (int start = 0; start < cells.Length; start++)
+        {
+            if (visited[start] || cells[start] != WaterCell)
+                continue;
+
+            int head = 0, tail = 0, interior = 0;
+            queue[tail++] = start;
+            visited[start] = true;
+            while (head < tail)
+            {
+                int i = queue[head++];
+                int x = i % w, y = i / w;
+                int waterNeighbours = 0;
+                if (x > 0) Visit(i - 1);
+                if (x < w - 1) Visit(i + 1);
+                if (y > 0) Visit(i - w);
+                if (y < h - 1) Visit(i + w);
+                if (waterNeighbours == 4)
+                    interior++;
+
+                void Visit(int n)
+                {
+                    if (cells[n] != WaterCell)
+                        return;
+                    waterNeighbours++;
+                    if (visited[n])
+                        return;
+                    visited[n] = true;
+                    queue[tail++] = n;
+                }
+            }
+
+            if (tail < MinLakeCells || interior < MinLakeInteriorCells)
+                for (int k = 0; k < tail; k++)
+                    cells[queue[k]] = Unassigned;
+        }
     }
 
     /// <summary>Breadth-first fill: each unassigned land cell takes the class of the nearest assigned one.</summary>

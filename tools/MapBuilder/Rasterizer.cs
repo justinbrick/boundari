@@ -96,6 +96,45 @@ public static class Rasterizer
     }
 
     /// <summary>
+    /// Signed distance from each tile centre to the nearest river bank, in tiles:
+    /// negative inside a river, positive outside. Each line is a river's centre line
+    /// with its own half-width. Tiles further than <paramref name="band"/> from any
+    /// bank get +infinity.
+    /// </summary>
+    public static float[] RiverDistance(IReadOnlyList<(TileRing Line, double HalfWidth)> rivers, int width, int height, double band)
+    {
+        var result = new float[width * height];
+        Array.Fill(result, float.PositiveInfinity);
+        foreach (var (line, halfWidth) in rivers)
+        {
+            double reach = halfWidth + band;
+            for (int k = 0; k + 1 < line.X.Length; k++)
+            {
+                double ax = line.X[k], ay = line.Y[k];
+                double bx = line.X[k + 1], by = line.Y[k + 1];
+                int i0 = Math.Max(0, (int)Math.Floor(Math.Min(ax, bx) - reach));
+                int i1 = Math.Min(width - 1, (int)Math.Ceiling(Math.Max(ax, bx) + reach));
+                int j0 = Math.Max(0, (int)Math.Floor(Math.Min(ay, by) - reach));
+                int j1 = Math.Min(height - 1, (int)Math.Ceiling(Math.Max(ay, by) + reach));
+                double dx = bx - ax, dy = by - ay;
+                double len2 = dx * dx + dy * dy;
+                for (int j = j0; j <= j1; j++)
+                    for (int i = i0; i <= i1; i++)
+                    {
+                        double px = i + 0.5 - ax, py = j + 0.5 - ay;
+                        double t = len2 > 0 ? Math.Clamp((px * dx + py * dy) / len2, 0, 1) : 0;
+                        double ex = px - t * dx, ey = py - t * dy;
+                        float d = (float)(Math.Sqrt(ex * ex + ey * ey) - halfWidth);
+                        int idx = j * width + i;
+                        if (d < result[idx])
+                            result[idx] = d;
+                    }
+            }
+        }
+        return result;
+    }
+
+    /// <summary>
     /// Euclidean distance (in tiles) from every tile to the nearest tile where
     /// <paramref name="feature"/> is true. Felzenszwalb–Huttenlocher, exact and linear time.
     /// </summary>
