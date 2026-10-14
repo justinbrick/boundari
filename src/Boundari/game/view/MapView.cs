@@ -123,6 +123,24 @@ public partial class MapView : Sprite2D
         _ownerTexture.Update(_ownerImage);
     }
 
+    /// <summary>
+    /// Updates only the tiles that changed hands since last time, then uploads the
+    /// owner texture once. Cheap enough to call every frame.
+    /// </summary>
+    public void ApplyOwnerChanges(ushort[] owners, System.Collections.Generic.List<int> changed)
+    {
+        if (_map is null || changed.Count == 0)
+            return;
+        foreach (int i in changed)
+        {
+            ushort id = _map.IsWater(i) ? Water : owners[i];
+            _ownerBytes[i * 2] = (byte)(id & 0xFF);
+            _ownerBytes[i * 2 + 1] = (byte)(id >> 8);
+        }
+        _ownerImage.SetData(_map.Width, _map.Height, false, Image.Format.Rg8, _ownerBytes);
+        _ownerTexture.Update(_ownerImage);
+    }
+
     /// <summary>Sets colours by owner id (index 0 is unclaimed land and is ignored).</summary>
     public void SetPalette(ReadOnlySpan<Color> colors)
     {

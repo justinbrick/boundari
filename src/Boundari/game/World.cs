@@ -1,27 +1,32 @@
 using System;
 using System.Diagnostics;
 using System.IO;
-using Boundari.DevTools;
 using Boundari.Map;
+using Boundari.Sim;
 using Boundari.View;
 using Godot;
 
 namespace Boundari;
 
 /// <summary>
-/// Root of the game scene: loads or generates the map, shows it, and frames the camera.
+/// Root of the game scene: loads the map, runs the match (<see cref="Game"/>), turns
+/// clicks into orders, and keeps the map and HUD up to date.
 ///
-/// Keys (temporary, for testing):
-///   M — switch between the built-in maps (Europe, World)
-///   R — new random map
-///   T — toggle demo territories (fake nations, to preview borders)
+/// Controls:
+///   Left click (no drag) — during the spawn phase: pick/move your start.
+///                          Afterwards: expand into empty land, or attack a neighbour,
+///                          using the attack ratio slider's share of your troops.
+///   M — switch map (Europe, World) and start a new match
+///   R — new random map and match
 ///   H — toggle hill shading
 ///   C — toggle contour lines
 ///
 /// Command-line options (after "--" when launching Godot):
 ///   --map=ID           load res://maps/ID.bmap ("random" for a generated map)
 ///   --seed=N           generate a random map with this seed
-///   --demo             start with demo territories on
+///   --bots=N           number of bots (default 40)
+///   --autoplay         spawn the human player automatically (for testing)
+///   --ticks=N          fast-forward the match N ticks at start
 ///   --no-hillshade     start with hill shading off
 ///   --no-contours      start with contour lines off
 ///   --zoom=Z           start zoomed in (1 = whole map)
@@ -35,33 +40,74 @@ public partial class World : Node2D
     [Export] public ulong Seed { get; set; }
     [Export] public int MapWidth { get; set; } = 2000;
     [Export] public int MapHeight { get; set; } = 1250;
-    [Export] public int DemoNations { get; set; } = 40;
+    [Export] public int Bots { get; set; } = 40;
+
+    private const float ClickMaxDrag = 6; // pixels; more than this is a camera drag, not a click
 
     private static readonly string[] BuiltInMaps = { "europe", "world" };
 
     private MapView _view = null!;
     private Camera2D _camera = null!;
+    private GameHud _hud = null!;
     private GameMap _map = null!;
-    private bool _demo;
     private string _mapId = "";
+    private Args _args;
+
+    private Game _game = null!;
+    private Player _me = null!;
+    private double _tickTime;
+    private Vector2? _pressPosition;
 
     public override void _Ready()
     {
         _view = GetNode<MapView>("MapDisplay");
         _camera = GetNode<Camera2D>("Camera2D");
+        _hud = new GameHud(this);
         _view.SetPalette(MakePalette(4096));
 
-        var args = ParseArgs();
-        _demo = args.Demo;
-        _view.ShowHillshade = !args.NoHillshade;
-        _view.ShowContours = !args.NoContours;
-        string mapId = args.Seed is not null ? "random" : args.Map ?? StartMap;
+        _args = ParseArgs();
+        _view.ShowHillshade = !_args.NoHillshade;
+        _view.ShowContours = !_args.NoContours;
+        string mapId = _args.Seed is not null ? "random" : _args.Map ?? StartMap;
         if (mapId is "" or "random" || !LoadMap(mapId))
-            Generate(args.Seed ?? (Seed != 0 ? Seed : RandomSeed()));
-        FrameCamera(args.Zoom, args.Focus);
+            Generate(_args.Seed ?? (Seed != 0 ? Seed : RandomSeed()));
+        FrameCamera(_args.Zoom, _args.Focus);
 
-        if (args.Screenshot is not null)
-            SaveScreenshotAndQuit(args.Screenshot);
+        if (_args.Screenshot is not null)
+            SaveScreenshotAndQuit(_args.Screenshot);
+    }
+
+    public override void _Process(double delta)
+    {
+        // Fixed-rate simulation: catch up on missed ticks, but never more than a few per frame.
+        _tickTime += delta;
+        double tickLength = 1.0 / Balance.TicksPerSecond;
+        for (int i = 0; i < 4 && _tickTime >= tickLength; i++)
+        {
+            _game.Step();
+            _tickTime -= tickLength;
+        }
+        _tickTime = Math.Min(_tickTime, tickLength);
+
+        _view.ApplyOwnerChanges(_game.Owner, _game.ChangedTiles);
+        _game.ChangedTiles.Clear();
+        _hud.Update(_game, _me);
+    }
+
+    public override void _UnhandledInput(InputEvent e)
+    {
+        if (e is not InputEventMouseButton { ButtonIndex: MouseButton.Left } button)
+            return;
+        if (button.Pressed)
+        {
+            _pressPosition = button.Position;
+        }
+        else if (_pressPosition is { } start)
+        {
+            _pressPosition = null;
+            if (start.DistanceTo(button.Position) <= ClickMaxDrag)
+                OnMapClicked(GetGlobalMousePosition());
+        }
     }
 
     public override void _UnhandledKeyInput(InputEvent e)
@@ -79,10 +125,6 @@ public partial class World : Node2D
                 Generate(RandomSeed());
                 FrameCamera(1, null);
                 break;
-            case Key.T:
-                _demo = !_demo;
-                ApplyDemo();
-                break;
             case Key.H:
                 _view.ShowHillshade = !_view.ShowHillshade;
                 break;
@@ -91,6 +133,26 @@ public partial class World : Node2D
                 break;
         }
     }
+
+    private void OnMapClicked(Vector2 worldPosition)
+    {
+        int tile = _view.TileAt(worldPosition);
+        if (tile < 0 || !_map.IsLand(tile))
+            return;
+
+        if (_game.Phase == GamePhase.Spawning)
+        {
+            _game.Submit(new SpawnIntent(_me.Id, tile));
+            return;
+        }
+        ushort target = _game.Owner[tile];
+        if (target != _me.Id && _me.IsAlive && _me.HasSpawned)
+            _game.Submit(new AttackIntent(_me.Id, target, _hud.AttackRatioPercent));
+    }
+
+    // ------------------------------------------------------------------
+    //  Map and match setup
+    // ------------------------------------------------------------------
 
     private void Generate(ulong seed)
     {
@@ -130,17 +192,43 @@ public partial class World : Node2D
     {
         _map = map;
         _view.ShowMap(_map);
-        ApplyDemo();
+        StartMatch();
 
-        int large = _map.CountLandmasses((int)(_map.LandTileCount * 0.04));
-        GD.Print($"{title}: {_map.Width}x{_map.Height}, {large} large landmasses, {_map.LandmassSizes.Length} total, " +
+        GD.Print($"{title}: {_map.Width}x{_map.Height}, {_map.LandmassSizes.Length} landmasses, " +
                  $"{100.0 * _map.LandTileCount / _map.TileCount:F0}% land, ready in {loadMs} ms");
         DisplayServer.WindowSetTitle($"Boundari — {title}");
     }
 
-    private void ApplyDemo()
+    private void StartMatch()
     {
-        _view.SetOwners(_demo ? DemoTerritories.Generate(_map, _map.Seed, DemoNations) : null);
+        _game = new Game(_map, RandomSeed());
+        _me = _game.AddPlayer("You");
+        _game.AddBots(_args.Bots ?? Bots);
+
+        if (_args.Autoplay)
+            AutoSpawn();
+        for (int t = 0; t < _args.Ticks; t++)
+            _game.Step();
+
+        _view.SetOwners(_game.Owner);
+        _game.ChangedTiles.Clear();
+        _tickTime = 0;
+    }
+
+    /// <summary>Testing aid: spawns the human player on a random big landmass.</summary>
+    private void AutoSpawn()
+    {
+        var rng = new Core.Rng(_game.Seed + 1);
+        for (int tries = 0; tries < 1000; tries++)
+        {
+            int t = rng.RangeInt(0, _map.TileCount - 1);
+            if (_map.IsLand(t) && _game.Owner[t] == Game.Nobody && _map.LandmassSizes[_map.LandmassId[t]] > 10_000)
+            {
+                _game.Submit(new SpawnIntent(_me.Id, t));
+                _game.Step();
+                return;
+            }
+        }
     }
 
     private void FrameCamera(float zoom, Vector2? focus)
@@ -180,11 +268,13 @@ public partial class World : Node2D
         GetTree().Quit();
     }
 
-    private record struct Args(string? Map, ulong? Seed, bool Demo, bool NoHillshade, bool NoContours, float Zoom, Vector2? Focus, string? Screenshot);
+    private record struct Args(string? Map, ulong? Seed, int? Bots, bool Autoplay, int Ticks,
+        bool NoHillshade, bool NoContours, float Zoom, Vector2? Focus, string? Screenshot);
 
     private static Args ParseArgs()
     {
-        var args = new Args(null, null, false, false, false, 1, null, null);
+        var inv = System.Globalization.CultureInfo.InvariantCulture;
+        var args = new Args(null, null, null, false, 0, false, false, 1, null, null);
         foreach (string arg in OS.GetCmdlineUserArgs())
         {
             string[] kv = arg.TrimStart('-').Split('=', 2);
@@ -193,15 +283,15 @@ public partial class World : Node2D
             {
                 case "map": args.Map = value; break;
                 case "seed": args.Seed = ulong.Parse(value); break;
-                case "demo": args.Demo = true; break;
+                case "bots": args.Bots = int.Parse(value, inv); break;
+                case "autoplay": args.Autoplay = true; break;
+                case "ticks": args.Ticks = int.Parse(value, inv); break;
                 case "no-hillshade": args.NoHillshade = true; break;
                 case "no-contours": args.NoContours = true; break;
-                case "zoom": args.Zoom = float.Parse(value, System.Globalization.CultureInfo.InvariantCulture); break;
+                case "zoom": args.Zoom = float.Parse(value, inv); break;
                 case "focus":
                     string[] xy = value.Split(',');
-                    args.Focus = new Vector2(
-                        float.Parse(xy[0], System.Globalization.CultureInfo.InvariantCulture),
-                        float.Parse(xy[1], System.Globalization.CultureInfo.InvariantCulture));
+                    args.Focus = new Vector2(float.Parse(xy[0], inv), float.Parse(xy[1], inv));
                     break;
                 case "screenshot": args.Screenshot = value; break;
             }
