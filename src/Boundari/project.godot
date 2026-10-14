@@ -64,4 +64,4 @@ pan_down={
 
 [rendering]
 
-environment/defaults/default_clear_color=Color(0.21960784, 0.32156864, 0.4509804, 1)
+environment/defaults/default_clear_color=Color(0.36862746, 0.6313726, 0.78039217, 1)
