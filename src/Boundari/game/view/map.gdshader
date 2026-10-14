@@ -1,8 +1,8 @@
 shader_type canvas_item;
 
 // Draws the whole map in a flat, cartographic style: solid land-cover colours
-// with crisp edges, flat water, optional topography (hill shading + contour
-// lines), and territories on top. Every pixel is computed from smooth data, so
+// with crisp edges, flat water, optional hill shading and contour lines
+// (toggled separately), and territories on top. Every pixel is computed from smooth data, so
 // shapes stay sharp and curved at any zoom.
 
 // R = coast field (> 0 is land, coastline at 0), G = elevation (0..1).
@@ -24,7 +24,8 @@ uniform vec2 map_size = vec2(2000.0, 1250.0);
 uniform float metres_per_tile = 2500.0;
 
 group_uniforms topography;
-uniform bool show_topography = true;
+uniform bool show_hillshade = true;
+uniform bool show_contours = true;
 uniform float relief_strength : hint_range(0.0, 1.0) = 0.5;
 uniform float relief_exaggeration : hint_range(0.0, 20.0) = 5.0;
 // Metres between contour lines (doubles automatically when lines get too dense).
@@ -226,7 +227,7 @@ void fragment() {
 
 	vec3 ground = ground_color(tile, elev, tiles_per_px);
 
-	if (show_topography) {
+	if (show_hillshade) {
 		// Soft hill shading, lit from the north-west.
 		vec2 grad = vec2(to_metres(tx1.g) - to_metres(tx0.g), to_metres(ty1.g) - to_metres(ty0.g))
 			* 0.5 / metres_per_tile * relief_exaggeration;
@@ -234,7 +235,9 @@ void fragment() {
 		vec3 light_dir = normalize(vec3(-1.0, -1.0, 1.5));
 		float shade = clamp(dot(normal, light_dir) / light_dir.z, 0.45, 1.4);
 		ground *= mix(1.0, shade, relief_strength);
+	}
 
+	if (show_contours) {
 		// Contour lines, about one pixel wide. The spacing doubles when zoomed out so
 		// lines never crowd closer than a few pixels.
 		float m = to_metres(elev);

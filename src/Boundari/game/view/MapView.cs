@@ -46,11 +46,18 @@ public partial class MapView : Sprite2D
         set => _material.SetShaderParameter("show_territory", value);
     }
 
-    /// <summary>Hill shading and contour lines.</summary>
-    public bool ShowTopography
+    /// <summary>Soft shading that makes hills and mountains stand out.</summary>
+    public bool ShowHillshade
     {
-        get => (bool)_material.GetShaderParameter("show_topography");
-        set => _material.SetShaderParameter("show_topography", value);
+        get => (bool)_material.GetShaderParameter("show_hillshade");
+        set => _material.SetShaderParameter("show_hillshade", value);
+    }
+
+    /// <summary>Elevation contour lines.</summary>
+    public bool ShowContours
+    {
+        get => (bool)_material.GetShaderParameter("show_contours");
+        set => _material.SetShaderParameter("show_contours", value);
     }
 
     public override void _Ready()
