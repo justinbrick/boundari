@@ -119,8 +119,8 @@ public class TerrainCostTests
         Paint(CoverType.Farmland);
         Assert.Equal(10, Balance.TileCostTenths(map)[plain]);
         Paint(CoverType.Forest);
-        Assert.Equal(17, Balance.TileCostTenths(map)[plain]);
+        Assert.Equal(20, Balance.TileCostTenths(map)[plain]);
         Paint(CoverType.Snow);
-        Assert.Equal(32, Balance.TileCostTenths(map)[plain]);
+        Assert.Equal(40, Balance.TileCostTenths(map)[plain]);
     }
 }

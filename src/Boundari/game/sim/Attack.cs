@@ -3,9 +3,11 @@ using System.Collections.Generic;
 namespace Boundari.Sim;
 
 /// <summary>
-/// An ongoing push into someone's land (or empty land). It holds the troops sent and
-/// a queue of target tiles along the front, taken a few per tick in a slightly random
-/// order so fronts advance organically rather than in straight lines.
+/// An ongoing push into someone's land (or empty land), modelled as a spreading wave.
+/// Every tile on the front has an arrival time: when its neighbour fell, plus how long
+/// this tile takes to cross (terrain, with some randomness). The attack's clock runs
+/// forward each tick and every tile whose time has come is taken, as long as troops last.
+/// Slow terrain (forest, snow, mountains) makes the wave visibly lag and flow around it.
 /// </summary>
 public sealed class Attack
 {
@@ -13,10 +15,12 @@ public sealed class Attack
     public readonly ushort TargetId; // 0 = empty land
     public long Troops { get; internal set; }
 
-    // A tile may sit in the queue more than once (re-added with a better priority as
-    // more of its neighbours fall); stale copies are skipped when they come up.
+    // Front tiles by arrival time. A tile may sit in the queue more than once (re-added
+    // with an earlier time as more of its neighbours fall); stale copies are skipped.
     internal readonly PriorityQueue<int, long> Front = new();
-    internal int Step;
+
+    /// <summary>How far the wave has advanced, in <see cref="Balance.TravelUnit"/>s.</summary>
+    internal long Clock;
 
     internal Attack(Player attacker, ushort targetId, long troops)
     {

@@ -13,12 +13,12 @@ public static class Balance
 
     // --- Spawning ---
     public const int SpawnPhaseTicks = 10 * TicksPerSecond;
-    public const int SpawnRadius = 4;
-    public const long StartTroops = 5_000;
-    public const int MinSpawnSpacing = 30; // tiles between bot spawns
+    public const int SpawnRadius = 6;
+    public const long StartTroops = 11_000;
+    public const int MinSpawnSpacing = 45; // tiles between bot spawns
 
     // --- Troops ---
-    public const long BaseMaxTroops = 10_000;
+    public const long BaseMaxTroops = 22_000;
     public const long MaxTroopsPerTile = 25;
 
     // Troops grow fastest at half capacity and slow down as they fill up.
@@ -40,31 +40,48 @@ public static class Balance
     // Troops the defender loses per tile taken, in tenths of their density.
     public const long DefenderLossTenths = 8;
 
-    // How many tiles an attack takes per tick: grows with the length of the front.
-    public const int MinTilesPerTick = 2;
-    public const int FrontTilesPerExtraTile = 12;
-    public const int MaxTilesPerTick = 800;
+    // --- Attack speed ---
+    // Time to cross one farmland tile, in travel units. Other terrain scales this by
+    // its cost multiplier, and each tile also gets a random factor.
+    public const long TravelUnit = 1000;
+
+    // How far an attack's wave advances per tick, in travel units.
+    public const long WaveSpeedPerTick = 230;
+
+    // Random spread of crossing times, in percent of normal (min..max). Wide spread
+    // gives ragged, natural-looking fronts instead of geometric shapes.
+    public const int TravelRandomMinPercent = 40;
+    public const int TravelRandomMaxPercent = 170;
+
+    // Tiles already touched by several of the attacker's tiles are crossed faster
+    // (percent of normal, by number of touching tiles). This fills in pockets so
+    // territories stay solid instead of growing spiky fingers.
+    public static readonly int[] SurroundedTravelPercent = { 100, 100, 55, 25, 8 };
+
+    // Safety cap so one huge attack can't stall a tick.
+    public const int MaxTilesPerTick = 6000;
 
     // --- Terrain difficulty ---
-    // Cost multipliers in tenths (10 = normal). A tile's cost is its land cover
+    // Multipliers in tenths (10 = normal) for both the troops it takes to capture a tile
+    // and how long the attack wave takes to cross it. A tile's value is its land cover
     // (averaged over its cover cells) times its elevation band.
 
     /// <summary>Land-cover multiplier. Farmland is the baseline.</summary>
     public static int CoverCostTenths(CoverType cover) => cover switch
     {
         CoverType.Meadow => 12,
-        CoverType.Forest => 17,
-        CoverType.Water => 20,  // small lakes and marsh
-        CoverType.Rock => 22,
-        CoverType.Snow => 32,
+        CoverType.Forest => 20,
+        CoverType.Water => 25,  // small lakes and marsh
+        CoverType.Rock => 25,
+        CoverType.Snow => 40,
         _ => 10,                // farmland, or no data
     };
 
     /// <summary>Elevation multiplier.</summary>
     public static int ElevationCostTenths(TerrainType terrain) => terrain switch
     {
-        TerrainType.Highlands => 13,
-        TerrainType.Mountains => 18,
+        TerrainType.Highlands => 14,
+        TerrainType.Mountains => 20,
         _ => 10,
     };
 

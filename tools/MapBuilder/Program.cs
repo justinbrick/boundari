@@ -30,9 +30,9 @@ public static class Program
         // Plain longitude/latitude grid, like OpenFront's world map. Antarctica is cut off below 58°S.
         new("world", "World", -180, 180, -58, 84, 0, 2400, "50m", 3, MinIslandTiles: 12, MinLakeTiles: 20, LandCoverScale: 0,
             RiverMaxRank: 3, RiverWidth: 2.0),
-        // Iceland to the Urals' foothills, Scandinavia's tip to North Africa. ~2.5 km per tile.
-        new("europe", "Europe", -25, 45, 33, 72, 50, 2000, "10m", 6, MinIslandTiles: 20, MinLakeTiles: 30, LandCoverScale: 4,
-            RiverMaxRank: 7, RiverWidth: 2.6),
+        // Iceland to the Urals' foothills, Scandinavia's tip to North Africa. ~1.7 km per tile.
+        new("europe", "Europe", -25, 45, 33, 72, 50, 3000, "10m", 6, MinIslandTiles: 45, MinLakeTiles: 68, LandCoverScale: 3,
+            RiverMaxRank: 7, RiverWidth: 3.9),
     };
 
     // Coast field units per tile of distance. Matches the scale of the random

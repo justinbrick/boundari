@@ -170,7 +170,7 @@ public sealed class Game
         for (int tries = 0; tries < 80; tries++)
         {
             int t = _rng.RangeInt(0, Map.TileCount - 1);
-            if (!Map.IsLand(t) || Owner[t] != Nobody || Map.LandmassSizes[Map.LandmassId[t]] < 500)
+            if (!Map.IsLand(t) || Owner[t] != Nobody || Map.LandmassSizes[Map.LandmassId[t]] < 1100)
                 continue;
             long d = long.MaxValue;
             foreach (int s in taken)
@@ -231,7 +231,7 @@ public sealed class Game
         {
             int count = LandNeighbours(t, nb);
             for (int k = 0; k < count; k++)
-                Enqueue(attack, nb[k]);
+                Enqueue(attack, nb[k], attack.Clock);
         }
         if (attack.Front.Count == 0)
             return; // doesn't border the target: nothing to attack (boats come later)
@@ -248,14 +248,13 @@ public sealed class Game
         for (int a = 0; a < _attacks.Count; a++)
         {
             var attack = _attacks[a];
-            attack.Step++;
-            int budget = Math.Clamp(Balance.MinTilesPerTick + attack.Front.Count / Balance.FrontTilesPerExtraTile,
-                                    Balance.MinTilesPerTick, Balance.MaxTilesPerTick);
+            attack.Clock += Balance.WaveSpeedPerTick;
+            int budget = Balance.MaxTilesPerTick;
             var defender = GetPlayer(attack.TargetId);
 
-            while (budget > 0 && attack.Front.Count > 0)
+            // Take every front tile the wave has reached by now.
+            while (budget > 0 && attack.Front.TryPeek(out int tile, out long arrival) && arrival <= attack.Clock)
             {
-                int tile = attack.Front.Peek();
                 if (Owner[tile] != attack.TargetId || !Touches(tile, attack.Attacker.Id))
                 {
                     attack.Front.Dequeue();
@@ -273,10 +272,13 @@ public sealed class Game
                 SetOwner(tile, attack.Attacker.Id);
                 int count = LandNeighbours(tile, nb);
                 for (int k = 0; k < count; k++)
-                    Enqueue(attack, nb[k]);
+                    Enqueue(attack, nb[k], arrival);
                 budget--;
             }
 
+            // Drop stale entries so the checks below look at a real front tile.
+            while (attack.Front.TryPeek(out int top, out _) && (Owner[top] != attack.TargetId || !Touches(top, attack.Attacker.Id)))
+                attack.Front.Dequeue();
             bool outOfTroops = attack.Front.Count > 0 && attack.Troops < TileCost(attack.Front.Peek(), defender);
             if (attack.Front.Count == 0 || outOfTroops || !attack.Attacker.IsAlive)
             {
@@ -286,23 +288,24 @@ public sealed class Game
         }
     }
 
-    private void Enqueue(Attack attack, int tile)
+    /// <summary>
+    /// Puts a tile on the attack's front, arriving <c>from</c> (the time its attacking
+    /// neighbour fell) plus the time to cross it: terrain, randomness, and a discount
+    /// when several of the attacker's tiles already surround it.
+    /// </summary>
+    private void Enqueue(Attack attack, int tile, long from)
     {
         if (Owner[tile] != attack.TargetId)
             return;
-        // Tiles touching more of the attacker's land go first: that fills in corners and
-        // keeps fronts round instead of diamond-shaped. Easier terrain goes first too, and
-        // a little randomness keeps the front ragged and natural.
         Span<int> nb = stackalloc int[4];
         int own = 0, count = LandNeighbours(tile, nb);
         for (int k = 0; k < count; k++)
             if (Owner[nb[k]] == attack.Attacker.Id)
                 own++;
-        long priority = (attack.Step + 1) * 32L
-            + _rng.RangeInt(0, 23)
-            + CostTenths[tile] / 2
-            - (own - 1) * 30;
-        attack.Front.Enqueue(tile, priority);
+        long travel = Balance.TravelUnit * CostTenths[tile] / 10
+            * _rng.RangeInt(Balance.TravelRandomMinPercent, Balance.TravelRandomMaxPercent) / 100
+            * Balance.SurroundedTravelPercent[own] / 100;
+        attack.Front.Enqueue(tile, Math.Max(from, attack.Clock - Balance.WaveSpeedPerTick) + travel);
     }
 
     private long TileCost(int tile, Player? defender)
