@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using Boundari.Map;
 using Boundari.Sim;
 using Boundari.View;
@@ -24,7 +25,7 @@ namespace Boundari;
 /// Command-line options (after "--" when launching Godot):
 ///   --map=ID           load res://maps/ID.bmap ("random" for a generated map)
 ///   --seed=N           generate a random map with this seed
-///   --bots=N           number of bots (default 40)
+///   --bots=N           number of bots (default 120)
 ///   --autoplay         spawn the human player automatically (for testing)
 ///   --ticks=N          fast-forward the match N ticks at start
 ///   --no-hillshade     start with hill shading off
@@ -33,6 +34,8 @@ namespace Boundari;
 ///   --focus=X,Y        centre the camera on this point, as 0..1 fractions of the map
 ///   --screenshot=PATH  save a screenshot after loading, then quit
 ///   --perf             print the frame rate every 2 seconds
+///   --hover=X,Y        pretend the mouse is over this map point (0..1 fractions), for screenshots;
+///                      --hover=leader hovers the biggest player
 /// </summary>
 public partial class World : Node2D
 {
@@ -41,7 +44,7 @@ public partial class World : Node2D
     [Export] public ulong Seed { get; set; }
     [Export] public int MapWidth { get; set; } = 2000;
     [Export] public int MapHeight { get; set; } = 1250;
-    [Export] public int Bots { get; set; } = 40;
+    [Export] public int Bots { get; set; } = 120;
 
     private const float ClickMaxDrag = 6; // pixels; more than this is a camera drag, not a click
 
@@ -50,6 +53,7 @@ public partial class World : Node2D
     private MapView _view = null!;
     private Camera2D _camera = null!;
     private GameHud _hud = null!;
+    private PlayerPanels _panels = null!;
     private TerritoryLabels _labels = null!;
     private GameMap _map = null!;
     private string _mapId = "";
@@ -66,6 +70,7 @@ public partial class World : Node2D
         _view = GetNode<MapView>("MapDisplay");
         _camera = GetNode<Camera2D>("Camera2D");
         _hud = new GameHud(this);
+        _panels = new PlayerPanels(this);
         _view.SetPalette(MakePalette(4096));
         _labels = new TerritoryLabels { Name = "TerritoryLabels" };
         AddChild(_labels);
@@ -107,6 +112,8 @@ public partial class World : Node2D
         _view.FlushTerritory();
         _view.SetVisualTime(_game.Tick - 1 + (float)(_tickTime / tickLength));
         _hud.Update(_game, _me);
+        var hovered = HoveredPlayer();
+        _panels.Update(_game, _me, hovered, delta);
     }
 
     public override void _UnhandledInput(InputEvent e)
@@ -147,6 +154,18 @@ public partial class World : Node2D
                 _view.ShowContours = !_view.ShowContours;
                 break;
         }
+    }
+
+    /// <summary>The player whose territory is under the mouse (ignoring the HUD), or null.</summary>
+    private Player? HoveredPlayer()
+    {
+        if (_args.Hover is null && !_args.HoverLeader && GetViewport().GuiGetHoveredControl() is { MouseFilter: not Control.MouseFilterEnum.Ignore })
+            return null;
+        if (_args.HoverLeader)
+            return _game.Players.MaxBy(p => p.TileCount);
+        var mouse = _args.Hover is { } h ? new Vector2(h.X * _map.Width, h.Y * _map.Height) : GetGlobalMousePosition();
+        int tile = _view.TileAt(mouse);
+        return tile < 0 ? null : _game.GetPlayer(_game.Owner[tile]);
     }
 
     private void OnMapClicked(Vector2 worldPosition)
@@ -285,12 +304,12 @@ public partial class World : Node2D
     }
 
     private record struct Args(string? Map, ulong? Seed, int? Bots, bool Autoplay, int Ticks,
-        bool NoHillshade, bool NoContours, float Zoom, Vector2? Focus, string? Screenshot, bool Perf);
+        bool NoHillshade, bool NoContours, float Zoom, Vector2? Focus, string? Screenshot, bool Perf, Vector2? Hover, bool HoverLeader);
 
     private static Args ParseArgs()
     {
         var inv = System.Globalization.CultureInfo.InvariantCulture;
-        var args = new Args(null, null, null, false, 0, false, false, 1, null, null, false);
+        var args = new Args(null, null, null, false, 0, false, false, 1, null, null, false, null, false);
         foreach (string arg in OS.GetCmdlineUserArgs())
         {
             string[] kv = arg.TrimStart('-').Split('=', 2);
@@ -311,6 +330,11 @@ public partial class World : Node2D
                     break;
                 case "screenshot": args.Screenshot = value; break;
                 case "perf": args.Perf = true; break;
+                case "hover" when value == "leader": args.HoverLeader = true; break;
+                case "hover":
+                    string[] hv = value.Split(',');
+                    args.Hover = new Vector2(float.Parse(hv[0], inv), float.Parse(hv[1], inv));
+                    break;
             }
         }
         return args;

@@ -31,7 +31,7 @@ public class SimBenchmark
             map = MapFile.Read(file);
 
         var game = new Game(map, 42, spawnPhaseTicks: 1);
-        game.AddBots(40);
+        game.AddBots(int.TryParse(Environment.GetEnvironmentVariable("BOUNDARI_BOTS"), out int n) ? n : 120);
         var timer = Stopwatch.StartNew();
         long worst = 0;
         for (int minute = 1; minute <= 5; minute++)

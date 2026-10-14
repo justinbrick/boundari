@@ -143,7 +143,8 @@ public partial class MapView : Sprite2D
         _material.SetShaderParameter("cover_tex", coverTexture);
         _material.SetShaderParameter("cover_scale", (float)cover.Scale);
 
-        // Average colour of each tile's cells, for viewing from far away (with mipmaps).
+        // Average colour of each tile's cells (and, in alpha, how much is water), for
+        // viewing from far away (with mipmaps).
         int w = map.Width, h = map.Height, s = cover.Scale;
         var average = new byte[w * h * 4];
         System.Threading.Tasks.Parallel.For(0, h, y =>
@@ -151,13 +152,15 @@ public partial class MapView : Sprite2D
             for (int x = 0; x < w; x++)
             {
                 float r = 0, g = 0, b = 0;
-                int n = 0;
+                int n = 0, water = 0;
                 for (int cy = y * s; cy < (y + 1) * s; cy++)
                     for (int cx = x * s; cx < (x + 1) * s; cx++)
                     {
                         var type = cover.Cells[cover.Index(cx, cy)];
                         if (type == CoverType.None)
                             continue;
+                        if (type == CoverType.Water)
+                            water++;
                         var c = CoverColors[(int)type];
                         r += c.R; g += c.G; b += c.B;
                         n++;
@@ -167,7 +170,7 @@ public partial class MapView : Sprite2D
                 average[i] = ToByte(n > 0 ? r / n : fallback.R);
                 average[i + 1] = ToByte(n > 0 ? g / n : fallback.G);
                 average[i + 2] = ToByte(n > 0 ? b / n : fallback.B);
-                average[i + 3] = 255;
+                average[i + 3] = ToByte(n > 0 ? (float)water / n : 0); // share of small water, for the shader
             }
         });
         var averageImage = Image.CreateFromData(w, h, false, Image.Format.Rgba8, average);

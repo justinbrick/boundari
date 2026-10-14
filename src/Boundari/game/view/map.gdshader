@@ -61,6 +61,7 @@ const int COVER_NONE = 0;
 const int COVER_FARMLAND = 1;
 const int COVER_MEADOW = 2;
 const int COVER_ROCK = 4;
+const int COVER_WATER = 6;
 
 // ---------------------------------------------------------------------------
 //  Sampling helpers
@@ -302,7 +303,10 @@ vec3 cover_color_of(int id) {
 	return cover_colors[clamp(id == COVER_NONE ? COVER_FARMLAND : id, 0, 6)];
 }
 
-vec3 ground_color(vec2 tile, float elev, float tiles_per_px) {
+// Land colour, plus how much of this pixel is small inland water from the land-cover
+// layer (0..1). That water is drawn as water: no territory tint, no hill shading.
+vec3 ground_color(vec2 tile, float elev, float tiles_per_px, out float water) {
+	water = 0.0;
 	if (!has_cover) {
 		// No land-cover data (random maps, world map): flat bands by height.
 		float fw = max(fwidth(elev), 1e-5);
@@ -314,9 +318,10 @@ vec3 ground_color(vec2 tile, float elev, float tiles_per_px) {
 
 	// Zoomed far out a single cell is smaller than a pixel: use the per-tile average instead.
 	float cells_per_px = tiles_per_px * cover_scale;
-	vec3 average = texture(cover_avg_tex, tile / map_size).rgb;
+	vec4 average = texture(cover_avg_tex, tile / map_size);
 	if (cells_per_px > 1.3) {
-		return average;
+		water = average.a;
+		return average.rgb;
 	}
 
 	int best;
@@ -324,8 +329,12 @@ vec3 ground_color(vec2 tile, float elev, float tiles_per_px) {
 	float edge;
 	vote(cover_tex, textureSize(cover_tex, 0), tile * cover_scale, false, COVER_NONE, best, second, edge);
 	float aa = max(fwidth(edge), 1e-4);
-	vec3 crisp = mix(cover_color_of(second), cover_color_of(best), 0.5 + 0.5 * smoothstep(0.0, aa, edge));
-	return mix(crisp, average, smoothstep(0.6, 1.3, cells_per_px));
+	float t = 0.5 + 0.5 * smoothstep(0.0, aa, edge);
+	vec3 crisp = mix(cover_color_of(second), cover_color_of(best), t);
+	float crisp_water = mix(second == COVER_WATER ? 1.0 : 0.0, best == COVER_WATER ? 1.0 : 0.0, t);
+	float far = smoothstep(0.6, 1.3, cells_per_px);
+	water = mix(crisp_water, average.a, far);
+	return mix(crisp, average.rgb, far);
 }
 
 // ---------------------------------------------------------------------------
@@ -346,7 +355,9 @@ void fragment() {
 	float fw = max(fwidth(h), 1e-6);
 	float land = smoothstep(-0.5 * fw, 0.5 * fw, h);
 
-	vec3 ground = ground_color(tile, elev, tiles_per_px);
+	float cover_water;
+	vec3 ground = ground_color(tile, elev, tiles_per_px, cover_water);
+	vec3 flat_ground = ground;
 
 	if (show_hillshade) {
 		// Soft hill shading, lit from the north-west.
@@ -372,6 +383,7 @@ void fragment() {
 		ground = mix(ground, ground * 0.5, clamp(line * contour_opacity * major, 0.0, 1.0));
 	}
 
+	ground = mix(ground, flat_ground, cover_water); // water stays flat
 	vec3 color = mix(water_color.rgb, ground, land);
 
 	// Thin coastline, constant on-screen thickness.
@@ -399,7 +411,7 @@ void fragment() {
 			vec3 fill = mix(ground, nation, territory_opacity);
 			vec3 outline = nation * (1.0 - border_darken);
 			vec3 owned = mix(fill, outline, border);
-			color = mix(color, owned, land);
+			color = mix(color, owned, land * (1.0 - cover_water));
 		}
 	}
 

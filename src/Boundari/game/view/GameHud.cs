@@ -17,6 +17,7 @@ public sealed class GameHud
     private readonly Label? _maxTroops;
     private readonly Label? _troopRate;
     private readonly Label? _cash;
+    private readonly Label? _cashRate;
     private readonly Label? _attackTroops;
     private readonly HSlider? _ratio;
     private readonly Label _status;
@@ -27,6 +28,7 @@ public sealed class GameHud
         _maxTroops = root.GetNodeOrNull<Label>(Info + "Panel_Pop/HBoxContainer/Pop2");
         _troopRate = root.GetNodeOrNull<Label>(Info + "Panel_Pop/HBoxContainer/Pop_Rate");
         _cash = root.GetNodeOrNull<Label>(Info + "Panel_Cur/HBoxContainer/Cur");
+        _cashRate = root.GetNodeOrNull<Label>(Info + "Panel_Cur/HBoxContainer/Cur_Rate");
         _attackTroops = root.GetNodeOrNull<Label>(Info + "Ratio_Panel/HBoxContainer2/Amount");
         _ratio = root.GetNodeOrNull<HSlider>(Info + "Ratio_Panel/Slider_Control/VBox_Slider/HSlider");
 
@@ -55,6 +57,8 @@ public sealed class GameHud
         Set(_maxTroops, FormatCount(me.MaxTroops));
         Set(_troopRate, (me.TroopsPerSecond >= 0 ? "+" : "") + me.TroopsPerSecond.ToString("N0", CultureInfo.InvariantCulture) + "/s");
         Set(_cash, "$" + me.Gold.ToString("N0", CultureInfo.InvariantCulture));
+        long goldPerSecond = me.TileCount > 0 ? Balance.GoldPerTick(me.TileCount) * Balance.TicksPerSecond : 0;
+        Set(_cashRate, "+" + goldPerSecond.ToString("N0", CultureInfo.InvariantCulture) + "/s");
         Set(_attackTroops, FormatCount(me.Troops * AttackRatioPercent / 100));
 
         _status.Text = game.Phase switch
