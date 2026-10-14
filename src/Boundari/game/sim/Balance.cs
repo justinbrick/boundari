@@ -83,14 +83,19 @@ public static class Balance
     // --- Buildings ---
     public const int MinBuildingSpacing = 12;       // tiles between any two buildings
 
-    public static long BuildingCost(BuildingType type) => type switch
+    /// <summary>
+    /// What the next one costs, given how many the player already has (OpenFront's
+    /// prices). <paramref name="owned"/> counts only ones the player built themselves
+    /// and still owns, so capturing buildings never makes yours dearer. Ports and
+    /// factories share one count.
+    /// </summary>
+    public static long BuildingCost(BuildingType type, int owned) => type switch
     {
-        BuildingType.Port => 300_000,
-        BuildingType.City => 300_000,
-        BuildingType.Factory => 300_000,
-        BuildingType.Defense => 100_000,
-        BuildingType.Silo => 2_000_000,
-        BuildingType.Sam => 3_000_000,
+        BuildingType.Port or BuildingType.Factory or BuildingType.City => Math.Min(1_000_000, 125_000L << Math.Min(owned, 10)),
+        BuildingType.Defense => Math.Min(250_000, (owned + 1) * 50_000L),
+        BuildingType.Silo => 1_000_000,
+        BuildingType.Sam => Math.Min(3_000_000, (owned + 1) * 1_500_000L),
+        BuildingType.Warship => Math.Min(1_000_000, (owned + 1) * 250_000L),
         _ => long.MaxValue,
     };
 

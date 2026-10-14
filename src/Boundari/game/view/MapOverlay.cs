@@ -16,6 +16,12 @@ public partial class MapOverlay : Node2D
     private const float MinBuildingPixels = 32;
     private const float MaxBuildingPixels = 80;
     private const float BoatPixels = 18;
+    private const float WarshipPixels = 40;
+
+    // Zoomed out past this (pixels per tile), icons stop holding their minimum size and
+    // shrink with the map, so a zoomed-out view isn't buried in icons.
+    private const float ShrinkBelowPixelsPerTile = 2.2f;
+    private const float GlyphMinPixels = 14; // smaller icons are drawn as plain shapes
 
     private static readonly Dictionary<BuildingType, string> IconFiles = new()
     {
@@ -80,7 +86,7 @@ public partial class MapOverlay : Node2D
         int w = _game.Map.Width;
 
         // --- Buildings ---
-        float size = Math.Clamp(BuildingTiles * zoom, MinBuildingPixels, MaxBuildingPixels) / zoom;
+        float size = IconPixels(zoom, MinBuildingPixels, MaxBuildingPixels, BuildingTiles) / zoom;
         foreach (var b in _game.Buildings)
             DrawBuilding(b.Type, TileCentre(b.Tile, w), size, ColorOf(b.Owner), 1f);
 
@@ -91,17 +97,22 @@ public partial class MapOverlay : Node2D
             var tint = _ghostValid ? new Color(0.45f, 0.95f, 0.5f) : new Color(1f, 0.35f, 0.3f);
             DrawCircle(at, Balance.MinBuildingSpacing, new Color(tint, 0.12f));
             DrawArc(at, Balance.MinBuildingSpacing, 0, Mathf.Tau, 48, new Color(tint, 0.6f), 1.5f / zoom);
-            DrawBuilding(ghost, at, size, _me is null ? tint : ColorOf(_me.Id), 0.75f, tint);
+            if (ghost == BuildingType.Warship)
+                DrawWarship(at, 0, IconPixels(zoom, WarshipPixels, WarshipPixels, 1) / zoom, _me is null ? tint : ColorOf(_me.Id), 1f, tint);
+            else
+                DrawBuilding(ghost, at, size, _me is null ? tint : ColorOf(_me.Id), 0.75f, tint);
         }
 
         // --- Trade ships: just the ship, no lines ---
-        float boatSize = BoatPixels / zoom;
+        float boatSize = IconPixels(zoom, BoatPixels, BoatPixels, 1) / zoom;
         foreach (var ship in _game.TradeShips)
         {
             long progress = ship.Progress - Balance.TradeShipSpeedPerTick + (long)(Balance.TradeShipSpeedPerTick * _tickFraction);
             var (pos, heading) = AlongPath(ship.Path, Math.Max(0, progress), w);
             DrawBoat(pos, heading, boatSize * 0.8f, ColorOf(ship.Owner.Id), trade: true);
         }
+
+        DrawWarships(zoom, w);
 
         // --- Transport boats (drawn one tick behind, like territory, so they glide) ---
         foreach (var boat in _game.Boats)
@@ -131,7 +142,7 @@ public partial class MapOverlay : Node2D
         points.CopyTo(closed, 0);
         closed[^1] = points[0];
         DrawPolyline(closed, new Color(outline, alpha), size * 0.09f, true);
-        if (_icons.GetValueOrDefault(type) is { } icon)
+        if (size * GetViewport().GetCamera2D()!.Zoom.X >= GlyphMinPixels && _icons.GetValueOrDefault(type) is { } icon)
         {
             float s = size * 0.55f;
             DrawTextureRect(icon, new Rect2(at - new Vector2(s, s) / 2, new Vector2(s, s)), false, new Color(owner.Darkened(0.6f), alpha));
@@ -158,6 +169,69 @@ public partial class MapOverlay : Node2D
             points[i] = at + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * r * scale;
         }
         return points;
+    }
+
+    /// <summary>
+    /// On-screen icon size: about <paramref name="tiles"/> tiles across, held between the
+    /// given pixel sizes, except when zoomed far out, where it shrinks with the map.
+    /// </summary>
+    private static float IconPixels(float zoom, float min, float max, float tiles)
+    {
+        if (zoom < ShrinkBelowPixelsPerTile)
+            return min * zoom / ShrinkBelowPixelsPerTile;
+        return Math.Clamp(tiles * zoom, min, max);
+    }
+
+    private void DrawWarships(float zoom, int w)
+    {
+        float size = IconPixels(zoom, WarshipPixels, WarshipPixels, 1) / zoom;
+        foreach (var ship in _game!.Warships)
+        {
+            var from = TileCentre(ship.PreviousTile, w);
+            var to = TileCentre(ship.Tile, w);
+            var pos = from.Lerp(to, _tickFraction);
+            float heading = (to - from).LengthSquared() > 0 ? (to - from).Angle() : ship.Id * 0.7f;
+            DrawWarship(pos, heading, size, ColorOf(ship.Owner.Id), (float)ship.Health / WarshipRules.MaxHealth);
+        }
+        // Shells: bright dots flying from the shooter to the target.
+        foreach (var shell in _game.Shells)
+        {
+            int target = shell.Target switch { Boat b => b.Tile, Warship s => s.Tile, _ => shell.FromTile };
+            float t = Math.Clamp((_game.Tick - 1 + _tickFraction - shell.FiredTick) / Math.Max(1, shell.HitTick - shell.FiredTick), 0, 1);
+            var at = TileCentre(shell.FromTile, w).Lerp(TileCentre(target, w), t);
+            DrawCircle(at, 2.5f / zoom, new Color(1f, 0.9f, 0.5f));
+            DrawCircle(at, 1.2f / zoom, Colors.White);
+        }
+    }
+
+    /// <summary>A grey warship with its owner's colour along the deck, and a health bar when damaged.</summary>
+    private void DrawWarship(Vector2 at, float heading, float size, Color owner, float health, Color? tint = null)
+    {
+        float l = size, hw = size * 0.22f;
+        var rot = Transform2D.Identity.Rotated(heading);
+        Vector2[] hull =
+        {
+            new(l * 0.5f, 0), new(l * 0.3f, hw), new(-l * 0.45f, hw), new(-l * 0.5f, 0),
+            new(-l * 0.45f, -hw), new(l * 0.3f, -hw),
+        };
+        Vector2[] deck = { new(l * 0.2f, hw * 0.45f), new(-l * 0.3f, hw * 0.45f), new(-l * 0.3f, -hw * 0.45f), new(l * 0.2f, -hw * 0.45f) };
+        for (int i = 0; i < hull.Length; i++)
+            hull[i] = at + rot * hull[i];
+        for (int i = 0; i < deck.Length; i++)
+            deck[i] = at + rot * deck[i];
+        DrawColoredPolygon(hull, tint is { } c ? new Color(c, 0.6f) : new Color(0.55f, 0.58f, 0.62f));
+        DrawColoredPolygon(deck, owner);
+        var closed = new Vector2[hull.Length + 1];
+        hull.CopyTo(closed, 0);
+        closed[^1] = hull[0];
+        DrawPolyline(closed, new Color(0.15f, 0.17f, 0.2f), size * 0.07f, true);
+        if (health < 0.999f)
+        {
+            var barAt = at + new Vector2(-l * 0.4f, -size * 0.55f);
+            var full = new Vector2(l * 0.8f, size * 0.09f);
+            DrawRect(new Rect2(barAt, full), new Color(0, 0, 0, 0.6f));
+            DrawRect(new Rect2(barAt, new Vector2(full.X * health, full.Y)), health > 0.5f ? new Color(0.4f, 0.9f, 0.4f) : new Color(0.95f, 0.4f, 0.3f));
+        }
     }
 
     /// <summary>A solid line along the water the boat has already crossed.</summary>

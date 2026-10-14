@@ -8,6 +8,7 @@ public enum BuildingType : byte
     Defense,
     Silo,
     Sam,
+    Warship, // not a building: placed on water near your port, see Warships.cs
 }
 
 /// <summary>A structure on the map. Belongs to whoever owns its tile, so it's captured with the land.</summary>

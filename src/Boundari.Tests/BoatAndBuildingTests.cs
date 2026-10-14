@@ -61,7 +61,9 @@ public class BoatAndBuildingTests
         game.Submit(new BuildIntent(me.Id, BuildingType.Port, coast));
         game.Step();
         Assert.Equal(1, game.CountBuildings(me, BuildingType.Port));
-        Assert.InRange(me.Gold, 5_000_000 - Balance.BuildingCost(BuildingType.Port), 5_000_000 - Balance.BuildingCost(BuildingType.Port) + 1000); // plus a tick of income
+        Assert.InRange(me.Gold, 5_000_000 - 125_000, 5_000_000 - 125_000 + 1000); // first port costs 125K, plus a tick of income
+        Assert.Equal(250_000, game.BuildingCost(me, BuildingType.Port));    // the next one doubles
+        Assert.Equal(250_000, game.BuildingCost(me, BuildingType.Factory)); // ports and factories share a count
         Assert.False(game.CanBuild(me, BuildingType.City, coast)); // too close to the port
     }
 
@@ -88,5 +90,137 @@ public class TradeTests
         Assert.True(TradeRules.SpawnOdds(5, 0) < TradeRules.SpawnOdds(0, 0));   // failed rolls raise the odds
         Assert.True(TradeRules.SpawnOdds(0, 600) > TradeRules.SpawnOdds(0, 50)); // big fleets slow spawning
         Assert.Equal(int.MaxValue, TradeRules.SpawnOdds(0, TradeRules.MaxTradeShips));
+    }
+}
+
+public class CombatTests
+{
+    [Fact]
+    public void Costs_FollowOpenFrontScaling()
+    {
+        Assert.Equal(125_000, Balance.BuildingCost(BuildingType.City, 0));
+        Assert.Equal(500_000, Balance.BuildingCost(BuildingType.City, 2));
+        Assert.Equal(1_000_000, Balance.BuildingCost(BuildingType.City, 9));
+        Assert.Equal(150_000, Balance.BuildingCost(BuildingType.Defense, 2));
+        Assert.Equal(250_000, Balance.BuildingCost(BuildingType.Defense, 20));
+        Assert.Equal(1_000_000, Balance.BuildingCost(BuildingType.Silo, 5));
+        Assert.Equal(3_000_000, Balance.BuildingCost(BuildingType.Sam, 1));
+        Assert.Equal(500_000, Balance.BuildingCost(BuildingType.Warship, 1));
+    }
+
+    [Fact]
+    public void PocketsSurroundedByOnePlayer_AreAbsorbed()
+    {
+        var map = MapGenerator.Generate(21, new MapGenSettings { Width = 400, Height = 250, MinIslandTiles = 8, MinLakeTiles = 30 });
+        var game = new Game(map, 1, spawnPhaseTicks: 2);
+        var a = game.AddPlayer("A");
+        var b = game.AddPlayer("B");
+        int biggest = Enumerable.Range(0, map.LandmassSizes.Length).OrderByDescending(i => map.LandmassSizes[i]).First();
+        // An inland spot, far from the coast.
+        int centre = Enumerable.Range(0, map.TileCount).Where(t => map.LandmassId[t] == biggest && !game.IsCoastal(t))
+            .OrderByDescending(t => DistanceToCoast(game, t)).First();
+        game.Submit(new SpawnIntent(a.Id, centre));
+        game.Step();
+        game.Step();
+        game.Step();
+        // Hand A a big home far away, and B everything around A's spawn: A's spawn is now a pocket.
+        var setOwner = typeof(Game).GetMethod("SetOwner", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+        int cx = centre % map.Width, cy = centre / map.Width;
+        for (int t = 0; t < map.TileCount; t++)
+        {
+            if (!map.IsLand(t) || map.LandmassId[t] != biggest || game.Owner[t] == a.Id)
+                continue;
+            int dx = t % map.Width - cx, dy = t / map.Width - cy;
+            setOwner.Invoke(game, new object[] { t, dx * dx + dy * dy < 30 * 30 ? b.Id : a.Id });
+        }
+        for (int t = 0; t < 200; t++)
+            game.Step();
+        Assert.Equal(b.Id, game.Owner[centre]);
+    }
+
+    [Fact]
+    public void OpposingAttacks_CancelOut()
+    {
+        var map = MapGenerator.Generate(21, new MapGenSettings { Width = 400, Height = 250, MinIslandTiles = 8, MinLakeTiles = 30 });
+        var game = new Game(map, 1, spawnPhaseTicks: 2);
+        var a = game.AddPlayer("A");
+        var b = game.AddPlayer("B");
+        int biggest = Enumerable.Range(0, map.LandmassSizes.Length).OrderByDescending(i => map.LandmassSizes[i]).First();
+        int[] land = Enumerable.Range(0, map.TileCount).Where(t => map.LandmassId[t] == biggest).ToArray();
+        game.Submit(new SpawnIntent(a.Id, land[0]));
+        game.Submit(new SpawnIntent(b.Id, land[^1]));
+        for (int t = 0; t < 4; t++)
+            game.Step();
+        // Split the landmass down the middle: west half A, east half B.
+        int midX = (int)land.Select(t => t % map.Width).Average();
+        var setOwner = typeof(Game).GetMethod("SetOwner", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+        foreach (int t in land)
+            setOwner.Invoke(game, new object[] { t, t % map.Width < midX ? a.Id : b.Id });
+
+        game.Submit(new AttackIntent(a.Id, b.Id, 50));
+        game.Step();
+        long sentByA = game.Attacks.Single(x => x.Attacker == a).Troops;
+        long bBefore = b.Troops;
+        game.Submit(new AttackIntent(b.Id, a.Id, 10)); // smaller than A's attack
+        game.Step();
+
+        var aAttack = game.Attacks.Single(x => x.Attacker == a);
+        Assert.True(aAttack.Troops < sentByA, "B's counter-attack should have eaten into A's attack");
+        Assert.DoesNotContain(game.Attacks, x => x.Attacker == b);  // B's whole army was absorbed
+        Assert.True(b.Troops < bBefore);
+    }
+
+    [Fact]
+    public void RivalWarships_FightEachOther()
+    {
+        var map = MapGenerator.Generate(21, new MapGenSettings { Width = 400, Height = 250, MinIslandTiles = 8, MinLakeTiles = 30 });
+        var game = new Game(map, 1, spawnPhaseTicks: 2);
+        var a = game.AddPlayer("A");
+        var b = game.AddPlayer("B");
+        int biggest = Enumerable.Range(0, map.LandmassSizes.Length).OrderByDescending(i => map.LandmassSizes[i]).First();
+        int[] coast = Enumerable.Range(0, map.TileCount).Where(t => map.LandmassId[t] == biggest && game.IsCoastal(t)).ToArray();
+        int ca = coast[0];
+        int cb = coast.First(t => Dist(map, t, ca) is > 40 and < 70);
+        game.Submit(new SpawnIntent(a.Id, ca));
+        game.Submit(new SpawnIntent(b.Id, cb));
+        for (int t = 0; t < 4; t++)
+            game.Step();
+        var gold = typeof(Player).GetProperty(nameof(Player.Gold))!;
+        foreach (var (p, home) in new[] { (a, ca), (b, cb) })
+        {
+            gold.SetValue(p, 10_000_000L);
+            game.Submit(new BuildIntent(p.Id, BuildingType.Port, home));
+        }
+        game.Step();
+        Assert.Equal(1, game.CountBuildings(a, BuildingType.Port));
+        Assert.Equal(1, game.CountBuildings(b, BuildingType.Port));
+
+        foreach (var (p, home) in new[] { (a, ca), (b, cb) })
+        {
+            int water = Enumerable.Range(0, map.TileCount).First(t => map.IsWater(t) && Dist(map, t, home) < 6 && game.CanBuild(p, BuildingType.Warship, t));
+            game.Submit(new BuildIntent(p.Id, BuildingType.Warship, water));
+        }
+        game.Step();
+        Assert.Equal(2, game.Warships.Count);
+
+        bool fought = false;
+        for (int t = 0; t < 1200 && !fought; t++)
+        {
+            game.Step();
+            fought = game.Warships.Count < 2 || game.Warships.Any(w => w.Health < WarshipRules.MaxHealth - 50) || game.Shells.Count > 0;
+        }
+        Assert.True(fought, "warships within range of each other should open fire");
+    }
+
+    private static int Dist(GameMap map, int a, int b) =>
+        System.Math.Abs(a % map.Width - b % map.Width) + System.Math.Abs(a / map.Width - b / map.Width);
+
+    private static int DistanceToCoast(Game game, int tile)
+    {
+        int w = game.Map.Width, x = tile % w, y = tile / w, best = int.MaxValue;
+        for (int t = 0; t < game.Map.TileCount; t += 7)
+            if (game.IsCoastal(t))
+                best = System.Math.Min(best, System.Math.Abs(t % w - x) + System.Math.Abs(t / w - y));
+        return best;
     }
 }

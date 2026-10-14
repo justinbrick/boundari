@@ -46,7 +46,7 @@ public sealed class SimpleBot
 
     private void TryBuildPort()
     {
-        if (_game.Tick < _nextPortCheck || _player.Gold < Balance.BuildingCost(BuildingType.Port))
+        if (_game.Tick < _nextPortCheck || _player.Gold < _game.BuildingCost(_player, BuildingType.Port))
             return;
         int wanted = Math.Min(MaxPorts, 1 + _player.TileCount / TilesPerPort);
         if (_game.CountBuildings(_player, BuildingType.Port) >= wanted)

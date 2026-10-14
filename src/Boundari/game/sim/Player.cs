@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace Boundari.Sim;
@@ -26,6 +27,12 @@ public sealed class Player
     public readonly HashSet<int> Coast = new();
 
     public bool HasSpawned { get; internal set; }
+
+    internal int LastLandChange;
+    internal int LastEnclaveCheck = -1;
+
+    /// <summary>How many of each building type this player has built (for prices).</summary>
+    internal readonly int[] Constructed = new int[Enum.GetValues<BuildingType>().Length];
 
     /// <summary>Starting tiles, so a spawn can be moved during the spawn phase.</summary>
     internal readonly List<int> SpawnArea = new();

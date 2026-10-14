@@ -11,10 +11,18 @@ namespace Boundari.Sim;
 /// </summary>
 public sealed class TradeShip
 {
-    public readonly Player Owner;
+    public Player Owner { get; internal set; }
     public readonly Building From;
-    public readonly Building To;
-    public readonly int[] Path;
+    public Building To { get; internal set; }
+    public int[] Path { get; internal set; }
+
+    /// <summary>Taken by an enemy warship: now sailing to the captor's port.</summary>
+    public bool Captured { get; internal set; }
+
+    /// <summary>Tiles sailed on earlier legs (before a capture re-routed it).</summary>
+    internal int EarlierTiles;
+
+    public int Tile => Path[(int)System.Math.Min(Progress / 1000, Path.Length - 1)];
 
     /// <summary>Distance travelled along <see cref="Path"/>, in thousandths of a step.</summary>
     public long Progress { get; internal set; }

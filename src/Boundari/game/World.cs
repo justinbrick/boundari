@@ -19,7 +19,8 @@ namespace Boundari;
 ///                          using the attack ratio slider's share of your troops. If the
 ///                          target can't be reached over land, troops go by boat.
 ///   B — send a boat to the land under the mouse
-///   1-6 or hotbar buttons — place a port, city, factory, defense, silo or SAM
+///   1-7 or hotbar buttons — place a port, city, factory, defense, silo, SAM, or a
+///                          warship (on water near one of your ports)
 ///                          (left click to place, right click / Esc / same key to cancel)
 ///   M — switch map (Europe, World) and start a new match
 ///   R — new random map and match
@@ -59,6 +60,7 @@ public partial class World : Node2D
         (BuildingType.Port, "Control2/Port_Button"), (BuildingType.City, "Control3/Barracks_Button"),
         (BuildingType.Factory, "Control4/Fac_Button"), (BuildingType.Defense, "Control5/Def_Button"),
         (BuildingType.Silo, "Control6/Silo_Button"), (BuildingType.Sam, "Control7/Sam_Button"),
+        (BuildingType.Warship, "Control8/Ship_Button"),
     };
 
     private MapOverlay _overlay = null!;
@@ -199,7 +201,7 @@ public partial class World : Node2D
             case Key.B:
                 SendBoat(_view.TileAt(GetGlobalMousePosition()));
                 break;
-            case >= Key.Key1 and <= Key.Key6:
+            case >= Key.Key1 and <= Key.Key7:
                 TogglePlacing(BuildButtons[key.Keycode - Key.Key1].Type);
                 break;
         }
@@ -213,7 +215,7 @@ public partial class World : Node2D
     {
         if (_placing == type)
             StopPlacing();
-        else if (_game.Phase == GamePhase.Running && _me.IsAlive && _me.Gold >= Balance.BuildingCost(type))
+        else if (_game.Phase == GamePhase.Running && _me.IsAlive && _me.Gold >= _game.BuildingCost(_me, type))
             _placing = type;
     }
 
@@ -228,14 +230,19 @@ public partial class World : Node2D
     {
         foreach (var (type, button) in _buildButtons)
         {
-            bool affordable = _me.Gold >= Balance.BuildingCost(type) && _game.Phase == GamePhase.Running;
+            long cost = _game.BuildingCost(_me, type);
+            bool affordable = _me.Gold >= cost && _game.Phase == GamePhase.Running;
             float alpha = affordable ? 1f : 0.4f;
             if (button.Modulate.A != alpha)
                 button.Modulate = new Color(1, 1, 1, alpha);
+            // The hotbar tooltip (hoveroverhaul.gd) shows the price on its third line.
+            string price = GameHud.FormatCount(cost);
+            if ((string)button.Get("line3") != price)
+                button.Set("line3", price);
         }
         if (_placing is not { } type2)
             return;
-        if (_me.Gold < Balance.BuildingCost(type2) || !_me.IsAlive)
+        if (_me.Gold < _game.BuildingCost(_me, type2) || !_me.IsAlive)
         {
             StopPlacing();
             return;
@@ -427,7 +434,9 @@ public partial class World : Node2D
         var mine = Enumerable.Range(0, _map.TileCount).Where(t => _game.Owner[t] == _me.Id).ToList();
         foreach (BuildingType type in Enum.GetValues<BuildingType>())
         {
-            int tile = mine.FirstOrDefault(t => _game.CanBuild(_me, type, t), -1);
+            var candidates = type == BuildingType.Warship
+                ? Enumerable.Range(0, _map.TileCount).Where(t => _map.IsWater(t)) : mine;
+            int tile = candidates.FirstOrDefault(t => _game.CanBuild(_me, type, t), -1);
             if (tile >= 0)
             {
                 _game.Submit(new BuildIntent(_me.Id, type, tile));
@@ -450,8 +459,10 @@ public partial class World : Node2D
         for (int t = 0; t < 10; t++)
             _game.Step();
         var at = new Vector2(mine[mine.Count / 2] % _map.Width, mine[mine.Count / 2] / _map.Width);
+        if (_game.Warships.Count > 0)
+            at = new Vector2(_game.Warships[0].Tile % _map.Width, _game.Warships[0].Tile / _map.Width);
         _showcaseFocus = at / new Vector2(_map.Width, _map.Height);
-        GD.Print($"showcase: {_game.Buildings.Count()} buildings, {_game.Boats.Count} boats, centre {at / new Vector2(_map.Width, _map.Height)}");
+        GD.Print($"showcase: {_game.Buildings.Count()} buildings, {_game.Warships.Count} warships at {string.Join(",", _game.Warships.Select(w => (w.Tile % _map.Width, w.Tile / _map.Width)))}, {_game.Boats.Count} boats, centre {at / new Vector2(_map.Width, _map.Height)}");
     }
 
     private void FrameCamera(float zoom, Vector2? focus)
