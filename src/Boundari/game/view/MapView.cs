@@ -12,8 +12,6 @@ namespace Boundari.View;
 /// </summary>
 public partial class MapView : Sprite2D
 {
-    public const ushort Unowned = 0;
-    public const ushort Water = ushort.MaxValue;
 
     private const int PaletteSize = 256; // 256x256 = one colour per possible owner id
 
@@ -33,9 +31,7 @@ public partial class MapView : Sprite2D
     private ShaderMaterial _material = null!;
     private GameMap? _map;
 
-    private Image _ownerImage = null!;
-    private ImageTexture _ownerTexture = null!;
-    private byte[] _ownerBytes = Array.Empty<byte>();
+    private TerritoryTextures? _territory;
 
     private Image _paletteImage = null!;
     private ImageTexture _paletteTexture = null!;
@@ -98,48 +94,32 @@ public partial class MapView : Sprite2D
         _material.SetShaderParameter("metres_per_tile", (float)((map.Geo?.KmPerTile(h) ?? 2.5) * 1000));
         UploadCover(map);
 
-        _ownerBytes = new byte[w * h * 2];
-        _ownerImage = Image.CreateFromData(w, h, false, Image.Format.Rg8, _ownerBytes);
-        _ownerTexture = ImageTexture.CreateFromImage(_ownerImage);
-        _material.SetShaderParameter("owner_tex", _ownerTexture);
+        _territory = new TerritoryTextures(map);
+        _material.SetShaderParameter("owner_tex", _territory.OwnerArray);
+        _material.SetShaderParameter("capture_tex", _territory.TimeArray);
+        _material.SetShaderParameter("owner_chunk", TerritoryTextures.ChunkSize);
+        _material.SetShaderParameter("owner_chunks_x", _territory.ChunksX);
         SetOwners(null);
     }
 
-    /// <summary>
-    /// Uploads who owns each tile. Pass null to clear all territory. Water tiles
-    /// are always marked as water regardless of the array.
-    /// </summary>
-    public void SetOwners(ushort[]? owners)
-    {
-        if (_map is null)
-            return;
-        for (int i = 0; i < _map.TileCount; i++)
-        {
-            ushort id = _map.IsWater(i) ? Water : owners?[i] ?? Unowned;
-            _ownerBytes[i * 2] = (byte)(id & 0xFF);
-            _ownerBytes[i * 2 + 1] = (byte)(id >> 8);
-        }
-        _ownerImage.SetData(_map.Width, _map.Height, false, Image.Format.Rg8, _ownerBytes);
-        _ownerTexture.Update(_ownerImage);
-    }
+    /// <summary>Shows these owners immediately (pass null to clear all territory).</summary>
+    public void SetOwners(ushort[]? owners) => _territory?.SetAll(owners);
 
     /// <summary>
-    /// Updates only the tiles that changed hands since last time, then uploads the
-    /// owner texture once. Cheap enough to call every frame.
+    /// Records tiles that changed hands during one simulation tick; they'll be animated
+    /// in as the visual clock passes that tick. Call <see cref="FlushTerritory"/> after.
     /// </summary>
-    public void ApplyOwnerChanges(ushort[] owners, System.Collections.Generic.List<int> changed)
-    {
-        if (_map is null || changed.Count == 0)
-            return;
-        foreach (int i in changed)
-        {
-            ushort id = _map.IsWater(i) ? Water : owners[i];
-            _ownerBytes[i * 2] = (byte)(id & 0xFF);
-            _ownerBytes[i * 2 + 1] = (byte)(id >> 8);
-        }
-        _ownerImage.SetData(_map.Width, _map.Height, false, Image.Format.Rg8, _ownerBytes);
-        _ownerTexture.Update(_ownerImage);
-    }
+    public void RecordTick(ushort[] owners, System.Collections.Generic.List<int> changed, int tick) =>
+        _territory?.RecordTick(owners, changed, tick);
+
+    /// <summary>Uploads changed territory chunks to the GPU.</summary>
+    public void FlushTerritory() => _territory?.Flush();
+
+    /// <summary>
+    /// The moment being drawn, in ticks. Kept one tick behind the simulation so captures
+    /// from the latest tick can be swept in smoothly instead of popping in all at once.
+    /// </summary>
+    public void SetVisualTime(float ticks) => _material.SetShaderParameter("visual_time", ticks);
 
     /// <summary>Sets colours by owner id (index 0 is unclaimed land and is ignored).</summary>
     public void SetPalette(ReadOnlySpan<Color> colors)

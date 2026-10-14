@@ -45,13 +45,62 @@ public static class Balance
     public const int FrontTilesPerExtraTile = 12;
     public const int MaxTilesPerTick = 800;
 
-    /// <summary>Terrain cost multiplier, in tenths (10 = normal).</summary>
-    public static long TerrainCostTenths(TerrainType terrain) => terrain switch
+    // --- Terrain difficulty ---
+    // Cost multipliers in tenths (10 = normal). A tile's cost is its land cover
+    // (averaged over its cover cells) times its elevation band.
+
+    /// <summary>Land-cover multiplier. Farmland is the baseline.</summary>
+    public static int CoverCostTenths(CoverType cover) => cover switch
     {
-        TerrainType.Highlands => 15,
-        TerrainType.Mountains => 25,
+        CoverType.Meadow => 12,
+        CoverType.Forest => 17,
+        CoverType.Water => 20,  // small lakes and marsh
+        CoverType.Rock => 22,
+        CoverType.Snow => 32,
+        _ => 10,                // farmland, or no data
+    };
+
+    /// <summary>Elevation multiplier.</summary>
+    public static int ElevationCostTenths(TerrainType terrain) => terrain switch
+    {
+        TerrainType.Highlands => 13,
+        TerrainType.Mountains => 18,
         _ => 10,
     };
+
+    /// <summary>How hard each tile is to take, in tenths (10 = plain farmland).</summary>
+    public static short[] TileCostTenths(GameMap map)
+    {
+        var costs = new short[map.TileCount];
+        var cover = map.Cover;
+        for (int y = 0; y < map.Height; y++)
+        {
+            for (int x = 0; x < map.Width; x++)
+            {
+                int tile = map.Index(x, y);
+                if (!map.IsLand(tile))
+                    continue;
+                int coverCost = 10;
+                if (cover is not null)
+                {
+                    int sum = 0, n = 0, s = cover.Scale;
+                    for (int cy = y * s; cy < (y + 1) * s; cy++)
+                        for (int cx = x * s; cx < (x + 1) * s; cx++)
+                        {
+                            var c = cover.Cells[cover.Index(cx, cy)];
+                            if (c == CoverType.None)
+                                continue;
+                            sum += CoverCostTenths(c);
+                            n++;
+                        }
+                    if (n > 0)
+                        coverCost = (sum + n / 2) / n;
+                }
+                costs[tile] = (short)(coverCost * ElevationCostTenths(map.Terrain[tile]) / 10);
+            }
+        }
+        return costs;
+    }
 
     public static long MaxTroops(int tiles) => BaseMaxTroops + tiles * MaxTroopsPerTile;
 

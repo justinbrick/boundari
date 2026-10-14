@@ -26,6 +26,9 @@ public sealed class Game
     /// <summary>Owner of each tile (player id), or <see cref="Nobody"/>.</summary>
     public readonly ushort[] Owner;
 
+    /// <summary>How hard each tile is to take, in tenths (10 = plain farmland). See <see cref="Balance"/>.</summary>
+    public readonly short[] CostTenths;
+
     public int Tick { get; private set; }
     public GamePhase Phase { get; private set; } = GamePhase.Spawning;
     public readonly int SpawnPhaseTicks;
@@ -46,6 +49,7 @@ public sealed class Game
         Seed = seed;
         SpawnPhaseTicks = spawnPhaseTicks;
         Owner = new ushort[map.TileCount];
+        CostTenths = Balance.TileCostTenths(map);
         _rng = new Rng(seed);
     }
 
@@ -134,18 +138,27 @@ public sealed class Game
                 SetOwner(t, Nobody);
         player.SpawnArea.Clear();
 
+        // Spread out over connected land only, so a spawn never jumps across a river.
         int cx = tile % Map.Width, cy = tile / Map.Width, r = Balance.SpawnRadius;
-        for (int y = Math.Max(0, cy - r); y <= Math.Min(Map.Height - 1, cy + r); y++)
-            for (int x = Math.Max(0, cx - r); x <= Math.Min(Map.Width - 1, cx + r); x++)
+        var frontier = new Queue<int>();
+        var seen = new HashSet<int> { tile };
+        frontier.Enqueue(tile);
+        Span<int> nb = stackalloc int[4];
+        while (frontier.Count > 0)
+        {
+            int t = frontier.Dequeue();
+            if (Owner[t] != Nobody)
+                continue;
+            SetOwner(t, player.Id);
+            player.SpawnArea.Add(t);
+            int count = LandNeighbours(t, nb);
+            for (int k = 0; k < count; k++)
             {
-                int t = Map.Index(x, y);
-                bool inCircle = (x - cx) * (x - cx) + (y - cy) * (y - cy) <= r * r;
-                if (inCircle && Map.IsLand(t) && Owner[t] == Nobody && Map.LandmassId[t] == Map.LandmassId[tile])
-                {
-                    SetOwner(t, player.Id);
-                    player.SpawnArea.Add(t);
-                }
+                int n = nb[k], dx = n % Map.Width - cx, dy = n / Map.Width - cy;
+                if (dx * dx + dy * dy <= r * r && seen.Add(n))
+                    frontier.Enqueue(n);
             }
+        }
         player.HasSpawned = true;
         player.Troops = Balance.StartTroops;
     }
@@ -287,14 +300,14 @@ public sealed class Game
                 own++;
         long priority = (attack.Step + 1) * 32L
             + _rng.RangeInt(0, 23)
-            + Balance.TerrainCostTenths(Map.Terrain[tile]) / 2
+            + CostTenths[tile] / 2
             - (own - 1) * 30;
         attack.Front.Enqueue(tile, priority);
     }
 
     private long TileCost(int tile, Player? defender)
     {
-        long terrain = Balance.TerrainCostTenths(Map.Terrain[tile]);
+        long terrain = CostTenths[tile];
         long cost = Balance.NeutralTileCost * terrain / 10;
         if (defender is not null)
             cost += Density(defender) * Balance.DefenderDensityCostTenths * terrain / 100;

@@ -32,6 +32,7 @@ namespace Boundari;
 ///   --zoom=Z           start zoomed in (1 = whole map)
 ///   --focus=X,Y        centre the camera on this point, as 0..1 fractions of the map
 ///   --screenshot=PATH  save a screenshot after loading, then quit
+///   --perf             print the frame rate every 2 seconds
 /// </summary>
 public partial class World : Node2D
 {
@@ -57,6 +58,7 @@ public partial class World : Node2D
     private Player _me = null!;
     private double _tickTime;
     private Vector2? _pressPosition;
+    private double _perfTimer;
 
     public override void _Ready()
     {
@@ -84,13 +86,22 @@ public partial class World : Node2D
         double tickLength = 1.0 / Balance.TicksPerSecond;
         for (int i = 0; i < 4 && _tickTime >= tickLength; i++)
         {
+            int tick = _game.Tick;
             _game.Step();
+            _view.RecordTick(_game.Owner, _game.ChangedTiles, tick);
+            _game.ChangedTiles.Clear();
             _tickTime -= tickLength;
         }
         _tickTime = Math.Min(_tickTime, tickLength);
 
-        _view.ApplyOwnerChanges(_game.Owner, _game.ChangedTiles);
-        _game.ChangedTiles.Clear();
+        if (_args.Perf && (_perfTimer += delta) >= 2)
+        {
+            _perfTimer = 0;
+            GD.Print($"perf: {Engine.GetFramesPerSecond()} fps, tick {_game.Tick}, {_game.Attacks.Count} attacks");
+        }
+
+        _view.FlushTerritory();
+        _view.SetVisualTime(_game.Tick - 1 + (float)(_tickTime / tickLength));
         _hud.Update(_game, _me);
     }
 
@@ -269,12 +280,12 @@ public partial class World : Node2D
     }
 
     private record struct Args(string? Map, ulong? Seed, int? Bots, bool Autoplay, int Ticks,
-        bool NoHillshade, bool NoContours, float Zoom, Vector2? Focus, string? Screenshot);
+        bool NoHillshade, bool NoContours, float Zoom, Vector2? Focus, string? Screenshot, bool Perf);
 
     private static Args ParseArgs()
     {
         var inv = System.Globalization.CultureInfo.InvariantCulture;
-        var args = new Args(null, null, null, false, 0, false, false, 1, null, null);
+        var args = new Args(null, null, null, false, 0, false, false, 1, null, null, false);
         foreach (string arg in OS.GetCmdlineUserArgs())
         {
             string[] kv = arg.TrimStart('-').Split('=', 2);
@@ -294,6 +305,7 @@ public partial class World : Node2D
                     args.Focus = new Vector2(float.Parse(xy[0], inv), float.Parse(xy[1], inv));
                     break;
                 case "screenshot": args.Screenshot = value; break;
+                case "perf": args.Perf = true; break;
             }
         }
         return args;

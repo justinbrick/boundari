@@ -15,8 +15,15 @@ uniform bool has_cover = false;
 uniform float cover_scale = 4.0;
 // Colour of each CoverType, set from MapView.cs.
 uniform vec3 cover_colors[7];
-// Owner id per tile, 16-bit in RG8. 0 = unclaimed land, 65535 = water.
-uniform sampler2D owner_tex : filter_nearest, repeat_disable;
+// Territory, split into owner_chunk-sized chunks (one texture-array layer each).
+// RGBA8: RG = owner id, BA = previous owner id (0 = unclaimed, 65535 = water).
+uniform sampler2DArray owner_tex : filter_nearest, repeat_disable;
+// R32F: tick (with fraction) when each tile changed hands, for animating captures.
+uniform sampler2DArray capture_tex : filter_nearest, repeat_disable;
+uniform int owner_chunk = 256;
+uniform int owner_chunks_x = 1;
+// The moment being drawn, in ticks (one tick behind the simulation).
+uniform float visual_time = 0.0;
 // 256x256 palette, one pixel per owner id.
 uniform sampler2D palette_tex : filter_nearest, repeat_disable;
 
@@ -40,8 +47,12 @@ uniform float coastline_opacity : hint_range(0.0, 1.0) = 0.35;
 group_uniforms territory;
 uniform bool show_territory = true;
 uniform float territory_opacity : hint_range(0.0, 1.0) = 0.5;
+// How far (in tiles) borders are smoothed. Bigger = rounder, smoother bends.
+uniform float border_smoothing : hint_range(0.5, 2.0) = 1.0;
+// How long (in ticks) a captured tile takes to fade to its new owner.
+uniform float capture_fade : hint_range(0.05, 3.0) = 0.6;
 // Border thickness, roughly in tiles.
-uniform float border_width : hint_range(0.0, 1.0) = 0.45;
+uniform float border_width : hint_range(0.0, 1.0) = 0.3;
 uniform float coast_border_width : hint_range(0.0, 3.0) = 0.6;
 uniform float border_darken : hint_range(0.0, 1.0) = 0.35;
 
@@ -174,6 +185,116 @@ void vote(sampler2D ids_tex, ivec2 size, vec2 cell_pos, bool rg16, int skip,
 }
 
 // ---------------------------------------------------------------------------
+//  Territory
+// ---------------------------------------------------------------------------
+
+// Owner of a tile, its previous owner, and how far it has faded to the new owner
+// (0 = still showing the previous owner, 1 = fully the new one).
+void owner_at(ivec2 c, out int owner, out int previous, out float fade_in) {
+	c = clamp(c, ivec2(0), ivec2(map_size) - 1);
+	ivec3 cc = ivec3(c % owner_chunk, (c.y / owner_chunk) * owner_chunks_x + c.x / owner_chunk);
+	vec4 o = texelFetch(owner_tex, cc, 0);
+	owner = int(o.r * 255.0 + 0.5) + int(o.g * 255.0 + 0.5) * 256;
+	previous = int(o.b * 255.0 + 0.5) + int(o.a * 255.0 + 0.5) * 256;
+	float captured = texelFetch(capture_tex, cc, 0).r;
+	fade_in = clamp((visual_time - captured) / capture_fade, 0.0, 1.0);
+}
+
+// Smooth territory lookup: nearby tiles vote for their owner with Gaussian weights
+// over a ~6x6 area. Smoothing wider than one tile is what turns the tile staircase
+// into clean curves. Tiles still fading in split their vote between the old and new
+// owner, so fronts glide forward instead of jumping. `edge` = winner's lead over the
+// runner-up: 0 on a border, 1 deep inside a territory.
+void territory_at(vec2 tile, out int best_id, out float edge) {
+	// Most pixels are deep inside one territory: check a sparse ring and skip the rest.
+	ivec2 centre = ivec2(floor(tile));
+	int id0;
+	int prev0;
+	float f0;
+	owner_at(centre, id0, prev0, f0);
+	bool settled = f0 >= 1.0;
+	for (int j = -1; j <= 1 && settled; j++) {
+		for (int i = -1; i <= 1 && settled; i++) {
+			int id;
+			int prev;
+			float f;
+			owner_at(centre + ivec2(i, j) * 2, id, prev, f);
+			settled = id == id0 && f >= 1.0;
+		}
+	}
+	best_id = id0;
+	edge = 1.0;
+	if (settled) {
+		return;
+	}
+
+	ivec2 base = ivec2(floor(tile - 0.5)) - 2;
+	float inv = 1.0 / (2.0 * border_smoothing * border_smoothing);
+	float wx[6];
+	float wy[6];
+	for (int k = 0; k < 6; k++) {
+		float dx = float(base.x + k) + 0.5 - tile.x;
+		float dy = float(base.y + k) + 0.5 - tile.y;
+		wx[k] = exp(-dx * dx * inv);
+		wy[k] = exp(-dy * dy * inv);
+	}
+
+	int ids[6] = int[6](0, 0, 0, 0, 0, 0);
+	float ws[6] = float[6](0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+	int count = 0;
+	float total = 0.0;
+	for (int j = 0; j < 6; j++) {
+		for (int i = 0; i < 6; i++) {
+			int id;
+			int prev;
+			float f;
+			owner_at(base + ivec2(i, j), id, prev, f);
+			if (id == WATER) {
+				continue; // water doesn't compete, so territory reaches the coastline
+			}
+			float w = wx[i] * wy[j];
+			total += w;
+			for (int part = 0; part < 2; part++) {
+				int who = part == 0 ? id : prev;
+				float share = part == 0 ? w * f : w * (1.0 - f);
+				if (share <= 0.0) {
+					continue;
+				}
+				bool found = false;
+				for (int k = 0; k < count; k++) {
+					if (ids[k] == who) {
+						ws[k] += share;
+						found = true;
+					}
+				}
+				if (!found && count < 6) {
+					ids[count] = who;
+					ws[count] = share;
+					count++;
+				}
+			}
+		}
+	}
+
+	best_id = WATER;
+	if (total <= 0.0) {
+		return;
+	}
+	float w1 = -1.0;
+	float w2 = 0.0;
+	for (int k = 0; k < count; k++) {
+		if (ws[k] > w1) {
+			w2 = max(w1, 0.0);
+			w1 = ws[k];
+			best_id = ids[k];
+		} else if (ws[k] > w2) {
+			w2 = ws[k];
+		}
+	}
+	edge = (w1 - w2) / total;
+}
+
+// ---------------------------------------------------------------------------
 //  Land colour
 // ---------------------------------------------------------------------------
 
@@ -259,9 +380,8 @@ void fragment() {
 
 	if (show_territory) {
 		int id;
-		int unused;
 		float edge;
-		vote(owner_tex, ivec2(map_size), tile, true, WATER, id, unused, edge);
+		territory_at(tile, id, edge);
 		if (id != WATER && id != 0) {
 			vec3 nation = texelFetch(palette_tex, ivec2(id & 255, id >> 8), 0).rgb;
 
