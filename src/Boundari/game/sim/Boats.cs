@@ -122,8 +122,8 @@ public sealed class Waterways
     // Boats keep their distance from land when there's room: each step within ShoreMargin
     // tiles of a coast costs extra, more the closer it is (so in a river or strait they
     // take the middle). Distances are worked out once, when the map loads.
-    private const int ShoreMargin = 6;
-    private const int ShorePenaltyPerTile = 6; // extra cost per step, per tile closer than the margin
+    private const int ShoreMargin = 18;
+    private const int ShorePenaltyPerTile = 3; // extra cost per step, per tile closer than the margin
     private byte[] _shoreDist = Array.Empty<byte>(); // water tiles: tiles to the nearest land (capped at ShoreMargin)
 
     private void BuildShoreDistance()
@@ -180,6 +180,12 @@ public sealed class Waterways
 
     private int[] _cellBody = Array.Empty<int>();   // which body's water a cell holds (Mixed = several)
     private byte[] _cellLinks = Array.Empty<byte>(); // which neighbouring cells its water flows into
+    private byte[] _cellCoast = Array.Empty<byte>(); // cells to the nearest cell with land in it (capped at CellMargin)
+
+    // The rough route keeps off coasts too (else its corridor would hug them): steps into
+    // cells within CellMargin cells of land cost extra, more the closer they are.
+    private const int CellMargin = 3;
+    private const int CellCoastPenalty = 8;
     private int _cellsWide, _cellsHigh;
 
     private readonly Workspace _instant;
@@ -385,10 +391,21 @@ public sealed class Waterways
         _cellBody = new int[cells];
         Array.Fill(_cellBody, NoBody);
         _cellLinks = new byte[cells];
+        _cellCoast = new byte[cells];
+        Array.Fill(_cellCoast, (byte)CellMargin);
+        var coastQueue = new Queue<int>();
         for (int t = 0; t < Body.Length; t++)
         {
             if (Body[t] == NoBody)
+            {
+                int lc = (t / w / Cell) * cw + (t % w) / Cell;
+                if (_cellCoast[lc] != 0)
+                {
+                    _cellCoast[lc] = 0;
+                    coastQueue.Enqueue(lc);
+                }
                 continue;
+            }
             int x = t % w, y = t / w, c = (y / Cell) * cw + x / Cell;
             _cellBody[c] = _cellBody[c] == NoBody || _cellBody[c] == Body[t] ? Body[t] : Mixed;
             for (int d = 0; d < 8; d++)
@@ -401,6 +418,21 @@ public sealed class Waterways
                 int ddx = nx / Cell - x / Cell, ddy = ny / Cell - y / Cell;
                 if (ddx != 0 || ddy != 0)
                     _cellLinks[c] |= (byte)(1 << DirIndex(ddx, ddy));
+            }
+        }
+        while (coastQueue.Count > 0)
+        {
+            int c = coastQueue.Dequeue(), d = _cellCoast[c] + 1;
+            if (d >= CellMargin)
+                continue;
+            int cx = c % cw, cy = c / cw;
+            for (int k = 0; k < 8; k++)
+            {
+                int nx = cx + Dx[k], ny = cy + Dy[k];
+                if (nx < 0 || ny < 0 || nx >= cw || ny >= ch || _cellCoast[ny * cw + nx] <= d)
+                    continue;
+                _cellCoast[ny * cw + nx] = (byte)d;
+                coastQueue.Enqueue(ny * cw + nx);
             }
         }
     }
@@ -453,7 +485,7 @@ public sealed class Waterways
                 int n = ny * cw + nx;
                 if ((_cellBody[n] != body && _cellBody[n] != Mixed) || mark[n] == closed)
                     continue;
-                int ng = g + (Dx[d] != 0 && Dy[d] != 0 ? 14 : 10);
+                int ng = g + (Dx[d] != 0 && Dy[d] != 0 ? 14 : 10) + (CellMargin - _cellCoast[n]) * CellCoastPenalty;
                 if (mark[n] == seen && cost[n] <= ng)
                     continue;
                 mark[n] = seen;

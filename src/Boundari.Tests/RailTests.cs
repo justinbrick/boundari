@@ -90,6 +90,6 @@ public class RailTests
         Assert.NotNull(path);
         int w = map.Width;
         var middle = path.Where(t => t % w > 25 && t % w < 95).ToList();
-        Assert.All(middle, t => Assert.True(t / w >= 15, $"boats should keep about 6 tiles off the shore, got y={t / w}"));
+        Assert.All(middle, t => Assert.True(t / w >= 24, $"boats should keep about 18 tiles off the shore, got y={t / w}"));
     }
 }

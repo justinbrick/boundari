@@ -62,18 +62,8 @@ group_uniforms dev_tools;
 uniform float patch_shape : hint_range(0.0, 1.0) = 1.0;
 // How far patches blend into their neighbours, in cells (0 = the normal, tight blend).
 uniform float patch_morph : hint_range(0.0, 2.0) = 0.0;
-// Territory borders smoothed into curves (and captures faded in); off = the raw tile grid.
-uniform bool smooth_territory = true;
-// Depth inside territories (TerritoryDepth.cs): tiles to the nearest other owner's land, on
-// 2x2-tile cells (read with smooth filtering). Used for thick borders.
-uniform sampler2D depth_tex : filter_linear, repeat_disable;
-uniform vec2 depth_size = vec2(2000.0, 1250.0);
 // Contour lines every this many metres (0 = off).
 uniform float contour_interval = 0.0;
-// Coordinate grid: lines every this many degrees (or 20x this many tiles on maps without geography); 0 = off.
-uniform float grid_step = 0.0;
-uniform bool has_geo = false;
-uniform vec4 geo_bounds = vec4(-180.0, 180.0, -90.0, 90.0); // lon min, lon max, lat min, lat max
 
 const int WATER = 65535;
 const int FALLOUT = 65534; // land poisoned by a bomb (nobody owns it)
@@ -141,7 +131,7 @@ int id_at(sampler2D ids_tex, ivec2 c, bool rg16) {
 // Smooth "majority vote" over a grid of ids: nearby cells vote for their id, weighted
 // by distance. Gives curved, crisp-edged shapes instead of squares. Normally a 4x4 cubic
 // B-spline; with patch_morph, a wider Gaussian over 8x8 cells (patches blend further).
-// patch_shape blends the weights towards "nearest cell only" (square corners).
+// patch_shape sharpens the weights towards "nearest cell only" (square corners).
 // Cells holding `skip` don't vote. `edge` = winner's lead over the runner-up
 // (0 on a boundary, 1 deep inside one shape).
 void vote(sampler2D ids_tex, ivec2 size, vec2 cell_pos, bool rg16, int skip,
@@ -182,13 +172,21 @@ void vote(sampler2D ids_tex, ivec2 size, vec2 cell_pos, bool rg16, int skip,
 			wy[k] = by[k];
 		}
 	}
-	// Towards square cells: all the weight on the nearest cell.
-	if (patch_shape < 0.999) {
+	if (patch_shape < 0.001) {
+		// Square cells: all the weight on the cell this point is in.
 		int nx = (f.x < 0.5 ? 0 : 1) - lo;
 		int ny = (f.y < 0.5 ? 0 : 1) - lo;
 		for (int k = 0; k < n; k++) {
-			wx[k] = mix(k == nx ? 1.0 : 0.0, wx[k], patch_shape);
-			wy[k] = mix(k == ny ? 1.0 : 0.0, wy[k], patch_shape);
+			wx[k] = k == nx ? 1.0 : 0.0;
+			wy[k] = k == ny ? 1.0 : 0.0;
+		}
+	} else if (patch_shape < 0.999) {
+		// Tighter corners: raising the weights to a power favours the nearest cells more and
+		// more, while staying smooth everywhere (no seams along cell midlines).
+		float sharpen = pow(30.0, 1.0 - patch_shape);
+		for (int k = 0; k < n; k++) {
+			wx[k] = pow(max(wx[k], 0.0), sharpen);
+			wy[k] = pow(max(wy[k], 0.0), sharpen);
 		}
 	}
 
@@ -271,11 +269,6 @@ int owner_id_at(ivec2 c) {
 	return int(o.r * 255.0 + 0.5) + int(o.g * 255.0 + 0.5) * 256;
 }
 
-// Tiles from this point to the nearest land of another owner (smooth).
-float depth_at(vec2 tile) {
-	return texture(depth_tex, tile / depth_size).r;
-}
-
 // Smooth territory lookup: nearby tiles vote for their owner with Gaussian weights
 // over a ~6x6 area. Smoothing wider than one tile is what turns the tile staircase
 // into clean curves. Tiles still fading in split their vote between the old and new
@@ -296,29 +289,6 @@ void territory_at(vec2 tile, out int best_id, out float edge) {
 	}
 	best_id = id0;
 	edge = 1.0;
-	if (!smooth_territory) {
-		// Raw tiles: the tile's own owner, and `edge` = distance (in tiles) to the nearest
-		// side or corner shared with another land owner, so borders still draw along it.
-		vec2 f = tile - vec2(centre);
-		float d = 1.0;
-		for (int j = -1; j <= 1; j++) {
-			for (int i = -1; i <= 1; i++) {
-				if (i == 0 && j == 0) {
-					continue;
-				}
-				int o = owner_id_at(centre + ivec2(i, j));
-				if (o == id0 || o == WATER) {
-					continue;
-				}
-				// Distance from this point to that neighbour tile's square.
-				vec2 lo = vec2(float(i), float(j));
-				vec2 q = max(max(lo - f, f - (lo + 1.0)), vec2(0.0));
-				d = min(d, length(q));
-			}
-		}
-		edge = d;
-		return;
-	}
 	if (settled) {
 		return;
 	}
@@ -519,14 +489,8 @@ void fragment() {
 
 			// Borders never get thinner than ~1 pixel, so they don't flicker when zoomed out.
 			float edge_aa = max(fwidth(edge), 1e-5);
-			float bw = max(min(border_width, 0.8), edge_aa * 1.2);
+			float bw = max(border_width, edge_aa * 1.2);
 			float border = 1.0 - smoothstep(bw - edge_aa, bw + edge_aa, edge);
-			float depth = border_width >= 1.0 ? depth_at(tile) : 0.0;
-			if (border_width >= 1.0) {
-				// Thick borders: everything within border_width tiles of another owner's land.
-				float aa = max(tiles_per_px, 0.25);
-				border = max(border, 1.0 - smoothstep(border_width - aa, border_width + aa, depth));
-			}
 			float cbw = max(coast_border_width, tiles_per_px * 1.2);
 			float coast_border = 1.0 - smoothstep(cbw - tiles_per_px, cbw + tiles_per_px, coast_dist);
 			border = border_width > 0.0 ? max(border, coast_border) : 0.0;
@@ -536,17 +500,6 @@ void fragment() {
 			vec3 owned = mix(fill, outline, border);
 			color = mix(color, owned, land * (1.0 - cover_water));
 		}
-	}
-
-	if (grid_step > 0.0) {
-		// Coordinate grid (a dev-tool option): latitude/longitude lines, or plain tile lines
-		// on maps without geography. About a pixel wide at any zoom.
-		vec2 g = has_geo
-			? vec2(mix(geo_bounds.x, geo_bounds.y, UV.x), mix(geo_bounds.w, geo_bounds.z, UV.y)) / grid_step
-			: tile / (grid_step * 20.0);
-		vec2 d = abs(fract(g + 0.5) - 0.5) / max(fwidth(g), vec2(1e-5));
-		float line = 1.0 - smoothstep(0.5, 1.5, min(d.x, d.y));
-		color = mix(color, vec3(0.12, 0.14, 0.16), line * 0.4);
 	}
 
 	COLOR = vec4(color, 1.0);

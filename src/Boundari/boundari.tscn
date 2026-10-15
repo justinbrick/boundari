@@ -1255,7 +1255,7 @@ layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
 theme_override_fonts/font = SubResource("FontVariation_ok40o")
 theme_override_font_sizes/font_size = 9
-text = "Port"
+text = "Harbor"
 horizontal_alignment = 1
 metadata/_edit_use_anchors_ = true
 
@@ -1283,7 +1283,7 @@ layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
 theme_override_fonts/font = SubResource("FontVariation_ok40o")
 theme_override_font_sizes/font_size = 9
-text = "Factory"
+text = "Depot"
 horizontal_alignment = 1
 metadata/_edit_use_anchors_ = true
 
@@ -1325,7 +1325,7 @@ layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
 theme_override_fonts/font = SubResource("FontVariation_ok40o")
 theme_override_font_sizes/font_size = 9
-text = "Sam"
+text = "Flak"
 horizontal_alignment = 1
 metadata/_edit_use_anchors_ = true
 
@@ -1353,7 +1353,7 @@ layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
 theme_override_fonts/font = SubResource("FontVariation_ok40o")
 theme_override_font_sizes/font_size = 9
-text = "Moab"
+text = "Mortar"
 horizontal_alignment = 1
 metadata/_edit_use_anchors_ = true
 
@@ -1367,7 +1367,7 @@ layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
 theme_override_fonts/font = SubResource("FontVariation_ok40o")
 theme_override_font_sizes/font_size = 9
-text = "Fat Man"
+text = "Missile"
 horizontal_alignment = 1
 metadata/_edit_use_anchors_ = true
 
@@ -1381,7 +1381,7 @@ layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
 theme_override_fonts/font = SubResource("FontVariation_ok40o")
 theme_override_font_sizes/font_size = 9
-text = "Tsar"
+text = "Atomic"
 horizontal_alignment = 1
 metadata/_edit_use_anchors_ = true
 
@@ -1569,7 +1569,7 @@ layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
 theme_override_fonts/font = SubResource("FontVariation_ok40o")
 theme_override_font_sizes/font_size = 9
-text = "Port"
+text = "Harbor"
 horizontal_alignment = 1
 metadata/_edit_use_anchors_ = true
 
@@ -1583,7 +1583,7 @@ layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
 theme_override_fonts/font = SubResource("FontVariation_ok40o")
 theme_override_font_sizes/font_size = 9
-text = "City"
+text = "Barracks"
 horizontal_alignment = 1
 metadata/_edit_use_anchors_ = true
 
@@ -1597,7 +1597,7 @@ layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
 theme_override_fonts/font = SubResource("FontVariation_ok40o")
 theme_override_font_sizes/font_size = 9
-text = "Factory"
+text = "Depot"
 horizontal_alignment = 1
 metadata/_edit_use_anchors_ = true
 
@@ -1639,7 +1639,7 @@ layout_mode = 2
 theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
 theme_override_fonts/font = SubResource("FontVariation_ok40o")
 theme_override_font_sizes/font_size = 9
-text = "Sam"
+text = "Flak"
 horizontal_alignment = 1
 metadata/_edit_use_anchors_ = true
 
@@ -1972,7 +1972,7 @@ theme_override_styles/disabled = SubResource("StyleBoxEmpty_04lhv")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_ewirb")
 icon_alignment = 1
 script = ExtResource("4_xc0m3")
-line1 = "Port [1]"
+line1 = "Harbor [1]"
 line2 = "Trade ships generate cash"
 line3 = "300K"
 
@@ -2046,7 +2046,7 @@ theme_override_styles/disabled = SubResource("StyleBoxEmpty_04lhv")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_ewirb")
 icon_alignment = 1
 script = ExtResource("4_xc0m3")
-line1 = "Factory [3]"
+line1 = "Depot [3]"
 line2 = "Railroads generate cash"
 line3 = "300K"
 
@@ -2161,7 +2161,7 @@ theme_override_styles/disabled = SubResource("StyleBoxEmpty_04lhv")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_ewirb")
 icon_alignment = 1
 script = ExtResource("4_xc0m3")
-line1 = "Sam [6]"
+line1 = "Flak [6]"
 line2 = "Defends against missiles"
 line3 = "3M"
 
@@ -2239,7 +2239,7 @@ theme_override_styles/disabled = SubResource("StyleBoxEmpty_04lhv")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_ewirb")
 icon_alignment = 1
 script = ExtResource("4_xc0m3")
-line1 = "MOAB [8]"
+line1 = "Mortar [8]"
 line2 = "Bomb with a small radius"
 line3 = "1.5M"
 
@@ -2276,7 +2276,7 @@ theme_override_styles/disabled = SubResource("StyleBoxEmpty_04lhv")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_ewirb")
 icon_alignment = 1
 script = ExtResource("4_xc0m3")
-line1 = "Fat Man [9]"
+line1 = "Missile [9]"
 line2 = "Bomb with a large radius"
 line3 = "10M"
 
@@ -2313,7 +2313,7 @@ theme_override_styles/disabled = SubResource("StyleBoxEmpty_04lhv")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_ewirb")
 icon_alignment = 1
 script = ExtResource("4_xc0m3")
-line1 = "Tsar Bomba [0]"
+line1 = "Atomic Bomb [0]"
 line2 = "Indefensible nuclear warhead"
 line3 = "70M"
 
@@ -3507,7 +3507,7 @@ layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 0.78431374)
 theme_override_fonts/font = ExtResource("21_4ibk2")
 theme_override_font_sizes/font_size = 12
-text = "You captured a city from "
+text = "You captured a barracks from "
 
 [node name="Country" type="Label" parent="Main_Layer/Main_Control/Pop_Log/Cash_Panel/VBoxContainer/HBoxContainer" unique_id=808526718]
 layout_mode = 2
@@ -3540,7 +3540,7 @@ layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 0.78431374)
 theme_override_fonts/font = ExtResource("21_4ibk2")
 theme_override_font_sizes/font_size = 12
-text = "You captured a city from "
+text = "You captured a barracks from "
 
 [node name="Country" type="Label" parent="Main_Layer/Main_Control/Pop_Log/Cash_Panel/VBoxContainer/HBoxContainer2" unique_id=2100955178]
 layout_mode = 2
@@ -3573,7 +3573,7 @@ layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 0.78431374)
 theme_override_fonts/font = ExtResource("21_4ibk2")
 theme_override_font_sizes/font_size = 12
-text = "You captured a port from "
+text = "You captured a harbor from "
 
 [node name="Country" type="Label" parent="Main_Layer/Main_Control/Pop_Log/Cash_Panel/VBoxContainer/HBoxContainer3" unique_id=1093549491]
 layout_mode = 2
@@ -3599,7 +3599,7 @@ layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 0.78431374)
 theme_override_fonts/font = ExtResource("21_4ibk2")
 theme_override_font_sizes/font_size = 12
-text = "City captured by "
+text = "Barracks captured by "
 
 [node name="Country" type="Label" parent="Main_Layer/Main_Control/Pop_Log/Cash_Panel/VBoxContainer/HBoxContainer4" unique_id=2081004600]
 layout_mode = 2
@@ -3665,7 +3665,7 @@ layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 0.78431374)
 theme_override_fonts/font = ExtResource("21_4ibk2")
 theme_override_font_sizes/font_size = 12
-text = "City captured by "
+text = "Barracks captured by "
 
 [node name="Country" type="Label" parent="Main_Layer/Main_Control/Pop_Log/Cash_Panel/VBoxContainer/HBoxContainer6" unique_id=353616760]
 layout_mode = 2
@@ -3691,7 +3691,7 @@ layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 0.78431374)
 theme_override_fonts/font = ExtResource("21_4ibk2")
 theme_override_font_sizes/font_size = 12
-text = "You captured a factory from "
+text = "You captured a depot from "
 
 [node name="Country" type="Label" parent="Main_Layer/Main_Control/Pop_Log/Cash_Panel/VBoxContainer/HBoxContainer7" unique_id=450610571]
 layout_mode = 2
@@ -3750,7 +3750,7 @@ layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 0.78431374)
 theme_override_fonts/font = ExtResource("21_4ibk2")
 theme_override_font_sizes/font_size = 12
-text = "You captured a sam from "
+text = "You captured a flak from "
 
 [node name="Country" type="Label" parent="Main_Layer/Main_Control/Pop_Log/Cash_Panel/VBoxContainer/HBoxContainer9" unique_id=1546071296]
 layout_mode = 2
@@ -3783,7 +3783,7 @@ layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 0.78431374)
 theme_override_fonts/font = ExtResource("21_4ibk2")
 theme_override_font_sizes/font_size = 12
-text = "City captured by "
+text = "Barracks captured by "
 
 [node name="Country" type="Label" parent="Main_Layer/Main_Control/Pop_Log/Cash_Panel/VBoxContainer/HBoxContainer10" unique_id=2075070713]
 layout_mode = 2
@@ -3809,7 +3809,7 @@ layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 0.78431374)
 theme_override_fonts/font = ExtResource("21_4ibk2")
 theme_override_font_sizes/font_size = 12
-text = "Port captured by "
+text = "Harbor captured by "
 
 [node name="Country" type="Label" parent="Main_Layer/Main_Control/Pop_Log/Cash_Panel/VBoxContainer/HBoxContainer11" unique_id=1303005931]
 layout_mode = 2
@@ -7187,7 +7187,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-text = "port/city/fact"
+text = "harb/barr/depot"
 horizontal_alignment = 1
 vertical_alignment = 1
 
@@ -7205,7 +7205,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-text = "silo/sam/ship"
+text = "silo/flak/ship"
 horizontal_alignment = 1
 vertical_alignment = 1
 

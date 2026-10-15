@@ -7,13 +7,12 @@ namespace Boundari.View;
 /// <summary>
 /// Visual dev tools: a compact strip in the top-right corner. Left/Right picks a setting,
 /// Up/Down changes it. Choices are saved (user://devtools.cfg) and come back next run.
-///   PSC patch scale        S (the map's own detail) / N (merged 2x2) / L (merged 4x4)
-///   PMR patch morphing     1 (normal) .. 6: how far land-cover patches blend together
-///   PSH patch shape        0 (square cells) .. 100 (smooth, the normal look)
-///   OPA territory opacity  20 .. 100%
-///   BRD border thickness   0 .. .8 (thin line), then 1.5 / 2.5 / 4 / 6 tiles
-///   SMO border smoothing   on / off (off shows the raw tile grid, no capture fade)
-///   GRD coordinate grid    off / 10 / 5 / 2 degrees
+///   PSC patch scale        S (the map's own detail) / M (merged 2x2) / L (merged 4x4)
+///   PMR patch morphing     1 (tight) .. 6: how far land-cover patches blend together
+///   PSH patch shape        0 (square cells) / 60 (slightly rounded) / 100 (smooth)
+///   OPA territory opacity  0 .. 100% in steps of 5
+///   BRD border thickness   0 / .15 / .3 / .5 / .8
+///   GRD coordinate grid    off / on (OpenFront's lettered grid, see CoordinateGrid.cs)
 ///   TOP topography         contour lines: off / every 100 / 250 / 500 m
 ///   LBL labels             on / off: territory names, flags and troop counts
 ///   PLY players            on / off: hide every territory, label, building and ship to see the bare map (also T)
@@ -23,6 +22,9 @@ public partial class DevTools : CanvasLayer
     private sealed record Setting(string Abbr, string Name, string[] Labels, int Default, Action<int> Apply);
 
     private const string ConfigPath = "user://devtools.cfg";
+    // Saved under this section name; changing it drops everyone's old choices (done when
+    // the options or their defaults changed).
+    private const string ConfigSection = "dev2";
 
     private MapView? _view;
     private readonly List<Setting> _settings;
@@ -40,6 +42,9 @@ public partial class DevTools : CanvasLayer
     /// <summary>Shows or hides the territory names, flags and troop counts.</summary>
     public Action<bool>? ShowLabels { get; set; }
 
+    /// <summary>Shows or hides the coordinate grid.</summary>
+    public Action<bool>? ShowGrid { get; set; }
+
     private MapView V => _view ?? throw new InvalidOperationException("DevTools.View isn't set");
 
     public DevTools()
@@ -48,17 +53,15 @@ public partial class DevTools : CanvasLayer
         Name = "DevTools";
         _settings = new List<Setting>
         {
-            new("PSC", "Patch scale", new[] { "S", "N", "L" }, 0, i => V.SetPatchScale(i)),
-            new("PMR", "Patch morphing", new[] { "1", "2", "3", "4", "5", "6" }, 0,
-                i => V.PatchMorph = i == 0 ? 0f : 0.6f + 0.2f * i), // 1 = normal blend; then wider
-            new("PSH", "Patch shape (corner rounding)", new[] { "0", "20", "40", "60", "80", "100" }, 5, i => V.PatchShape = i / 5f),
-            new("OPA", "Territory opacity", new[] { "20", "35", "50", "65", "80", "100" }, 2,
-                i => V.TerritoryOpacity = new[] { 0.2f, 0.35f, 0.5f, 0.65f, 0.8f, 1f }[i]),
-            new("BRD", "Territory border thickness (tiles from 1.5 up)", new[] { "0", ".15", ".3", ".5", ".8", "1.5", "2.5", "4", "6" }, 2,
-                i => V.BorderWidth = new[] { 0f, 0.15f, 0.3f, 0.5f, 0.8f, 1.5f, 2.5f, 4f, 6f }[i]),
-            new("SMO", "Territory border smoothing", new[] { "ON", "OFF" }, 0, i => V.SmoothTerritory = i == 0),
-            new("GRD", "Coordinate grid (degrees)", new[] { "OFF", "10", "5", "2" }, 0,
-                i => V.GridStep = new[] { 0f, 10f, 5f, 2f }[i]),
+            new("PSC", "Patch scale", new[] { "S", "M", "L" }, 0, i => V.SetPatchScale(i)),
+            new("PMR", "Patch morphing", new[] { "1", "2", "3", "4", "5", "6" }, 1,
+                i => V.PatchMorph = i == 0 ? 0f : 0.6f + 0.2f * i), // 1 = tight B-spline blend; then wider
+            new("PSH", "Patch shape (corner rounding)", new[] { "0", "60", "100" }, 2,
+                i => V.PatchShape = new[] { 0f, 0.6f, 1f }[i]),
+            new("OPA", "Territory opacity", OpacitySteps(), 11, i => V.TerritoryOpacity = i * 0.05f),
+            new("BRD", "Territory border thickness", new[] { "0", ".15", ".3", ".5", ".8" }, 3,
+                i => V.BorderWidth = new[] { 0f, 0.15f, 0.3f, 0.5f, 0.8f }[i]),
+            new("GRD", "Coordinate grid", new[] { "OFF", "ON" }, 0, i => ShowGrid?.Invoke(i == 1)),
             new("TOP", "Topography (contour lines, metres)", new[] { "OFF", "100", "250", "500" }, 0,
                 i => V.ContourInterval = new[] { 0f, 100f, 250f, 500f }[i]),
             new("LBL", "Territory names, flags and troops", new[] { "ON", "OFF" }, 0, i => ShowLabels?.Invoke(i == 0)),
@@ -68,6 +71,15 @@ public partial class DevTools : CanvasLayer
         for (int i = 0; i < _settings.Count; i++)
             _values[i] = _settings[i].Default;
         Load();
+    }
+
+    /// <summary>"0", "5", ... "100".</summary>
+    private static string[] OpacitySteps()
+    {
+        var steps = new string[21];
+        for (int i = 0; i < steps.Length; i++)
+            steps[i] = (i * 5).ToString();
+        return steps;
     }
 
     public override void _Ready()
@@ -181,14 +193,14 @@ public partial class DevTools : CanvasLayer
         if (config.Load(ConfigPath) != Error.Ok)
             return;
         for (int i = 0; i < _settings.Count; i++)
-            _values[i] = Math.Clamp((int)config.GetValue("dev", _settings[i].Abbr, _values[i]), 0, _settings[i].Labels.Length - 1);
+            _values[i] = Math.Clamp((int)config.GetValue(ConfigSection, _settings[i].Abbr, _values[i]), 0, _settings[i].Labels.Length - 1);
     }
 
     private void Save()
     {
         var config = new ConfigFile();
         for (int i = 0; i < _settings.Count; i++)
-            config.SetValue("dev", _settings[i].Abbr, _values[i]);
+            config.SetValue(ConfigSection, _settings[i].Abbr, _values[i]);
         config.Save(ConfigPath);
     }
 }

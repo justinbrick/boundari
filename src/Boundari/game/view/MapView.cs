@@ -93,13 +93,9 @@ public partial class MapView : Sprite2D
         _material.SetShaderParameter("terrain_tex", terrainTexture);
 
         _material.SetShaderParameter("map_size", new Vector2(w, h));
-        _material.SetShaderParameter("has_geo", map.Geo is not null);
-        if (map.Geo is { } geo)
-            _material.SetShaderParameter("geo_bounds", new Vector4((float)geo.LonMin, (float)geo.LonMax, (float)geo.LatMin, (float)geo.LatMax));
         UploadCover(map);
 
         _territory = new TerritoryTextures(map);
-        AttachDepth(map);
         _material.SetShaderParameter("owner_tex", _territory.OwnerArray);
         _material.SetShaderParameter("capture_tex", _territory.TimeArray);
         _material.SetShaderParameter("owner_chunk", TerritoryTextures.ChunkSize);
@@ -253,55 +249,22 @@ public partial class MapView : Sprite2D
         return Image.CreateFromData(w, h, false, Image.Format.R8, merged);
     }
 
-    // --- Depth inside territories (for thick borders) ---
-
-    private TerritoryDepth? _depth;
-    private float _borderWidth = 0.3f;
-
-    /// <summary>Whether anything on screen needs the depth field (it's only computed then).</summary>
-    private bool NeedsDepth => _borderWidth >= 1;
-
-    /// <summary>Call every frame: keeps the depth field fresh while it's in use.</summary>
-    public void UpdateDepth(Sim.Game game, double delta)
-    {
-        if (_depth is null || !NeedsDepth)
-            return;
-        _depth.Update(game, delta);
-    }
-
-    private void AttachDepth(GameMap map)
-    {
-        _depth = new TerritoryDepth(map);
-        _material.SetShaderParameter("depth_tex", _depth.DepthTexture);
-        _material.SetShaderParameter("depth_size", _depth.SizeInTiles);
-    }
-
     public float PatchShape { set => _material.SetShaderParameter("patch_shape", value); }
     public float PatchMorph { set => _material.SetShaderParameter("patch_morph", value); }
     public float TerritoryOpacity { set => _material.SetShaderParameter("territory_opacity", value); }
 
-    /// <summary>
-    /// Border thickness. Below 1 it's the classic thin line (a share of the edge blend); from 1
-    /// up it's measured in tiles inside the territory, using the depth field.
-    /// </summary>
+    /// <summary>Border thickness: a share of the edge blend between two owners (about tiles).</summary>
     public float BorderWidth
     {
         set
         {
-            _borderWidth = value;
             _material.SetShaderParameter("border_width", value);
-            _material.SetShaderParameter("coast_border_width", value < 1 ? value * 2 : value);
+            _material.SetShaderParameter("coast_border_width", value * 2);
         }
     }
 
-    /// <summary>Territory borders smoothed into curves (with captures fading in), or the raw tile grid.</summary>
-    public bool SmoothTerritory { set => _material.SetShaderParameter("smooth_territory", value); }
-
     /// <summary>Contour lines every this many metres (0 = off).</summary>
     public float ContourInterval { set => _material.SetShaderParameter("contour_interval", value); }
-
-    /// <summary>Grid lines every this many degrees (0 = off).</summary>
-    public float GridStep { set => _material.SetShaderParameter("grid_step", value); }
 
     private static byte ToByte(float v) => (byte)Math.Clamp((int)MathF.Round(v * 255f), 0, 255);
 

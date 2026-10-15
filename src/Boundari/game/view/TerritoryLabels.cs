@@ -1,31 +1,38 @@
 using System;
 using System.Collections.Generic;
+using Boundari.Map;
 using Boundari.Sim;
 using Godot;
 
 namespace Boundari.View;
 
 /// <summary>
-/// Draws each player's flag, name and troop count on the map, at the point deepest
-/// inside their territory, sized to fit. Positions are recomputed a couple of times a
-/// second and eased towards, so labels glide as territories change.
+/// Draws each player's flag, name and troop count on the map, placed and sized the way
+/// OpenFront does it: in the largest rectangle that fits inside the player's biggest
+/// connected piece of land (coasts and the water just off them count as room), with the
+/// name centred in it, the flag just left of the name and the troops underneath.
+/// Placements are worked out every few seconds and labels glide to them.
 /// </summary>
 public partial class TerritoryLabels : Node2D
 {
-    // Label placement runs on a coarse grid (cells of this many tiles) to stay cheap.
-    private const int CellTiles = 4;
-    private const double RefreshSeconds = 0.5;
-    private const float MinScreenFontPixels = 7;   // smaller than this isn't drawn
-    private const float GlideRate = 4f;             // how quickly labels move to new spots
+    private const double RefreshSeconds = 3.0;          // OpenFront: every 30 ticks
+    private const double SpawningRefreshSeconds = 0.5;  // while players are still picking spots
+    private const float GlideRate = 10f;                // OpenFront's name lerp speed
+    private const float MinScreenAscentPixels = 7.5f;   // names smaller than this aren't drawn
+    private const int NearShoreWater = 10;              // water this close to land counts as room
+    private const float FlagAspect = 128f / 85f;        // OpenFront's flag cells (3:2)
+    private const float TroopScale = 0.6f;
 
     private static readonly Color TextColor = new(0.16f, 0.16f, 0.16f, 0.92f);
     private static readonly Color OutlineColor = new(1, 1, 1, 0.28f);
 
+    /// <summary>A name's spot and OpenFront "size" (the font size that fits its rectangle).</summary>
+    private readonly record struct Placement(Vector2 Centre, float Size);
+
     private sealed class Label
     {
         public Vector2 Target, Position;
-        public float TargetRadius, Radius;
-        public bool Placed;
+        public float TargetSize, Size;
     }
 
     private readonly Dictionary<ushort, Label> _labels = new();
@@ -40,8 +47,11 @@ public partial class TerritoryLabels : Node2D
     private double _sinceRefresh = RefreshSeconds;
     private Font _font = null!;
 
-    private int[] _cellOwner = Array.Empty<int>();
-    private int[] _dist = Array.Empty<int>();
+    // Placement scratch (background thread only).
+    private bool[] _room = Array.Empty<bool>();  // shore tiles and water near land: names may overhang them
+    private int[] _seen = Array.Empty<int>();
+    private int[] _queue = Array.Empty<int>();
+    private int _stamp;
 
     public override void _Ready()
     {
@@ -63,18 +73,60 @@ public partial class TerritoryLabels : Node2D
         _labels.Clear();
         _names.Clear();
         _troops.Clear();
-        int w = (game.Map.Width + CellTiles - 1) / CellTiles, h = (game.Map.Height + CellTiles - 1) / CellTiles;
-        _cellOwner = new int[w * h];
-        _dist = new int[w * h];
+        _room = RoomAroundCoasts(game.Map);
+        _seen = new int[game.Map.TileCount];
+        _queue = new int[game.Map.TileCount];
+        _stamp = 0;
         _sinceRefresh = RefreshSeconds;
+    }
+
+    /// <summary>Land tiles on a coast, and water within <see cref="NearShoreWater"/> tiles of land.</summary>
+    private static bool[] RoomAroundCoasts(GameMap map)
+    {
+        int w = map.Width, h = map.Height;
+        var room = new bool[map.TileCount];
+        var dist = new byte[map.TileCount];
+        var queue = new Queue<int>();
+        for (int t = 0; t < map.TileCount; t++)
+        {
+            if (!map.IsLand(t))
+                continue;
+            int x = t % w, y = t / w;
+            bool shore = (x > 0 && map.IsWater(t - 1)) || (x < w - 1 && map.IsWater(t + 1))
+                || (y > 0 && map.IsWater(t - w)) || (y < h - 1 && map.IsWater(t + w));
+            if (!shore)
+                continue;
+            room[t] = true;
+            queue.Enqueue(t);
+        }
+        while (queue.Count > 0)
+        {
+            int t = queue.Dequeue(), d = dist[t] + 1, x = t % w, y = t / w;
+            if (d >= NearShoreWater)
+                continue;
+            if (x > 0) Visit(t - 1);
+            if (x < w - 1) Visit(t + 1);
+            if (y > 0) Visit(t - w);
+            if (y < h - 1) Visit(t + w);
+
+            void Visit(int n)
+            {
+                if (map.IsLand(n) || room[n])
+                    return;
+                room[n] = true;
+                dist[n] = (byte)d;
+                queue.Enqueue(n);
+            }
+        }
+        return room;
     }
 
     public override void _Process(double delta)
     {
         if (_game is null)
             return;
-        // Where labels go is worked out on a background thread twice a second (it reads the
-        // owner grid while the game runs; an occasional stale tile doesn't matter for a label).
+        // Where labels go is worked out on a background thread (it reads the owner grid while
+        // the game runs; an occasional stale tile doesn't matter for a label).
         if (_placing is { IsCompleted: true } done)
         {
             _placing = null;
@@ -82,112 +134,166 @@ public partial class TerritoryLabels : Node2D
             Apply(done.Result);
             FrameProfiler.Stop("labels place", started);
         }
-        if ((_sinceRefresh += delta) >= RefreshSeconds && _placing is null)
+        double every = _game.Phase == GamePhase.Spawning ? SpawningRefreshSeconds : RefreshSeconds;
+        if ((_sinceRefresh += delta) >= every && _placing is null && !Frozen)
         {
             _sinceRefresh = 0;
             var game = _game;
-            _placing = System.Threading.Tasks.Task.Run(() => Place(game));
+            var names = new Dictionary<ushort, int>();
+            foreach (var p in game.Players)
+                names[p.Id] = Math.Max(1, p.Name.Length);
+            _placing = System.Threading.Tasks.Task.Run(() => Place(game, names));
         }
 
         float t = 1 - MathF.Exp(-GlideRate * (float)delta);
         foreach (var label in _labels.Values)
         {
             label.Position = label.Position.Lerp(label.Target, t);
-            label.Radius += (label.TargetRadius - label.Radius) * t;
+            label.Size += (label.TargetSize - label.Size) * t;
         }
         if (!Frozen)
             QueueRedraw();
     }
 
-    private System.Threading.Tasks.Task<Dictionary<ushort, (int Cell, int Dist)>>? _placing;
+    private System.Threading.Tasks.Task<Dictionary<ushort, Placement>>? _placing;
 
-    /// <summary>
-    /// Finds each territory's "pole of inaccessibility": the cell furthest from its own
-    /// border, measured with a two-pass chamfer distance that only travels through the
-    /// same owner's land. That's where the label fits best and reads most naturally.
-    /// </summary>
-    private Dictionary<ushort, (int Cell, int Dist)> Place(Game game)
+    private readonly record struct Cluster(int Tiles, int MinX, int MinY, int MaxX, int MaxY);
+
+    /// <summary>Every player's label spot (see the class summary).</summary>
+    private Dictionary<ushort, Placement> Place(Game game, Dictionary<ushort, int> nameLengths)
     {
-        var map = game.Map;
-        int w = (map.Width + CellTiles - 1) / CellTiles, h = (map.Height + CellTiles - 1) / CellTiles;
-        for (int cy = 0; cy < h; cy++)
-            for (int cx = 0; cx < w; cx++)
-            {
-                int tx = Math.Min(cx * CellTiles + CellTiles / 2, map.Width - 1);
-                int ty = Math.Min(cy * CellTiles + CellTiles / 2, map.Height - 1);
-                int tile = map.Index(tx, ty);
-                _cellOwner[cy * w + cx] = map.IsLand(tile) ? game.Owner[tile] : -1;
-            }
-
-        const int Inf = int.MaxValue / 2;
-        for (int i = 0; i < _dist.Length; i++)
+        var result = new Dictionary<ushort, Placement>();
+        foreach (var (id, box) in LargestClusters(game))
         {
-            int o = _cellOwner[i];
-            if (o <= 0) { _dist[i] = 0; continue; }
-            int x = i % w, y = i / w;
-            bool edge = x == 0 || y == 0 || x == w - 1 || y == h - 1
-                || _cellOwner[i - 1] != o || _cellOwner[i + 1] != o || _cellOwner[i - w] != o || _cellOwner[i + w] != o;
-            _dist[i] = edge ? 3 : Inf;
-        }
-        // Forward and backward chamfer passes (3 straight, 4 diagonal ~ 3x Euclidean).
-        for (int y = 1; y < h - 1; y++)
-            for (int x = 1; x < w - 1; x++)
-                Relax(y * w + x, -1, -w, -w - 1, -w + 1);
-        for (int y = h - 2; y > 0; y--)
-            for (int x = w - 2; x > 0; x--)
-                Relax(y * w + x, 1, w, w + 1, w - 1);
-
-        var best = new Dictionary<ushort, (int Cell, int Dist)>();
-        for (int i = 0; i < _dist.Length; i++)
-        {
-            int o = _cellOwner[i];
-            if (o <= 0)
+            if (!nameLengths.TryGetValue(id, out int length))
                 continue;
-            if (!best.TryGetValue((ushort)o, out var b) || _dist[i] > b.Dist)
-                best[(ushort)o] = (i, _dist[i]);
+            result[id] = PlaceName(game, id, box, length);
         }
-
-        return best;
-
-        void Relax(int i, int a, int b, int c, int d)
-        {
-            int o = _cellOwner[i];
-            if (o <= 0)
-                return;
-            int v = _dist[i];
-            if (_cellOwner[i + a] == o) v = Math.Min(v, _dist[i + a] + 3);
-            if (_cellOwner[i + b] == o) v = Math.Min(v, _dist[i + b] + 3);
-            if (_cellOwner[i + c] == o) v = Math.Min(v, _dist[i + c] + 4);
-            if (_cellOwner[i + d] == o) v = Math.Min(v, _dist[i + d] + 4);
-            _dist[i] = v;
-        }
+        return result;
     }
 
-    private void Apply(Dictionary<ushort, (int Cell, int Dist)> best)
+    /// <summary>Bounding box of each owner's biggest connected piece of land.</summary>
+    private Dictionary<ushort, Cluster> LargestClusters(Game game)
     {
-        if (_game is null)
-            return;
-        var map = _game.Map;
-        int w = (map.Width + CellTiles - 1) / CellTiles;
-        foreach (var key in new List<ushort>(_labels.Keys))
-            if (!best.ContainsKey(key))
-                _labels.Remove(key);
-        foreach (var (id, (cell, dist)) in best)
+        var map = game.Map;
+        var owners = game.Owner;
+        int w = map.Width, h = map.Height, stamp = ++_stamp;
+        var seen = _seen;
+        var queue = _queue;
+        var best = new Dictionary<ushort, Cluster>();
+        for (int start = 0; start < owners.Length; start++)
         {
-            var target = new Vector2((cell % w + 0.5f) * CellTiles, (cell / w + 0.5f) * CellTiles);
-            float radius = dist / 3f * CellTiles;
-            if (!_labels.TryGetValue(id, out var label))
-                _labels[id] = label = new Label();
-            label.Target = target;
-            label.TargetRadius = radius;
-            if (!label.Placed)
+            ushort o = owners[start];
+            if (o == 0 || seen[start] == stamp || !map.IsLand(start))
+                continue;
+            int head = 0, tail = 0;
+            queue[tail++] = start;
+            seen[start] = stamp;
+            int minX = int.MaxValue, minY = int.MaxValue, maxX = -1, maxY = -1;
+            while (head < tail)
             {
-                label.Position = target;
-                label.Radius = radius;
-                label.Placed = true;
+                int t = queue[head++], x = t % w, y = t / w;
+                if (x < minX) minX = x;
+                if (x > maxX) maxX = x;
+                if (y < minY) minY = y;
+                if (y > maxY) maxY = y;
+                if (x > 0) Visit(t - 1);
+                if (x < w - 1) Visit(t + 1);
+                if (y > 0) Visit(t - w);
+                if (y < h - 1) Visit(t + w);
+            }
+            if (!best.TryGetValue(o, out var b) || tail > b.Tiles)
+                best[o] = new Cluster(tail, minX, minY, maxX, maxY);
+
+            void Visit(int n)
+            {
+                if (seen[n] != stamp && owners[n] == o)
+                {
+                    seen[n] = stamp;
+                    queue[tail++] = n;
+                }
+            }
+        }
+        return best;
+    }
+
+    /// <summary>
+    /// OpenFront's name placement: sample the cluster's box on a coarse grid (coarser for
+    /// bigger boxes), find the largest rectangle of cells that are the player's land, a
+    /// coast or water near land, and centre the name in it with a font size that fits.
+    /// </summary>
+    private Placement PlaceName(Game game, ushort id, Cluster box, int nameLength)
+    {
+        var map = game.Map;
+        var owners = game.Owner;
+        var fallout = game.Fallout;
+        int size = Math.Min(box.MaxX - box.MinX, box.MaxY - box.MinY);
+        int scale = size < 25 ? 1 : size < 50 ? 2 : size < 100 ? 4 : size < 250 ? 8 : size < 500 ? 16 : 32;
+
+        int gx0 = box.MinX / scale, gy0 = box.MinY / scale;
+        int gw = box.MaxX / scale - gx0 + 1, gh = box.MaxY / scale - gy0 + 1;
+        var heights = new int[gw];
+        var stack = new int[gw + 1];
+        int bestArea = 0, bestX = 0, bestY = 0, bestW = 0, bestH = 0;
+        for (int gy = 0; gy < gh; gy++)
+        {
+            // Column heights of usable cells ending at this row...
+            for (int gx = 0; gx < gw; gx++)
+            {
+                int x = (gx0 + gx) * scale, y = (gy0 + gy) * scale;
+                bool usable = false;
+                if (x < map.Width && y < map.Height)
+                {
+                    int t = y * map.Width + x;
+                    usable = _room[t] || owners[t] == id || fallout[t];
+                }
+                heights[gx] = usable ? heights[gx] + 1 : 0;
+            }
+            // ...and the largest rectangle under that histogram (stack of rising bars).
+            int top = 0;
+            for (int i = 0; i <= gw; i++)
+            {
+                int hgt = i == gw ? 0 : heights[i];
+                while (top > 0 && hgt < heights[stack[top - 1]])
+                {
+                    int barHeight = heights[stack[--top]];
+                    int left = top == 0 ? 0 : stack[top - 1] + 1;
+                    int width = i - left;
+                    if (barHeight * width > bestArea)
+                    {
+                        bestArea = barHeight * width;
+                        bestX = left;
+                        bestY = gy - barHeight + 1;
+                        bestW = width;
+                        bestH = barHeight;
+                    }
+                }
+                stack[top++] = i;
             }
         }
 
+        float rx = bestX * scale, ry = bestY * scale, rw = bestW * scale, rh = bestH * scale;
+        float fontSize = Math.Min(rw / nameLength * 2, rh / 3);
+        var centre = new Vector2(
+            MathF.Floor(rx + rw / 2 + box.MinX),
+            MathF.Floor(ry + rh / 2 + box.MinY) - fontSize / 3);
+        return new Placement(new Vector2(MathF.Ceiling(centre.X), MathF.Ceiling(centre.Y)) + new Vector2(0.5f, 0.5f), fontSize);
+    }
+
+    private void Apply(Dictionary<ushort, Placement> placements)
+    {
+        foreach (var key in new List<ushort>(_labels.Keys))
+            if (!placements.ContainsKey(key))
+                _labels.Remove(key);
+        foreach (var (id, place) in placements)
+        {
+            if (!_labels.TryGetValue(id, out var label))
+            {
+                _labels[id] = label = new Label { Position = place.Centre, Size = place.Size };
+            }
+            label.Target = place.Centre;
+            label.TargetSize = place.Size;
+        }
     }
 
     public override void _Draw()
@@ -212,54 +318,44 @@ public partial class TerritoryLabels : Node2D
         foreach (var (id, label) in _labels)
         {
             var player = _game.GetPlayer(id);
-            if (player is null || label.Radius < 1)
+            if (player is null || !player.IsAlive)
                 continue;
 
-            // Size to the room inside the territory (shrinking only makes it smaller, so
-            // skip tiny or off-screen labels before doing any text work).
-            float size = label.Radius * 0.55f;
-            if (size * zoom < MinScreenFontPixels)
-                continue;
-            if (!view.Grow(label.Radius * 2).HasPoint(label.Position))
-                continue;
+            // OpenFront's sizing: a font size in tiles from the placement's size.
+            float baseSize = MathF.Max(1, MathF.Floor(label.Size));
+            float nameSize = MathF.Max(4, MathF.Floor(baseSize * 0.4f));
+            float nameScale = MathF.Min(baseSize * 0.25f, 3);
+            float em = nameSize * nameScale;
+            float scale = em / RefSize;
 
-            // Text is laid out once at a fixed size and scaled here, instead of being
-            // re-shaped at a new size every frame (which was most of the frame time).
             var name = NameLine(id, player.Name);
-            var flag = FlagTexture(player.Flag);
-            float nameWidth = name.GetSize().X * size / RefSize;
-            float flagWidth = flag is null ? 0 : size * 0.95f;
-            float gap = flag is null ? 0 : size * 0.25f;
-            float total = flagWidth + gap + nameWidth;
-            if (total > label.Radius * 1.8f)
-            {
-                size *= label.Radius * 1.8f / total;
-                nameWidth = name.GetSize().X * size / RefSize;
-                flagWidth = flag is null ? 0 : size * 0.95f;
-                gap = flag is null ? 0 : size * 0.25f;
-                total = flagWidth + gap + nameWidth;
-            }
-            if (size * zoom < MinScreenFontPixels)
+            float ascent = name.GetLineAscent() * scale;
+            if (ascent * zoom < MinScreenAscentPixels)
+                continue;
+            float nameWidth = name.GetSize().X * scale;
+            if (!view.Grow(nameWidth + ascent * 4).HasPoint(label.Position))
                 continue;
 
-            float scale = size / RefSize;
-            float ascent = name.GetLineAscent() * scale;
-            var nameBaseline = new Vector2(label.Position.X - total / 2 + flagWidth + gap, label.Position.Y);
-            if (flag is not null)
+            // The name is centred on the spot (its baseline half an ascent below it), with the
+            // flag just left of it, a little taller than the letters...
+            var pos = label.Position;
+            if (FlagTexture(player.Flag) is { } flag)
             {
-                float flagHeight = flagWidth * 0.75f;
-                var rect = new Rect2(label.Position.X - total / 2, nameBaseline.Y - ascent * 0.5f - flagHeight * 0.55f, flagWidth, flagHeight);
-                DrawTextureRect(flag, rect, false);
+                float flagHeight = ascent * 1.2f, flagWidth = flagHeight * FlagAspect;
+                DrawTextureRect(flag, new Rect2(pos.X - nameWidth / 2 - flagWidth, pos.Y - flagHeight / 2, flagWidth, flagHeight), false);
             }
-            DrawSetTransform(nameBaseline - new Vector2(0, ascent), 0, new Vector2(scale, scale));
+            DrawSetTransform(pos - new Vector2(nameWidth / 2, ascent / 2), 0, new Vector2(scale, scale));
             name.DrawOutline(canvas, Vector2.Zero, RefOutline, OutlineColor);
             name.Draw(canvas, Vector2.Zero, TextColor);
+            DrawSetTransform(Vector2.Zero, 0, Vector2.One);
 
+            // ...and the troop count, smaller, underneath.
             var troops = TroopLine(id, GameHud.FormatCount(player.Troops));
-            float troopScale = scale * 0.7f;
+            float troopScale = scale * TroopScale;
             float troopWidth = troops.GetSize().X * troopScale;
-            var troopBaseline = new Vector2(label.Position.X - troopWidth / 2, label.Position.Y + size * 0.7f * 1.05f);
-            DrawSetTransform(troopBaseline - new Vector2(0, troops.GetLineAscent() * troopScale), 0, new Vector2(troopScale, troopScale));
+            float troopAscent = troops.GetLineAscent() * troopScale;
+            var troopTop = new Vector2(pos.X - troopWidth / 2, pos.Y + ascent * 1.1f - troopAscent / 2);
+            DrawSetTransform(troopTop, 0, new Vector2(troopScale, troopScale));
             troops.DrawOutline(canvas, Vector2.Zero, RefOutline, OutlineColor);
             troops.Draw(canvas, Vector2.Zero, TextColor);
             DrawSetTransform(Vector2.Zero, 0, Vector2.One);

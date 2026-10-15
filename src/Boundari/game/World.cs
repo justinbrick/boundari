@@ -89,6 +89,7 @@ public partial class World : Node2D
 
     private MapOverlay _overlay = null!;
     private DevTools _devTools = null!;
+    private CoordinateGrid _grid = null!;
     private bool _showPlayers = true, _showLabels = true;
     private BuildingType? _placing;
     private NukeType? _aiming;
@@ -122,9 +123,12 @@ public partial class World : Node2D
         _camera = GetNode<Camera2D>("Camera2D");
         _hud = new GameHud(this);
         _panels = new PlayerPanels(this);
+        _grid = new CoordinateGrid { Name = "CoordinateGrid", Visible = false };
+        AddChild(_grid);
+        MoveChild(_grid, _view.GetIndex() + 1); // on the map, under buildings and labels
         _overlay = new MapOverlay { Name = "MapOverlay" };
         AddChild(_overlay);
-        MoveChild(_overlay, _view.GetIndex() + 1); // just above the map, below the HUD
+        MoveChild(_overlay, _grid.GetIndex() + 1); // just above the map, below the HUD
         _fps = MakeFpsLabel();
         _labels = new TerritoryLabels { Name = "TerritoryLabels" };
         AddChild(_labels);
@@ -146,6 +150,7 @@ public partial class World : Node2D
                 _showLabels = show;
                 _labels.Visible = show && _showPlayers;
             },
+            ShowGrid = show => _grid.Visible = show,
         };
         AddChild(_devTools);
 
@@ -272,7 +277,6 @@ public partial class World : Node2D
             GD.Print($"perf: {Engine.GetFramesPerSecond()} fps, tick {_game.Tick}, {_game.Attacks.Count} attacks");
         }
 
-        _view.UpdateDepth(_game, delta);
         long flushStart = FrameProfiler.Start();
         _view.FlushTerritory();
         FrameProfiler.Stop("territory upload", flushStart);
@@ -347,12 +351,13 @@ public partial class World : Node2D
         if (button.Pressed)
         {
             _pressPosition = button.Position;
+            _pressIsDouble = button.DoubleClick;
         }
         else if (_pressPosition is { } start)
         {
             _pressPosition = null;
             if (start.DistanceTo(button.Position) <= ClickMaxDrag)
-                OnMapClicked(GetGlobalMousePosition());
+                OnMapClicked(GetGlobalMousePosition(), _pressIsDouble);
         }
     }
 
@@ -530,7 +535,7 @@ public partial class World : Node2D
         return best >= 0 ? best : tile;
     }
 
-    /// <summary>Boats troops towards the land at this tile (B key, or a click on land you can't walk to).</summary>
+    /// <summary>Boats troops towards the land at this tile (B key, or a double click on land you can't walk to).</summary>
     private void SendBoat(int tile)
     {
         if (tile < 0 || !_map.IsLand(tile) || _game.Phase != GamePhase.Running || !_me.HasSpawned || !_me.IsAlive)
@@ -551,7 +556,10 @@ public partial class World : Node2D
         return tile < 0 ? null : _game.GetPlayer(_game.Owner[tile]);
     }
 
-    private void OnMapClicked(Vector2 worldPosition)
+    private bool _pressIsDouble;
+
+    /// <summary>A left click on the map (the second click of a double click has <paramref name="doubleClick"/> set).</summary>
+    private void OnMapClicked(Vector2 worldPosition, bool doubleClick)
     {
         int tile = _view.TileAt(worldPosition);
         if (_aiming is { } nuke)
@@ -588,8 +596,8 @@ public partial class World : Node2D
             return;
         if (_game.CanReachByLand(_me, tile))
             _game.Submit(new AttackIntent(_me.Id, target, _hud.AttackRatioPercent));
-        else
-            SendBoat(tile);
+        else if (doubleClick)
+            SendBoat(tile); // land you can't walk to: a double click sends a boat (or press B)
     }
 
     // ------------------------------------------------------------------
@@ -634,6 +642,7 @@ public partial class World : Node2D
     {
         _map = map;
         _view.ShowMap(_map);
+        _grid.SetMap(_map.Width, _map.Height);
         _devTools.ApplyAll(); // a new map resets the map material's settings
         StartMatch();
 
@@ -864,7 +873,7 @@ public partial class World : Node2D
 
     private async void SaveScreenshotAndQuit(string path)
     {
-        // A few frames, and enough time for background work (label placement, depth field) to land.
+        // A few frames, and enough time for background work (label placement) to land.
         var started = Time.GetTicksMsec();
         for (int i = 0; i < 4 || Time.GetTicksMsec() - started < 600; i++)
             await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
