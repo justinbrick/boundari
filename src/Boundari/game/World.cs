@@ -130,7 +130,16 @@ public partial class World : Node2D
         MoveChild(_labels, _overlay.GetIndex() + 1);
         _overlay.WaitForSim = SyncSim;
         _labels.WaitForSim = SyncSim;
-        _devTools = new DevTools { View = _view };
+        _devTools = new DevTools
+        {
+            View = _view,
+            ShowPlayers = show =>
+            {
+                _view.ShowTerritory = show;
+                _overlay.Visible = show;
+                _labels.Visible = show;
+            },
+        };
         AddChild(_devTools);
 
         foreach (var (nuke, path) in NukeButtons)

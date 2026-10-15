@@ -15,6 +15,7 @@ namespace Boundari.View;
 ///   INR inner effect       off / glow / darken, along the inside of territory borders
 ///   GRD coordinate grid    off / 10 / 5 / 2 degrees
 ///   TOP topography         contour lines: off / every 100 / 250 / 500 m
+///   PLY players            on / off: hide every territory, label, building and ship to see the bare map (also T)
 /// </summary>
 public partial class DevTools : CanvasLayer
 {
@@ -31,6 +32,9 @@ public partial class DevTools : CanvasLayer
 
     /// <summary>The map these settings change (set before adding the node).</summary>
     public MapView? View { get => _view; set => _view = value; }
+
+    /// <summary>Shows or hides everything players put on the map (territory, labels, buildings, ships).</summary>
+    public Action<bool>? ShowPlayers { get; set; }
 
     private MapView V => _view ?? throw new InvalidOperationException("DevTools.View isn't set");
 
@@ -53,6 +57,7 @@ public partial class DevTools : CanvasLayer
                 i => V.GridStep = new[] { 0f, 10f, 5f, 2f }[i]),
             new("TOP", "Topography (contour lines, metres)", new[] { "OFF", "100", "250", "500" }, 0,
                 i => V.ContourInterval = new[] { 0f, 100f, 250f, 500f }[i]),
+            new("PLY", "Players, tribes and nations (T toggles)", new[] { "ON", "OFF" }, 0, i => ShowPlayers?.Invoke(i == 0)),
         };
         _values = new int[_settings.Count];
         for (int i = 0; i < _settings.Count; i++)
@@ -122,6 +127,12 @@ public partial class DevTools : CanvasLayer
             return;
         switch (key.Keycode)
         {
+            case Key.T when !key.Echo:
+                int ply = _settings.FindIndex(x => x.Abbr == "PLY");
+                _values[ply] = 1 - _values[ply];
+                _settings[ply].Apply(_values[ply]);
+                Save();
+                break;
             case Key.Left:
                 _selected = (_selected + _settings.Count - 1) % _settings.Count;
                 break;
@@ -156,7 +167,7 @@ public partial class DevTools : CanvasLayer
         }
         _strip.Text = string.Join("[color=#5d655a]  |  [/color]", parts);
         var sel = _settings[_selected];
-        _hint.Text = $"{sel.Name}: {sel.Labels[_values[_selected]]}   (←/→ pick, ↑/↓ change)";
+        _hint.Text = $"{sel.Name}: {sel.Labels[_values[_selected]]}   (←/→ pick, ↑/↓ change, T players)";
     }
 
     private void Load()
