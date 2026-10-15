@@ -82,7 +82,7 @@ public partial class World
         // Then click the alliance wedge (bottom right of the menu) and see the alliance form.
         for (int i = 0; i < 3; i++)
             await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
-        var wedge = screen + new Vector2(58, 58);
+        var wedge = screen + new Vector2(77, 77); // the alliance wedge's middle at the menu's 0.8 scale
         GetViewport().PushInput(new InputEventMouseMotion { Position = wedge, GlobalPosition = wedge }, true);
         GetViewport().PushInput(new InputEventMouseButton { ButtonIndex = MouseButton.Left, Pressed = true, Position = wedge, GlobalPosition = wedge }, true);
         GetViewport().PushInput(new InputEventMouseButton { ButtonIndex = MouseButton.Left, Pressed = false, Position = wedge, GlobalPosition = wedge }, true);
@@ -91,6 +91,31 @@ public partial class World
             await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
         SyncSim();
         GD.Print($"right-click: allied with {request.From.Name} now: {_me.IsAlliedWith(request.From)}; menu open: {IsInstanceValid(_mainControl?.Get("current_menu").AsGodotObject())}");
+    }
+
+    /// <summary>
+    /// Dev button (Y): a random player whose territory is on screen (or anywhere, if none
+    /// is) asks us to ally, so requests can be tested without waiting for one.
+    /// </summary>
+    private void ForceAllianceRequest()
+    {
+        SyncSim();
+        if (_game.Phase != GamePhase.Running || !_me.HasSpawned || !_me.IsAlive)
+        {
+            GD.Print("ally request: only once the match is running and you've spawned");
+            return;
+        }
+        var view = GetCanvasTransform().AffineInverse() * GetViewportRect();
+        var candidates = _game.Players
+            .Where(p => p != _me && p.IsAlive && p.HasSpawned && !_me.IsAlliedWith(p) && _game.CanRequestAlliance(p, _me))
+            .ToList();
+        var onScreen = candidates.Where(p => _labels.TryGetAnchor(p.Id, out var at) && view.HasPoint(at)).ToList();
+        var pool = onScreen.Count > 0 ? onScreen : candidates;
+        if (pool.Count == 0)
+            return;
+        var asker = pool[Random.Shared.Next(pool.Count)];
+        _game.Submit(new AllianceIntent(asker.Id, _me.Id));
+        GD.Print($"ally request: {asker.Name} asks you to ally");
     }
 
     /// <summary>Requests waiting for us, for the on-map arcs.</summary>

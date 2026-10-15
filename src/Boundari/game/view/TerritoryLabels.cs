@@ -18,8 +18,15 @@ public partial class TerritoryLabels : Node2D
     private const double RefreshSeconds = 3.0;          // OpenFront: every 30 ticks
     private const double SpawningRefreshSeconds = 0.5;  // while players are still picking spots
     private const float GlideRate = 10f;                // OpenFront's name lerp speed
-    private const float MinScreenAscentPixels = 7.5f;   // names smaller than this aren't drawn
-    private const float HoveredAscentPixels = 13f;      // the hovered player's name is never smaller
+    private const float MinScreenCapPixels = 5.5f;      // names with capitals smaller than this aren't drawn
+    private const float HoveredCapPixels = 10f;         // the hovered player's name is never smaller
+    // Our font (Exo 2) is wider than OpenFront's and its "ascent" is a full em, so OpenFront's
+    // sizes are scaled down and everything is measured from the capitals' height instead.
+    private const float SizeFactor = 0.65f;
+    private const float CapHeight = 0.7f;               // Exo 2's capitals, as a share of the font size
+    private const float FlagCapShare = 1.05f;           // flag height, as a share of the capitals' height
+    private const float TroopLineOffset = 0.9f;         // troop line's middle below the name's, in font sizes
+    private const float HoverFadeAlpha = 0.5f;          // OpenFront's see-through name plate under the mouse
     private const int NearShoreWater = 10;              // water this close to land counts as room
     private const float FlagAspect = 128f / 85f;        // OpenFront's flag cells (3:2)
     private const float TroopScale = 0.6f;
@@ -44,6 +51,9 @@ public partial class TerritoryLabels : Node2D
     /// <summary>Waits for the simulation's worker to finish (in case Godot redraws us mid-tick on its own).</summary>
     public Action? WaitForSim { get; set; }
 
+    /// <summary>Screenshot aid (--hover): pretend the mouse is here (map tiles).</summary>
+    public Vector2? MouseOverride { get; set; }
+
     /// <summary>The player under the mouse (0 = none): their label is always shown, on top, readable.</summary>
     public ushort Hovered { get; set; }
 
@@ -58,6 +68,7 @@ public partial class TerritoryLabels : Node2D
     private Game? _game;
     private double _sinceRefresh = RefreshSeconds;
     private Font _font = null!;
+    private Vector2 _mouse;     // in map tiles, for fading the name plate under it
 
     // Placement scratch (background thread only).
     private bool[] _room = Array.Empty<bool>();  // shore tiles and water near land: names may overhang them
@@ -163,6 +174,7 @@ public partial class TerritoryLabels : Node2D
             label.Position = label.Position.Lerp(label.Target, t);
             label.Size += (label.TargetSize - label.Size) * t;
         }
+        _mouse = MouseOverride ?? GetGlobalMousePosition();
         if (!Frozen)
             QueueRedraw();
     }
@@ -340,49 +352,51 @@ public partial class TerritoryLabels : Node2D
         if (player is null || !player.IsAlive)
             return;
 
-        // OpenFront's sizing: a font size in tiles from the placement's size.
+        // OpenFront's sizing: a font size in tiles from the placement's size (scaled to
+        // suit our wider font), measured by the letters' cap height.
         float baseSize = MathF.Max(1, MathF.Floor(label.Size));
         float nameSize = MathF.Max(4, MathF.Floor(baseSize * 0.4f));
         float nameScale = MathF.Min(baseSize * 0.25f, 3);
-        float em = nameSize * nameScale;
+        float em = nameSize * nameScale * SizeFactor;
+        if (hovered && em * CapHeight * zoom < HoveredCapPixels)
+            em = HoveredCapPixels / (CapHeight * zoom); // too small to show (or read): readable while hovered
+        float cap = em * CapHeight;
+        if (cap * zoom < MinScreenCapPixels)
+            return;
         float scale = em / RefSize;
-
         var name = NameLine(id, player.Name);
-        float ascent = name.GetLineAscent() * scale;
-        if (hovered && ascent * zoom < HoveredAscentPixels)
-        {
-            // Too small to show (or read): blow it up to a readable size for as long as it's hovered.
-            scale *= HoveredAscentPixels / (ascent * zoom);
-            ascent = name.GetLineAscent() * scale;
-        }
-        if (ascent * zoom < MinScreenAscentPixels)
-            return;
         float nameWidth = name.GetSize().X * scale;
-        if (!view.Grow(nameWidth + ascent * 4).HasPoint(label.Position))
+        var pos = label.Position;
+        if (!view.Grow(nameWidth + em * 4).HasPoint(pos))
             return;
 
-        // The name is centred on the spot (its baseline half an ascent below it), with the
-        // flag just left of it, a little taller than the letters...
-        var pos = label.Position;
-        if (FlagTexture(player.Flag) is { } flag)
-        {
-            float flagHeight = ascent * 1.2f, flagWidth = flagHeight * FlagAspect;
-            DrawTextureRect(flag, new Rect2(pos.X - nameWidth / 2 - flagWidth, pos.Y - flagHeight / 2, flagWidth, flagHeight), false);
-        }
-        DrawSetTransform(pos - new Vector2(nameWidth / 2, ascent / 2), 0, new Vector2(scale, scale));
-        name.DrawOutline(canvas, Vector2.Zero, RefOutline, OutlineColor);
-        name.Draw(canvas, Vector2.Zero, TextColor);
-        DrawSetTransform(Vector2.Zero, 0, Vector2.One);
-
-        // ...and the troop count, smaller, underneath.
+        // The name's capitals are centred on the spot, the flag sits just left of it, and
+        // the troop count, smaller, goes underneath.
+        var flag = FlagTexture(player.Flag);
+        float flagHeight = cap * FlagCapShare, flagWidth = flag is null ? 0 : flagHeight * FlagAspect;
         var troops = TroopLine(id, GameHud.FormatCount(player.Troops));
         float troopScale = scale * TroopScale;
         float troopWidth = troops.GetSize().X * troopScale;
-        float troopAscent = troops.GetLineAscent() * troopScale;
-        var troopTop = new Vector2(pos.X - troopWidth / 2, pos.Y + ascent * 1.1f - troopAscent / 2);
-        DrawSetTransform(troopTop, 0, new Vector2(troopScale, troopScale));
-        troops.DrawOutline(canvas, Vector2.Zero, RefOutline, OutlineColor);
-        troops.Draw(canvas, Vector2.Zero, TextColor);
+        float troopCap = cap * TroopScale;
+        float troopMiddle = pos.Y + em * TroopLineOffset;
+
+        // Like OpenFront, a name plate under the mouse turns see-through, so you can see what's beneath.
+        var plate = new Rect2(pos.X - nameWidth / 2 - flagWidth, pos.Y - Math.Max(cap, flagHeight) / 2,
+            nameWidth + flagWidth, troopMiddle + troopCap - (pos.Y - Math.Max(cap, flagHeight) / 2));
+        plate = plate.Merge(new Rect2(pos.X - troopWidth / 2, plate.Position.Y, troopWidth, plate.Size.Y));
+        float alpha = plate.Grow(cap * 0.15f).HasPoint(_mouse) ? HoverFadeAlpha : 1f;
+        var text = TextColor with { A = TextColor.A * alpha };
+        var outline = OutlineColor with { A = OutlineColor.A * alpha };
+
+        if (flag is not null)
+            DrawTextureRect(flag, new Rect2(pos.X - nameWidth / 2 - flagWidth, pos.Y - flagHeight / 2, flagWidth, flagHeight), false, new Color(1, 1, 1, alpha));
+        // TextLine draws from the top of its line; the baseline is one ascent (= one em) down.
+        DrawSetTransform(new Vector2(pos.X - nameWidth / 2, pos.Y + cap / 2 - em), 0, new Vector2(scale, scale));
+        name.DrawOutline(canvas, Vector2.Zero, RefOutline, outline);
+        name.Draw(canvas, Vector2.Zero, text);
+        DrawSetTransform(new Vector2(pos.X - troopWidth / 2, troopMiddle + troopCap / 2 - em * TroopScale), 0, new Vector2(troopScale, troopScale));
+        troops.DrawOutline(canvas, Vector2.Zero, RefOutline, outline);
+        troops.Draw(canvas, Vector2.Zero, text);
         DrawSetTransform(Vector2.Zero, 0, Vector2.One);
     }
 

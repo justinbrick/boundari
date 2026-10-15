@@ -16,6 +16,7 @@ namespace Boundari.View;
 ///   TOP topography         contour lines: off / every 100 / 250 / 500 m
 ///   LBL labels             on / off: territory names, flags and troop counts
 ///   PLY players            on / off: hide every territory, label, building and ship to see the bare map (also T)
+/// Below the strip, an "Ally request" button (or Y): a random territory on screen asks you to ally.
 /// </summary>
 public partial class DevTools : CanvasLayer
 {
@@ -44,6 +45,9 @@ public partial class DevTools : CanvasLayer
 
     /// <summary>Shows or hides the coordinate grid.</summary>
     public Action<bool>? ShowGrid { get; set; }
+
+    /// <summary>Makes a random territory ask the player to ally (the "Ally request" button / Y).</summary>
+    public Action? ForceAllianceRequest { get; set; }
 
     private MapView V => _view ?? throw new InvalidOperationException("DevTools.View isn't set");
 
@@ -113,6 +117,13 @@ public partial class DevTools : CanvasLayer
         _hint.AddThemeFontSizeOverride("font_size", 10);
         _hint.AddThemeColorOverride("font_color", new Color(0.7f, 0.75f, 0.68f));
         column.AddChild(_hint);
+
+        var actions = new HBoxContainer { Alignment = BoxContainer.AlignmentMode.End, MouseFilter = Control.MouseFilterEnum.Ignore };
+        column.AddChild(actions);
+        var ally = new Button { Text = "Ally request (Y)", FocusMode = Control.FocusModeEnum.None, TooltipText = "A random territory on screen asks you to ally" };
+        ally.AddThemeFontSizeOverride("font_size", 11);
+        ally.Pressed += () => ForceAllianceRequest?.Invoke();
+        actions.AddChild(ally);
         Refresh();
     }
 
@@ -144,6 +155,10 @@ public partial class DevTools : CanvasLayer
             return;
         switch (key.Keycode)
         {
+            case Key.Y when !key.Echo:
+                ForceAllianceRequest?.Invoke();
+                GetViewport().SetInputAsHandled();
+                return;
             case Key.T when !key.Echo:
                 int ply = _settings.FindIndex(x => x.Abbr == "PLY");
                 _values[ply] = 1 - _values[ply];

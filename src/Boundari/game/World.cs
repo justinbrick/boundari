@@ -166,6 +166,7 @@ public partial class World : Node2D
                 _labels.Visible = show && _showPlayers;
             },
             ShowGrid = show => _grid.Visible = show,
+            ForceAllianceRequest = ForceAllianceRequest,
         };
         AddChild(_devTools);
 
@@ -702,6 +703,7 @@ public partial class World : Node2D
         _overlay.SetPalette(PlayerColors.Solid(_palette));
         _ = _game.Waterways; // prepare sea routes now, not on the first boat
         _labels.SetGame(_game);
+        _labels.MouseOverride = _args.Hover is { } fake ? new Vector2(fake.X * _map.Width, fake.Y * _map.Height) : null;
         _overlay.SetGame(_game, _me);
         _placing = null;
 

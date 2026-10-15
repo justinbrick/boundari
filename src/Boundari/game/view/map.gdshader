@@ -58,7 +58,7 @@ uniform float coast_border_width : hint_range(0.0, 3.0) = 0.6;
 uniform float border_darken : hint_range(0.0, 1.0) = 0.35;
 // The territory under the mouse (owner id; -1 = none) is drawn lighter.
 uniform int hover_id = -1;
-uniform float hover_lighten : hint_range(0.0, 1.0) = 0.22;
+uniform float hover_lighten : hint_range(0.0, 1.0) = 0.08;
 
 group_uniforms dev_tools;
 // Land-cover patches: 1 = smooth rounded shapes (the normal look), 0 = square cells.
