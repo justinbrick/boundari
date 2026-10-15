@@ -37,6 +37,20 @@ public partial class MapView : Sprite2D
     private Image _paletteImage = null!;
     private ImageTexture _paletteTexture = null!;
 
+    private int _hoverId = -1;
+
+    /// <summary>The owner whose territory is drawn lighter (under the mouse), or -1 for none.</summary>
+    public int HoverId
+    {
+        set
+        {
+            if (value == _hoverId)
+                return;
+            _hoverId = value;
+            _material.SetShaderParameter("hover_id", value);
+        }
+    }
+
     public bool ShowTerritory
     {
         get => (bool)_material.GetShaderParameter("show_territory");

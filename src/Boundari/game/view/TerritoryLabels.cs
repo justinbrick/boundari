@@ -19,6 +19,7 @@ public partial class TerritoryLabels : Node2D
     private const double SpawningRefreshSeconds = 0.5;  // while players are still picking spots
     private const float GlideRate = 10f;                // OpenFront's name lerp speed
     private const float MinScreenAscentPixels = 7.5f;   // names smaller than this aren't drawn
+    private const float HoveredAscentPixels = 13f;      // the hovered player's name is never smaller
     private const int NearShoreWater = 10;              // water this close to land counts as room
     private const float FlagAspect = 128f / 85f;        // OpenFront's flag cells (3:2)
     private const float TroopScale = 0.6f;
@@ -42,6 +43,9 @@ public partial class TerritoryLabels : Node2D
 
     /// <summary>Waits for the simulation's worker to finish (in case Godot redraws us mid-tick on its own).</summary>
     public Action? WaitForSim { get; set; }
+
+    /// <summary>The player under the mouse (0 = none): their label is always shown, on top, readable.</summary>
+    public ushort Hovered { get; set; }
     private readonly Dictionary<string, Texture2D?> _flags = new();
     private Game? _game;
     private double _sinceRefresh = RefreshSeconds;
@@ -316,50 +320,62 @@ public partial class TerritoryLabels : Node2D
         var canvas = GetCanvasItem();
 
         foreach (var (id, label) in _labels)
+            if (id != Hovered)
+                DrawLabel(id, label, zoom, view, canvas, false);
+        if (_labels.TryGetValue(Hovered, out var hovered))
+            DrawLabel(Hovered, hovered, zoom, view, canvas, true); // last, so it's on top
+    }
+
+    private void DrawLabel(ushort id, Label label, float zoom, Rect2 view, Rid canvas, bool hovered)
+    {
+        var player = _game!.GetPlayer(id);
+        if (player is null || !player.IsAlive)
+            return;
+
+        // OpenFront's sizing: a font size in tiles from the placement's size.
+        float baseSize = MathF.Max(1, MathF.Floor(label.Size));
+        float nameSize = MathF.Max(4, MathF.Floor(baseSize * 0.4f));
+        float nameScale = MathF.Min(baseSize * 0.25f, 3);
+        float em = nameSize * nameScale;
+        float scale = em / RefSize;
+
+        var name = NameLine(id, player.Name);
+        float ascent = name.GetLineAscent() * scale;
+        if (hovered && ascent * zoom < HoveredAscentPixels)
         {
-            var player = _game.GetPlayer(id);
-            if (player is null || !player.IsAlive)
-                continue;
-
-            // OpenFront's sizing: a font size in tiles from the placement's size.
-            float baseSize = MathF.Max(1, MathF.Floor(label.Size));
-            float nameSize = MathF.Max(4, MathF.Floor(baseSize * 0.4f));
-            float nameScale = MathF.Min(baseSize * 0.25f, 3);
-            float em = nameSize * nameScale;
-            float scale = em / RefSize;
-
-            var name = NameLine(id, player.Name);
-            float ascent = name.GetLineAscent() * scale;
-            if (ascent * zoom < MinScreenAscentPixels)
-                continue;
-            float nameWidth = name.GetSize().X * scale;
-            if (!view.Grow(nameWidth + ascent * 4).HasPoint(label.Position))
-                continue;
-
-            // The name is centred on the spot (its baseline half an ascent below it), with the
-            // flag just left of it, a little taller than the letters...
-            var pos = label.Position;
-            if (FlagTexture(player.Flag) is { } flag)
-            {
-                float flagHeight = ascent * 1.2f, flagWidth = flagHeight * FlagAspect;
-                DrawTextureRect(flag, new Rect2(pos.X - nameWidth / 2 - flagWidth, pos.Y - flagHeight / 2, flagWidth, flagHeight), false);
-            }
-            DrawSetTransform(pos - new Vector2(nameWidth / 2, ascent / 2), 0, new Vector2(scale, scale));
-            name.DrawOutline(canvas, Vector2.Zero, RefOutline, OutlineColor);
-            name.Draw(canvas, Vector2.Zero, TextColor);
-            DrawSetTransform(Vector2.Zero, 0, Vector2.One);
-
-            // ...and the troop count, smaller, underneath.
-            var troops = TroopLine(id, GameHud.FormatCount(player.Troops));
-            float troopScale = scale * TroopScale;
-            float troopWidth = troops.GetSize().X * troopScale;
-            float troopAscent = troops.GetLineAscent() * troopScale;
-            var troopTop = new Vector2(pos.X - troopWidth / 2, pos.Y + ascent * 1.1f - troopAscent / 2);
-            DrawSetTransform(troopTop, 0, new Vector2(troopScale, troopScale));
-            troops.DrawOutline(canvas, Vector2.Zero, RefOutline, OutlineColor);
-            troops.Draw(canvas, Vector2.Zero, TextColor);
-            DrawSetTransform(Vector2.Zero, 0, Vector2.One);
+            // Too small to show (or read): blow it up to a readable size for as long as it's hovered.
+            scale *= HoveredAscentPixels / (ascent * zoom);
+            ascent = name.GetLineAscent() * scale;
         }
+        if (ascent * zoom < MinScreenAscentPixels)
+            return;
+        float nameWidth = name.GetSize().X * scale;
+        if (!view.Grow(nameWidth + ascent * 4).HasPoint(label.Position))
+            return;
+
+        // The name is centred on the spot (its baseline half an ascent below it), with the
+        // flag just left of it, a little taller than the letters...
+        var pos = label.Position;
+        if (FlagTexture(player.Flag) is { } flag)
+        {
+            float flagHeight = ascent * 1.2f, flagWidth = flagHeight * FlagAspect;
+            DrawTextureRect(flag, new Rect2(pos.X - nameWidth / 2 - flagWidth, pos.Y - flagHeight / 2, flagWidth, flagHeight), false);
+        }
+        DrawSetTransform(pos - new Vector2(nameWidth / 2, ascent / 2), 0, new Vector2(scale, scale));
+        name.DrawOutline(canvas, Vector2.Zero, RefOutline, OutlineColor);
+        name.Draw(canvas, Vector2.Zero, TextColor);
+        DrawSetTransform(Vector2.Zero, 0, Vector2.One);
+
+        // ...and the troop count, smaller, underneath.
+        var troops = TroopLine(id, GameHud.FormatCount(player.Troops));
+        float troopScale = scale * TroopScale;
+        float troopWidth = troops.GetSize().X * troopScale;
+        float troopAscent = troops.GetLineAscent() * troopScale;
+        var troopTop = new Vector2(pos.X - troopWidth / 2, pos.Y + ascent * 1.1f - troopAscent / 2);
+        DrawSetTransform(troopTop, 0, new Vector2(troopScale, troopScale));
+        troops.DrawOutline(canvas, Vector2.Zero, RefOutline, OutlineColor);
+        troops.Draw(canvas, Vector2.Zero, TextColor);
+        DrawSetTransform(Vector2.Zero, 0, Vector2.One);
     }
 
     // Labels are laid out at this font size, then scaled to fit.

@@ -295,6 +295,8 @@ public partial class World : Node2D
         _hud.Update(_game, _me);
         FrameProfiler.Stop("  hud", hudOnly);
         var hovered = HoveredPlayer();
+        _view.HoverId = hovered?.Id ?? -1;
+        _labels.Hovered = hovered?.Id ?? 0;
         _panels.Update(_game, _me, hovered, delta);
         FrameProfiler.Stop("hud+panels", hudStart);
     }

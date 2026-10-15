@@ -8,6 +8,9 @@ uniform float blur_amount : hint_range(0.0, 5.0) = 1.5;
 // Darken the blurred background a bit
 uniform float darken_amount : hint_range(0.0, 1.0) = 0.75;
 
+// Extra tint on top (above 1 lightens, below 1 darkens; the radial menu uses it for hover/press)
+uniform float tint : hint_range(0.0, 3.0) = 1.0;
+
 // Grain settings
 uniform float noise_strength : hint_range(0.0, 1.0) = 0.07; // how strong the grain is
 uniform float grain_scale    : hint_range(10.0, 400.0) = 150.0; // how big the grain is
@@ -31,7 +34,7 @@ void fragment() {
     vec3 col = textureLod(SCREEN_TEXTURE, SCREEN_UV, blur_amount).rgb;
 
     // --- Darken it ---
-    col *= darken_amount;
+    col *= darken_amount * tint;
 
     // --- Grain ---
     // Animate UV slightly over time so each frame is different
