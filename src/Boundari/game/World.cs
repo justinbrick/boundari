@@ -114,6 +114,7 @@ public partial class World : Node2D
 
     public override void _Ready()
     {
+        RenderingServer.FramePostDraw += OnFramePostDraw;
         _view = GetNode<MapView>("MapDisplay");
         _camera = GetNode<Camera2D>("Camera2D");
         _hud = new GameHud(this);
@@ -125,6 +126,8 @@ public partial class World : Node2D
         _labels = new TerritoryLabels { Name = "TerritoryLabels" };
         AddChild(_labels);
         MoveChild(_labels, _overlay.GetIndex() + 1);
+        _overlay.WaitForSim = SyncSim;
+        _labels.WaitForSim = SyncSim;
 
         foreach (var (nuke, path) in NukeButtons)
             if (GetNodeOrNull<Button>("Main_Layer/Main_Control/ButtonsRow/" + path) is { } button)
@@ -152,28 +155,93 @@ public partial class World : Node2D
             SaveScreenshotAndQuit(_args.Screenshot);
     }
 
+    // ------------------------------------------------------------------
+    //  The simulation runs on its own thread
+    // ------------------------------------------------------------------
+    //
+    // Each tick runs on a worker thread, started just after a frame has been drawn. While it
+    // runs, the screen keeps going: the map, camera and territory animation stay smooth, and
+    // the overlay and labels keep showing their last drawing until the tick is done (usually
+    // within a frame). Nothing on this thread touches the game while the worker has it:
+    // input that needs the game waits for the tick to finish first (SyncSim).
+
+    private System.Threading.Tasks.Task? _simTask;
+    private int _simTick;          // the tick the worker is running
+    private long _simElapsed;      // how long it took (Stopwatch ticks)
+    private int _shownTick;        // the game's tick as of the last finished step
+
+    private const int MaxSimWaitMs = 4;
+
+    /// <summary>True while a tick is running on the worker thread.</summary>
+    private bool SimBusy => _simTask is { IsCompleted: false };
+
+    /// <summary>Waits for a running tick to finish and takes in its results (territory changes, timings).</summary>
+    private void SyncSim()
+    {
+        if (_simTask is null)
+            return;
+        try
+        {
+            _simTask.Wait();
+        }
+        catch (AggregateException e) when (e.InnerException is not null)
+        {
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(e.InnerException).Throw();
+        }
+        finally
+        {
+            _simTask = null;
+        }
+        double stepMs = _simElapsed * 1000.0 / Stopwatch.Frequency;
+        _stepMs += stepMs;
+        _worstStepMs = Math.Max(_worstStepMs, stepMs);
+        _steps++;
+        long recordStart = FrameProfiler.Start();
+        _view.RecordTick(_game.Owner, _game.Fallout, _game.ChangedTiles, _simTick);
+        _game.ChangedTiles.Clear();
+        FrameProfiler.Stop("territory record", recordStart);
+        _shownTick = _game.Tick;
+    }
+
+    /// <summary>After each frame is drawn: start the next tick if one is due.</summary>
+    private void OnFramePostDraw()
+    {
+        if (_game is null || _simTask is not null)
+            return;
+        double tickLength = 1.0 / Balance.TicksPerSecond;
+        if (_tickTime < tickLength)
+            return;
+        _tickTime -= tickLength;
+        var game = _game;
+        _simTick = game.Tick;
+        _simTask = System.Threading.Tasks.Task.Run(() =>
+        {
+            long started = Stopwatch.GetTimestamp();
+            game.Step();
+            _simElapsed = Stopwatch.GetTimestamp() - started;
+        });
+    }
+
+    public override void _ExitTree()
+    {
+        RenderingServer.FramePostDraw -= OnFramePostDraw;
+        if (_simTask is not null)
+            SyncSim();
+    }
+
     public override void _Process(double delta)
     {
-        // Fixed-rate simulation: catch up on missed ticks, but never more than a few per frame.
-        _tickTime += delta;
+        // Fixed-rate simulation (10 ticks a second), stepped on a worker thread between frames.
         double tickLength = 1.0 / Balance.TicksPerSecond;
-        for (int i = 0; i < 4 && _tickTime >= tickLength; i++)
-        {
-            int tick = _game.Tick;
-            long stepStart = Stopwatch.GetTimestamp();
-            _game.Step();
-            double stepMs = (Stopwatch.GetTimestamp() - stepStart) * 1000.0 / Stopwatch.Frequency;
-            _stepMs += stepMs;
-            _worstStepMs = Math.Max(_worstStepMs, stepMs);
-            _steps++;
-            FrameProfiler.Stop("sim", stepStart);
-            long recordStart = FrameProfiler.Start();
-            _view.RecordTick(_game.Owner, _game.Fallout, _game.ChangedTiles, tick);
-            _game.ChangedTiles.Clear();
-            FrameProfiler.Stop("territory record", recordStart);
-            _tickTime -= tickLength;
-        }
-        _tickTime = Math.Min(_tickTime, tickLength);
+        _tickTime = Math.Min(_tickTime + delta, 4 * tickLength); // never fall far behind
+        // A tick usually finishes within a few milliseconds: wait that long so the overlay
+        // stays in step; only a slow tick leaves the overlay showing the last frame.
+        if (_simTask is not null && (_simTask.IsCompleted || _simTask.Wait(MaxSimWaitMs)))
+            SyncSim();
+        bool busy = SimBusy;
+        _overlay.Frozen = busy;
+        _labels.Frozen = busy;
+        float fraction = (float)Math.Min(_tickTime / tickLength, 1);
 
         UpdateFps(delta);
         if (_args.Perf && (_perfTimer += delta) >= 2)
@@ -185,8 +253,14 @@ public partial class World : Node2D
         long flushStart = FrameProfiler.Start();
         _view.FlushTerritory();
         FrameProfiler.Stop("territory upload", flushStart);
-        _view.SetVisualTime(_game.Tick - 1 + (float)(_tickTime / tickLength));
-        _overlay.SetTickFraction((float)(_tickTime / tickLength));
+        _view.SetVisualTime(_shownTick - 1 + fraction);
+        _overlay.SetTickFraction(fraction);
+        FrameProfiler.EndFrame();
+        if (_args.Bench is { } bench)
+            RunBench(delta, bench);
+        if (busy)
+            return; // the worker has the game: the HUD and panels wait for the next frame
+
         long hudStart = FrameProfiler.Start();
         UpdatePlacing();
         FrameProfiler.Stop("  placing", hudStart);
@@ -196,12 +270,9 @@ public partial class World : Node2D
         var hovered = HoveredPlayer();
         _panels.Update(_game, _me, hovered, delta);
         FrameProfiler.Stop("hud+panels", hudStart);
-        FrameProfiler.EndFrame();
-        if (_args.Bench is { } bench)
-            RunBench(delta, bench);
     }
 
-    private double _benchTime, _benchReport;
+    private double _benchTime, _benchReport, _benchWorstFrame;
 
     /// <summary>
     /// --bench=SECONDS: runs the real game flat out (no vsync) and prints where frame time
@@ -217,12 +288,14 @@ public partial class World : Node2D
             FrameProfiler.Report(); // start clean
         }
         _benchTime += delta;
+        _benchWorstFrame = Math.Max(_benchWorstFrame, delta);
         if ((_benchReport += delta) >= 2)
         {
             _benchReport = 0;
             double gpu = RenderingServer.ViewportGetMeasuredRenderTimeGpu(viewport);
             double renderCpu = RenderingServer.ViewportGetMeasuredRenderTimeCpu(viewport);
-            GD.Print($"bench t={_benchTime:F0}s {Engine.GetFramesPerSecond()} fps, tick {_game.Tick}, gpu {gpu:F2} ms, render cpu {renderCpu:F2} ms | {FrameProfiler.Report()}");
+            GD.Print($"bench t={_benchTime:F0}s {Engine.GetFramesPerSecond()} fps, slowest frame {_benchWorstFrame * 1000:F1} ms, sim tick avg {_stepMs / Math.Max(1, _steps):F1} ms (worst {_worstStepMs:F1}), tick {_game.Tick}, gpu {gpu:F2} ms, render cpu {renderCpu:F2} ms | {FrameProfiler.Report()}");
+            _benchWorstFrame = 0;
         }
         if (_benchTime >= seconds)
             GetTree().Quit();
@@ -240,6 +313,7 @@ public partial class World : Node2D
 
     public override void _UnhandledInput(InputEvent e)
     {
+        SyncSim(); // input may read or change the game: let the running tick finish first
         if (e is InputEventMouseButton { ButtonIndex: MouseButton.Right, Pressed: true } && (_placing is not null || _aiming is not null))
         {
             StopPlacing();
@@ -263,6 +337,7 @@ public partial class World : Node2D
     {
         if (e is not InputEventKey { Pressed: true, Echo: false } key)
             return;
+        SyncSim();
         switch (key.Keycode)
         {
             case Key.M:
@@ -301,6 +376,7 @@ public partial class World : Node2D
 
     private void TogglePlacing(BuildingType type)
     {
+        SyncSim();
         if (_placing == type)
             StopPlacing();
         else if (_game.Phase == GamePhase.Running && _me.IsAlive && _me.CanAfford(_game.BuildingCost(_me, type)))
@@ -313,6 +389,7 @@ public partial class World : Node2D
     /// <summary>Bomb buttons / keys 8, 9, 0: aim a MOAB, Fat Man or Tsar Bomba with the mouse.</summary>
     private void ToggleAiming(NukeType type)
     {
+        SyncSim();
         if (_aiming == type)
             StopPlacing();
         else if (_game.Phase == GamePhase.Running && _me.IsAlive && _me.CanAfford(_game.NukeCost(type)))
@@ -543,6 +620,7 @@ public partial class World : Node2D
 
     private void StartMatch()
     {
+        SyncSim();
         _game = new Game(_map, RandomSeed(), difficulty: _args.Difficulty ?? Difficulty);
         _me = _game.AddPlayer("You");
         if (DevCheats && !_args.NoCheats)
@@ -568,6 +646,7 @@ public partial class World : Node2D
             Showcase();
 
         _view.SetOwners(_game.Owner, _game.Fallout);
+        _shownTick = _game.Tick;
         _game.ChangedTiles.Clear();
         _tickTime = 0;
     }

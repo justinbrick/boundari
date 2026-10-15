@@ -83,12 +83,24 @@ public partial class MapOverlay : Node2D
         ClearNukeGhost();
     }
 
-    public override void _Process(double delta) => QueueRedraw();
+    /// <summary>Set while the simulation runs on its worker thread: keep the last drawing instead of reading the game.</summary>
+    public bool Frozen { get; set; }
+
+    /// <summary>Waits for the simulation's worker to finish (in case Godot redraws us mid-tick on its own).</summary>
+    public Action? WaitForSim { get; set; }
+
+    public override void _Process(double delta)
+    {
+        if (!Frozen)
+            QueueRedraw();
+    }
 
     public override void _Draw()
     {
         if (_game is null)
             return;
+        if (Frozen)
+            WaitForSim?.Invoke();
         long started = FrameProfiler.Start();
         DrawAll();
         FrameProfiler.Stop("overlay draw", started);

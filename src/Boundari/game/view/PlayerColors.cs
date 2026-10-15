@@ -6,20 +6,46 @@ using Godot;
 namespace Boundari.View;
 
 /// <summary>
-/// Territory colours, military style: people and nations get muted service colours (olive
-/// drab, khaki, field grey, navy, rust...), each picked to be as distinct as possible from
-/// those already handed out; once the list runs out it starts over a shade darker or lighter.
-/// Tribes are all one cream white, like OpenFront's current bot colour.
+/// Territory colours. People and nations get dull, muted colours of every hue: the palette
+/// is spread evenly around the colour wheel at one low colourfulness (in CIE Lab, so every
+/// hue looks equally muted) and three lightness levels. Each new player gets the colour most
+/// distinct from those already handed out; once the palette runs out it starts over a shade
+/// lighter or darker. Tribes are all one cream white, like OpenFront's current bot colour.
 /// </summary>
 public static class PlayerColors
 {
-    private static readonly string[] Military =
+    // How dull: chroma in CIE Lab (about what the earlier hand-picked military tones averaged),
+    // and the lightness levels used.
+    private const double Chroma = 20;
+    private static readonly double[] Lightness = { 38, 48, 58 };
+    private const int HueSteps = 24; // every 15 degrees
+
+    private static readonly Color[] Dull = MakeDull();
+
+    private static Color[] MakeDull()
     {
-        "6b6b3a", "9a8f5e", "6d7366", "3f4a5c", "6e3b3b", "8a5a3c", "5a6772", "a39a78", "5e6b45", "4f5d6b",
-        "5e4a5c", "4d6662", "7f4b3e", "9a8a45", "8a7550", "455a40", "51677a", "6b3f4b", "66778c", "7d8a6a",
-        "6e5a45", "3e4651", "a0864e", "535a60", "78805a", "8c7a5b", "8c5550", "b0a07a", "7a7550", "3f5a5e",
-        "7a6070", "3a5550", "5c4a3a", "7a8085", "5a4050", "8a9070", "8f6a4a", "4a4f66", "704a48", "5a6e5e",
-    };
+        var colors = new List<Color>();
+        foreach (double l in Lightness)
+            for (int i = 0; i < HueSteps; i++)
+            {
+                double hue = (i + (l == Lightness[1] ? 0.5 : 0)) * 2 * Math.PI / HueSteps; // stagger the middle row
+                colors.Add(FromLab(l, Chroma * Math.Cos(hue), Chroma * Math.Sin(hue)));
+            }
+        return colors.ToArray();
+    }
+
+    /// <summary>CIE Lab (D65) to an sRGB colour.</summary>
+    private static Color FromLab(double l, double a, double b)
+    {
+        double fy = (l + 16) / 116, fx = fy + a / 500, fz = fy - b / 200;
+        static double Inv(double t) => t * t * t > 0.008856 ? t * t * t : (t - 16.0 / 116) / 7.787;
+        double x = Inv(fx) * 0.95047, y = Inv(fy), z = Inv(fz) * 1.08883;
+        double r = 3.2406 * x - 1.5372 * y - 0.4986 * z;
+        double g = -0.9689 * x + 1.8758 * y + 0.0415 * z;
+        double bl = 0.0557 * x - 0.2040 * y + 1.0570 * z;
+        static float Gamma(double v) => (float)Math.Clamp(v <= 0.0031308 ? 12.92 * v : 1.055 * Math.Pow(v, 1 / 2.4) - 0.055, 0, 1);
+        return new Color(Gamma(r), Gamma(g), Gamma(bl));
+    }
 
     /// <summary>Tribes: all the same cream white, see-through like everyone else.</summary>
     public static readonly Color Tribe = new(0.96f, 0.93f, 0.84f);
@@ -34,7 +60,7 @@ public static class PlayerColors
         foreach (var p in players)
             count = Math.Max(count, p.Id + 1);
         var colors = new Color[count];
-        var pool = new Pool(Military, seed);
+        var pool = new Pool(Dull, seed);
         foreach (var p in players)
             colors[p.Id] = p.IsBot ? Tribe : pool.Next();
         return colors;
@@ -51,9 +77,9 @@ public static class PlayerColors
         private readonly Core.Rng _rng;
         private int _round = -1;
 
-        public Pool(string[] hex, ulong seed)
+        public Pool(Color[] colors, ulong seed)
         {
-            _all = Array.ConvertAll(hex, h => Color.FromHtml(h));
+            _all = colors;
             _rng = new Core.Rng(seed);
         }
 

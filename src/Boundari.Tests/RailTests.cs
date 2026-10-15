@@ -71,4 +71,25 @@ public class RailTests
         BuildFactoryAcross(game, p);
         Assert.Empty(game.Railroads);
     }
+
+    [Fact]
+    public void Boats_KeepOffTheCoast_WhenThereIsRoom()
+    {
+        // A wide bay (y 10..50) in solid land; sail along its north shore.
+        var map = new GameMap(120, 60, 1);
+        for (int t = 0; t < map.TileCount; t++)
+        {
+            int x = t % map.Width, y = t / map.Width;
+            bool water = x >= 5 && x < 115 && y >= 10 && y < 50;
+            map.Terrain[t] = water ? TerrainType.Lake : TerrainType.Plains;
+            map.CoastField[t] = water ? -1 : 1;
+        }
+        MapProcessing.LabelLandmasses(map);
+        var ways = new Waterways(map);
+        var path = ways.FindPath(map.Index(6, 10), map.Index(113, 10))!;
+        Assert.NotNull(path);
+        int w = map.Width;
+        var middle = path.Where(t => t % w > 25 && t % w < 95).ToList();
+        Assert.All(middle, t => Assert.True(t / w >= 15, $"boats should keep about 6 tiles off the shore, got y={t / w}"));
+    }
 }

@@ -89,6 +89,7 @@ public sealed class Waterways
             }
         }
         BodySize = sizes.ToArray();
+        BuildShoreDistance();
         BuildCells();
         // Work memory, allocated now so the first boat doesn't stall a tick. One set for
         // instant searches (troop boats, warships), one for background trade routes.
@@ -116,6 +117,50 @@ public sealed class Waterways
         if (y > 0 && Body[land - w] != NoBody) result[n++] = Body[land - w];
         if (y < _map.Height - 1 && Body[land + w] != NoBody) result[n++] = Body[land + w];
         return n;
+    }
+
+    // Boats keep their distance from land when there's room: each step within ShoreMargin
+    // tiles of a coast costs extra, more the closer it is (so in a river or strait they
+    // take the middle). Distances are worked out once, when the map loads.
+    private const int ShoreMargin = 6;
+    private const int ShorePenaltyPerTile = 6; // extra cost per step, per tile closer than the margin
+    private byte[] _shoreDist = Array.Empty<byte>(); // water tiles: tiles to the nearest land (capped at ShoreMargin)
+
+    private void BuildShoreDistance()
+    {
+        int w = _map.Width, h = _map.Height;
+        _shoreDist = new byte[_map.TileCount];
+        var queue = new Queue<int>();
+        for (int t = 0; t < _map.TileCount; t++)
+        {
+            if (Body[t] == NoBody)
+                continue;
+            int x = t % w, y = t / w;
+            bool shore = (x > 0 && Body[t - 1] == NoBody) || (x < w - 1 && Body[t + 1] == NoBody)
+                || (y > 0 && Body[t - w] == NoBody) || (y < h - 1 && Body[t + w] == NoBody);
+            _shoreDist[t] = (byte)(shore ? 1 : ShoreMargin);
+            if (shore)
+                queue.Enqueue(t);
+        }
+        while (queue.Count > 0)
+        {
+            int t = queue.Dequeue(), d = _shoreDist[t] + 1;
+            if (d >= ShoreMargin)
+                continue;
+            int x = t % w, y = t / w;
+            void Visit(int n)
+            {
+                if (Body[n] != NoBody && _shoreDist[n] > d)
+                {
+                    _shoreDist[n] = (byte)d;
+                    queue.Enqueue(n);
+                }
+            }
+            if (x > 0) Visit(t - 1);
+            if (x < w - 1) Visit(t + 1);
+            if (y > 0) Visit(t - w);
+            if (y < h - 1) Visit(t + w);
+        }
     }
 
     // Heuristic weight: above 1 makes A* head straight for the goal across open water,
@@ -267,6 +312,7 @@ public sealed class Waterways
             var cameFrom = _ws.CameFrom;
             var mark = _ws.Mark;
             var corridor = _ws.Corridor;
+            var shore = _w._shoreDist;
             int w = _w._map.Width, h = _w._map.Height, cw = _w._cellsWide;
             int tx = To % w, ty = To / w, seen = 2 * _search, closed = 2 * _search + 1;
             int used = 0;
@@ -298,7 +344,7 @@ public sealed class Waterways
                         continue; // don't squeeze diagonally between two land tiles
                     if (mark[n] == closed)
                         continue;
-                    int ng = g + (dx != 0 && dy != 0 ? 14 : 10);
+                    int ng = g + (dx != 0 && dy != 0 ? 14 : 10) + (ShoreMargin - shore[n]) * ShorePenaltyPerTile;
                     if (mark[n] == seen && cost[n] <= ng)
                         continue;
                     mark[n] = seen;

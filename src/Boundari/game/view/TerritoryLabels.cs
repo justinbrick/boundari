@@ -29,6 +29,12 @@ public partial class TerritoryLabels : Node2D
     }
 
     private readonly Dictionary<ushort, Label> _labels = new();
+
+    /// <summary>Set while the simulation runs on its worker thread: keep the last drawing instead of reading the game.</summary>
+    public bool Frozen { get; set; }
+
+    /// <summary>Waits for the simulation's worker to finish (in case Godot redraws us mid-tick on its own).</summary>
+    public Action? WaitForSim { get; set; }
     private readonly Dictionary<string, Texture2D?> _flags = new();
     private Game? _game;
     private double _sinceRefresh = RefreshSeconds;
@@ -89,7 +95,8 @@ public partial class TerritoryLabels : Node2D
             label.Position = label.Position.Lerp(label.Target, t);
             label.Radius += (label.TargetRadius - label.Radius) * t;
         }
-        QueueRedraw();
+        if (!Frozen)
+            QueueRedraw();
     }
 
     private System.Threading.Tasks.Task<Dictionary<ushort, (int Cell, int Dist)>>? _placing;
@@ -187,6 +194,8 @@ public partial class TerritoryLabels : Node2D
     {
         if (_game is null)
             return;
+        if (Frozen)
+            WaitForSim?.Invoke();
         long started = FrameProfiler.Start();
         DrawLabels();
         FrameProfiler.Stop("labels draw", started);
