@@ -13,7 +13,7 @@ namespace Boundari.Sim;
 public sealed class Boat
 {
     public readonly Player Owner;
-    public readonly long Troops;
+    public long Troops { get; internal set; }
     public readonly int LandingTile;
 
     /// <summary>Water tiles from the launch shore to the landing shore.</summary>

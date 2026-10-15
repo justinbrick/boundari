@@ -16,6 +16,7 @@ public sealed class TerritoryTextures
 {
     public const int ChunkSize = 256;
     public const ushort Water = ushort.MaxValue;
+    public const ushort Fallout = ushort.MaxValue - 1; // unowned land poisoned by a bomb
 
     private const float LongAgo = -1e6f;
 
@@ -66,11 +67,11 @@ public sealed class TerritoryTextures
     }
 
     /// <summary>Shows exactly these owners, with no animation (start of a match).</summary>
-    public void SetAll(ushort[]? owners)
+    public void SetAll(ushort[]? owners, bool[]? fallout = null)
     {
         for (int i = 0; i < _map.TileCount; i++)
         {
-            ushort id = _map.IsWater(i) ? Water : owners?[i] ?? 0;
+            ushort id = Shown(i, owners, fallout);
             _shown[i] = id;
             Write(i, id, id, LongAgo);
         }
@@ -82,13 +83,13 @@ public sealed class TerritoryTextures
     /// Records the tiles that changed during one tick. They're spread across that tick
     /// in the order they were taken, so the shader can sweep fronts forward smoothly.
     /// </summary>
-    public void RecordTick(ushort[] owners, List<int> changed, int tick)
+    public void RecordTick(ushort[] owners, bool[]? fallout, List<int> changed, int tick)
     {
         int n = changed.Count;
         for (int k = 0; k < n; k++)
         {
             int i = changed[k];
-            ushort now = _map.IsWater(i) ? Water : owners[i];
+            ushort now = Shown(i, owners, fallout);
             ushort before = _shown[i];
             if (now == before)
                 continue;
@@ -110,6 +111,14 @@ public sealed class TerritoryTextures
             OwnerArray.UpdateLayer(_ownerImages[l], l);
             TimeArray.UpdateLayer(_timeImages[l], l);
         }
+    }
+
+    private ushort Shown(int i, ushort[]? owners, bool[]? fallout)
+    {
+        if (_map.IsWater(i))
+            return Water;
+        ushort owner = owners?[i] ?? 0;
+        return owner == 0 && fallout is not null && fallout[i] ? Fallout : owner;
     }
 
     private void Write(int tile, ushort owner, ushort previous, float time)

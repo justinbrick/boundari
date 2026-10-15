@@ -17,6 +17,7 @@ public partial class MapView : Sprite2D
 
     // Map colours, indexed by CoverType. Water matches the sea so small lakes look the same.
     private static readonly Color WaterColor = new(0.37f, 0.63f, 0.78f);
+    private static readonly Color FalloutColor = new(0.13f, 0.17f, 0.10f);
     private static readonly Color[] CoverColors =
     {
         new(0.55f, 0.63f, 0.36f), // None (unused, falls back to farmland)
@@ -96,14 +97,14 @@ public partial class MapView : Sprite2D
     }
 
     /// <summary>Shows these owners immediately (pass null to clear all territory).</summary>
-    public void SetOwners(ushort[]? owners) => _territory?.SetAll(owners);
+    public void SetOwners(ushort[]? owners, bool[]? fallout = null) => _territory?.SetAll(owners, fallout);
 
     /// <summary>
     /// Records tiles that changed hands during one simulation tick; they'll be animated
     /// in as the visual clock passes that tick. Call <see cref="FlushTerritory"/> after.
     /// </summary>
-    public void RecordTick(ushort[] owners, System.Collections.Generic.List<int> changed, int tick) =>
-        _territory?.RecordTick(owners, changed, tick);
+    public void RecordTick(ushort[] owners, bool[]? fallout, System.Collections.Generic.List<int> changed, int tick) =>
+        _territory?.RecordTick(owners, fallout, changed, tick);
 
     /// <summary>Uploads changed territory chunks to the GPU.</summary>
     public void FlushTerritory() => _territory?.Flush();
@@ -117,9 +118,11 @@ public partial class MapView : Sprite2D
     /// <summary>Sets colours by owner id (index 0 is unclaimed land and is ignored).</summary>
     public void SetPalette(ReadOnlySpan<Color> colors)
     {
-        int count = Math.Min(colors.Length, PaletteSize * PaletteSize);
+        int count = Math.Min(colors.Length, PaletteSize * PaletteSize - 2);
         for (int id = 1; id < count; id++)
             _paletteImage.SetPixel(id % PaletteSize, id / PaletteSize, colors[id]);
+        // Fallout: scorched, sickly olive.
+        _paletteImage.SetPixel(TerritoryTextures.Fallout % PaletteSize, TerritoryTextures.Fallout / PaletteSize, FalloutColor);
         _paletteTexture.Update(_paletteImage);
     }
 

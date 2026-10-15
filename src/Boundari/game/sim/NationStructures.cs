@@ -15,7 +15,6 @@ namespace Boundari.Sim;
 ///   - When a big attack is coming in, it drops a defense post behind the front and holds
 ///     off on everything else.
 ///   - It saves up for SAMs and bombs by treating buildings as dearer the more it owns.
-/// SAMs and silos are skipped while bombs don't exist yet, as OpenFront does with nukes off.
 /// </summary>
 internal sealed class NationStructures
 {
@@ -28,9 +27,8 @@ internal sealed class NationStructures
     private bool _builtCrowdedMapFirst;
     private int _postSaveUpStart = -1;
 
-    // Bombs can't be launched yet, so (as in OpenFront with nukes turned off) nations
-    // don't build SAMs or silos, and only save up as far as a SAM.
-    private const bool BombsWork = false;
+    // With bombs turned off (as OpenFront allows), nations skip SAMs and silos and only save up for a SAM.
+    private static readonly bool BombsWork = true;
 
     // How many of each structure per city (OpenFront).
     private const double PortsPerCity = 0.75;
@@ -183,10 +181,15 @@ internal sealed class NationStructures
         return (long)Math.Ceiling(real * (1 + increase * _game.CountLevels(_player, type)));
     }
 
-    /// <summary>Gold the nation wants to keep: five Fat Men, or just a SAM while bombs don't exist.</summary>
-    private long SaveUpTarget() => BombsWork
-        ? _game.NukeCost(NukeType.FatMan) * 5
-        : _game.BuildingCost(_player, BuildingType.Sam);
+    /// <summary>Gold the nation wants to keep: a Tsar Bomba and a Fat Man if one would get through, else five Fat Men.</summary>
+    private long SaveUpTarget()
+    {
+        if (!BombsWork)
+            return _game.BuildingCost(_player, BuildingType.Sam);
+        if (NationNukes.IsTsarBombaWorthSavingFor(_game, _player, _rng))
+            return _game.NukeCost(NukeType.TsarBomba) + _game.NukeCost(NukeType.FatMan);
+        return _game.NukeCost(NukeType.FatMan) * 5;
+    }
 
     /// <summary>
     /// After first reaching its savings target, a nation builds in 15-second bursts with

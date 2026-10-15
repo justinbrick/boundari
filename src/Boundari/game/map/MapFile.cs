@@ -80,12 +80,20 @@ public static class MapFile
             throw new EndOfStreamException("Map file is truncated.");
         for (int i = 0; i < map.TileCount; i++)
             map.Terrain[i] = (TerrainType)terrain[i];
-        for (int i = 0; i < map.TileCount; i++)
-            map.CoastField[i] = (float)r.ReadHalf();
-        for (int i = 0; i < map.TileCount; i++)
-            map.Elevation[i] = (float)r.ReadHalf();
+        ReadHalves(r, map.CoastField);
+        ReadHalves(r, map.Elevation);
 
         MapProcessing.LabelLandmasses(map);
         return map;
+    }
+
+    /// <summary>Reads 16-bit floats in one go (one at a time through the decompressor is very slow).</summary>
+    private static void ReadHalves(BinaryReader r, float[] into)
+    {
+        byte[] bytes = r.ReadBytes(into.Length * 2);
+        if (bytes.Length != into.Length * 2)
+            throw new EndOfStreamException("Map file is truncated.");
+        for (int i = 0; i < into.Length; i++)
+            into[i] = (float)System.Buffers.Binary.BinaryPrimitives.ReadHalfLittleEndian(bytes.AsSpan(i * 2, 2));
     }
 }

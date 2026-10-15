@@ -53,8 +53,6 @@ public class SimTests
         var types = nationBuildings.Select(b => b.Type).Distinct().ToList();
         Assert.Contains(BuildingType.City, types);
         Assert.True(types.Count >= 2, "nations should build more than one kind of building: " + string.Join(", ", types));
-        Assert.DoesNotContain(BuildingType.Silo, types); // not until bombs work
-        Assert.DoesNotContain(BuildingType.Sam, types);
     }
 
     [Fact]

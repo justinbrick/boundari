@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace Boundari.Sim;
 
 public enum BuildingType : byte
@@ -33,6 +35,13 @@ public sealed class Building
     /// <summary>Tick it gets torn down, if its owner ordered that (-1 = not).</summary>
     public int DemolishTick { get; internal set; } = -1;
 
+    /// <summary>Silos and SAMs: when each fired missile was launched (one per level can be out reloading).</summary>
+    internal readonly Queue<int> Reloads = new();
+
+    /// <summary>Silos and SAMs: missiles reloading, and when the first of them started.</summary>
+    public int Reloading => Reloads.Count;
+    public int ReloadStartTick => Reloads.Count > 0 ? Reloads.Peek() : -1;
+
     internal Building(BuildingType type, int tile, ushort owner, int startTick, int readyTick)
     {
         Type = type;
@@ -53,4 +62,5 @@ public enum NukeType : byte
     Moab,
     FatMan,
     TsarBomba,
+    Warhead, // one of a Tsar Bomba's many warheads (never bought on its own)
 }

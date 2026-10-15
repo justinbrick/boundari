@@ -17,7 +17,7 @@ public enum GamePhase
 /// fixed tick at a time and is fully deterministic (same seed + same intents = same
 /// game), with no Godot types, so it can run headless in tests or on a server.
 /// </summary>
-public sealed class Game
+public sealed partial class Game
 {
     public const ushort Nobody = 0;
 
@@ -74,6 +74,7 @@ public sealed class Game
         Map = map;
         Seed = seed;
         Difficulty = difficulty;
+        Fallout = new bool[map.TileCount];
         SpawnPhaseTicks = spawnPhaseTicks;
         Owner = new ushort[map.TileCount];
         CostTenths = Balance.TileCostTenths(map);
@@ -131,6 +132,69 @@ public sealed class Game
         }
     }
 
+    /// <summary>
+    /// Adds a map's own nations, each starting near its real-world home (like OpenFront's
+    /// map nations): a random free spot within 25 tiles, or failing that the nearest free land.
+    /// </summary>
+    public void AddNations(IReadOnlyList<NationSpec> nations)
+    {
+        var geo = Map.Geo;
+        foreach (var spec in nations)
+        {
+            var nation = AddPlayer(spec.Name, PlayerKind.Nation, spec.Flag);
+            _ais.Add(new NationAi(this, nation, new Rng(_rng.Fork())));
+            if (geo is null)
+            {
+                SpawnAi(nation);
+                continue;
+            }
+            int x = Math.Clamp((int)geo.TileX(spec.Lon, Map.Width), 0, Map.Width - 1);
+            int y = Math.Clamp((int)geo.TileY(spec.Lat, Map.Height), 0, Map.Height - 1);
+            int tile = NationSpawnTile(x, y);
+            if (tile < 0)
+            {
+                SpawnAi(nation);
+                continue;
+            }
+            _aiSpawns.Add(tile);
+            Spawn(nation, tile);
+        }
+    }
+
+    private int NationSpawnTile(int x, int y)
+    {
+        const int Delta = 25;
+        for (int tries = 0; tries < 50; tries++)
+        {
+            int tx = _rng.RangeInt(x - Delta, x + Delta), ty = _rng.RangeInt(y - Delta, y + Delta);
+            if (!Map.InBounds(tx, ty))
+                continue;
+            int t = Map.Index(tx, ty);
+            if (!Map.IsLand(t) || Owner[t] != Nobody)
+                continue;
+            if (Map.Terrain[t] == TerrainType.Mountains && _rng.RangeInt(0, 1) == 0)
+                continue; // prefer not to start on a mountain
+            return t;
+        }
+        // Nothing free close by (or the home is off the map): nearest free land.
+        int start = Map.Index(x, y), w = Map.Width;
+        var seen = new HashSet<int> { start };
+        var queue = new Queue<int>();
+        queue.Enqueue(start);
+        while (queue.Count > 0 && seen.Count < 400_000)
+        {
+            int t = queue.Dequeue();
+            if (Map.IsLand(t) && Owner[t] == Nobody)
+                return t;
+            int cx = t % w, cy = t / w;
+            if (cx > 0 && seen.Add(t - 1)) queue.Enqueue(t - 1);
+            if (cx < w - 1 && seen.Add(t + 1)) queue.Enqueue(t + 1);
+            if (cy > 0 && seen.Add(t - w)) queue.Enqueue(t - w);
+            if (cy < Map.Height - 1 && seen.Add(t + w)) queue.Enqueue(t + w);
+        }
+        return -1;
+    }
+
     /// <summary>Adds bots: OpenFront's weak filler players with made-up names and no flag.</summary>
     public void AddBots(int count)
     {
@@ -181,6 +245,7 @@ public sealed class Game
         RunTrains();
         RunWarships();
         FlyShells();
+        RunNukes();
         long te = Stopwatch.GetTimestamp();
         if (Tick % EnclaveCheckTicks == 0)
             AbsorbEnclaves();
@@ -214,6 +279,9 @@ public sealed class Game
                     ? Math.Min(attack.Troops, player.Troops)
                     : player.Troops * Math.Clamp(attack.RatioPercent, 1, 100) / 100);
                 break;
+            case NukeIntent nuke:
+                LaunchNuke(player, nuke.Type, nuke.Tile);
+                break;
             case DemolishIntent demolish when Phase == GamePhase.Running:
                 StartDemolition(player, demolish.Tile);
                 break;
@@ -221,13 +289,13 @@ public sealed class Game
                 LaunchBoat(player, boat.Tile, boat.RatioPercent);
                 break;
             case BuildIntent { Type: BuildingType.Warship } ship when Phase == GamePhase.Running && CanBuild(player, ship.Type, ship.Tile):
-                player.Gold -= BuildingCost(player, BuildingType.Warship);
+                player.Spend(BuildingCost(player, BuildingType.Warship));
                 player.Constructed[(int)BuildingType.Warship]++;
                 var (_, launch) = WarshipLaunch(player, ship.Tile);
                 _warships.Add(new Warship(_nextWarshipId++, player, launch, ship.Tile, _rng.Fork()));
                 break;
             case BuildIntent build when Phase == GamePhase.Running && CanBuild(player, build.Type, build.Tile):
-                player.Gold -= BuildingCost(player, build.Type);
+                player.Spend(BuildingCost(player, build.Type));
                 player.Constructed[(int)build.Type]++;
                 if (UpgradeTarget(player, build.Type, build.Tile) is { } existing)
                 {
@@ -236,7 +304,8 @@ public sealed class Game
                         player.CityLevels++;
                     break;
                 }
-                var building = new Building(build.Type, build.Tile, player.Id, Tick, Tick + Balance.ConstructionTicks(build.Type));
+                int buildTicks = player.InstantBuild ? 0 : Balance.ConstructionTicks(build.Type);
+                var building = new Building(build.Type, build.Tile, player.Id, Tick, Tick + buildTicks);
                 _buildings[build.Tile] = building;
                 _constructing.Add(building);
                 if (build.Type == BuildingType.Port)
@@ -247,7 +316,7 @@ public sealed class Game
 
     private void Spawn(Player player, int tile)
     {
-        if (tile < 0 || tile >= Map.TileCount || !Map.IsLand(tile) || Owner[tile] != Nobody)
+        if (tile < 0 || tile >= Map.TileCount || !Map.IsLand(tile) || Owner[tile] != Nobody || Fallout[tile])
             return;
 
         // Moving your spawn during the spawn phase: give back the old land first.
@@ -415,11 +484,11 @@ public sealed class Game
     public bool CanBuild(Player player, BuildingType type, int tile)
     {
         if (type == BuildingType.Warship)
-            return Phase == GamePhase.Running && player.IsAlive && player.Gold >= BuildingCost(player, type)
+            return Phase == GamePhase.Running && player.IsAlive && player.CanAfford(BuildingCost(player, type))
                 && WarshipLaunch(player, tile).Port is not null;
         if (Phase != GamePhase.Running || tile < 0 || tile >= Map.TileCount)
             return false;
-        if (player.Gold < BuildingCost(player, type))
+        if (!player.CanAfford(BuildingCost(player, type)))
             return false;
         if (UpgradeTarget(player, type, tile) is not null)
             return true; // stacking onto one of ours
@@ -773,8 +842,16 @@ public sealed class Game
     {
         NukeType.Moab => Balance.MoabCost,
         NukeType.FatMan => Balance.FatManCost,
-        _ => Balance.TsarBombaBaseCost + TsarBombasLaunched * Balance.TsarBombaCostPerLaunch,
+        NukeType.TsarBomba => Balance.TsarBombaBaseCost + TsarBombasLaunched * Balance.TsarBombaCostPerLaunch,
+        _ => 0,
     };
+
+    /// <summary>Dev cheats for testing: endless gold and/or buildings that finish instantly.</summary>
+    public void SetCheats(Player player, bool infiniteGold, bool instantBuild)
+    {
+        player.InfiniteGold = infiniteGold;
+        player.InstantBuild = instantBuild;
+    }
 
     /// <summary>True if this tile is within range of one of the owner's finished defense posts.</summary>
     public bool DefendedByPost(int tile, ushort owner)
@@ -1714,6 +1791,8 @@ public sealed class Game
             * Balance.SurroundedTravelPercent[own] / 100;
         if (DefendedByPost(tile, attack.TargetId))
             travel *= Balance.DefensePostSpeedFactor;
+        else if (attack.TargetId == Nobody && Fallout[tile])
+            travel = travel * FalloutFactorTenths() / 10;
         attack.Front.Enqueue(tile, Math.Max(from, attack.Clock - Balance.WaveSpeedPerTick) + travel);
     }
 
@@ -1733,6 +1812,8 @@ public sealed class Game
             cost += Density(defender) * Balance.DefenderDensityCostTenths * terrain / 100;
         if (defender is not null && DefendedByPost(tile, defender.Id))
             cost *= Balance.DefensePostTroopFactor;
+        if (defender is null && Fallout[tile])
+            cost = cost * FalloutFactorTenths() / 10;
         if (defender is { IsBot: true } && !attacker.IsBot)
             cost = cost * Balance.VsBotTroopCostPercent / 100;
         return Math.Max(cost, 1);
@@ -1828,6 +1909,11 @@ public sealed class Game
         }
         if (newOwner != Nobody)
         {
+            if (Fallout[tile]) // retaking poisoned land cleans it up
+            {
+                Fallout[tile] = false;
+                FalloutTiles--;
+            }
             _players[newOwner].TileCount++;
             if (coastal)
                 _players[newOwner].Coast.Add(tile);

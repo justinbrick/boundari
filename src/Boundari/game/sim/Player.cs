@@ -75,6 +75,18 @@ public sealed class Player
     /// <summary>Attacks and boats this player has sent (someone who never fought gives up no gold when conquered).</summary>
     internal int AttacksSent;
 
+    /// <summary>Dev cheats: never runs out of gold / buildings finish instantly.</summary>
+    public bool InfiniteGold { get; internal set; }
+    public bool InstantBuild { get; internal set; }
+
+    public bool CanAfford(long cost) => InfiniteGold || Gold >= cost;
+
+    internal void Spend(long cost)
+    {
+        if (!InfiniteGold)
+            Gold -= cost;
+    }
+
     /// <summary>Earliest tick this player may order another demolition.</summary>
     internal int NextDemolishTick;
 

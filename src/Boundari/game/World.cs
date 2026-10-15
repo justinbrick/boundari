@@ -25,12 +25,16 @@ namespace Boundari;
 ///   M — switch map (Europe, World) and start a new match
 ///   R — new random map and match
 ///   H — toggle hill shading
+///   8 / 9 / 0 or bomb buttons — aim a MOAB / Fat Man / Tsar Bomba from your nearest loaded
+///                          silo (left click to launch, Shift to keep aiming)
 ///
 /// Command-line options (after "--" when launching Godot):
 ///   --map=ID           load res://maps/ID.bmap ("random" for a generated map)
 ///   --seed=N           generate a random map with this seed
-///   --nations=N        number of nations, the proper AI opponents (default 120)
-///   --bots=N           number of bots, the weak filler players (default 400, like OpenFront)
+///   --nations=N        number of nations, the proper AI opponents (default: the map's own
+///                      nations, e.g. Europe's 52 like OpenFront; 120 random ones elsewhere)
+///   --bots=N           number of bots ("tribes"), the weak filler players (default 400, like OpenFront)
+///   --no-cheats        play without the dev cheats (infinite gold, instant building)
 ///   --difficulty=D     easy, medium (default), hard or impossible: how strong nations are
 ///   --autoplay         spawn the human player automatically (for testing)
 ///   --ticks=N          fast-forward the match N ticks at start
@@ -39,7 +43,8 @@ namespace Boundari;
 ///   --focus=X,Y        centre the camera on this point, as 0..1 fractions of the map
 ///   --screenshot=PATH  save a screenshot after loading, then quit
 ///   --perf             print the frame rate every 2 seconds
-///   --showcase         (testing) after --autoplay: build one of everything and launch a boat
+///   --showcase         (testing) after --autoplay: build one of everything and launch a boat;
+///                      --showcase=nukes[:N] also fires a MOAB, Fat Man and Tsar Bomba, then runs N ticks
 ///   --hover=X,Y        pretend the mouse is over this map point (0..1 fractions), for screenshots;
 ///                      --hover=leader hovers the biggest player
 /// </summary>
@@ -50,7 +55,11 @@ public partial class World : Node2D
     [Export] public ulong Seed { get; set; }
     [Export] public int MapWidth { get; set; } = 2000;
     [Export] public int MapHeight { get; set; } = 1250;
+    /// <summary>Nations on maps without their own list (Europe has its 52).</summary>
     [Export] public int Nations { get; set; } = 120;
+
+    /// <summary>Dev testing: you never run out of gold and your buildings finish instantly.</summary>
+    [Export] public bool DevCheats { get; set; } = true;
     [Export] public int Bots { get; set; } = 400;
     [Export] public Difficulty Difficulty { get; set; } = Difficulty.Medium;
 
@@ -78,6 +87,7 @@ public partial class World : Node2D
 
     private MapOverlay _overlay = null!;
     private BuildingType? _placing;
+    private NukeType? _aiming;
     private readonly System.Collections.Generic.List<(BuildingType Type, Button Button)> _buildButtons = new();
     private Color[] _palette = Array.Empty<Color>();
     private Vector2? _showcaseFocus;
@@ -113,7 +123,11 @@ public partial class World : Node2D
 
         foreach (var (nuke, path) in NukeButtons)
             if (GetNodeOrNull<Button>("Main_Layer/Main_Control/ButtonsRow/" + path) is { } button)
+            {
+                var n = nuke;
+                button.Pressed += () => ToggleAiming(n);
                 _nukeButtons.Add((nuke, button));
+            }
         foreach (var (type, path) in BuildButtons)
             if (GetNodeOrNull<Button>("Main_Layer/Main_Control/ButtonsRow/" + path) is { } button)
             {
@@ -142,7 +156,7 @@ public partial class World : Node2D
         {
             int tick = _game.Tick;
             _game.Step();
-            _view.RecordTick(_game.Owner, _game.ChangedTiles, tick);
+            _view.RecordTick(_game.Owner, _game.Fallout, _game.ChangedTiles, tick);
             _game.ChangedTiles.Clear();
             _tickTime -= tickLength;
         }
@@ -166,7 +180,7 @@ public partial class World : Node2D
     public override void _Input(InputEvent e)
     {
         // Esc cancels placement before the options menu can grab it.
-        if (_placing is not null && e is InputEventKey { Pressed: true, Keycode: Key.Escape })
+        if ((_placing is not null || _aiming is not null) && e is InputEventKey { Pressed: true, Keycode: Key.Escape })
         {
             StopPlacing();
             GetViewport().SetInputAsHandled();
@@ -175,7 +189,7 @@ public partial class World : Node2D
 
     public override void _UnhandledInput(InputEvent e)
     {
-        if (e is InputEventMouseButton { ButtonIndex: MouseButton.Right, Pressed: true } && _placing is not null)
+        if (e is InputEventMouseButton { ButtonIndex: MouseButton.Right, Pressed: true } && (_placing is not null || _aiming is not null))
         {
             StopPlacing();
             return;
@@ -218,6 +232,15 @@ public partial class World : Node2D
             case >= Key.Key1 and <= Key.Key7:
                 TogglePlacing(BuildButtons[key.Keycode - Key.Key1].Type);
                 break;
+            case Key.Key8:
+                ToggleAiming(NukeType.Moab);
+                break;
+            case Key.Key9:
+                ToggleAiming(NukeType.FatMan);
+                break;
+            case Key.Key0:
+                ToggleAiming(NukeType.TsarBomba);
+                break;
         }
     }
 
@@ -229,13 +252,29 @@ public partial class World : Node2D
     {
         if (_placing == type)
             StopPlacing();
-        else if (_game.Phase == GamePhase.Running && _me.IsAlive && _me.Gold >= _game.BuildingCost(_me, type))
+        else if (_game.Phase == GamePhase.Running && _me.IsAlive && _me.CanAfford(_game.BuildingCost(_me, type)))
+        {
+            StopPlacing();
             _placing = type;
+        }
+    }
+
+    /// <summary>Bomb buttons / keys 8, 9, 0: aim a MOAB, Fat Man or Tsar Bomba with the mouse.</summary>
+    private void ToggleAiming(NukeType type)
+    {
+        if (_aiming == type)
+            StopPlacing();
+        else if (_game.Phase == GamePhase.Running && _me.IsAlive && _me.CanAfford(_game.NukeCost(type)))
+        {
+            StopPlacing();
+            _aiming = type;
+        }
     }
 
     private void StopPlacing()
     {
         _placing = null;
+        _aiming = null;
         _overlay.ClearGhost();
     }
 
@@ -245,7 +284,7 @@ public partial class World : Node2D
         foreach (var (type, button) in _buildButtons)
         {
             long cost = _game.BuildingCost(_me, type);
-            bool affordable = _me.Gold >= cost && _game.Phase == GamePhase.Running;
+            bool affordable = _me.CanAfford(cost) && _game.Phase == GamePhase.Running;
             float alpha = affordable ? 1f : 0.4f;
             if (button.Modulate.A != alpha)
                 button.Modulate = new Color(1, 1, 1, alpha);
@@ -257,16 +296,31 @@ public partial class World : Node2D
         foreach (var (nuke, button) in _nukeButtons)
         {
             long cost = _game.NukeCost(nuke);
-            float alpha = _me.Gold >= cost && _game.Phase == GamePhase.Running ? 1f : 0.4f;
+            bool usable = _me.CanAfford(cost) && !_game.NukesLocked && _game.ReadySilo(_me, 0) is not null;
+            float alpha = usable ? 1f : 0.4f;
             if (button.Modulate.A != alpha)
                 button.Modulate = new Color(1, 1, 1, alpha);
             string price = GameHud.FormatCount(cost);
             if ((string)button.Get("line3") != price)
                 button.Set("line3", price);
         }
+        if (_aiming is { } nukeType)
+        {
+            if (!_me.CanAfford(_game.NukeCost(nukeType)) || !_me.IsAlive)
+            {
+                StopPlacing();
+                return;
+            }
+            int aim = _view.TileAt(GetGlobalMousePosition());
+            if (aim < 0)
+                _overlay.ClearNukeGhost();
+            else
+                _overlay.SetNukeGhost(nukeType, aim, _game.CanLaunch(_me, nukeType, aim));
+            return;
+        }
         if (_placing is not { } type2)
             return;
-        if (_me.Gold < _game.BuildingCost(_me, type2) || !_me.IsAlive)
+        if (!_me.CanAfford(_game.BuildingCost(_me, type2)) || !_me.IsAlive)
         {
             StopPlacing();
             return;
@@ -332,6 +386,16 @@ public partial class World : Node2D
     private void OnMapClicked(Vector2 worldPosition)
     {
         int tile = _view.TileAt(worldPosition);
+        if (_aiming is { } nuke)
+        {
+            if (_game.CanLaunch(_me, nuke, tile))
+            {
+                _game.Submit(new NukeIntent(_me.Id, nuke, tile));
+                if (!Input.IsKeyPressed(Key.Shift)) // hold Shift to keep firing
+                    StopPlacing();
+            }
+            return;
+        }
         if (_placing is { } type && _game.Phase == GamePhase.Running)
         {
             tile = PlacementTile(type, tile); // ports snap to the coast, even from a click on the water
@@ -413,7 +477,12 @@ public partial class World : Node2D
     {
         _game = new Game(_map, RandomSeed(), difficulty: _args.Difficulty ?? Difficulty);
         _me = _game.AddPlayer("You");
-        _game.AddNations(_args.Nations ?? Nations);
+        if (DevCheats && !_args.NoCheats)
+            _game.SetCheats(_me, infiniteGold: true, instantBuild: true);
+        if (_args.Nations is null && MapNations.For(_mapId) is { } mapNations)
+            _game.AddNations(mapNations); // the map's own nations, at their real homes
+        else
+            _game.AddNations(_args.Nations ?? Nations);
         _game.AddBots(_args.Bots ?? Bots);
         _palette = PlayerColors.For(_game.Players, _game.Seed);
         _view.SetPalette(_palette);
@@ -430,7 +499,7 @@ public partial class World : Node2D
         if (_args.Showcase)
             Showcase();
 
-        _view.SetOwners(_game.Owner);
+        _view.SetOwners(_game.Owner, _game.Fallout);
         _game.ChangedTiles.Clear();
         _tickTime = 0;
     }
@@ -528,12 +597,52 @@ public partial class World : Node2D
         for (int t = 0; t < 10; t++)
             _game.Step();
         var at = new Vector2(mine[mine.Count / 2] % _map.Width, mine[mine.Count / 2] / _map.Width);
+        if (_args.ShowcaseFocus?.StartsWith("nukes") == true && ShowcaseNukes() is { } blast)
+        {
+            _showcaseFocus = blast / new Vector2(_map.Width, _map.Height);
+            return;
+        }
         if (_args.ShowcaseFocus == "rails" && _showcaseRailFocus >= 0)
             at = new Vector2(_showcaseRailFocus % _map.Width, _showcaseRailFocus / _map.Width);
         else if (_game.Warships.Count > 0)
             at = new Vector2(_game.Warships[0].Tile % _map.Width, _game.Warships[0].Tile / _map.Width);
         _showcaseFocus = at / new Vector2(_map.Width, _map.Height);
         GD.Print($"showcase: {_game.Buildings.Count()} buildings, {_game.Warships.Count} warships at {string.Join(",", _game.Warships.Select(w => (w.Tile % _map.Width, w.Tile / _map.Width)))}, {_game.Boats.Count} boats, centre {at / new Vector2(_map.Width, _map.Height)}");
+    }
+
+    /// <summary>
+    /// Testing aid (--showcase=nukes[:TICKS]): fires a MOAB, a Fat Man and a Tsar Bomba from your
+    /// silo at nearby enemy land, then runs TICKS ticks (default 25: bombs in the air). Returns
+    /// the point between the silo and the targets, for the camera.
+    /// </summary>
+    private Vector2? ShowcaseNukes()
+    {
+        var silo = _game.Buildings.FirstOrDefault(b => b.Owner == _me.Id && b.Type == BuildingType.Silo);
+        if (silo is null)
+            return null;
+        for (int level = 1; level < 3; level++) // three missiles ready at once
+            _game.Submit(new BuildIntent(_me.Id, BuildingType.Silo, silo.Tile));
+        while (_game.NukesLocked)
+            _game.Step();
+        int w = _map.Width, sx = silo.Tile % w, sy = silo.Tile / w;
+        var enemy = Enumerable.Range(0, _map.TileCount)
+            .Where(t => _game.Owner[t] != Game.Nobody && _game.Owner[t] != _me.Id)
+            .Select(t => (Tile: t, D: Math.Sqrt((t % w - sx) * (t % w - sx) + (t / w - sy) * (t / w - sy))))
+            .Where(x => x.D is > 120 and < 320).OrderBy(x => x.D).Select(x => x.Tile).ToList();
+        if (enemy.Count == 0)
+            return null;
+        int Pick(double fraction) => enemy[Math.Min(enemy.Count - 1, (int)(enemy.Count * fraction))];
+        int moab = Pick(0.1), fatMan = Pick(0.6), tsar = Pick(0.95);
+        _game.Submit(new NukeIntent(_me.Id, NukeType.Moab, moab));
+        _game.Submit(new NukeIntent(_me.Id, NukeType.FatMan, fatMan));
+        _game.Submit(new NukeIntent(_me.Id, NukeType.TsarBomba, tsar));
+        int ticks = _args.ShowcaseFocus!.Split(':') is [_, var n] ? int.Parse(n, System.Globalization.CultureInfo.InvariantCulture) : 25;
+        for (int t = 0; t < ticks; t++)
+            _game.Step();
+        GD.Print($"showcase nukes: {_game.Nukes.Count} in the air, {_game.Explosions.Count} explosions, {_game.FalloutTiles} fallout tiles");
+        return ticks > 20 // after impact: look at the blasts; before: the whole flight
+            ? new Vector2((moab % w + fatMan % w) / 2f, (moab / w + fatMan / w) / 2f)
+            : new Vector2((sx + moab % w + fatMan % w) / 3f, (sy + moab / w + fatMan / w) / 3f);
     }
 
     private void FrameCamera(float zoom, Vector2? focus)
@@ -560,13 +669,13 @@ public partial class World : Node2D
         GetTree().Quit();
     }
 
-    private record struct Args(string? Map, ulong? Seed, int? Bots, int? Nations, Difficulty? Difficulty, bool Autoplay, int Ticks,
+    private record struct Args(string? Map, ulong? Seed, int? Bots, int? Nations, Difficulty? Difficulty, bool NoCheats, bool Autoplay, int Ticks,
         bool NoHillshade, float Zoom, Vector2? Focus, string? Screenshot, bool Perf, Vector2? Hover, bool HoverLeader, bool Showcase, string? ShowcaseFocus);
 
     private static Args ParseArgs()
     {
         var inv = System.Globalization.CultureInfo.InvariantCulture;
-        var args = new Args(null, null, null, null, null, false, 0, false, 1, null, null, false, null, false, false, null);
+        var args = new Args(null, null, null, null, null, false, false, 0, false, 1, null, null, false, null, false, false, null);
         foreach (string arg in OS.GetCmdlineUserArgs())
         {
             string[] kv = arg.TrimStart('-').Split('=', 2);
@@ -577,6 +686,8 @@ public partial class World : Node2D
                 case "seed": args.Seed = ulong.Parse(value); break;
                 case "bots": args.Bots = int.Parse(value, inv); break;
                 case "nations": args.Nations = int.Parse(value, inv); break;
+                case "tribes": args.Bots = int.Parse(value, inv); break;
+                case "no-cheats": args.NoCheats = true; break;
                 case "difficulty": args.Difficulty = Enum.Parse<Difficulty>(value, ignoreCase: true); break;
                 case "autoplay": args.Autoplay = true; break;
                 case "ticks": args.Ticks = int.Parse(value, inv); break;

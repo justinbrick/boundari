@@ -9,7 +9,8 @@ namespace Boundari.Sim;
 ///   2. If empty land touches its border, expands into it.
 ///   3. Otherwise attacks the weakest neighbour, if clearly stronger than them.
 /// Between attacks it builds (see <see cref="NationStructures"/>): three building decisions
-/// per attack cycle, as OpenFront's nations do. Nations only submit intents, like a human
+/// per attack cycle, as OpenFront's nations do, and once a cycle it considers bombing
+/// someone (see <see cref="NationNukes"/>). Nations only submit intents, like a human
 /// would, and use their own seeded RNG, so they behave identically on every machine.
 /// </summary>
 internal sealed class NationAi : IPlayerAi
@@ -29,6 +30,9 @@ internal sealed class NationAi : IPlayerAi
     private readonly Player _player;
     private readonly Rng _rng;
     private readonly NationStructures _structures;
+    private readonly NationNukes _nukes;
+    private int _nextNukeCheck;
+    private readonly int _cycle;
     private int _nextThink;
     private int _nextBuild;
     private readonly int _buildEvery;
@@ -39,6 +43,7 @@ internal sealed class NationAi : IPlayerAi
         _player = player;
         _rng = rng;
         _structures = new NationStructures(game, player, new Rng(rng.Fork()));
+        _nukes = new NationNukes(game, player, new Rng(rng.Fork()));
         _nextThink = _rng.RangeInt(0, MaxThinkTicks); // stagger nations so they don't all act at once
 
         // OpenFront's nation rhythm (an attack cycle, by difficulty), with building decisions
@@ -50,14 +55,22 @@ internal sealed class NationAi : IPlayerAi
             Difficulty.Hard => _rng.RangeInt(45, 59),
             _ => _rng.RangeInt(30, 49),
         };
+        _cycle = cycle;
         _buildEvery = Math.Max(1, cycle / 3);
         _nextBuild = _rng.RangeInt(0, _buildEvery);
+        _nextNukeCheck = _rng.RangeInt(0, cycle);
     }
 
     public void Think()
     {
         if (!_player.HasSpawned || !_player.IsAlive || _game.Phase != GamePhase.Running)
             return;
+        if (_game.Tick >= _nextNukeCheck) // once per attack cycle, like OpenFront's nations
+        {
+            _nextNukeCheck = _game.Tick + _cycle;
+            _nukes.ConsiderTsarBomba();
+            _nukes.MaybeSendNuke();
+        }
         if (_game.Tick >= _nextBuild)
         {
             _nextBuild = _game.Tick + _buildEvery;

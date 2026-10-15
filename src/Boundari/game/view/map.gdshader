@@ -58,6 +58,7 @@ uniform float coast_border_width : hint_range(0.0, 3.0) = 0.6;
 uniform float border_darken : hint_range(0.0, 1.0) = 0.35;
 
 const int WATER = 65535;
+const int FALLOUT = 65534; // land poisoned by a bomb (nobody owns it)
 const int COVER_NONE = 0;
 const int COVER_FARMLAND = 1;
 const int COVER_MEADOW = 2;
@@ -300,6 +301,19 @@ void territory_at(vec2 tile, out int best_id, out float edge) {
 //  Land colour
 // ---------------------------------------------------------------------------
 
+// Smooth value noise, for the mottled glow of fallout.
+float fallout_hash(vec2 p) {
+	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+
+float fallout_noise(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(fallout_hash(i), fallout_hash(i + vec2(1.0, 0.0)), f.x),
+		mix(fallout_hash(i + vec2(0.0, 1.0)), fallout_hash(i + vec2(1.0, 1.0)), f.x), f.y);
+}
+
 vec3 cover_color_of(int id) {
 	return cover_colors[clamp(id == COVER_NONE ? COVER_FARMLAND : id, 0, 6)];
 }
@@ -394,7 +408,15 @@ void fragment() {
 		int id;
 		float edge;
 		territory_at(tile, id, edge);
-		if (id != WATER && id != 0) {
+		if (id == FALLOUT) {
+			// Scorched ground with a slowly shifting, radioactive green glow (like OpenFront's fallout).
+			vec3 scorched = texelFetch(palette_tex, ivec2(id & 255, id >> 8), 0).rgb;
+			float n = fallout_noise(tile * 0.12 + vec2(visual_time * 0.004, 0.0)) * 0.65
+				+ fallout_noise(tile * 0.45 - vec2(0.0, visual_time * 0.006)) * 0.35;
+			vec3 glow = vec3(0.32, 0.86, 0.12);
+			vec3 fallout = mix(scorched, glow, smoothstep(0.35, 0.95, n) * 0.7);
+			color = mix(color, mix(ground * 0.4, fallout, 0.85), land * (1.0 - cover_water));
+		} else if (id != WATER && id != 0) {
 			vec3 nation = texelFetch(palette_tex, ivec2(id & 255, id >> 8), 0).rgb;
 
 			// Distance to the coastline in tiles, so territories get an outline along the shore too.

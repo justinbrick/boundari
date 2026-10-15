@@ -31,7 +31,10 @@ public class SimBenchmark
             map = MapFile.Read(file);
 
         var game = new Game(map, 42, spawnPhaseTicks: 1);
-        game.AddNations(int.TryParse(Environment.GetEnvironmentVariable("BOUNDARI_NATIONS"), out int nations) ? nations : 120);
+        if (int.TryParse(Environment.GetEnvironmentVariable("BOUNDARI_NATIONS"), out int nations))
+            game.AddNations(nations);
+        else
+            game.AddNations(MapNations.Europe); // OpenFront's 52
         game.AddBots(int.TryParse(Environment.GetEnvironmentVariable("BOUNDARI_BOTS"), out int n) ? n : 400);
         var timer = Stopwatch.StartNew();
         long worst = 0;
@@ -54,6 +57,7 @@ public class SimBenchmark
             string Kind(PlayerKind k) => $"{game.Players.Count(p => p.Kind == k && p.IsAlive)} {k.ToString().ToLower()}s ({game.Players.Where(p => p.Kind == k).Sum(p => (long)p.TileCount) * 100 / Math.Max(1, owned)}% of land)";
             var built = game.Buildings.GroupBy(b => b.Type).OrderBy(g => g.Key).Select(g => $"{g.Key} {g.Sum(b => b.Level)}");
             _out.WriteLine($"  alive: {Kind(PlayerKind.Nation)}, {Kind(PlayerKind.Bot)}; buildings (levels): {string.Join(", ", built)}");
+            _out.WriteLine($"  bombs launched: MOAB {game.NukesLaunched[0]}, Fat Man {game.NukesLaunched[1]}, Tsar Bomba {game.NukesLaunched[2]}; shot down {game.NukesIntercepted}; fallout {game.FalloutTiles} tiles; richest nation {game.Players.Where(p => p.IsNation).Max(p => p.Gold):N0}");
             _out.WriteLine($"minute {minute}: {100.0 * owned / map.LandTileCount:F0}% land owned, " +
                            $"{game.Players.Count(p => p.IsAlive)} alive, biggest {top.Name} {top.TileCount} tiles, " +
                            $"{game.Attacks.Count} attacks, {game.Buildings.Count(b => b.Type == BuildingType.Port)} ports, " +

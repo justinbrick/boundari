@@ -79,6 +79,7 @@ public partial class MapOverlay : Node2D
     {
         _ghostType = null;
         _ghostTile = -1;
+        ClearNukeGhost();
     }
 
     public override void _Process(double delta) => QueueRedraw();
@@ -163,6 +164,9 @@ public partial class MapOverlay : Node2D
             DrawStringOutline(_font, textPos, troops, HorizontalAlignment.Left, -1, fontSize, Math.Max(1, (int)(3 / zoom)), new Color(0, 0, 0, 0.6f));
             DrawString(_font, textPos, troops, HorizontalAlignment.Left, -1, fontSize, Colors.White);
         }
+
+        // --- Bombs, interceptors and explosions (on top of everything) ---
+        DrawNukeLayer(zoom, w);
     }
 
     private void DrawBuilding(BuildingType type, Vector2 at, float size, Color owner, float alpha, Color? outlineOverride = null)
