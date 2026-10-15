@@ -417,7 +417,10 @@ void fragment() {
 			vec3 fallout = mix(scorched, glow, smoothstep(0.35, 0.95, n) * 0.7);
 			color = mix(color, mix(ground * 0.4, fallout, 0.85), land * (1.0 - cover_water));
 		} else if (id != WATER && id != 0) {
-			vec3 nation = texelFetch(palette_tex, ivec2(id & 255, id >> 8), 0).rgb;
+			vec4 swatch = texelFetch(palette_tex, ivec2(id & 255, id >> 8), 0);
+			vec3 nation = swatch.rgb;
+			// A palette alpha below 1 asks for a more solid fill (tribes are drawn opaque).
+			float opacity = max(territory_opacity, 1.0 - swatch.a);
 
 			// Distance to the coastline in tiles, so territories get an outline along the shore too.
 			float coast_dist = shore_dist;
@@ -430,7 +433,7 @@ void fragment() {
 			float coast_border = 1.0 - smoothstep(cbw - tiles_per_px, cbw + tiles_per_px, coast_dist);
 			border = max(border, coast_border);
 
-			vec3 fill = mix(ground, nation, territory_opacity);
+			vec3 fill = mix(ground, nation, opacity);
 			vec3 outline = nation * (1.0 - border_darken);
 			vec3 owned = mix(fill, outline, border);
 			color = mix(color, owned, land * (1.0 - cover_water));

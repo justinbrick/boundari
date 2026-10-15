@@ -77,7 +77,11 @@ public static class RailRules
 {
     public const int StationMaxRange = 110;   // cities/ports within this of a factory become stations
     public const int StationMinRange = 15;    // never lay rail between stations this close
-    public const int MaxRailLength = 155;     // StationMaxRange * sqrt(2)
+    public const int MaxRailLength = 230;     // tiles; routes run in straight lines with right-angle turns
+    public const int MaxBridgeTiles = 12;     // rails may bridge water this wide (rivers, narrow straits)
+    public const int StepCost = 10;           // route cost of one tile of land...
+    public const int BridgeStepCost = 30;     // ...of one tile of bridge (so land is preferred)
+    public const int TurnCost = 60;           // ...and of each 90-degree turn (so routes stay straight)
     public const int AlreadyConnectedHops = 4; // skip a new rail if already this close on the network
     public const int TrainCooldownTicks = 10;
     public const long TrainSpeedPerTick = 2000; // thousandths of a tile: 2 tiles per tick

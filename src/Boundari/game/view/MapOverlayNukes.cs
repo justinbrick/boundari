@@ -119,8 +119,8 @@ public partial class MapOverlay
         var side = new Vector2(-dir.Y, dir.X) * length * 0.22f;
         var nose = pos + dir * length * 0.5f;
         var tail = pos - dir * length * 0.5f;
-        DrawColoredPolygon(new[] { nose, pos + side, tail + side, tail - side, pos - side }, colour.Darkened(0.2f));
-        DrawColoredPolygon(new[] { nose, pos + dir * length * 0.15f + side * 0.9f, pos + dir * length * 0.15f - side * 0.9f }, Colors.White);
+        FillShape(new[] { nose, pos + side, tail + side, tail - side, pos - side }, colour.Darkened(0.2f));
+        FillShape(new[] { nose, pos + dir * length * 0.15f + side * 0.9f, pos + dir * length * 0.15f - side * 0.9f }, Colors.White);
         DrawPolyline(new[] { nose, pos + side, tail + side, tail - side, pos - side, nose }, new Color(0.1f, 0.1f, 0.1f, 0.8f), 1f / zoom, true);
         DrawCircle(tail - dir * length * 0.15f, length * 0.16f, new Color(1f, 0.7f, 0.3f, 0.85f)); // exhaust
     }

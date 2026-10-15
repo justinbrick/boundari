@@ -34,6 +34,7 @@ public partial class MapOverlay : Node2D
     private Game? _game;
     private Player? _me;
     private float _tickFraction;
+    private float _zoom = 1;
     private Font _font = null!;
 
     // Placement preview.
@@ -89,6 +90,7 @@ public partial class MapOverlay : Node2D
         if (_game is null)
             return;
         float zoom = GetViewport().GetCamera2D()?.Zoom.X ?? 1;
+        _zoom = zoom;
         int w = _game.Map.Width;
 
         // --- Railroads and trains (under the buildings) ---
@@ -169,12 +171,36 @@ public partial class MapOverlay : Node2D
         DrawNukeLayer(zoom, w);
     }
 
+    /// <summary>
+    /// Fills a small convex shape. It's drawn around its own centre at unit scale: tiny shapes
+    /// far from the map origin otherwise lose float precision, fail Godot's triangulation and
+    /// flood the log with errors. Shapes under about a pixel are skipped.
+    /// </summary>
+    private void FillShape(Vector2[] points, Color colour)
+    {
+        var centre = Vector2.Zero;
+        foreach (var p in points)
+            centre += p;
+        centre /= points.Length;
+        float radius = 0;
+        foreach (var p in points)
+            radius = Math.Max(radius, (p - centre).Length());
+        if (!(radius * _zoom >= 0.5f)) // also catches NaN
+            return;
+        var local = new Vector2[points.Length];
+        for (int i = 0; i < points.Length; i++)
+            local[i] = (points[i] - centre) / radius;
+        DrawSetTransform(centre, 0, new Vector2(radius, radius));
+        DrawColoredPolygon(local, colour);
+        DrawSetTransform(Vector2.Zero, 0, Vector2.One);
+    }
+
     private void DrawBuilding(BuildingType type, Vector2 at, float size, Color owner, float alpha, Color? outlineOverride = null)
     {
         var points = Shape(type, at, size / 2);
         var fill = owner.Lerp(Colors.White, 0.35f);
         var outline = outlineOverride ?? owner.Darkened(0.45f);
-        DrawColoredPolygon(points, new Color(fill, alpha));
+        FillShape(points, new Color(fill, alpha));
         var closed = new Vector2[points.Length + 1];
         points.CopyTo(closed, 0);
         closed[^1] = points[0];
@@ -225,12 +251,13 @@ public partial class MapOverlay : Node2D
     {
         var railColour = new Color(0.18f, 0.16f, 0.14f, 0.75f);
         float railWidth = Math.Max(1.2f / zoom, 0.25f);
-        int step = Math.Max(1, (int)(2f / Math.Max(zoom, 0.01f)));
         foreach (var rail in _game!.Railroads)
         {
-            var points = new List<Vector2>(rail.Tiles.Length / step + 2);
-            for (int i = 0; i < rail.Tiles.Length; i += step)
-                points.Add(TileCentre(rail.Tiles[i], w));
+            // Rails are straight runs with right-angle turns: just draw the corners.
+            var points = new List<Vector2> { TileCentre(rail.Tiles[0], w) };
+            for (int i = 1; i < rail.Tiles.Length - 1; i++)
+                if (rail.Tiles[i] - rail.Tiles[i - 1] != rail.Tiles[i + 1] - rail.Tiles[i])
+                    points.Add(TileCentre(rail.Tiles[i], w));
             points.Add(TileCentre(rail.Tiles[^1], w));
             if (points.Count >= 2)
                 DrawPolyline(points.ToArray(), railColour, railWidth, true);
@@ -302,8 +329,8 @@ public partial class MapOverlay : Node2D
             hull[i] = at + rot * hull[i];
         for (int i = 0; i < deck.Length; i++)
             deck[i] = at + rot * deck[i];
-        DrawColoredPolygon(hull, tint is { } c ? new Color(c, 0.6f) : new Color(0.55f, 0.58f, 0.62f));
-        DrawColoredPolygon(deck, owner);
+        FillShape(hull, tint is { } c ? new Color(c, 0.6f) : new Color(0.55f, 0.58f, 0.62f));
+        FillShape(deck, owner);
         var closed = new Vector2[hull.Length + 1];
         hull.CopyTo(closed, 0);
         closed[^1] = hull[0];
@@ -343,7 +370,7 @@ public partial class MapOverlay : Node2D
         var rot = Transform2D.Identity.Rotated(heading);
         for (int i = 0; i < hull.Length; i++)
             hull[i] = at + rot * hull[i];
-        DrawColoredPolygon(hull, owner.Lerp(Colors.White, trade ? 0.5f : 0.2f));
+        FillShape(hull, owner.Lerp(Colors.White, trade ? 0.5f : 0.2f));
         var closed = new Vector2[hull.Length + 1];
         hull.CopyTo(closed, 0);
         closed[^1] = hull[0];
@@ -353,7 +380,7 @@ public partial class MapOverlay : Node2D
             var box = new Vector2[] { new(-l * 0.18f, -hw * 0.45f), new(l * 0.12f, -hw * 0.45f), new(l * 0.12f, hw * 0.45f), new(-l * 0.18f, hw * 0.45f) };
             for (int i = 0; i < box.Length; i++)
                 box[i] = at + rot * box[i];
-            DrawColoredPolygon(box, owner.Darkened(0.35f));
+            FillShape(box, owner.Darkened(0.35f));
         }
     }
 

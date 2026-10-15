@@ -1067,72 +1067,102 @@ public sealed partial class Game
     }
 
     // Rail search memory: a window of tiles around the start (a rail can't reach further),
-    // reused between searches. A tile's entries count only if its mark is the current search.
+    // with one search state per tile and heading (up, down, left, right), reused between
+    // searches. A state's entries count only if its mark is the current search.
     private const int RailWindow = 2 * RailRules.MaxRailLength + 3;
-    private readonly int[] _railCost = new int[RailWindow * RailWindow];
-    private readonly int[] _railFrom = new int[RailWindow * RailWindow];
-    private readonly int[] _railMark = new int[RailWindow * RailWindow];
+    private readonly int[] _railCost = new int[RailWindow * RailWindow * 4];
+    private readonly int[] _railFrom = new int[RailWindow * RailWindow * 4];
+    private readonly int[] _railMark = new int[RailWindow * RailWindow * 4];
+    private readonly short[] _railSteps = new short[RailWindow * RailWindow * 4];
+    private readonly byte[] _railWater = new byte[RailWindow * RailWindow * 4];
     private readonly PriorityQueue<int, int> _railOpen = new();
     private int _railSearch;
+    private static readonly int[] RailDx = { 0, 0, -1, 1 }, RailDy = { -1, 1, 0, 0 };
 
-    /// <summary>A rail route over land (any owner's) between two tiles, at most MaxRailLength long; null if none.</summary>
+    /// <summary>
+    /// A rail route between two tiles: straight runs joined by right-angle turns (no
+    /// staircases), over anyone's land, bridging rivers and narrow water up to
+    /// <see cref="RailRules.MaxBridgeTiles"/> wide in a straight line. At most
+    /// <see cref="RailRules.MaxRailLength"/> tiles; null if there's no such route.
+    /// </summary>
     private int[]? RailPath(int from, int to)
     {
-        int w = Map.Width, h = Map.Height, tx = to % w, ty = to / w;
-        int half = RailWindow / 2, ox = from % w - half, oy = from / w - half;
-        if (Math.Abs(tx - from % w) > RailRules.MaxRailLength || Math.Abs(ty - from / w) > RailRules.MaxRailLength)
+        int w = Map.Width, h = Map.Height, tx = to % w, ty = to / w, fx = from % w, fy = from / w;
+        if (Math.Abs(tx - fx) + Math.Abs(ty - fy) + 1 > RailRules.MaxRailLength)
             return null;
-        int Local(int tile) => (tile / w - oy) * RailWindow + (tile % w - ox);
+        int half = RailWindow / 2, ox = fx - half, oy = fy - half;
+        int State(int x, int y, int dir) => ((y - oy) * RailWindow + (x - ox)) * 4 + dir;
+        int Heuristic(int x, int y)
+        {
+            int dx = Math.Abs(x - tx), dy = Math.Abs(y - ty);
+            return RailRules.StepCost * (dx + dy) + (dx != 0 && dy != 0 ? RailRules.TurnCost : 0);
+        }
 
         int search = ++_railSearch;
         var open = _railOpen;
         open.Clear();
-        int start = Local(from);
-        _railMark[start] = search;
-        _railCost[start] = 0;
-        _railFrom[start] = -1;
-        open.Enqueue(from, 0);
-        while (open.TryDequeue(out int cur, out int priority))
+        for (int dir = 0; dir < 4; dir++) // first step out of the station, any way
+            Visit(fx, fy, -1, dir, 0, 0, 0);
+
+        while (open.TryDequeue(out int state, out int priority))
         {
-            int lc = Local(cur), g = _railCost[lc];
-            if (cur == to)
+            int local = state / 4, dir = state % 4;
+            int x = local % RailWindow + ox, y = local / RailWindow + oy;
+            int g = _railCost[state];
+            if (priority > g + Heuristic(x, y))
+                continue; // stale entry: reached more cheaply since
+            if (x == tx && y == ty)
             {
-                var path = new List<int>();
-                for (int t = cur; t >= 0; t = _railFrom[Local(t)])
-                    path.Add(t);
-                path.Reverse();
-                return path.Count <= RailRules.MaxRailLength ? path.ToArray() : null;
-            }
-            int cx = cur % w, cy = cur / w;
-            if (priority > g + 10 * Math.Max(Math.Abs(cx - tx), Math.Abs(cy - ty)) + 4 * Math.Min(Math.Abs(cx - tx), Math.Abs(cy - ty)))
-                continue; // a stale queue entry: this tile was reached more cheaply since
-            for (int dy = -1; dy <= 1; dy++)
-                for (int dx = -1; dx <= 1; dx++)
+                var path = new List<int> { Map.Index(fx, fy) };
+                var back = new List<int>();
+                for (int s = state; s >= 0; s = _railFrom[s])
                 {
-                    int nx = cx + dx, ny = cy + dy;
-                    if ((dx == 0 && dy == 0) || nx < 0 || ny < 0 || nx >= w || ny >= h)
-                        continue;
-                    if (nx - ox < 0 || ny - oy < 0 || nx - ox >= RailWindow || ny - oy >= RailWindow)
-                        continue;
-                    int n = ny * w + nx;
-                    if (!Map.IsLand(n) || (dx != 0 && dy != 0 && (!Map.IsLand(cy * w + nx) || !Map.IsLand(ny * w + cx))))
-                        continue;
-                    int ng = g + (dx != 0 && dy != 0 ? 14 : 10);
-                    int hx = Math.Abs(nx - tx), hy = Math.Abs(ny - ty);
-                    // Every step is at most 14 long and covers one tile, so a route through here
-                    // has at least ng/14 + (tiles still to go) tiles: drop it if that's too many.
-                    if (ng / 14 + Math.Max(hx, hy) + 1 > RailRules.MaxRailLength)
-                        continue;
-                    int ln = Local(n);
-                    if (_railMark[ln] == search && _railCost[ln] <= ng)
-                        continue;
-                    _railMark[ln] = search;
-                    _railCost[ln] = ng;
-                    _railFrom[ln] = cur;
-                    open.Enqueue(n, ng + 10 * Math.Max(hx, hy) + 4 * Math.Min(hx, hy));
+                    int l = s / 4;
+                    back.Add(Map.Index(l % RailWindow + ox, l / RailWindow + oy));
                 }
+                back.Reverse();
+                path.AddRange(back);
+                return path.ToArray();
+            }
+            bool onWater = Map.IsWater(Map.Index(x, y));
+            for (int nd = 0; nd < 4; nd++)
+            {
+                if ((dir ^ nd) == 1 && dir / 2 == nd / 2)
+                    continue; // no U-turns
+                if (onWater && nd != dir)
+                    continue; // bridges run straight
+                int cost = g + (nd != dir ? RailRules.TurnCost : 0);
+                Visit(x, y, state, nd, cost, _railSteps[state], _railWater[state]);
+            }
         }
         return null;
+
+        void Visit(int x, int y, int fromState, int dir, int cost, int steps, int water)
+        {
+            int nx = x + RailDx[dir], ny = y + RailDy[dir];
+            if (nx < 0 || ny < 0 || nx >= w || ny >= h)
+                return;
+            if (nx - ox < 0 || ny - oy < 0 || nx - ox >= RailWindow || ny - oy >= RailWindow)
+                return;
+            int n = Map.Index(nx, ny);
+            bool water2 = Map.IsWater(n);
+            int run = water2 ? water + 1 : 0;
+            if (run > RailRules.MaxBridgeTiles || (water2 && nx == tx && ny == ty))
+                return;
+            int nsteps = steps + 1;
+            if (nsteps + Math.Abs(nx - tx) + Math.Abs(ny - ty) + 1 > RailRules.MaxRailLength)
+                return; // can't reach the far station within the length limit from here
+            int ng = cost + (water2 ? RailRules.BridgeStepCost : RailRules.StepCost);
+            int s = State(nx, ny, dir);
+            if (_railMark[s] == search && _railCost[s] <= ng)
+                return;
+            _railMark[s] = search;
+            _railCost[s] = ng;
+            _railFrom[s] = fromState;
+            _railSteps[s] = (short)nsteps;
+            _railWater[s] = (byte)run;
+            open.Enqueue(s, ng + Heuristic(nx, ny));
+        }
     }
 
     private void UpdateClusters()

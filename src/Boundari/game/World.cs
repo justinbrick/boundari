@@ -107,6 +107,9 @@ public partial class World : Node2D
     private double _tickTime;
     private Vector2? _pressPosition;
     private double _perfTimer;
+    private Label _fps = null!;
+    private double _fpsTimer, _stepMs, _worstStepMs;
+    private int _steps;
 
     public override void _Ready()
     {
@@ -117,6 +120,7 @@ public partial class World : Node2D
         _overlay = new MapOverlay { Name = "MapOverlay" };
         AddChild(_overlay);
         MoveChild(_overlay, _view.GetIndex() + 1); // just above the map, below the HUD
+        _fps = MakeFpsLabel();
         _labels = new TerritoryLabels { Name = "TerritoryLabels" };
         AddChild(_labels);
         MoveChild(_labels, _overlay.GetIndex() + 1);
@@ -155,13 +159,19 @@ public partial class World : Node2D
         for (int i = 0; i < 4 && _tickTime >= tickLength; i++)
         {
             int tick = _game.Tick;
+            long stepStart = Stopwatch.GetTimestamp();
             _game.Step();
+            double stepMs = (Stopwatch.GetTimestamp() - stepStart) * 1000.0 / Stopwatch.Frequency;
+            _stepMs += stepMs;
+            _worstStepMs = Math.Max(_worstStepMs, stepMs);
+            _steps++;
             _view.RecordTick(_game.Owner, _game.Fallout, _game.ChangedTiles, tick);
             _game.ChangedTiles.Clear();
             _tickTime -= tickLength;
         }
         _tickTime = Math.Min(_tickTime, tickLength);
 
+        UpdateFps(delta);
         if (_args.Perf && (_perfTimer += delta) >= 2)
         {
             _perfTimer = 0;
@@ -486,7 +496,7 @@ public partial class World : Node2D
         _game.AddBots(_args.Bots ?? Bots);
         _palette = PlayerColors.For(_game.Players, _game.Seed);
         _view.SetPalette(_palette);
-        _overlay.SetPalette(_palette);
+        _overlay.SetPalette(PlayerColors.Solid(_palette));
         _ = _game.Waterways; // prepare sea routes now, not on the first boat
         _labels.SetGame(_game);
         _overlay.SetGame(_game, _me);
@@ -532,6 +542,11 @@ public partial class World : Node2D
         }
         typeof(Player).GetProperty(nameof(Player.Gold))!.SetValue(_me, 20_000_000L);
         var mine = Enumerable.Range(0, _map.TileCount).Where(t => _game.Owner[t] == _me.Id).ToList();
+        if (mine.Count == 0)
+        {
+            GD.Print("showcase: you were wiped out before it started; skipping");
+            return;
+        }
         foreach (BuildingType type in Enum.GetValues<BuildingType>())
         {
             var candidates = type == BuildingType.Warship
@@ -643,6 +658,32 @@ public partial class World : Node2D
         return ticks > 20 // after impact: look at the blasts; before: the whole flight
             ? new Vector2((moab % w + fatMan % w) / 2f, (moab / w + fatMan / w) / 2f)
             : new Vector2((sx + moab % w + fatMan % w) / 3f, (sy + moab / w + fatMan / w) / 3f);
+    }
+
+    /// <summary>Top-left readout: frames per second, frame time, and how long simulation ticks take.</summary>
+    private Label MakeFpsLabel()
+    {
+        var layer = new CanvasLayer { Name = "FpsLayer", Layer = 100 };
+        AddChild(layer);
+        var label = new Label { Name = "Fps", Text = "-- FPS", Position = new Vector2(10, 8), MouseFilter = Control.MouseFilterEnum.Ignore };
+        label.AddThemeFontSizeOverride("font_size", 14);
+        label.AddThemeColorOverride("font_color", new Color(0.85f, 0.95f, 0.8f));
+        label.AddThemeColorOverride("font_outline_color", new Color(0, 0, 0, 0.9f));
+        label.AddThemeConstantOverride("outline_size", 4);
+        layer.AddChild(label);
+        return label;
+    }
+
+    private void UpdateFps(double delta)
+    {
+        if ((_fpsTimer += delta) < 0.5)
+            return;
+        double fps = Engine.GetFramesPerSecond();
+        string sim = _steps > 0 ? $"tick {_stepMs / _steps:F1} ms (worst {_worstStepMs:F0})" : "tick -";
+        _fps.Text = $"{fps:F0} FPS  {1000.0 / Math.Max(fps, 1):F1} ms  |  {sim}";
+        _fpsTimer = 0;
+        _stepMs = _worstStepMs = 0;
+        _steps = 0;
     }
 
     private void FrameCamera(float zoom, Vector2? focus)
