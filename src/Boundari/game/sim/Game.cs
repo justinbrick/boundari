@@ -61,14 +61,19 @@ public sealed class Game
     private Waterways? _waterways;
     private readonly bool[]? _coastal;
     private readonly List<Intent> _pending = new();
-    private readonly List<SimpleBot> _bots = new();
+    private readonly List<IPlayerAi> _ais = new();
+    private readonly List<Building> _demolishing = new();
     private readonly Rng _rng;
     private readonly long[] _troopsLastSecond = new long[ushort.MaxValue];
 
-    public Game(GameMap map, ulong seed, int spawnPhaseTicks = Balance.SpawnPhaseTicks)
+    /// <summary>How strong nations are this match.</summary>
+    public readonly Difficulty Difficulty;
+
+    public Game(GameMap map, ulong seed, int spawnPhaseTicks = Balance.SpawnPhaseTicks, Difficulty difficulty = Difficulty.Medium)
     {
         Map = map;
         Seed = seed;
+        Difficulty = difficulty;
         SpawnPhaseTicks = spawnPhaseTicks;
         Owner = new ushort[map.TileCount];
         CostTenths = Balance.TileCostTenths(map);
@@ -97,37 +102,54 @@ public sealed class Game
     public Player? GetPlayer(ushort id) => id > 0 && id < _players.Count ? _players[id] : null;
     public int SecondsUntilStart => Math.Max(0, (SpawnPhaseTicks - Tick + Balance.TicksPerSecond - 1) / Balance.TicksPerSecond);
 
-    public Player AddPlayer(string name, bool isBot = false, string flag = "")
+    public Player AddPlayer(string name, PlayerKind kind = PlayerKind.Human, string flag = "")
     {
         if (_players.Count >= ushort.MaxValue - 1)
             throw new InvalidOperationException("Too many players.");
-        var player = new Player((ushort)_players.Count, name, isBot, flag) { Troops = isBot ? Balance.BotStartTroops : Balance.StartTroops };
+        var player = new Player((ushort)_players.Count, name, kind, Difficulty, flag) { Troops = Balance.StartTroopsFor(kind, Difficulty) };
         _players.Add(player);
         return player;
     }
 
-    /// <summary>Adds bots and places them around the map, spread apart.</summary>
-    public void AddBots(int count)
+    private readonly List<int> _aiSpawns = new();
+
+    /// <summary>Adds nations (the proper AI opponents, named after countries) and places them, spread apart.</summary>
+    public void AddNations(int count)
     {
-        var spawns = new List<int>();
         var countries = new List<(string Code, string Name)>(Countries.All);
         for (int b = 0; b < count; b++)
         {
-            // Each bot gets a different country's name and flag (numbered if we run out).
+            // Each nation gets a different country's name and flag (numbered if we run out).
             int pick = _rng.RangeInt(0, countries.Count - 1);
             var (code, name) = countries[pick];
             countries.RemoveAt(pick);
             if (countries.Count == 0)
                 countries.AddRange(Countries.All);
-            var bot = AddPlayer(b < Countries.All.Length ? name : $"{name} {b / Countries.All.Length + 1}", isBot: true, flag: code);
-            _bots.Add(new SimpleBot(this, bot, new Rng(_rng.Fork())));
-            int tile = FindBotSpawn(spawns);
-            if (tile >= 0)
-            {
-                spawns.Add(tile);
-                Spawn(bot, tile);
-            }
+            var nation = AddPlayer(b < Countries.All.Length ? name : $"{name} {b / Countries.All.Length + 1}", PlayerKind.Nation, code);
+            _ais.Add(new NationAi(this, nation, new Rng(_rng.Fork())));
+            SpawnAi(nation);
         }
+    }
+
+    /// <summary>Adds bots: OpenFront's weak filler players with made-up names and no flag.</summary>
+    public void AddBots(int count)
+    {
+        var names = new Rng(_rng.Fork());
+        for (int b = 0; b < count; b++)
+        {
+            var bot = AddPlayer(BotNames.Random(names), PlayerKind.Bot);
+            _ais.Add(new BotAi(this, bot, new Rng(_rng.Fork())));
+            SpawnAi(bot);
+        }
+    }
+
+    private void SpawnAi(Player player)
+    {
+        int tile = FindBotSpawn(_aiSpawns);
+        if (tile < 0)
+            return;
+        _aiSpawns.Add(tile);
+        Spawn(player, tile);
     }
 
     public void Submit(Intent intent) => _pending.Add(intent);
@@ -147,8 +169,8 @@ public sealed class Game
         }
 
         long t0 = Stopwatch.GetTimestamp();
-        foreach (var bot in _bots)
-            bot.Think();
+        foreach (var ai in _ais)
+            ai.Think();
         long t1 = Stopwatch.GetTimestamp();
         GrowEconomies();
         SailBoats();
@@ -188,7 +210,12 @@ public sealed class Game
                 Spawn(player, spawn.Tile);
                 break;
             case AttackIntent attack when Phase == GamePhase.Running:
-                StartAttack(player, attack.TargetId, attack.RatioPercent);
+                StartAttack(player, attack.TargetId, attack.Troops > 0
+                    ? Math.Min(attack.Troops, player.Troops)
+                    : player.Troops * Math.Clamp(attack.RatioPercent, 1, 100) / 100);
+                break;
+            case DemolishIntent demolish when Phase == GamePhase.Running:
+                StartDemolition(player, demolish.Tile);
                 break;
             case BoatIntent boat when Phase == GamePhase.Running:
                 LaunchBoat(player, boat.Tile, boat.RatioPercent);
@@ -251,7 +278,7 @@ public sealed class Game
             }
         }
         player.HasSpawned = true;
-        player.Troops = player.IsBot ? Balance.BotStartTroops : Balance.StartTroops;
+        player.Troops = Balance.StartTroopsFor(player.Kind, Difficulty);
     }
 
     private int FindBotSpawn(List<int> taken)
@@ -293,7 +320,7 @@ public sealed class Game
             var p = _players[id];
             if (!p.HasSpawned || p.TileCount == 0)
                 continue;
-            p.Troops = Math.Max(0, p.Troops + Balance.TroopGrowth(p.Troops, p.MaxTroops, p.IsBot));
+            p.Troops = Math.Max(0, p.Troops + Balance.TroopGrowth(p.Troops, p.MaxTroops, p.Kind, Difficulty));
             p.Gold += Balance.GoldPerTick(p);
             if (newSecond)
             {
@@ -356,6 +383,24 @@ public sealed class Game
         }
         return best;
     }
+
+    /// <summary>The player's buildings of one type (any, if null), in tile order.</summary>
+    public List<Building> BuildingsOf(Player player, BuildingType? type = null)
+    {
+        var list = new List<Building>();
+        foreach (var b in _buildings.Values)
+            if (b.Owner == player.Id && (type is null || b.Type == type))
+                list.Add(b);
+        list.Sort((a, b) => a.Tile.CompareTo(b.Tile));
+        return list;
+    }
+
+    /// <summary>Which rail network a building's station is on: -1 if it's a lone station, null if it isn't one.</summary>
+    internal int? StationCluster(Building b) => _stations.TryGetValue(b, out var s) ? s.Cluster : null;
+
+    /// <summary>Whether a brand-new building (not a stack onto one of ours) may go here.</summary>
+    public bool CanBuildNew(Player player, BuildingType type, int tile) =>
+        CanBuild(player, type, tile) && UpgradeTarget(player, type, tile) is null;
 
     public int CountBuildings(Player player, BuildingType type)
     {
@@ -511,6 +556,7 @@ public sealed class Game
         if (path is null)
             return;
         player.Troops -= troops;
+        player.AttacksSent++;
         _boats.Add(new Boat(player, troops, landing, path));
     }
 
@@ -748,9 +794,32 @@ public sealed class Game
         return false;
     }
 
-    /// <summary>Buildings start working once built.</summary>
+    private void StartDemolition(Player player, int tile)
+    {
+        if (BuildingAt(tile) is not { } b || b.Owner != player.Id || b.DemolishTick >= 0 || Tick < player.NextDemolishTick)
+            return;
+        b.DemolishTick = Tick + Balance.DemolishTicks;
+        player.NextDemolishTick = Tick + Balance.DemolishCooldownTicks;
+        _demolishing.Add(b);
+    }
+
+    /// <summary>Buildings start working once built, and come down when their demolition is due.</summary>
     private void FinishConstruction()
     {
+        for (int i = 0; i < _demolishing.Count; i++)
+        {
+            var b = _demolishing[i];
+            if (b.Removed || b.DemolishTick < 0) // gone already, or captured (which cancels it)
+            {
+                _demolishing.RemoveAt(i--);
+                continue;
+            }
+            if (Tick < b.DemolishTick)
+                continue;
+            _demolishing.RemoveAt(i--);
+            RemoveBuilding(b);
+        }
+
         for (int i = 0; i < _constructing.Count; i++)
         {
             var b = _constructing[i];
@@ -789,6 +858,7 @@ public sealed class Game
 
     private void TransferBuilding(Building b, ushort newOwner)
     {
+        b.DemolishTick = -1; // the new owner didn't order it
         if (b.IsReady(Tick))
         {
             Deactivate(b, _players[b.Owner]);
@@ -919,43 +989,69 @@ public sealed class Game
         return -1;
     }
 
+    // Rail search memory: a window of tiles around the start (a rail can't reach further),
+    // reused between searches. A tile's entries count only if its mark is the current search.
+    private const int RailWindow = 2 * RailRules.MaxRailLength + 3;
+    private readonly int[] _railCost = new int[RailWindow * RailWindow];
+    private readonly int[] _railFrom = new int[RailWindow * RailWindow];
+    private readonly int[] _railMark = new int[RailWindow * RailWindow];
+    private readonly PriorityQueue<int, int> _railOpen = new();
+    private int _railSearch;
+
     /// <summary>A rail route over land (any owner's) between two tiles, at most MaxRailLength long; null if none.</summary>
     private int[]? RailPath(int from, int to)
     {
         int w = Map.Width, h = Map.Height, tx = to % w, ty = to / w;
-        var cost = new Dictionary<int, int> { [from] = 0 };
-        var cameFrom = new Dictionary<int, int>();
-        var open = new PriorityQueue<int, int>();
+        int half = RailWindow / 2, ox = from % w - half, oy = from / w - half;
+        if (Math.Abs(tx - from % w) > RailRules.MaxRailLength || Math.Abs(ty - from / w) > RailRules.MaxRailLength)
+            return null;
+        int Local(int tile) => (tile / w - oy) * RailWindow + (tile % w - ox);
+
+        int search = ++_railSearch;
+        var open = _railOpen;
+        open.Clear();
+        int start = Local(from);
+        _railMark[start] = search;
+        _railCost[start] = 0;
+        _railFrom[start] = -1;
         open.Enqueue(from, 0);
-        int expanded = 0;
-        while (open.TryDequeue(out int cur, out _) && expanded++ < 40_000)
+        while (open.TryDequeue(out int cur, out int priority))
         {
+            int lc = Local(cur), g = _railCost[lc];
             if (cur == to)
             {
-                var path = new List<int> { cur };
-                while (cameFrom.TryGetValue(cur, out int prev))
-                    path.Add(cur = prev);
+                var path = new List<int>();
+                for (int t = cur; t >= 0; t = _railFrom[Local(t)])
+                    path.Add(t);
                 path.Reverse();
                 return path.Count <= RailRules.MaxRailLength ? path.ToArray() : null;
             }
-            int cx = cur % w, cy = cur / w, g = cost[cur];
-            if (g / 10 > RailRules.MaxRailLength)
-                continue;
+            int cx = cur % w, cy = cur / w;
+            if (priority > g + 10 * Math.Max(Math.Abs(cx - tx), Math.Abs(cy - ty)) + 4 * Math.Min(Math.Abs(cx - tx), Math.Abs(cy - ty)))
+                continue; // a stale queue entry: this tile was reached more cheaply since
             for (int dy = -1; dy <= 1; dy++)
                 for (int dx = -1; dx <= 1; dx++)
                 {
                     int nx = cx + dx, ny = cy + dy;
                     if ((dx == 0 && dy == 0) || nx < 0 || ny < 0 || nx >= w || ny >= h)
                         continue;
+                    if (nx - ox < 0 || ny - oy < 0 || nx - ox >= RailWindow || ny - oy >= RailWindow)
+                        continue;
                     int n = ny * w + nx;
                     if (!Map.IsLand(n) || (dx != 0 && dy != 0 && (!Map.IsLand(cy * w + nx) || !Map.IsLand(ny * w + cx))))
                         continue;
                     int ng = g + (dx != 0 && dy != 0 ? 14 : 10);
-                    if (cost.TryGetValue(n, out int old) && old <= ng)
-                        continue;
-                    cost[n] = ng;
-                    cameFrom[n] = cur;
                     int hx = Math.Abs(nx - tx), hy = Math.Abs(ny - ty);
+                    // Every step is at most 14 long and covers one tile, so a route through here
+                    // has at least ng/14 + (tiles still to go) tiles: drop it if that's too many.
+                    if (ng / 14 + Math.Max(hx, hy) + 1 > RailRules.MaxRailLength)
+                        continue;
+                    int ln = Local(n);
+                    if (_railMark[ln] == search && _railCost[ln] <= ng)
+                        continue;
+                    _railMark[ln] = search;
+                    _railCost[ln] = ng;
+                    _railFrom[ln] = cur;
                     open.Enqueue(n, ng + 10 * Math.Max(hx, hy) + 4 * Math.Min(hx, hy));
                 }
         }
@@ -1500,13 +1596,14 @@ public sealed class Game
     //  Attacks (continued)
     // ------------------------------------------------------------------
 
-    private void StartAttack(Player attacker, ushort targetId, int ratioPercent)
+    private void StartAttack(Player attacker, ushort targetId, long troops)
     {
         if (targetId == attacker.Id || (targetId != Nobody && GetPlayer(targetId) is not { IsAlive: true }))
             return;
-        long troops = attacker.Troops * Math.Clamp(ratioPercent, 1, 100) / 100;
         if (troops <= 0)
             return;
+        if (targetId != Nobody)
+            attacker.AttacksSent++;
 
         // Attacking someone who is attacking you: the two armies meet and cancel out first.
         var incoming = targetId == Nobody ? null : _attacks.Find(a => a.Attacker.Id == targetId && a.TargetId == attacker.Id);
@@ -1579,6 +1676,11 @@ public sealed class Game
                 for (int k = 0; k < count; k++)
                     Enqueue(attack, nb[k], arrival);
                 budget--;
+                if (defender is not null && defender.TileCount < Balance.ConquerBelowTiles)
+                {
+                    Conquer(attack.Attacker, defender);
+                    break;
+                }
             }
 
             // Drop stale entries so the checks below look at a real front tile.
@@ -1631,7 +1733,68 @@ public sealed class Game
             cost += Density(defender) * Balance.DefenderDensityCostTenths * terrain / 100;
         if (defender is not null && DefendedByPost(tile, defender.Id))
             cost *= Balance.DefensePostTroopFactor;
+        if (defender is { IsBot: true } && !attacker.IsBot)
+            cost = cost * Balance.VsBotTroopCostPercent / 100;
         return Math.Max(cost, 1);
+    }
+
+    /// <summary>
+    /// A player beaten down to a few scraps is finished off, as in OpenFront: the attacker
+    /// takes their gold (half from a person, none from one who never fought) and every
+    /// remaining tile next to the attacker; tiles out of reach go to whoever else borders them.
+    /// </summary>
+    private void Conquer(Player winner, Player loser)
+    {
+        long gold = loser.Kind == PlayerKind.Human && loser.AttacksSent == 0 ? 0 : loser.Gold;
+        if (gold > 0)
+        {
+            winner.Gold += loser.Kind == PlayerKind.Human ? gold / 2 : gold;
+            loser.Gold -= gold;
+        }
+
+        // The loser's land: flood out from its edges (every piece has some).
+        var tiles = new List<int>();
+        var seen = new HashSet<int>();
+        var queue = new Queue<int>();
+        foreach (int t in loser.Border)
+            if (seen.Add(t)) queue.Enqueue(t);
+        foreach (int t in loser.Coast)
+            if (seen.Add(t)) queue.Enqueue(t);
+        Span<int> nb = stackalloc int[4];
+        while (queue.Count > 0)
+        {
+            int t = queue.Dequeue();
+            tiles.Add(t);
+            int count = LandNeighbours(t, nb);
+            for (int k = 0; k < count; k++)
+                if (Owner[nb[k]] == loser.Id && seen.Add(nb[k]))
+                    queue.Enqueue(nb[k]);
+        }
+        tiles.Sort(); // HashSet order isn't guaranteed; keep every machine identical
+
+        for (int pass = 0; pass < 100; pass++)
+        {
+            bool progressed = false;
+            foreach (int t in tiles)
+            {
+                if (Owner[t] != loser.Id)
+                    continue;
+                ushort taker = Nobody;
+                int count = LandNeighbours(t, nb);
+                for (int k = 0; k < count && taker != winner.Id; k++)
+                {
+                    ushort o = Owner[nb[k]];
+                    if (o == winner.Id || (taker == Nobody && o != Nobody && o != loser.Id))
+                        taker = o;
+                }
+                if (taker == Nobody)
+                    continue;
+                SetOwner(t, taker);
+                progressed = true;
+            }
+            if (!progressed)
+                break;
+        }
     }
 
     private static long DefenderLoss(Player defender) => Density(defender) * Balance.DefenderLossTenths / 10;

@@ -29,7 +29,9 @@ namespace Boundari;
 /// Command-line options (after "--" when launching Godot):
 ///   --map=ID           load res://maps/ID.bmap ("random" for a generated map)
 ///   --seed=N           generate a random map with this seed
-///   --bots=N           number of bots (default 120)
+///   --nations=N        number of nations, the proper AI opponents (default 120)
+///   --bots=N           number of bots, the weak filler players (default 400, like OpenFront)
+///   --difficulty=D     easy, medium (default), hard or impossible: how strong nations are
 ///   --autoplay         spawn the human player automatically (for testing)
 ///   --ticks=N          fast-forward the match N ticks at start
 ///   --no-hillshade     start with hill shading off
@@ -48,7 +50,9 @@ public partial class World : Node2D
     [Export] public ulong Seed { get; set; }
     [Export] public int MapWidth { get; set; } = 2000;
     [Export] public int MapHeight { get; set; } = 1250;
-    [Export] public int Bots { get; set; } = 120;
+    [Export] public int Nations { get; set; } = 120;
+    [Export] public int Bots { get; set; } = 400;
+    [Export] public Difficulty Difficulty { get; set; } = Difficulty.Medium;
 
     private const float ClickMaxDrag = 6; // pixels; more than this is a camera drag, not a click
 
@@ -100,12 +104,9 @@ public partial class World : Node2D
         _camera = GetNode<Camera2D>("Camera2D");
         _hud = new GameHud(this);
         _panels = new PlayerPanels(this);
-        _palette = MakePalette(4096);
-        _view.SetPalette(_palette);
         _overlay = new MapOverlay { Name = "MapOverlay" };
         AddChild(_overlay);
         MoveChild(_overlay, _view.GetIndex() + 1); // just above the map, below the HUD
-        _overlay.SetPalette(_palette);
         _labels = new TerritoryLabels { Name = "TerritoryLabels" };
         AddChild(_labels);
         MoveChild(_labels, _overlay.GetIndex() + 1);
@@ -410,9 +411,13 @@ public partial class World : Node2D
 
     private void StartMatch()
     {
-        _game = new Game(_map, RandomSeed());
+        _game = new Game(_map, RandomSeed(), difficulty: _args.Difficulty ?? Difficulty);
         _me = _game.AddPlayer("You");
+        _game.AddNations(_args.Nations ?? Nations);
         _game.AddBots(_args.Bots ?? Bots);
+        _palette = PlayerColors.For(_game.Players, _game.Seed);
+        _view.SetPalette(_palette);
+        _overlay.SetPalette(_palette);
         _ = _game.Waterways; // prepare sea routes now, not on the first boat
         _labels.SetGame(_game);
         _overlay.SetGame(_game, _me);
@@ -544,19 +549,6 @@ public partial class World : Node2D
         _camera.Set("max_zoom", 120.0f);
     }
 
-    private static Color[] MakePalette(int count)
-    {
-        var colors = new Color[count];
-        var rng = new Core.Rng(12345);
-        for (int i = 1; i < count; i++)
-        {
-            // Golden-ratio hue steps keep neighbouring ids visually distinct.
-            float hue = (float)(i * 0.618033988749895 % 1.0);
-            colors[i] = Color.FromHsv(hue, (float)rng.Range(0.45, 0.7), (float)rng.Range(0.75, 0.95));
-        }
-        return colors;
-    }
-
     private static ulong RandomSeed() => (ulong)Random.Shared.NextInt64(1, 1_000_000_000);
 
     private async void SaveScreenshotAndQuit(string path)
@@ -568,13 +560,13 @@ public partial class World : Node2D
         GetTree().Quit();
     }
 
-    private record struct Args(string? Map, ulong? Seed, int? Bots, bool Autoplay, int Ticks,
+    private record struct Args(string? Map, ulong? Seed, int? Bots, int? Nations, Difficulty? Difficulty, bool Autoplay, int Ticks,
         bool NoHillshade, float Zoom, Vector2? Focus, string? Screenshot, bool Perf, Vector2? Hover, bool HoverLeader, bool Showcase, string? ShowcaseFocus);
 
     private static Args ParseArgs()
     {
         var inv = System.Globalization.CultureInfo.InvariantCulture;
-        var args = new Args(null, null, null, false, 0, false, 1, null, null, false, null, false, false, null);
+        var args = new Args(null, null, null, null, null, false, 0, false, 1, null, null, false, null, false, false, null);
         foreach (string arg in OS.GetCmdlineUserArgs())
         {
             string[] kv = arg.TrimStart('-').Split('=', 2);
@@ -584,6 +576,8 @@ public partial class World : Node2D
                 case "map": args.Map = value; break;
                 case "seed": args.Seed = ulong.Parse(value); break;
                 case "bots": args.Bots = int.Parse(value, inv); break;
+                case "nations": args.Nations = int.Parse(value, inv); break;
+                case "difficulty": args.Difficulty = Enum.Parse<Difficulty>(value, ignoreCase: true); break;
                 case "autoplay": args.Autoplay = true; break;
                 case "ticks": args.Ticks = int.Parse(value, inv); break;
                 case "no-hillshade": args.NoHillshade = true; break;

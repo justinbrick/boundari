@@ -3,12 +3,37 @@ using System.Collections.Generic;
 
 namespace Boundari.Sim;
 
+/// <summary>
+/// Who is playing, as in OpenFront: people; nations (proper AI opponents, built for a
+/// fight); and bots (OpenFront's "tribes": weak filler that grabs land and gets eaten).
+/// </summary>
+public enum PlayerKind : byte
+{
+    Human,
+    Nation,
+    Bot,
+}
+
+/// <summary>How strong nations are (OpenFront's difficulty setting). Bots are always weak.</summary>
+public enum Difficulty : byte
+{
+    Easy,
+    Medium,
+    Hard,
+    Impossible,
+}
+
 public sealed class Player
 {
     /// <summary>Owner id on the map (never 0, which means "nobody").</summary>
     public readonly ushort Id;
     public readonly string Name;
-    public readonly bool IsBot;
+    public readonly PlayerKind Kind;
+    public bool IsBot => Kind == PlayerKind.Bot;
+    public bool IsNation => Kind == PlayerKind.Nation;
+
+    /// <summary>The match's difficulty (only changes nations' numbers).</summary>
+    public readonly Difficulty Difficulty;
 
     /// <summary>Flag code (ISO country code, e.g. "pl"), or empty for none.</summary>
     public readonly string Flag;
@@ -42,7 +67,16 @@ public sealed class Player
     /// <summary>Troops gained over the last second, for the HUD.</summary>
     public long TroopsPerSecond { get; internal set; }
 
-    public long MaxTroops => Balance.MaxTroops(TileCount, CityLevels, IsBot);
+    public long MaxTroops => Balance.MaxTroops(TileCount, CityLevels, Kind, Difficulty);
+
+    /// <summary>Same, without what cities add.</summary>
+    public long MaxTroopsWithoutCities => Balance.MaxTroops(TileCount, 0, Kind, Difficulty);
+
+    /// <summary>Attacks and boats this player has sent (someone who never fought gives up no gold when conquered).</summary>
+    internal int AttacksSent;
+
+    /// <summary>Earliest tick this player may order another demolition.</summary>
+    internal int NextDemolishTick;
 
     /// <summary>Levels of finished cities this player owns (each adds to the troop cap).</summary>
     public int CityLevels { get; internal set; }
@@ -53,11 +87,12 @@ public sealed class Player
     /// <summary>Gold earned from trains (theirs or others' stopping at their stations).</summary>
     public long TrainGold { get; internal set; }
 
-    internal Player(ushort id, string name, bool isBot, string flag)
+    internal Player(ushort id, string name, PlayerKind kind, Difficulty difficulty, string flag)
     {
         Id = id;
         Name = name;
-        IsBot = isBot;
+        Kind = kind;
+        Difficulty = difficulty;
         Flag = flag;
     }
 

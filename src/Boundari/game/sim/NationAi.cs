@@ -4,14 +4,15 @@ using Boundari.Core;
 namespace Boundari.Sim;
 
 /// <summary>
-/// The most basic bot: every couple of seconds it looks at its options and picks one.
-///   1. Wait until it has a decent share of its troop capacity.
-///   2. If empty land touches its border, expand into it.
-///   3. Otherwise attack the weakest neighbour, if clearly stronger than them.
-/// Bots only submit intents, like a human would, and use their own seeded RNG,
-/// so they behave identically on every machine.
+/// A nation: a proper AI opponent, much stronger than a bot. Every couple of seconds it:
+///   1. Waits until it has a decent share of its troop capacity.
+///   2. If empty land touches its border, expands into it.
+///   3. Otherwise attacks the weakest neighbour, if clearly stronger than them.
+/// Between attacks it builds (see <see cref="NationStructures"/>): three building decisions
+/// per attack cycle, as OpenFront's nations do. Nations only submit intents, like a human
+/// would, and use their own seeded RNG, so they behave identically on every machine.
 /// </summary>
-public sealed class SimpleBot
+internal sealed class NationAi : IPlayerAi
 {
     private const int MinThinkTicks = 15;
     private const int MaxThinkTicks = 35;
@@ -27,53 +28,50 @@ public sealed class SimpleBot
     private readonly Game _game;
     private readonly Player _player;
     private readonly Rng _rng;
+    private readonly NationStructures _structures;
     private int _nextThink;
-    private int _nextPortCheck;
+    private int _nextBuild;
+    private readonly int _buildEvery;
 
-    // Bots build a port when they can afford one (one per this many tiles, up to a few),
-    // so there are partners to trade with.
-    private const int TilesPerPort = 20_000;
-    private const int MaxPorts = 3;
-    private const int NoCoastRetryTicks = 600;
-
-    public SimpleBot(Game game, Player player, Rng rng)
+    public NationAi(Game game, Player player, Rng rng)
     {
         _game = game;
         _player = player;
         _rng = rng;
-        _nextThink = _rng.RangeInt(0, MaxThinkTicks); // stagger bots so they don't all act at once
-    }
+        _structures = new NationStructures(game, player, new Rng(rng.Fork()));
+        _nextThink = _rng.RangeInt(0, MaxThinkTicks); // stagger nations so they don't all act at once
 
-    private void TryBuildPort()
-    {
-        if (_game.Tick < _nextPortCheck || _player.Gold < _game.BuildingCost(_player, BuildingType.Port))
-            return;
-        int wanted = Math.Min(MaxPorts, 1 + _player.TileCount / TilesPerPort);
-        if (_game.CountBuildings(_player, BuildingType.Port) >= wanted)
-            return;
-
-        var coast = new System.Collections.Generic.List<int>(_player.Coast);
-        coast.Sort(); // HashSet order isn't guaranteed; keep every machine identical
-        for (int tries = 0; tries < 20 && coast.Count > 0; tries++)
+        // OpenFront's nation rhythm (an attack cycle, by difficulty), with building decisions
+        // a third of the way through it.
+        int cycle = game.Difficulty switch
         {
-            int tile = coast[_rng.RangeInt(0, coast.Count - 1)];
-            if (_game.CanBuild(_player, BuildingType.Port, tile))
-            {
-                _game.Submit(new BuildIntent(_player.Id, BuildingType.Port, tile));
-                return;
-            }
-        }
-        _nextPortCheck = _game.Tick + NoCoastRetryTicks; // landlocked or crowded: try again later
+            Difficulty.Easy => _rng.RangeInt(65, 99),
+            Difficulty.Medium => _rng.RangeInt(55, 69),
+            Difficulty.Hard => _rng.RangeInt(45, 59),
+            _ => _rng.RangeInt(30, 49),
+        };
+        _buildEvery = Math.Max(1, cycle / 3);
+        _nextBuild = _rng.RangeInt(0, _buildEvery);
     }
 
     public void Think()
     {
-        if (_game.Tick < _nextThink || !_player.HasSpawned || !_player.IsAlive)
+        if (!_player.HasSpawned || !_player.IsAlive || _game.Phase != GamePhase.Running)
             return;
-        _nextThink = _game.Tick + _rng.RangeInt(MinThinkTicks, MaxThinkTicks);
+        if (_game.Tick >= _nextBuild)
+        {
+            _nextBuild = _game.Tick + _buildEvery;
+            _structures.Handle();
+        }
+        if (_game.Tick >= _nextThink)
+        {
+            _nextThink = _game.Tick + _rng.RangeInt(MinThinkTicks, MaxThinkTicks);
+            Attack();
+        }
+    }
 
-        TryBuildPort();
-
+    private void Attack()
+    {
         if (_player.Troops * 100 < _player.MaxTroops * ReadyPercent)
             return;
 

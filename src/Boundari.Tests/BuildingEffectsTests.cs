@@ -44,13 +44,20 @@ public class BuildingEffectsTests
     [Fact]
     public void TroopCap_MatchesOpenFront()
     {
-        Assert.Equal(100_000, Balance.MaxTroops(0, 0, isBot: false));
-        Near(2 * ((long)(Math.Pow(10_000, 0.6) * 1000) + 50_000), Balance.MaxTroops(10_000, 0, false), 2);
-        Near(Balance.MaxTroops(10_000, 0, false) / 3, Balance.MaxTroops(10_000, 0, true), 2);
-        Assert.Equal(Balance.MaxTroops(500, 0, false) + 500_000, Balance.MaxTroops(500, 2, false));
+        Assert.Equal(100_000, Balance.MaxTroops(0, 0));
+        Near(2 * ((long)(Math.Pow(10_000, 0.6) * 1000) + 50_000), Balance.MaxTroops(10_000, 0), 2);
+        Near(Balance.MaxTroops(10_000, 0) / 3, Balance.MaxTroops(10_000, 0, PlayerKind.Bot), 2);
+        Near(Balance.MaxTroops(10_000, 0) * 3 / 4, Balance.MaxTroops(10_000, 0, PlayerKind.Nation, Difficulty.Medium), 2);
+        Assert.Equal(Balance.MaxTroops(10_000, 0), Balance.MaxTroops(10_000, 0, PlayerKind.Nation, Difficulty.Hard));
+        Assert.Equal(Balance.MaxTroops(500, 0) + 500_000, Balance.MaxTroops(500, 2));
         // Growth slows to nothing at the cap and never goes over it.
-        Assert.Equal(0, Balance.TroopGrowth(100_000, 100_000, false));
-        Assert.True(Balance.TroopGrowth(50_000, 100_000, false) > Balance.TroopGrowth(50_000, 100_000, true));
+        Assert.Equal(0, Balance.TroopGrowth(100_000, 100_000));
+        Assert.True(Balance.TroopGrowth(50_000, 100_000) > Balance.TroopGrowth(50_000, 100_000, PlayerKind.Nation));
+        Assert.True(Balance.TroopGrowth(50_000, 100_000, PlayerKind.Nation) > Balance.TroopGrowth(50_000, 100_000, PlayerKind.Bot));
+        // Starting troops.
+        Assert.Equal(25_000, Balance.StartTroopsFor(PlayerKind.Human, Difficulty.Medium));
+        Assert.Equal(18_750, Balance.StartTroopsFor(PlayerKind.Nation, Difficulty.Medium));
+        Assert.Equal(10_000, Balance.StartTroopsFor(PlayerKind.Bot, Difficulty.Impossible));
     }
 
     [Fact]
@@ -119,6 +126,45 @@ public class BuildingEffectsTests
         Wait(game, 3000);
         Assert.True(a.TrainGold > 0, "trains should have earned gold at the cities");
         Assert.True(a.Gold > goldBefore);
+    }
+
+    [Fact]
+    public void Conquest_FinishesOffScraps_AndTakesGold()
+    {
+        var (game, a, b, land) = Setup(split: true);
+        int w = game.Map.Width;
+        int midX = land.Where(t => game.Owner[t] == b.Id).Min(t => t % w);
+        foreach (int t in land) // B keeps just a thin strip along the old border
+            if (game.Owner[t] == b.Id && t % w >= midX + 2)
+                SetOwner(game, t, a.Id);
+        Assert.InRange(b.TileCount, Balance.ConquerBelowTiles + 1, 2000);
+
+        game.Submit(new AttackIntent(b.Id, a.Id, 1)); // B has fought, so it gives up gold
+        Wait(game, 1);
+        game.Submit(new AttackIntent(a.Id, b.Id, 100));
+        Wait(game, 300);
+
+        Assert.Equal(0, b.TileCount);
+        Assert.Equal(0, b.Gold);
+        Assert.True(a.Gold >= 150_000_000, $"A should take half of B's 100M: {a.Gold:N0}");
+    }
+
+    [Fact]
+    public void Demolition_TakesThirtySeconds_WithACooldown()
+    {
+        var (game, a, _, land) = Setup(split: false);
+        int first = land[land.Length / 3], second = land[2 * land.Length / 3];
+        game.Submit(new BuildIntent(a.Id, BuildingType.City, first));
+        game.Submit(new BuildIntent(a.Id, BuildingType.City, second));
+        Wait(game, Balance.ConstructionTicks(BuildingType.City) + 1);
+
+        game.Submit(new DemolishIntent(a.Id, first));
+        game.Submit(new DemolishIntent(a.Id, second)); // too soon after the first: ignored
+        Wait(game, Balance.DemolishTicks - 5);
+        Assert.NotNull(game.BuildingAt(first));
+        Wait(game, 10);
+        Assert.Null(game.BuildingAt(first));
+        Assert.NotNull(game.BuildingAt(second));
     }
 
     [Fact]

@@ -9,10 +9,11 @@ public class SimTests
     private static GameMap SmallMap(ulong seed = 21) =>
         MapGenerator.Generate(seed, new MapGenSettings { Width = 400, Height = 250, MinIslandTiles = 8, MinLakeTiles = 30 });
 
-    private static Game BotGame(ulong seed, int bots, int ticks)
+    private static Game BotGame(ulong seed, int bots, int ticks, int wimpyBots = 0)
     {
         var game = new Game(SmallMap(), seed, spawnPhaseTicks: 5);
-        game.AddBots(bots);
+        game.AddNations(bots);
+        game.AddBots(wimpyBots);
         for (int t = 0; t < ticks; t++)
             game.Step();
         return game;
@@ -21,11 +22,39 @@ public class SimTests
     [Fact]
     public void SameSeed_PlaysOutIdentically()
     {
-        var a = BotGame(7, bots: 12, ticks: 900);
-        var b = BotGame(7, bots: 12, ticks: 900);
+        var a = BotGame(7, bots: 12, ticks: 1500, wimpyBots: 20);
+        var b = BotGame(7, bots: 12, ticks: 1500, wimpyBots: 20);
 
         Assert.Equal(a.Owner, b.Owner);
         Assert.Equal(a.Players.Select(p => p.Troops), b.Players.Select(p => p.Troops));
+        Assert.Equal(a.Players.Select(p => p.Gold), b.Players.Select(p => p.Gold));
+        Assert.Equal(a.Buildings.Select(x => (x.Tile, x.Type, x.Level)).OrderBy(x => x.Tile), b.Buildings.Select(x => (x.Tile, x.Type, x.Level)).OrderBy(x => x.Tile));
+    }
+
+    [Fact]
+    public void Bots_AreWeakFiller_NationsOutgrowThem()
+    {
+        var game = BotGame(11, bots: 6, ticks: 3000, wimpyBots: 30);
+
+        var nations = game.Players.Where(p => p.IsNation).ToList();
+        var bots = game.Players.Where(p => p.IsBot).ToList();
+        Assert.All(bots, b => Assert.True(b.Flag == "" && b.Name.Contains(' '), $"bot {b.Name} should have a made-up name and no flag"));
+        double nationAvg = nations.Average(p => (double)p.TileCount), botAvg = bots.Average(p => (double)p.TileCount);
+        Assert.True(nationAvg > botAvg * 3, $"nations should do far better than bots: {nationAvg:F0} vs {botAvg:F0} tiles on average");
+        Assert.True(bots.Count(b => !b.IsAlive) > 0, "nations should have eaten some bots");
+    }
+
+    [Fact]
+    public void Nations_BuildCitiesAndMore()
+    {
+        var game = BotGame(13, bots: 6, ticks: 6000, wimpyBots: 10);
+
+        var nationBuildings = game.Buildings.Where(b => game.GetPlayer(b.Owner)!.IsNation).ToList();
+        var types = nationBuildings.Select(b => b.Type).Distinct().ToList();
+        Assert.Contains(BuildingType.City, types);
+        Assert.True(types.Count >= 2, "nations should build more than one kind of building: " + string.Join(", ", types));
+        Assert.DoesNotContain(BuildingType.Silo, types); // not until bombs work
+        Assert.DoesNotContain(BuildingType.Sam, types);
     }
 
     [Fact]

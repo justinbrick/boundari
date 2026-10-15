@@ -30,6 +30,9 @@ public sealed class Building
 
     public bool IsReady(int tick) => tick >= ReadyTick;
 
+    /// <summary>Tick it gets torn down, if its owner ordered that (-1 = not).</summary>
+    public int DemolishTick { get; internal set; } = -1;
+
     internal Building(BuildingType type, int tile, ushort owner, int startTick, int readyTick)
     {
         Type = type;

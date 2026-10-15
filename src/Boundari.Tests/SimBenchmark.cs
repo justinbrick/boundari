@@ -31,7 +31,8 @@ public class SimBenchmark
             map = MapFile.Read(file);
 
         var game = new Game(map, 42, spawnPhaseTicks: 1);
-        game.AddBots(int.TryParse(Environment.GetEnvironmentVariable("BOUNDARI_BOTS"), out int n) ? n : 120);
+        game.AddNations(int.TryParse(Environment.GetEnvironmentVariable("BOUNDARI_NATIONS"), out int nations) ? nations : 120);
+        game.AddBots(int.TryParse(Environment.GetEnvironmentVariable("BOUNDARI_BOTS"), out int n) ? n : 400);
         var timer = Stopwatch.StartNew();
         long worst = 0;
         var worstPart = new long[4];
@@ -50,6 +51,9 @@ public class SimBenchmark
             }
             int owned = game.Owner.Count(o => o != Game.Nobody);
             var top = game.Players.OrderByDescending(p => p.TileCount).First();
+            string Kind(PlayerKind k) => $"{game.Players.Count(p => p.Kind == k && p.IsAlive)} {k.ToString().ToLower()}s ({game.Players.Where(p => p.Kind == k).Sum(p => (long)p.TileCount) * 100 / Math.Max(1, owned)}% of land)";
+            var built = game.Buildings.GroupBy(b => b.Type).OrderBy(g => g.Key).Select(g => $"{g.Key} {g.Sum(b => b.Level)}");
+            _out.WriteLine($"  alive: {Kind(PlayerKind.Nation)}, {Kind(PlayerKind.Bot)}; buildings (levels): {string.Join(", ", built)}");
             _out.WriteLine($"minute {minute}: {100.0 * owned / map.LandTileCount:F0}% land owned, " +
                            $"{game.Players.Count(p => p.IsAlive)} alive, biggest {top.Name} {top.TileCount} tiles, " +
                            $"{game.Attacks.Count} attacks, {game.Buildings.Count(b => b.Type == BuildingType.Port)} ports, " +

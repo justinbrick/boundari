@@ -14,13 +14,14 @@ public static class Balance
     // --- Spawning ---
     public const int SpawnPhaseTicks = 10 * TicksPerSecond;
     public const int SpawnRadius = 6;
-    // Like OpenFront: humans start with 25K troops, bots with 10K.
+    // Like OpenFront: humans start with 25K troops, bots with 10K, nations by difficulty.
     public const long StartTroops = 25_000;
     public const long BotStartTroops = 10_000;
-    public const int MinSpawnSpacing = 45; // tiles between bot spawns
+    public const int MinSpawnSpacing = 45; // tiles between AI spawns
 
     // --- Troops (OpenFront's formulas) ---
-    // Cap: 2 x (tiles^0.6 x 1000 + 50,000), plus 250K per city level; bots get a third.
+    // Cap: 2 x (tiles^0.6 x 1000 + 50,000), plus 250K per city level; bots get a third,
+    // nations a share by difficulty.
     public const long CityTroopIncrease = 250_000;
 
     // --- Gold ---
@@ -36,6 +37,17 @@ public static class Balance
     // players, 80/10 for bots, scaled by terrain).
     public const long NeutralTileCost = 16;
     public const long BotNeutralTileCost = 8;
+
+    // Bots are soft targets: people and nations lose 30% fewer troops attacking them (OpenFront).
+    public const long VsBotTroopCostPercent = 70;
+
+    // A player pushed below this many tiles by an attack is finished off (OpenFront):
+    // the attacker takes the scraps and their gold.
+    public const int ConquerBelowTiles = 100;
+
+    // Tearing down a building takes 30 s, and you can start one every 30 s (OpenFront).
+    public const int DemolishTicks = 30 * TicksPerSecond;
+    public const int DemolishCooldownTicks = 30 * TicksPerSecond;
 
     // Extra cost per tile when attacking a player, per troop of their density
     // (troops per tile), in tenths: 12 = 1.2x their density.
@@ -191,22 +203,58 @@ public static class Balance
         return costs;
     }
 
+    /// <summary>Starting troops, as in OpenFront (Hard nations start like people).</summary>
+    public static long StartTroopsFor(PlayerKind kind, Difficulty difficulty) => kind switch
+    {
+        PlayerKind.Bot => BotStartTroops,
+        PlayerKind.Nation => difficulty switch
+        {
+            Difficulty.Easy => 12_500,
+            Difficulty.Medium => 18_750,
+            Difficulty.Hard => 25_000,
+            _ => 31_250,
+        },
+        _ => StartTroops,
+    };
+
     /// <summary>Troop cap, as in OpenFront.</summary>
-    public static long MaxTroops(int tiles, int cityLevels, bool isBot)
+    public static long MaxTroops(int tiles, int cityLevels, PlayerKind kind = PlayerKind.Human, Difficulty difficulty = Difficulty.Medium)
     {
         double cap = 2 * (Math.Pow(tiles, 0.6) * 1000 + 50_000) + cityLevels * (double)CityTroopIncrease;
-        return (long)(isBot ? cap / 3 : cap);
+        return (long)(kind switch
+        {
+            PlayerKind.Bot => cap / 3,
+            PlayerKind.Nation => cap * difficulty switch
+            {
+                Difficulty.Easy => 0.5,
+                Difficulty.Medium => 0.75,
+                Difficulty.Hard => 1,
+                _ => 1.25,
+            },
+            _ => cap,
+        });
     }
 
     /// <summary>
     /// Troops gained this tick, as in OpenFront: (10 + troops^0.73 / 4), scaled by how
-    /// much room is left under the cap (bots grow at half speed). Over the cap you drop to it.
+    /// much room is left under the cap (bots grow at half speed, nations a little slower
+    /// or faster by difficulty). Over the cap you drop to it.
     /// </summary>
-    public static long TroopGrowth(long troops, long max, bool isBot)
+    public static long TroopGrowth(long troops, long max, PlayerKind kind = PlayerKind.Human, Difficulty difficulty = Difficulty.Medium)
     {
         double toAdd = (10 + Math.Pow(troops, 0.73) / 4) * (1 - (double)troops / Math.Max(1, max));
-        if (isBot)
-            toAdd *= 0.5;
+        toAdd *= kind switch
+        {
+            PlayerKind.Bot => 0.5,
+            PlayerKind.Nation => difficulty switch
+            {
+                Difficulty.Easy => 0.9,
+                Difficulty.Medium => 0.95,
+                Difficulty.Hard => 1,
+                _ => 1.05,
+            },
+            _ => 1,
+        };
         return Math.Min(troops + (long)toAdd, max) - troops;
     }
 

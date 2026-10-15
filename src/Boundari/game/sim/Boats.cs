@@ -51,6 +51,9 @@ public sealed class Waterways
     /// <summary>Which connected body of water each water tile belongs to (land = <see cref="NoBody"/>).</summary>
     public readonly int[] Body;
 
+    /// <summary>Tiles in each body of water.</summary>
+    public readonly int[] BodySize;
+
     public Waterways(GameMap map)
     {
         _map = map;
@@ -58,6 +61,7 @@ public sealed class Waterways
         Array.Fill(Body, NoBody);
         var queue = new int[map.TileCount];
         int bodies = 0, w = map.Width, h = map.Height;
+        var sizes = new System.Collections.Generic.List<int>();
         for (int start = 0; start < map.TileCount; start++)
         {
             if (Body[start] != NoBody || !map.IsWater(start))
@@ -74,6 +78,7 @@ public sealed class Waterways
                 if (y < h - 1) Visit(t + w);
             }
             bodies++;
+            sizes.Add(tail);
 
             void Visit(int n)
             {
@@ -83,6 +88,7 @@ public sealed class Waterways
                 queue[tail++] = n;
             }
         }
+        BodySize = sizes.ToArray();
         BuildCells();
         // Work memory, allocated now so the first boat doesn't stall a tick. One set for
         // instant searches (troop boats, warships), one for background trade routes.
