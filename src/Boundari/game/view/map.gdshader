@@ -57,6 +57,20 @@ uniform float border_width : hint_range(0.0, 1.0) = 0.3;
 uniform float coast_border_width : hint_range(0.0, 3.0) = 0.6;
 uniform float border_darken : hint_range(0.0, 1.0) = 0.35;
 
+group_uniforms dev_tools;
+// Land-cover patches: 1 = smooth rounded shapes (the normal look), 0 = square cells.
+uniform float patch_shape : hint_range(0.0, 1.0) = 1.0;
+// How far patches blend into their neighbours, in cells (0 = the normal, tight blend).
+uniform float patch_morph : hint_range(0.0, 2.0) = 0.0;
+// Inside territories, near their borders: 0 nothing, 1 a glow, 2 a darkening.
+uniform int inner_effect = 0;
+// Contour lines every this many metres (0 = off).
+uniform float contour_interval = 0.0;
+// Coordinate grid: lines every this many degrees (or 20x this many tiles on maps without geography); 0 = off.
+uniform float grid_step = 0.0;
+uniform bool has_geo = false;
+uniform vec4 geo_bounds = vec4(-180.0, 180.0, -90.0, 90.0); // lon min, lon max, lat min, lat max
+
 const int WATER = 65535;
 const int FALLOUT = 65534; // land poisoned by a bomb (nobody owns it)
 const int COVER_NONE = 0;
@@ -101,36 +115,93 @@ vec4 terrain_at(vec2 tile) {
 	return g0.y * (g0.x * a + g1.x * b) + g1.y * (g0.x * c + g1.x * d);
 }
 
+// Inverse of ElevationScale.cs: 0..1 elevation back to metres (for contour lines).
+float to_metres(float e) {
+	if (e <= 0.0) {
+		return 0.0;
+	}
+	if (e <= 0.55) {
+		return e / 0.55 * 350.0;
+	}
+	if (e <= 0.85) {
+		return 350.0 + (e - 0.55) / 0.30 * 1650.0;
+	}
+	return 2000.0 + (min(e, 1.0) - 0.85) / 0.15 * 3500.0;
+}
+
 int id_at(sampler2D ids_tex, ivec2 c, bool rg16) {
 	vec2 rg = texelFetch(ids_tex, c, 0).rg;
 	return rg16 ? int(rg.r * 255.0 + 0.5) + int(rg.g * 255.0 + 0.5) * 256 : int(rg.r * 255.0 + 0.5);
 }
 
-// Smooth "majority vote" over a grid of ids: each of the 4x4 nearby cells votes for
-// its id with a B-spline weight. Gives curved, crisp-edged shapes instead of squares.
+// Smooth "majority vote" over a grid of ids: nearby cells vote for their id, weighted
+// by distance. Gives curved, crisp-edged shapes instead of squares. Normally a 4x4 cubic
+// B-spline; with patch_morph, a wider Gaussian over 8x8 cells (patches blend further).
+// patch_shape blends the weights towards "nearest cell only" (square corners).
 // Cells holding `skip` don't vote. `edge` = winner's lead over the runner-up
 // (0 on a boundary, 1 deep inside one shape).
 void vote(sampler2D ids_tex, ivec2 size, vec2 cell_pos, bool rg16, int skip,
 		out int best_id, out int second_id, out float edge) {
 	vec2 p = cell_pos - 0.5;
 	vec2 pf = floor(p);
+	vec2 f = p - pf;
 	ivec2 base = ivec2(pf);
-	float wx[4];
-	float wy[4];
-	bspline_weights(p.x - pf.x, wx);
-	bspline_weights(p.y - pf.y, wy);
+	bool wide = patch_morph > 0.0;
+	int lo = wide ? -3 : -1; // taps cover cells base+lo .. base+lo+n-1
+	int n = wide ? 8 : 4;
 
-	int ids[4] = int[4](0, 0, 0, 0);
-	float ws[4] = float[4](0.0, 0.0, 0.0, 0.0);
+	float wx[8];
+	float wy[8];
+	if (wide) {
+		float inv = 1.0 / (2.0 * patch_morph * patch_morph);
+		float sx = 0.0;
+		float sy = 0.0;
+		for (int k = 0; k < 8; k++) {
+			float dx = float(lo + k) - f.x;
+			float dy = float(lo + k) - f.y;
+			wx[k] = exp(-dx * dx * inv);
+			wy[k] = exp(-dy * dy * inv);
+			sx += wx[k];
+			sy += wy[k];
+		}
+		for (int k = 0; k < 8; k++) {
+			wx[k] /= sx;
+			wy[k] /= sy;
+		}
+	} else {
+		float bx[4];
+		float by[4];
+		bspline_weights(f.x, bx);
+		bspline_weights(f.y, by);
+		for (int k = 0; k < 4; k++) {
+			wx[k] = bx[k];
+			wy[k] = by[k];
+		}
+	}
+	// Towards square cells: all the weight on the nearest cell.
+	if (patch_shape < 0.999) {
+		int nx = (f.x < 0.5 ? 0 : 1) - lo;
+		int ny = (f.y < 0.5 ? 0 : 1) - lo;
+		for (int k = 0; k < n; k++) {
+			wx[k] = mix(k == nx ? 1.0 : 0.0, wx[k], patch_shape);
+			wy[k] = mix(k == ny ? 1.0 : 0.0, wy[k], patch_shape);
+		}
+	}
+
+	int ids[6] = int[6](0, 0, 0, 0, 0, 0);
+	float ws[6] = float[6](0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
 	int count = 0;
 	float total = 0.0;
-	for (int j = 0; j < 4; j++) {
-		for (int i = 0; i < 4; i++) {
-			int id = id_at(ids_tex, clamp(base + ivec2(i - 1, j - 1), ivec2(0), size - 1), rg16);
+	for (int j = 0; j < n; j++) {
+		for (int i = 0; i < n; i++) {
+			float w = wx[i] * wy[j];
+			if (w < 1e-4) {
+				continue;
+			}
+			int id = id_at(ids_tex, clamp(base + ivec2(i + lo, j + lo), ivec2(0), size - 1), rg16);
 			if (id == skip) {
 				continue;
 			}
-			float w = wx[i] * wy[j];
 			total += w;
 			bool found = false;
 			for (int k = 0; k < count; k++) {
@@ -139,7 +210,7 @@ void vote(sampler2D ids_tex, ivec2 size, vec2 cell_pos, bool rg16, int skip,
 					found = true;
 				}
 			}
-			if (!found && count < 4) {
+			if (!found && count < 6) {
 				ids[count] = id;
 				ws[count] = w;
 				count++;
@@ -194,6 +265,27 @@ int owner_id_at(ivec2 c) {
 	c = clamp(c, ivec2(0), ivec2(map_size) - 1);
 	vec4 o = texelFetch(owner_tex, ivec3(c % owner_chunk, (c.y / owner_chunk) * owner_chunks_x + c.x / owner_chunk), 0);
 	return int(o.r * 255.0 + 0.5) + int(o.g * 255.0 + 0.5) * 256;
+}
+
+// How deep inside its territory a point is: the share of points on rings around it
+// (3, 7 and 12 tiles out) that belong to the same owner (water counts as theirs).
+// 0 = right at a border, 1 = well inside. Only used for the inner glow/darkening.
+float inner_depth(vec2 tile, int id) {
+	float same = 0.0;
+	float total = 0.0;
+	for (int ring = 0; ring < 3; ring++) {
+		float r = ring == 0 ? 3.0 : (ring == 1 ? 7.0 : 12.0);
+		float weight = ring == 0 ? 1.5 : (ring == 1 ? 1.0 : 0.6);
+		for (int k = 0; k < 8; k++) {
+			float a = (float(k) + 0.5 * float(ring)) * 0.785398; // 45 degrees apart, staggered per ring
+			int o = owner_id_at(ivec2(floor(tile + vec2(cos(a), sin(a)) * r)));
+			total += weight;
+			if (o == id || o == WATER) {
+				same += weight;
+			}
+		}
+	}
+	return same / total;
 }
 
 // Smooth territory lookup: nearby tiles vote for their owner with Gaussian weights
@@ -364,6 +456,15 @@ void fragment() {
 		ground *= mix(1.0, t.b, relief_strength);
 	}
 
+	if (contour_interval > 0.0) {
+		// Contour lines (a dev-tool option): thin brown lines at every contour_interval metres.
+		float metres = to_metres(elev);
+		float c = metres / contour_interval;
+		float d = abs(fract(c + 0.5) - 0.5) / max(fwidth(c), 1e-5);
+		float line = (1.0 - smoothstep(0.5, 1.5, d)) * step(contour_interval * 0.5, metres);
+		ground = mix(ground, vec3(0.36, 0.28, 0.18), line * 0.45);
+	}
+
 	ground = mix(ground, flat_ground, cover_water); // water stays flat
 	vec3 color = mix(water_color.rgb, ground, land);
 
@@ -411,13 +512,31 @@ void fragment() {
 			float border = 1.0 - smoothstep(bw - edge_aa, bw + edge_aa, edge);
 			float cbw = max(coast_border_width, tiles_per_px * 1.2);
 			float coast_border = 1.0 - smoothstep(cbw - tiles_per_px, cbw + tiles_per_px, coast_dist);
-			border = max(border, coast_border);
+			border = border_width > 0.0 ? max(border, coast_border) : 0.0;
 
 			vec3 fill = mix(ground, nation, opacity);
+			if (inner_effect != 0) {
+				// A wide band just inside the border: lighter (glow) or darker.
+				float near = 1.0 - smoothstep(0.35, 1.0, inner_depth(tile, id));
+				fill = inner_effect == 1
+					? mix(fill, mix(nation, vec3(1.0), 0.45), near * 0.6)
+					: fill * (1.0 - 0.45 * near);
+			}
 			vec3 outline = nation * (1.0 - border_darken);
 			vec3 owned = mix(fill, outline, border);
 			color = mix(color, owned, land * (1.0 - cover_water));
 		}
+	}
+
+	if (grid_step > 0.0) {
+		// Coordinate grid (a dev-tool option): latitude/longitude lines, or plain tile lines
+		// on maps without geography. About a pixel wide at any zoom.
+		vec2 g = has_geo
+			? vec2(mix(geo_bounds.x, geo_bounds.y, UV.x), mix(geo_bounds.w, geo_bounds.z, UV.y)) / grid_step
+			: tile / (grid_step * 20.0);
+		vec2 d = abs(fract(g + 0.5) - 0.5) / max(fwidth(g), vec2(1e-5));
+		float line = 1.0 - smoothstep(0.5, 1.5, min(d.x, d.y));
+		color = mix(color, vec3(0.12, 0.14, 0.16), line * 0.4);
 	}
 
 	COLOR = vec4(color, 1.0);

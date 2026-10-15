@@ -93,6 +93,9 @@ public partial class MapView : Sprite2D
         _material.SetShaderParameter("terrain_tex", terrainTexture);
 
         _material.SetShaderParameter("map_size", new Vector2(w, h));
+        _material.SetShaderParameter("has_geo", map.Geo is not null);
+        if (map.Geo is { } geo)
+            _material.SetShaderParameter("geo_bounds", new Vector4((float)geo.LonMin, (float)geo.LonMax, (float)geo.LatMin, (float)geo.LatMax));
         UploadCover(map);
 
         _territory = new TerritoryTextures(map);
@@ -152,14 +155,17 @@ public partial class MapView : Sprite2D
     {
         var cover = map.Cover;
         _material.SetShaderParameter("has_cover", cover is not null);
+        _coverCells = Array.Empty<byte>();
         if (cover is null)
             return;
 
         var cells = new byte[cover.Cells.Length];
         System.Runtime.InteropServices.MemoryMarshal.AsBytes(cover.Cells.AsSpan()).CopyTo(cells);
-        var coverTexture = ImageTexture.CreateFromImage(Image.CreateFromData(cover.Width, cover.Height, false, Image.Format.R8, cells));
-        _material.SetShaderParameter("cover_tex", coverTexture);
-        _material.SetShaderParameter("cover_scale", (float)cover.Scale);
+        _coverLevels = new ImageTexture?[3];
+        _coverCells = cells;
+        _coverSize = (cover.Width, cover.Height, cover.Scale);
+        _patchScale = -1;
+        SetPatchScale(_wantedPatchScale);
 
         // Average colour of each tile's cells (and, in alpha, how much is water), for
         // viewing from far away (with mipmaps).
@@ -195,6 +201,78 @@ public partial class MapView : Sprite2D
         averageImage.GenerateMipmaps();
         _material.SetShaderParameter("cover_avg_tex", ImageTexture.CreateFromImage(averageImage));
     }
+
+    // --- Dev tools (see DevTools.cs) ---
+
+    private byte[] _coverCells = Array.Empty<byte>();
+    private (int Width, int Height, int Scale) _coverSize;
+    private ImageTexture?[] _coverLevels = new ImageTexture?[3];
+    private int _patchScale = -1, _wantedPatchScale;
+
+    /// <summary>
+    /// Land-cover patch size: 0 = the map's own detail, 1 = patches merged 2x2, 2 = merged 4x4
+    /// (each merged cell takes the most common cover of its block). Built when first chosen.
+    /// </summary>
+    public void SetPatchScale(int level)
+    {
+        _wantedPatchScale = level;
+        if (_coverCells.Length == 0 || level == _patchScale)
+            return;
+        _patchScale = level;
+        int factor = 1 << level;
+        _coverLevels[level] ??= ImageTexture.CreateFromImage(level == 0
+            ? Image.CreateFromData(_coverSize.Width, _coverSize.Height, false, Image.Format.R8, _coverCells)
+            : MergedCover(factor));
+        _material.SetShaderParameter("cover_tex", _coverLevels[level]!);
+        _material.SetShaderParameter("cover_scale", (float)_coverSize.Scale / factor);
+    }
+
+    private Image MergedCover(int factor)
+    {
+        int w = (_coverSize.Width + factor - 1) / factor, h = (_coverSize.Height + factor - 1) / factor;
+        var merged = new byte[w * h];
+        var cells = _coverCells;
+        int srcW = _coverSize.Width, srcH = _coverSize.Height;
+        System.Threading.Tasks.Parallel.For(0, h, y =>
+        {
+            Span<int> counts = stackalloc int[8];
+            for (int x = 0; x < w; x++)
+            {
+                counts.Clear();
+                for (int cy = y * factor; cy < Math.Min((y + 1) * factor, srcH); cy++)
+                    for (int cx = x * factor; cx < Math.Min((x + 1) * factor, srcW); cx++)
+                        counts[Math.Min((int)cells[cy * srcW + cx], 7)]++;
+                int best = 0;
+                for (int k = 1; k < 8; k++) // most common cover ("none" only if nothing else)
+                    if (counts[k] > counts[best] || (best == 0 && counts[k] > 0))
+                        best = k;
+                merged[y * w + x] = (byte)best;
+            }
+        });
+        return Image.CreateFromData(w, h, false, Image.Format.R8, merged);
+    }
+
+    public float PatchShape { set => _material.SetShaderParameter("patch_shape", value); }
+    public float PatchMorph { set => _material.SetShaderParameter("patch_morph", value); }
+    public float TerritoryOpacity { set => _material.SetShaderParameter("territory_opacity", value); }
+
+    public float BorderWidth
+    {
+        set
+        {
+            _material.SetShaderParameter("border_width", value);
+            _material.SetShaderParameter("coast_border_width", value * 2);
+        }
+    }
+
+    /// <summary>0 none, 1 inner glow, 2 inner darkening.</summary>
+    public int InnerEffect { set => _material.SetShaderParameter("inner_effect", value); }
+
+    /// <summary>Contour lines every this many metres (0 = off).</summary>
+    public float ContourInterval { set => _material.SetShaderParameter("contour_interval", value); }
+
+    /// <summary>Grid lines every this many degrees (0 = off).</summary>
+    public float GridStep { set => _material.SetShaderParameter("grid_step", value); }
 
     private static byte ToByte(float v) => (byte)Math.Clamp((int)MathF.Round(v * 255f), 0, 255);
 

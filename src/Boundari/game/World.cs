@@ -43,6 +43,7 @@ namespace Boundari;
 ///   --focus=X,Y        centre the camera on this point, as 0..1 fractions of the map
 ///   --screenshot=PATH  save a screenshot after loading, then quit
 ///   --perf             print the frame rate every 2 seconds
+///   --dev=PSC=2,INR=1  (testing) set dev-tool options by index for this run (not saved)
 ///   --bench=SECONDS    run flat out (no vsync), print where frame time goes every 2 s, then quit
 ///   --showcase         (testing) after --autoplay: build one of everything and launch a boat;
 ///                      --showcase=nukes[:N] also fires a MOAB, Fat Man and Tsar Bomba, then runs N ticks
@@ -87,6 +88,7 @@ public partial class World : Node2D
     private readonly System.Collections.Generic.List<(NukeType Type, Button Button)> _nukeButtons = new();
 
     private MapOverlay _overlay = null!;
+    private DevTools _devTools = null!;
     private BuildingType? _placing;
     private NukeType? _aiming;
     private readonly System.Collections.Generic.List<(BuildingType Type, Button Button)> _buildButtons = new();
@@ -128,6 +130,8 @@ public partial class World : Node2D
         MoveChild(_labels, _overlay.GetIndex() + 1);
         _overlay.WaitForSim = SyncSim;
         _labels.WaitForSim = SyncSim;
+        _devTools = new DevTools { View = _view };
+        AddChild(_devTools);
 
         foreach (var (nuke, path) in NukeButtons)
             if (GetNodeOrNull<Button>("Main_Layer/Main_Control/ButtonsRow/" + path) is { } button)
@@ -145,6 +149,8 @@ public partial class World : Node2D
             }
 
         _args = ParseArgs();
+        if (_args.Dev is { } dev)
+            _devTools.Override(dev);
         _view.ShowHillshade = !_args.NoHillshade;
         string mapId = _args.Seed is not null ? "random" : _args.Map ?? StartMap;
         if (mapId is "" or "random" || !LoadMap(mapId))
@@ -611,6 +617,7 @@ public partial class World : Node2D
     {
         _map = map;
         _view.ShowMap(_map);
+        _devTools.ApplyAll(); // a new map resets the map material's settings
         StartMatch();
 
         GD.Print($"{title}: {_map.Width}x{_map.Height}, {_map.LandmassSizes.Length} landmasses, " +
@@ -847,13 +854,13 @@ public partial class World : Node2D
         GetTree().Quit();
     }
 
-    private record struct Args(string? Map, ulong? Seed, int? Bots, int? Nations, Difficulty? Difficulty, bool NoCheats, double? Bench, bool Autoplay, int Ticks,
+    private record struct Args(string? Map, ulong? Seed, int? Bots, int? Nations, Difficulty? Difficulty, bool NoCheats, double? Bench, string? Dev, bool Autoplay, int Ticks,
         bool NoHillshade, float Zoom, Vector2? Focus, string? Screenshot, bool Perf, Vector2? Hover, bool HoverLeader, bool Showcase, string? ShowcaseFocus);
 
     private static Args ParseArgs()
     {
         var inv = System.Globalization.CultureInfo.InvariantCulture;
-        var args = new Args(null, null, null, null, null, false, null, false, 0, false, 1, null, null, false, null, false, false, null);
+        var args = new Args(null, null, null, null, null, false, null, null, false, 0, false, 1, null, null, false, null, false, false, null);
         foreach (string arg in OS.GetCmdlineUserArgs())
         {
             string[] kv = arg.TrimStart('-').Split('=', 2);
@@ -867,6 +874,7 @@ public partial class World : Node2D
                 case "tribes": args.Bots = int.Parse(value, inv); break;
                 case "no-cheats": args.NoCheats = true; break;
                 case "bench": args.Bench = double.Parse(value, inv); break;
+                case "dev": args.Dev = value; break;
                 case "difficulty": args.Difficulty = Enum.Parse<Difficulty>(value, ignoreCase: true); break;
                 case "autoplay": args.Autoplay = true; break;
                 case "ticks": args.Ticks = int.Parse(value, inv); break;
