@@ -2,6 +2,8 @@
 
 [ext_resource type="Texture2D" uid="uid://c1ujkyu52c6ak" path="res://maps/urafailure.png" id="1_bxyxm"]
 [ext_resource type="Texture2D" uid="uid://b8h6ldx5thxu1" path="res://maps/boundari_stretched_stiched_ratioed.png" id="2_jqbn1"]
+[ext_resource type="Texture2D" uid="uid://d3ibsce0adicm" path="res://tests/image.png" id="2_mwd57"]
+[ext_resource type="Texture2D" uid="uid://b01w3x60w7anr" path="res://ui/flags - large/ru.png" id="3_aow1b"]
 [ext_resource type="Script" uid="uid://bod8lxotiicpa" path="res://camera_2d.gd" id="4_1u143"]
 [ext_resource type="Shader" uid="uid://ccrx2iq3onidj" path="res://blurroundcorn.gdshader" id="4_enfkb"]
 [ext_resource type="Script" uid="uid://5k1716wrxjer" path="res://main_control.gd" id="4_pdu2b"]
@@ -81,6 +83,16 @@
 [ext_resource type="Script" uid="uid://divxtioscd01k" path="res://game/view/MapView.cs" id="bw_mapview"]
 [ext_resource type="Script" uid="uid://b17hmp882uwcy" path="res://game/World.cs" id="bw_world"]
 
+[sub_resource type="FontVariation" id="FontVariation_xiaxg"]
+variation_embolden = 1.0
+variation_transform = Transform2D(1, 0, 0, 0.95, 0, 0)
+spacing_glyph = 8
+
+[sub_resource type="FontVariation" id="FontVariation_wahd8"]
+variation_embolden = 1.0
+variation_transform = Transform2D(1, 0, 0, 0.95, 0, 0)
+spacing_glyph = 4
+
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_7on8u"]
 bg_color = Color(0, 0, 0, 0.29411766)
 border_width_left = 2
@@ -107,6 +119,7 @@ border_blend = true
 shader = ExtResource("5_ogqqv")
 shader_parameter/blur_amount = 2.6000001235
 shader_parameter/darken_amount = 1.0
+shader_parameter/tint = 1.0
 shader_parameter/noise_strength = 0.01600000076
 shader_parameter/grain_scale = 150.0
 shader_parameter/noise_speed = 0.0
@@ -679,6 +692,7 @@ spacing_bottom = 1
 shader = ExtResource("5_ogqqv")
 shader_parameter/blur_amount = 4.00000019
 shader_parameter/darken_amount = 1.0
+shader_parameter/tint = 1.0
 shader_parameter/noise_strength = 0.01600000076
 shader_parameter/grain_scale = 150.0
 shader_parameter/noise_speed = 0.0
@@ -1127,6 +1141,50 @@ corner_radius_bottom_left = 4
 
 [node name="Node2D" type="Node2D" unique_id=1680915766]
 script = ExtResource("bw_world")
+
+[node name="TestImage" type="Sprite2D" parent="." unique_id=747275518]
+position = Vector2(957, 539)
+texture = ExtResource("2_mwd57")
+metadata/_edit_lock_ = true
+
+[node name="TNameMockup" type="Label" parent="TestImage" unique_id=1976942347]
+offset_left = 137.0
+offset_top = -35.0
+offset_right = 290.0
+offset_bottom = 10.0
+theme_override_colors/font_color = Color(0.117109306, 0.11710932, 0.117109306, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.15686275)
+theme_override_colors/font_outline_color = Color(0.8039216, 0.8784314, 0.7921569, 1)
+theme_override_constants/shadow_offset_x = 4
+theme_override_constants/shadow_offset_y = 4
+theme_override_constants/outline_size = 4
+theme_override_fonts/font = SubResource("FontVariation_xiaxg")
+theme_override_font_sizes/font_size = 32
+text = "RUSSIA"
+
+[node name="TTroopMockup" type="Label" parent="TestImage" unique_id=1521236398]
+offset_left = 180.0
+offset_top = 3.0
+offset_right = 251.0
+offset_bottom = 31.0
+theme_override_colors/font_color = Color(0.117109306, 0.11710932, 0.117109306, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.15686275)
+theme_override_colors/font_outline_color = Color(0.8039216, 0.8784314, 0.7921569, 1)
+theme_override_constants/shadow_offset_x = 3
+theme_override_constants/shadow_offset_y = 3
+theme_override_constants/outline_size = 3
+theme_override_constants/shadow_outline_size = 0
+theme_override_fonts/font = SubResource("FontVariation_wahd8")
+theme_override_font_sizes/font_size = 20
+text = "56.2K"
+
+[node name="TextureRect [V1]2" type="TextureRect" parent="TestImage" unique_id=1590022146]
+offset_left = 93.0
+offset_top = -25.0
+offset_right = 127.66667
+offset_bottom = 1.0
+texture = ExtResource("3_aow1b")
+expand_mode = 1
 
 [node name="MapDisplay" type="Sprite2D" parent="." unique_id=1126381259]
 script = ExtResource("bw_mapview")
