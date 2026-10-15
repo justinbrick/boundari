@@ -1086,6 +1086,45 @@ expand_margin_top = 2.0
 expand_margin_right = 2.0
 expand_margin_bottom = 2.0
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_j54ir"]
+bg_color = Color(0, 0, 0, 0.17254902)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(2.051, 2.051, 2.051, 0.055)
+border_blend = true
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_8o0en"]
+bg_color = Color(0, 0, 0, 0.24705882)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(2.051, 2.051, 2.051, 0.055)
+border_blend = true
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ud2h5"]
+bg_color = Color(0, 0, 0, 0.17254902)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(2.051, 2.051, 2.051, 0.055)
+border_blend = true
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
 [node name="Node2D" type="Node2D" unique_id=1680915766]
 script = ExtResource("bw_world")
 
@@ -1148,9 +1187,9 @@ anchor_top = -1.6
 anchor_right = 1.0421053
 anchor_bottom = -1.26
 offset_left = -6.0
-offset_top = -8.0
+offset_top = -68.0
 offset_right = -6.0000305
-offset_bottom = -8.0
+offset_bottom = -68.0
 theme_override_styles/panel = SubResource("StyleBoxFlat_7on8u")
 
 [node name="HBoxContainer" type="HBoxContainer" parent="Main_Layer/Main_Control/HBox_AHudTEST/Leader_Control/Titles_Panel" unique_id=1400009985]
@@ -1411,6 +1450,7 @@ custom_minimum_size = Vector2(183, 0)
 layout_mode = 2
 
 [node name="Ratio_Control" type="Control" parent="Main_Layer/Main_Control/HBox_AHudTEST" unique_id=1427980101]
+visible = false
 custom_minimum_size = Vector2(380, 0)
 layout_mode = 2
 
@@ -1913,6 +1953,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 alignment = 1
 metadata/_edit_use_anchors_ = true
+metadata/_edit_lock_ = true
 
 [node name="Control2" type="Control" parent="Main_Layer/Main_Control/ButtonsRow" unique_id=194726813]
 custom_minimum_size = Vector2(60, 0)
@@ -2324,9 +2365,9 @@ metadata/_edit_lock_ = true
 material = SubResource("ShaderMaterial_1u143")
 layout_mode = 1
 anchors_preset = -1
-anchor_top = 0.8324074
+anchor_top = 0.7768518
 anchor_right = 0.209375
-anchor_bottom = 1.0
+anchor_bottom = 0.9444444
 grow_horizontal = 2
 grow_vertical = 2
 metadata/_edit_use_anchors_ = true
@@ -3793,16 +3834,12 @@ grow_horizontal = 2
 grow_vertical = 0
 alignment = 1
 
-[node name="Leader_Placeholder" type="MarginContainer" parent="Main_Layer/Main_Control/HBox_Info" unique_id=15154671]
-custom_minimum_size = Vector2(357, 0)
-layout_mode = 2
-metadata/_edit_lock_ = true
-
 [node name="MarginContainer4" type="MarginContainer" parent="Main_Layer/Main_Control/HBox_Info" unique_id=1312062971]
 custom_minimum_size = Vector2(23, 0)
 layout_mode = 2
 
 [node name="Panel_Pop" type="Button" parent="Main_Layer/Main_Control/HBox_Info" unique_id=274937638 node_paths=PackedStringArray("color_rect", "toggle_button")]
+visible = false
 custom_minimum_size = Vector2(350, 35)
 layout_mode = 2
 size_flags_vertical = 4
@@ -3880,6 +3917,7 @@ custom_minimum_size = Vector2(12, 0)
 layout_mode = 2
 
 [node name="MarginContainer2" type="MarginContainer" parent="Main_Layer/Main_Control/HBox_Info" unique_id=1314440697]
+visible = false
 custom_minimum_size = Vector2(15, 0)
 layout_mode = 2
 
@@ -3931,10 +3969,12 @@ horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_Control/HBox_Info" unique_id=739394900]
+visible = false
 custom_minimum_size = Vector2(15, 0)
 layout_mode = 2
 
 [node name="Panel_Cur" type="Button" parent="Main_Layer/Main_Control/HBox_Info" unique_id=551223979 node_paths=PackedStringArray("color_rect", "toggle_button")]
+visible = false
 custom_minimum_size = Vector2(350, 35)
 layout_mode = 2
 size_flags_vertical = 4
@@ -4000,6 +4040,7 @@ custom_minimum_size = Vector2(23, 0)
 layout_mode = 2
 
 [node name="Ratio_Panel" type="Panel" parent="Main_Layer/Main_Control/HBox_Info" unique_id=1398884009]
+visible = false
 custom_minimum_size = Vector2(350, 50)
 layout_mode = 2
 size_flags_vertical = 4
@@ -4239,6 +4280,7 @@ horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="Display_Rec" type="ColorRect" parent="Main_Layer/Main_Control" unique_id=1854827380]
+visible = false
 material = SubResource("ShaderMaterial_62siw")
 layout_mode = 0
 offset_left = 1716.0
@@ -7096,5 +7138,117 @@ grow_vertical = 2
 mouse_filter = 2
 texture = ExtResource("65_d773e")
 expand_mode = 2
+
+[node name="PlayerDataTest" type="Control" parent="Main_Layer/Main_Control" unique_id=1493079099]
+anchors_preset = 0
+offset_top = 1020.0
+offset_right = 785.0
+offset_bottom = 1080.0
+
+[node name="Label" type="Label" parent="Main_Layer/Main_Control/PlayerDataTest" unique_id=260697621]
+layout_mode = 0
+offset_left = 12.0
+offset_top = 26.0
+offset_right = 99.0
+offset_bottom = 54.0
+theme_override_font_sizes/font_size = 20
+text = "Brunette"
+
+[node name="Label2" type="Label" parent="Main_Layer/Main_Control/PlayerDataTest" unique_id=238311552]
+layout_mode = 0
+offset_left = 68.0
+offset_top = 8.0
+offset_right = 117.0
+offset_bottom = 31.0
+theme_override_colors/font_color = Color(1, 1, 1, 0.39215687)
+theme_override_font_sizes/font_size = 16
+text = "Player"
+
+[node name="HBoxContainer" type="HBoxContainer" parent="Main_Layer/Main_Control/PlayerDataTest" unique_id=779130171]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.16433121
+anchor_top = 0.15
+anchor_right = 0.533758
+anchor_bottom = 0.9
+metadata/_edit_use_anchors_ = true
+
+[node name="Panel" type="Panel" parent="Main_Layer/Main_Control/PlayerDataTest/HBoxContainer" unique_id=221141426]
+custom_minimum_size = Vector2(135, 40)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("StyleBoxFlat_j54ir")
+
+[node name="Label" type="Label" parent="Main_Layer/Main_Control/PlayerDataTest/HBoxContainer/Panel" unique_id=2081553539]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "port/city/fact"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Panel4" type="Panel" parent="Main_Layer/Main_Control/PlayerDataTest/HBoxContainer" unique_id=456406208]
+custom_minimum_size = Vector2(135, 40)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("StyleBoxFlat_j54ir")
+
+[node name="Label" type="Label" parent="Main_Layer/Main_Control/PlayerDataTest/HBoxContainer/Panel4" unique_id=1015183335]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "silo/sam/ship"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Panel7" type="Panel" parent="Main_Layer/Main_Control/PlayerDataTest" unique_id=2000360594]
+layout_mode = 0
+offset_left = 415.0
+offset_top = 16.0
+offset_right = 691.0
+offset_bottom = 47.0
+size_flags_horizontal = 4
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("StyleBoxFlat_8o0en")
+
+[node name="Label" type="Label" parent="Main_Layer/Main_Control/PlayerDataTest/Panel7" unique_id=1448254168]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "troop meter"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Panel5" type="Panel" parent="Main_Layer/Main_Control/PlayerDataTest" unique_id=2146347345]
+layout_mode = 0
+offset_left = 689.0
+offset_top = 16.0
+offset_right = 772.0
+offset_bottom = 47.0
+size_flags_horizontal = 4
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("StyleBoxFlat_ud2h5")
+
+[node name="Label" type="Label" parent="Main_Layer/Main_Control/PlayerDataTest/Panel5" unique_id=266243224]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "gold"
+horizontal_alignment = 1
+vertical_alignment = 1
 
 [connection signal="value_changed" from="Main_Layer/Main_Control/HBox_Info/Ratio_Panel/Slider_Control/VBox_Slider/HSlider" to="Main_Layer/Main_Control/HBox_Info/Ratio_Panel/Slider_Control" method="_on_h_slider_value_changed"]
