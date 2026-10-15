@@ -590,7 +590,12 @@ public sealed partial class Game
         if (myShores.Count == 0)
             return; // no water access
 
-        // Landing: nearest land tile to the click (on its landmass) on one of those waters.
+        // Landing: the clicked owner's own coast nearest the click (like OpenFront), searched
+        // only through that owner's land (or unclaimed land) and not too far from the click.
+        // If they have no coast near there on our waters, no boat goes at all.
+        ushort targetOwner = Owner[tile];
+        int cx = tile % Map.Width, cy = tile / Map.Width;
+        long reach2 = (long)Balance.BoatLandingSearchRadius * Balance.BoatLandingSearchRadius;
         int landing = -1, landingBody = Waterways.NoBody;
         var queue = new Queue<int>();
         var seen = new HashSet<int> { tile };
@@ -599,22 +604,23 @@ public sealed partial class Game
         while (queue.Count > 0 && seen.Count < Balance.BoatLandingSearchTiles)
         {
             int t = queue.Dequeue();
-            if (Owner[t] != player.Id)
-            {
-                int n = ways.TouchingBodies(t, bodies);
-                for (int k = 0; k < n && landing < 0; k++)
-                    if (myBodies.Contains(bodies[k]))
-                    {
-                        landing = t;
-                        landingBody = bodies[k];
-                    }
-                if (landing >= 0)
-                    break;
-            }
+            int touching = ways.TouchingBodies(t, bodies);
+            for (int k = 0; k < touching && landing < 0; k++)
+                if (myBodies.Contains(bodies[k]))
+                {
+                    landing = t;
+                    landingBody = bodies[k];
+                }
+            if (landing >= 0)
+                break;
             int count = LandNeighbours(t, nb);
             for (int k = 0; k < count; k++)
-                if (seen.Add(nb[k]))
-                    queue.Enqueue(nb[k]);
+            {
+                int n = nb[k];
+                long dx = n % Map.Width - cx, dy = n / Map.Width - cy;
+                if (Owner[n] == targetOwner && dx * dx + dy * dy <= reach2 && seen.Add(n))
+                    queue.Enqueue(n);
+            }
         }
         if (landing < 0)
             return;

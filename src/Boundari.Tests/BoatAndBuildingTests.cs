@@ -44,6 +44,47 @@ public class BoatAndBuildingTests
     }
 
     [Fact]
+    public void Boat_LandsOnTheClickedPlayersOwnCoast_OrNotAtAll()
+    {
+        var map = MapGenerator.Generate(21, new MapGenSettings { Width = 400, Height = 250, MinIslandTiles = 8, MinLakeTiles = 30 });
+        var game = new Game(map, 1, spawnPhaseTicks: 3);
+        var me = game.AddPlayer("Me");
+        var inland = game.AddPlayer("Inland");
+        var coastal = game.AddPlayer("Coastal");
+        var byArea = Enumerable.Range(0, map.LandmassSizes.Length).OrderByDescending(i => map.LandmassSizes[i]).ToArray();
+        int home = byArea[0], other = byArea[1];
+        int myStart = Enumerable.Range(0, map.TileCount).First(t => map.LandmassId[t] == home && game.IsCoastal(t));
+        // On the other landmass: one player far from any coast, one right on it.
+        int DistToCoast(int t)
+        {
+            int x = t % map.Width, y = t / map.Width, best = int.MaxValue;
+            for (int dy = -25; dy <= 25; dy++)
+                for (int dx = -25; dx <= 25; dx++)
+                    if (map.InBounds(x + dx, y + dy) && !map.IsLand(map.Index(x + dx, y + dy)))
+                        best = System.Math.Min(best, System.Math.Abs(dx) + System.Math.Abs(dy));
+            return best;
+        }
+        int deep = Enumerable.Range(0, map.TileCount).Where(t => map.LandmassId[t] == other && t % 7 == 0).OrderByDescending(DistToCoast).First();
+        int shore = Enumerable.Range(0, map.TileCount).First(t => map.LandmassId[t] == other && game.IsCoastal(t)
+            && System.Math.Abs(t % map.Width - deep % map.Width) + System.Math.Abs(t / map.Width - deep / map.Width) > 40);
+        game.Submit(new SpawnIntent(me.Id, myStart));
+        game.Submit(new SpawnIntent(inland.Id, deep));
+        game.Submit(new SpawnIntent(coastal.Id, shore));
+        for (int t = 0; t < 5; t++)
+            game.Step();
+        Assert.True(DistToCoast(deep) > Balance.SpawnRadius + 2, "test needs an inland spot");
+
+        game.Submit(new BoatIntent(me.Id, deep, 50)); // a landlocked player: no coast of theirs to land on
+        game.Step();
+        Assert.Empty(game.Boats);
+
+        game.Submit(new BoatIntent(me.Id, shore, 50));
+        game.Step();
+        var boat = Assert.Single(game.Boats);
+        Assert.Equal(coastal.Id, game.Owner[boat.LandingTile]);
+    }
+
+    [Fact]
     public void Buildings_NeedMoneyOwnLandSpacingAndPortsNeedCoast()
     {
         var (game, me, map) = StartOnCoast();

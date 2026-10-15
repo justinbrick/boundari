@@ -12,9 +12,10 @@ namespace Boundari.View;
 ///   PSH patch shape        0 (square cells) .. 100 (smooth, the normal look)
 ///   OPA territory opacity  20 .. 100%
 ///   BRD border thickness   0 .. .8 (thin line), then 1.5 / 2.5 / 4 / 6 tiles
-///   INR inner effect       off / glow / darken, along the inside of territory borders
+///   SMO border smoothing   on / off (off shows the raw tile grid, no capture fade)
 ///   GRD coordinate grid    off / 10 / 5 / 2 degrees
 ///   TOP topography         contour lines: off / every 100 / 250 / 500 m
+///   LBL labels             on / off: territory names, flags and troop counts
 ///   PLY players            on / off: hide every territory, label, building and ship to see the bare map (also T)
 /// </summary>
 public partial class DevTools : CanvasLayer
@@ -36,6 +37,9 @@ public partial class DevTools : CanvasLayer
     /// <summary>Shows or hides everything players put on the map (territory, labels, buildings, ships).</summary>
     public Action<bool>? ShowPlayers { get; set; }
 
+    /// <summary>Shows or hides the territory names, flags and troop counts.</summary>
+    public Action<bool>? ShowLabels { get; set; }
+
     private MapView V => _view ?? throw new InvalidOperationException("DevTools.View isn't set");
 
     public DevTools()
@@ -52,11 +56,12 @@ public partial class DevTools : CanvasLayer
                 i => V.TerritoryOpacity = new[] { 0.2f, 0.35f, 0.5f, 0.65f, 0.8f, 1f }[i]),
             new("BRD", "Territory border thickness (tiles from 1.5 up)", new[] { "0", ".15", ".3", ".5", ".8", "1.5", "2.5", "4", "6" }, 2,
                 i => V.BorderWidth = new[] { 0f, 0.15f, 0.3f, 0.5f, 0.8f, 1.5f, 2.5f, 4f, 6f }[i]),
-            new("INR", "Inner territory effect", new[] { "OFF", "GLW", "DRK" }, 0, i => V.InnerEffect = i),
+            new("SMO", "Territory border smoothing", new[] { "ON", "OFF" }, 0, i => V.SmoothTerritory = i == 0),
             new("GRD", "Coordinate grid (degrees)", new[] { "OFF", "10", "5", "2" }, 0,
                 i => V.GridStep = new[] { 0f, 10f, 5f, 2f }[i]),
             new("TOP", "Topography (contour lines, metres)", new[] { "OFF", "100", "250", "500" }, 0,
                 i => V.ContourInterval = new[] { 0f, 100f, 250f, 500f }[i]),
+            new("LBL", "Territory names, flags and troops", new[] { "ON", "OFF" }, 0, i => ShowLabels?.Invoke(i == 0)),
             new("PLY", "Players, tribes and nations (T toggles)", new[] { "ON", "OFF" }, 0, i => ShowPlayers?.Invoke(i == 0)),
         };
         _values = new int[_settings.Count];
@@ -108,7 +113,7 @@ public partial class DevTools : CanvasLayer
             _settings[i].Apply(_values[i]);
     }
 
-    /// <summary>Testing aid (--dev=PSC=2,INR=1,...): sets values by abbreviation for this run, without saving.</summary>
+    /// <summary>Testing aid (--dev=PSC=2,SMO=1,...): sets values by abbreviation for this run, without saving.</summary>
     public void Override(string spec)
     {
         foreach (string part in spec.Split(',', StringSplitOptions.RemoveEmptyEntries))

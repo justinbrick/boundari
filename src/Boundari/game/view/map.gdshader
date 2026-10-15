@@ -62,12 +62,11 @@ group_uniforms dev_tools;
 uniform float patch_shape : hint_range(0.0, 1.0) = 1.0;
 // How far patches blend into their neighbours, in cells (0 = the normal, tight blend).
 uniform float patch_morph : hint_range(0.0, 2.0) = 0.0;
-// Inside territories, near their borders: 0 nothing, 1 a glow, 2 a darkening.
-uniform int inner_effect = 0;
+// Territory borders smoothed into curves (and captures faded in); off = the raw tile grid.
+uniform bool smooth_territory = true;
 // Depth inside territories (TerritoryDepth.cs): tiles to the nearest other owner's land, on
-// 2x2-tile cells (read with smooth filtering), and each owner's deepest point.
+// 2x2-tile cells (read with smooth filtering). Used for thick borders.
 uniform sampler2D depth_tex : filter_linear, repeat_disable;
-uniform sampler2D max_depth_tex : filter_nearest, repeat_disable;
 uniform vec2 depth_size = vec2(2000.0, 1250.0);
 // Contour lines every this many metres (0 = off).
 uniform float contour_interval = 0.0;
@@ -297,6 +296,29 @@ void territory_at(vec2 tile, out int best_id, out float edge) {
 	}
 	best_id = id0;
 	edge = 1.0;
+	if (!smooth_territory) {
+		// Raw tiles: the tile's own owner, and `edge` = distance (in tiles) to the nearest
+		// side or corner shared with another land owner, so borders still draw along it.
+		vec2 f = tile - vec2(centre);
+		float d = 1.0;
+		for (int j = -1; j <= 1; j++) {
+			for (int i = -1; i <= 1; i++) {
+				if (i == 0 && j == 0) {
+					continue;
+				}
+				int o = owner_id_at(centre + ivec2(i, j));
+				if (o == id0 || o == WATER) {
+					continue;
+				}
+				// Distance from this point to that neighbour tile's square.
+				vec2 lo = vec2(float(i), float(j));
+				vec2 q = max(max(lo - f, f - (lo + 1.0)), vec2(0.0));
+				d = min(d, length(q));
+			}
+		}
+		edge = d;
+		return;
+	}
 	if (settled) {
 		return;
 	}
@@ -499,7 +521,7 @@ void fragment() {
 			float edge_aa = max(fwidth(edge), 1e-5);
 			float bw = max(min(border_width, 0.8), edge_aa * 1.2);
 			float border = 1.0 - smoothstep(bw - edge_aa, bw + edge_aa, edge);
-			float depth = (border_width >= 1.0 || inner_effect != 0) ? depth_at(tile) : 0.0;
+			float depth = border_width >= 1.0 ? depth_at(tile) : 0.0;
 			if (border_width >= 1.0) {
 				// Thick borders: everything within border_width tiles of another owner's land.
 				float aa = max(tiles_per_px, 0.25);
@@ -510,17 +532,6 @@ void fragment() {
 			border = border_width > 0.0 ? max(border, coast_border) : 0.0;
 
 			vec3 fill = mix(ground, nation, opacity);
-			if (inner_effect != 0) {
-				// A wide, soft band inside the border, lighter (glow) or darker. Its width is a
-				// share of how deep the territory goes, so big and small ones look alike.
-				float deepest = texelFetch(max_depth_tex, ivec2(id & 255, id >> 8), 0).r;
-				float width = clamp(deepest * 0.6, 4.0, 120.0);
-				float near = 1.0 - smoothstep(0.0, width, depth);
-				near *= near; // strongest right at the border, fading smoothly inwards
-				fill = inner_effect == 1
-					? mix(fill, mix(nation, vec3(1.0), 0.6), near * 0.85)
-					: fill * (1.0 - 0.65 * near);
-			}
 			vec3 outline = nation * (1.0 - border_darken);
 			vec3 owned = mix(fill, outline, border);
 			color = mix(color, owned, land * (1.0 - cover_water));

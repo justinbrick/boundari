@@ -253,14 +253,13 @@ public partial class MapView : Sprite2D
         return Image.CreateFromData(w, h, false, Image.Format.R8, merged);
     }
 
-    // --- Depth inside territories (for thick borders and the inner glow) ---
+    // --- Depth inside territories (for thick borders) ---
 
     private TerritoryDepth? _depth;
-    private int _innerEffect;
     private float _borderWidth = 0.3f;
 
     /// <summary>Whether anything on screen needs the depth field (it's only computed then).</summary>
-    private bool NeedsDepth => _innerEffect != 0 || _borderWidth >= 1;
+    private bool NeedsDepth => _borderWidth >= 1;
 
     /// <summary>Call every frame: keeps the depth field fresh while it's in use.</summary>
     public void UpdateDepth(Sim.Game game, double delta)
@@ -274,7 +273,6 @@ public partial class MapView : Sprite2D
     {
         _depth = new TerritoryDepth(map);
         _material.SetShaderParameter("depth_tex", _depth.DepthTexture);
-        _material.SetShaderParameter("max_depth_tex", _depth.MaxDepthTexture);
         _material.SetShaderParameter("depth_size", _depth.SizeInTiles);
     }
 
@@ -296,15 +294,8 @@ public partial class MapView : Sprite2D
         }
     }
 
-    /// <summary>0 none, 1 inner glow, 2 inner darkening.</summary>
-    public int InnerEffect
-    {
-        set
-        {
-            _innerEffect = value;
-            _material.SetShaderParameter("inner_effect", value);
-        }
-    }
+    /// <summary>Territory borders smoothed into curves (with captures fading in), or the raw tile grid.</summary>
+    public bool SmoothTerritory { set => _material.SetShaderParameter("smooth_territory", value); }
 
     /// <summary>Contour lines every this many metres (0 = off).</summary>
     public float ContourInterval { set => _material.SetShaderParameter("contour_interval", value); }

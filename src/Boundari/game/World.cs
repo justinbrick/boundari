@@ -43,7 +43,7 @@ namespace Boundari;
 ///   --focus=X,Y        centre the camera on this point, as 0..1 fractions of the map
 ///   --screenshot=PATH  save a screenshot after loading, then quit
 ///   --perf             print the frame rate every 2 seconds
-///   --dev=PSC=2,INR=1  (testing) set dev-tool options by index for this run (not saved)
+///   --dev=PSC=2,SMO=1  (testing) set dev-tool options by index for this run (not saved)
 ///   --bench=SECONDS    run flat out (no vsync), print where frame time goes every 2 s, then quit
 ///   --showcase         (testing) after --autoplay: build one of everything and launch a boat;
 ///                      --showcase=nukes[:N] also fires a MOAB, Fat Man and Tsar Bomba, then runs N ticks
@@ -89,6 +89,7 @@ public partial class World : Node2D
 
     private MapOverlay _overlay = null!;
     private DevTools _devTools = null!;
+    private bool _showPlayers = true, _showLabels = true;
     private BuildingType? _placing;
     private NukeType? _aiming;
     private readonly System.Collections.Generic.List<(BuildingType Type, Button Button)> _buildButtons = new();
@@ -135,9 +136,15 @@ public partial class World : Node2D
             View = _view,
             ShowPlayers = show =>
             {
+                _showPlayers = show;
                 _view.ShowTerritory = show;
                 _overlay.Visible = show;
-                _labels.Visible = show;
+                _labels.Visible = show && _showLabels;
+            },
+            ShowLabels = show =>
+            {
+                _showLabels = show;
+                _labels.Visible = show && _showPlayers;
             },
         };
         AddChild(_devTools);

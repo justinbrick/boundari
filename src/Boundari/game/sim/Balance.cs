@@ -91,6 +91,8 @@ public static class Balance
     public const int MaxBoatsPerPlayer = 3;
     public const long BoatSpeedPerTick = 1500;      // thousandths of a tile: 15 tiles a second
     public const int BoatLandingSearchTiles = 200_000;
+    // A boat lands on the clicked owner's own coast within this many tiles of the click (or not at all).
+    public const int BoatLandingSearchRadius = 150;
 
     // --- Buildings ---
     public const int MinBuildingSpacing = 15;       // tiles between any two buildings (OpenFront)
