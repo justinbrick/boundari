@@ -11,7 +11,7 @@ namespace Boundari.View;
 ///   PMR patch morphing     1 (normal) .. 6: how far land-cover patches blend together
 ///   PSH patch shape        0 (square cells) .. 100 (smooth, the normal look)
 ///   OPA territory opacity  20 .. 100%
-///   BRD border thickness   0 .. 1.2 (about tiles)
+///   BRD border thickness   0 .. .8 (thin line), then 1.5 / 2.5 / 4 / 6 tiles
 ///   INR inner effect       off / glow / darken, along the inside of territory borders
 ///   GRD coordinate grid    off / 10 / 5 / 2 degrees
 ///   TOP topography         contour lines: off / every 100 / 250 / 500 m
@@ -50,8 +50,8 @@ public partial class DevTools : CanvasLayer
             new("PSH", "Patch shape (corner rounding)", new[] { "0", "20", "40", "60", "80", "100" }, 5, i => V.PatchShape = i / 5f),
             new("OPA", "Territory opacity", new[] { "20", "35", "50", "65", "80", "100" }, 2,
                 i => V.TerritoryOpacity = new[] { 0.2f, 0.35f, 0.5f, 0.65f, 0.8f, 1f }[i]),
-            new("BRD", "Territory border thickness", new[] { "0", ".15", ".3", ".5", ".8", "1.2" }, 2,
-                i => V.BorderWidth = new[] { 0f, 0.15f, 0.3f, 0.5f, 0.8f, 1.2f }[i]),
+            new("BRD", "Territory border thickness (tiles from 1.5 up)", new[] { "0", ".15", ".3", ".5", ".8", "1.5", "2.5", "4", "6" }, 2,
+                i => V.BorderWidth = new[] { 0f, 0.15f, 0.3f, 0.5f, 0.8f, 1.5f, 2.5f, 4f, 6f }[i]),
             new("INR", "Inner territory effect", new[] { "OFF", "GLW", "DRK" }, 0, i => V.InnerEffect = i),
             new("GRD", "Coordinate grid (degrees)", new[] { "OFF", "10", "5", "2" }, 0,
                 i => V.GridStep = new[] { 0f, 10f, 5f, 2f }[i]),

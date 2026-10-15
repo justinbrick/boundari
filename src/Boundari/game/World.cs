@@ -265,6 +265,7 @@ public partial class World : Node2D
             GD.Print($"perf: {Engine.GetFramesPerSecond()} fps, tick {_game.Tick}, {_game.Attacks.Count} attacks");
         }
 
+        _view.UpdateDepth(_game, delta);
         long flushStart = FrameProfiler.Start();
         _view.FlushTerritory();
         FrameProfiler.Stop("territory upload", flushStart);
@@ -856,7 +857,9 @@ public partial class World : Node2D
 
     private async void SaveScreenshotAndQuit(string path)
     {
-        for (int i = 0; i < 4; i++)
+        // A few frames, and enough time for background work (label placement, depth field) to land.
+        var started = Time.GetTicksMsec();
+        for (int i = 0; i < 4 || Time.GetTicksMsec() - started < 600; i++)
             await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
         GetViewport().GetTexture().GetImage().SavePng(path);
         GD.Print($"Saved screenshot to {path}");

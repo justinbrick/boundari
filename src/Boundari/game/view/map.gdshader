@@ -64,6 +64,11 @@ uniform float patch_shape : hint_range(0.0, 1.0) = 1.0;
 uniform float patch_morph : hint_range(0.0, 2.0) = 0.0;
 // Inside territories, near their borders: 0 nothing, 1 a glow, 2 a darkening.
 uniform int inner_effect = 0;
+// Depth inside territories (TerritoryDepth.cs): tiles to the nearest other owner's land, on
+// 2x2-tile cells (read with smooth filtering), and each owner's deepest point.
+uniform sampler2D depth_tex : filter_linear, repeat_disable;
+uniform sampler2D max_depth_tex : filter_nearest, repeat_disable;
+uniform vec2 depth_size = vec2(2000.0, 1250.0);
 // Contour lines every this many metres (0 = off).
 uniform float contour_interval = 0.0;
 // Coordinate grid: lines every this many degrees (or 20x this many tiles on maps without geography); 0 = off.
@@ -267,25 +272,9 @@ int owner_id_at(ivec2 c) {
 	return int(o.r * 255.0 + 0.5) + int(o.g * 255.0 + 0.5) * 256;
 }
 
-// How deep inside its territory a point is: the share of points on rings around it
-// (3, 7 and 12 tiles out) that belong to the same owner (water counts as theirs).
-// 0 = right at a border, 1 = well inside. Only used for the inner glow/darkening.
-float inner_depth(vec2 tile, int id) {
-	float same = 0.0;
-	float total = 0.0;
-	for (int ring = 0; ring < 3; ring++) {
-		float r = ring == 0 ? 3.0 : (ring == 1 ? 7.0 : 12.0);
-		float weight = ring == 0 ? 1.5 : (ring == 1 ? 1.0 : 0.6);
-		for (int k = 0; k < 8; k++) {
-			float a = (float(k) + 0.5 * float(ring)) * 0.785398; // 45 degrees apart, staggered per ring
-			int o = owner_id_at(ivec2(floor(tile + vec2(cos(a), sin(a)) * r)));
-			total += weight;
-			if (o == id || o == WATER) {
-				same += weight;
-			}
-		}
-	}
-	return same / total;
+// Tiles from this point to the nearest land of another owner (smooth).
+float depth_at(vec2 tile) {
+	return texture(depth_tex, tile / depth_size).r;
 }
 
 // Smooth territory lookup: nearby tiles vote for their owner with Gaussian weights
@@ -508,19 +497,29 @@ void fragment() {
 
 			// Borders never get thinner than ~1 pixel, so they don't flicker when zoomed out.
 			float edge_aa = max(fwidth(edge), 1e-5);
-			float bw = max(border_width, edge_aa * 1.2);
+			float bw = max(min(border_width, 0.8), edge_aa * 1.2);
 			float border = 1.0 - smoothstep(bw - edge_aa, bw + edge_aa, edge);
+			float depth = (border_width >= 1.0 || inner_effect != 0) ? depth_at(tile) : 0.0;
+			if (border_width >= 1.0) {
+				// Thick borders: everything within border_width tiles of another owner's land.
+				float aa = max(tiles_per_px, 0.25);
+				border = max(border, 1.0 - smoothstep(border_width - aa, border_width + aa, depth));
+			}
 			float cbw = max(coast_border_width, tiles_per_px * 1.2);
 			float coast_border = 1.0 - smoothstep(cbw - tiles_per_px, cbw + tiles_per_px, coast_dist);
 			border = border_width > 0.0 ? max(border, coast_border) : 0.0;
 
 			vec3 fill = mix(ground, nation, opacity);
 			if (inner_effect != 0) {
-				// A wide band just inside the border: lighter (glow) or darker.
-				float near = 1.0 - smoothstep(0.35, 1.0, inner_depth(tile, id));
+				// A wide, soft band inside the border, lighter (glow) or darker. Its width is a
+				// share of how deep the territory goes, so big and small ones look alike.
+				float deepest = texelFetch(max_depth_tex, ivec2(id & 255, id >> 8), 0).r;
+				float width = clamp(deepest * 0.6, 4.0, 120.0);
+				float near = 1.0 - smoothstep(0.0, width, depth);
+				near *= near; // strongest right at the border, fading smoothly inwards
 				fill = inner_effect == 1
-					? mix(fill, mix(nation, vec3(1.0), 0.45), near * 0.6)
-					: fill * (1.0 - 0.45 * near);
+					? mix(fill, mix(nation, vec3(1.0), 0.6), near * 0.85)
+					: fill * (1.0 - 0.65 * near);
 			}
 			vec3 outline = nation * (1.0 - border_darken);
 			vec3 owned = mix(fill, outline, border);

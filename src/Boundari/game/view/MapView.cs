@@ -99,6 +99,7 @@ public partial class MapView : Sprite2D
         UploadCover(map);
 
         _territory = new TerritoryTextures(map);
+        AttachDepth(map);
         _material.SetShaderParameter("owner_tex", _territory.OwnerArray);
         _material.SetShaderParameter("capture_tex", _territory.TimeArray);
         _material.SetShaderParameter("owner_chunk", TerritoryTextures.ChunkSize);
@@ -252,21 +253,58 @@ public partial class MapView : Sprite2D
         return Image.CreateFromData(w, h, false, Image.Format.R8, merged);
     }
 
+    // --- Depth inside territories (for thick borders and the inner glow) ---
+
+    private TerritoryDepth? _depth;
+    private int _innerEffect;
+    private float _borderWidth = 0.3f;
+
+    /// <summary>Whether anything on screen needs the depth field (it's only computed then).</summary>
+    private bool NeedsDepth => _innerEffect != 0 || _borderWidth >= 1;
+
+    /// <summary>Call every frame: keeps the depth field fresh while it's in use.</summary>
+    public void UpdateDepth(Sim.Game game, double delta)
+    {
+        if (_depth is null || !NeedsDepth)
+            return;
+        _depth.Update(game, delta);
+    }
+
+    private void AttachDepth(GameMap map)
+    {
+        _depth = new TerritoryDepth(map);
+        _material.SetShaderParameter("depth_tex", _depth.DepthTexture);
+        _material.SetShaderParameter("max_depth_tex", _depth.MaxDepthTexture);
+        _material.SetShaderParameter("depth_size", _depth.SizeInTiles);
+    }
+
     public float PatchShape { set => _material.SetShaderParameter("patch_shape", value); }
     public float PatchMorph { set => _material.SetShaderParameter("patch_morph", value); }
     public float TerritoryOpacity { set => _material.SetShaderParameter("territory_opacity", value); }
 
+    /// <summary>
+    /// Border thickness. Below 1 it's the classic thin line (a share of the edge blend); from 1
+    /// up it's measured in tiles inside the territory, using the depth field.
+    /// </summary>
     public float BorderWidth
     {
         set
         {
+            _borderWidth = value;
             _material.SetShaderParameter("border_width", value);
-            _material.SetShaderParameter("coast_border_width", value * 2);
+            _material.SetShaderParameter("coast_border_width", value < 1 ? value * 2 : value);
         }
     }
 
     /// <summary>0 none, 1 inner glow, 2 inner darkening.</summary>
-    public int InnerEffect { set => _material.SetShaderParameter("inner_effect", value); }
+    public int InnerEffect
+    {
+        set
+        {
+            _innerEffect = value;
+            _material.SetShaderParameter("inner_effect", value);
+        }
+    }
 
     /// <summary>Contour lines every this many metres (0 = off).</summary>
     public float ContourInterval { set => _material.SetShaderParameter("contour_interval", value); }
