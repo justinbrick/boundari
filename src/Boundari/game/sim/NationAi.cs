@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Boundari.Core;
 
 namespace Boundari.Sim;
@@ -7,7 +8,9 @@ namespace Boundari.Sim;
 /// A nation: a proper AI opponent, much stronger than a bot. Every couple of seconds it:
 ///   1. Waits until it has a decent share of its troop capacity.
 ///   2. If empty land touches its border, expands into it.
-///   3. Otherwise attacks the weakest neighbour, if clearly stronger than them.
+///   3. Otherwise now and then asks neighbours to ally, considers betraying an ally, and
+///      attacks the weakest neighbour that isn't an ally, if clearly stronger than them.
+/// Once a cycle it answers alliance requests (see <see cref="NationAlliances"/>).
 /// Between attacks it builds (see <see cref="NationStructures"/>): three building decisions
 /// per attack cycle, as OpenFront's nations do, and once a cycle it considers bombing
 /// someone (see <see cref="NationNukes"/>). Nations only submit intents, like a human
@@ -31,7 +34,9 @@ internal sealed class NationAi : IPlayerAi
     private readonly Rng _rng;
     private readonly NationStructures _structures;
     private readonly NationNukes _nukes;
+    private readonly NationAlliances _alliances;
     private int _nextNukeCheck;
+    private int _nextDiplomacy;
     private readonly int _cycle;
     private int _nextThink;
     private int _nextBuild;
@@ -44,6 +49,7 @@ internal sealed class NationAi : IPlayerAi
         _rng = rng;
         _structures = new NationStructures(game, player, new Rng(rng.Fork()));
         _nukes = new NationNukes(game, player, new Rng(rng.Fork()));
+        _alliances = new NationAlliances(game, player, new Rng(rng.Fork()));
         _nextThink = _rng.RangeInt(0, MaxThinkTicks); // stagger nations so they don't all act at once
 
         // OpenFront's nation rhythm (an attack cycle, by difficulty), with building decisions
@@ -59,6 +65,7 @@ internal sealed class NationAi : IPlayerAi
         _buildEvery = Math.Max(1, cycle / 3);
         _nextBuild = _rng.RangeInt(0, _buildEvery);
         _nextNukeCheck = _rng.RangeInt(0, cycle);
+        _nextDiplomacy = _rng.RangeInt(0, cycle);
     }
 
     public void Think()
@@ -70,6 +77,11 @@ internal sealed class NationAi : IPlayerAi
             _nextNukeCheck = _game.Tick + _cycle;
             _nukes.ConsiderTsarBomba();
             _nukes.MaybeSendNuke();
+        }
+        if (_game.Tick >= _nextDiplomacy) // once per attack cycle, like OpenFront's nations
+        {
+            _nextDiplomacy = _game.Tick + _cycle;
+            _alliances.HandleRequests();
         }
         if (_game.Tick >= _nextBuild)
         {
@@ -90,36 +102,44 @@ internal sealed class NationAi : IPlayerAi
 
         // Look along the border: is there empty land, and who are the neighbours?
         bool emptyLandNearby = false;
-        ushort weakest = Game.Nobody;
-        long weakestDensity = long.MaxValue;
         Span<int> nb = stackalloc int[4];
         foreach (int tile in _player.Border)
         {
             int count = _game.LandNeighbours(tile, nb);
-            for (int k = 0; k < count; k++)
-            {
-                ushort owner = _game.Owner[nb[k]];
-                if (owner == _player.Id)
-                    continue;
-                if (owner == Game.Nobody)
-                {
-                    emptyLandNearby = true;
-                    continue;
-                }
-                var other = _game.GetPlayer(owner)!;
-                long density = other.Troops / Math.Max(1, other.TileCount);
-                if (density < weakestDensity)
-                {
-                    weakestDensity = density;
-                    weakest = owner;
-                }
-            }
+            for (int k = 0; k < count && !emptyLandNearby; k++)
+                emptyLandNearby = _game.Owner[nb[k]] == Game.Nobody;
+            if (emptyLandNearby)
+                break;
         }
-
         if (emptyLandNearby)
         {
             _game.Submit(new AttackIntent(_player.Id, Game.Nobody, ExpandRatioPercent));
             return;
+        }
+
+        // Neighbours: allies (maybe betrayed) and everyone else (maybe asked to ally, or attacked).
+        var bordering = _game.BorderingPlayers(_player);
+        var enemies = new List<Player>();
+        foreach (var other in bordering)
+        {
+            if (_player.IsAlliedWith(other))
+                _alliances.MaybeBetray(other, bordering.Count);
+            else
+                enemies.Add(other);
+        }
+        if (enemies.Count > 0)
+            _alliances.MaybeSendRequests(enemies);
+
+        ushort weakest = Game.Nobody;
+        long weakestDensity = long.MaxValue;
+        foreach (var other in enemies)
+        {
+            long density = other.Troops / Math.Max(1, other.TileCount);
+            if (density < weakestDensity)
+            {
+                weakestDensity = density;
+                weakest = other.Id;
+            }
         }
 
         long myDensity = _player.Troops / Math.Max(1, _player.TileCount);

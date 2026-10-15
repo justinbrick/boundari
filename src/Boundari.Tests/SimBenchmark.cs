@@ -57,6 +57,7 @@ public class SimBenchmark
             string Kind(PlayerKind k) => $"{game.Players.Count(p => p.Kind == k && p.IsAlive)} {k.ToString().ToLower()}s ({game.Players.Where(p => p.Kind == k).Sum(p => (long)p.TileCount) * 100 / Math.Max(1, owned)}% of land)";
             var built = game.Buildings.GroupBy(b => b.Type).OrderBy(g => g.Key).Select(g => $"{g.Key} {g.Sum(b => b.Level)}");
             _out.WriteLine($"  alive: {Kind(PlayerKind.Nation)}, {Kind(PlayerKind.Bot)}; buildings (levels): {string.Join(", ", built)}");
+            _out.WriteLine($"  alliances {game.Alliances.Count} (nation-nation {game.Alliances.Count(x => x.A.IsNation && x.B.IsNation)}), requests pending {game.AllianceRequests.Count}, traitors {game.Players.Count(p => game.IsTraitor(p))}");
             _out.WriteLine("  slowest tick per part (ms): " + string.Join(", ", Game.StepParts.Select((name, i) => $"{name} {game.StepWorst[i] * 1000.0 / Stopwatch.Frequency:F1}")));
             _out.WriteLine($"  bombs launched: MOAB {game.NukesLaunched[0]}, Fat Man {game.NukesLaunched[1]}, Tsar Bomba {game.NukesLaunched[2]}; shot down {game.NukesIntercepted}; fallout {game.FalloutTiles} tiles; richest nation {game.Players.Where(p => p.IsNation).Max(p => p.Gold):N0}");
             _out.WriteLine($"minute {minute}: {100.0 * owned / map.LandTileCount:F0}% land owned, " +

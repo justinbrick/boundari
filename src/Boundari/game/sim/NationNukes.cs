@@ -56,7 +56,7 @@ internal sealed class NationNukes
         if (silos.Count == 0 || _game.NukesLocked)
             return;
         var (target, strike) = ChooseTarget();
-        if (target is null || target.IsBot || !ShouldAttack(target))
+        if (target is null || target.IsBot || _player.IsAlliedWith(target) || !ShouldAttack(target))
             return;
 
         bool saving = IsSavingForTsarBomba();
@@ -559,6 +559,8 @@ internal sealed class NationNukes
 
     private bool WorthTsarBomba(Player target)
     {
+        if (_player.IsAlliedWith(target))
+            return false;
         if (_game.NationMirvTargets.TryGetValue(target.Id, out int last) && _game.Tick - last < MirvCooldownTicks)
             return false;
         return GetsThrough(_game, _player, target, _rng);

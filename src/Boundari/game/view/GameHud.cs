@@ -52,6 +52,9 @@ public sealed class GameHud
     /// <summary>Share of troops to send when attacking, from the HUD slider (1..100).</summary>
     public int AttackRatioPercent => Mathf.Clamp((int)(_ratio?.Value ?? 35), 1, 100);
 
+    /// <summary>Shown in place of the usual status line while set (e.g. fast-forward progress).</summary>
+    public string? Status { get; set; }
+
     public void Update(Game game, Player me)
     {
         Set(_troops, FormatCount(me.Troops));
@@ -62,8 +65,9 @@ public sealed class GameHud
         Set(_cashRate, "+" + goldPerSecond.ToString("N0", CultureInfo.InvariantCulture) + "/s");
         Set(_attackTroops, FormatCount(me.Troops * AttackRatioPercent / 100));
 
-        _status.Text = game.Phase switch
+        _status.Text = Status ?? game.Phase switch
         {
+            _ when !me.HasSpawned && me.LateSpawn => "Mid-game: click on land to drop in (you take that land)",
             GamePhase.Spawning when !me.HasSpawned => $"Click on land to choose where you start  ·  {game.SecondsUntilStart}s",
             GamePhase.Spawning => $"Starting in {game.SecondsUntilStart}s  ·  click again to move",
             _ when !me.HasSpawned => "Spectating",

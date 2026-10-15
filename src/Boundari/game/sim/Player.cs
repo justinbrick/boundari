@@ -75,6 +75,9 @@ public sealed class Player
     /// <summary>Attacks and boats this player has sent (someone who never fought gives up no gold when conquered).</summary>
     internal int AttacksSent;
 
+    /// <summary>Dev option: may still spawn after the spawn phase, anywhere on land (taking it from whoever owns it).</summary>
+    public bool LateSpawn { get; internal set; }
+
     /// <summary>Dev cheats: never runs out of gold / buildings finish instantly.</summary>
     public bool InfiniteGold { get; internal set; }
     public bool InstantBuild { get; internal set; }
@@ -98,6 +101,21 @@ public sealed class Player
 
     /// <summary>Gold earned from trains (theirs or others' stopping at their stations).</summary>
     public long TrainGold { get; internal set; }
+
+    /// <summary>Ids of the players this one is allied with (see GameAlliances.cs).</summary>
+    internal readonly HashSet<ushort> Allies = new();
+
+    /// <summary>Allied with that player right now.</summary>
+    public bool IsAlliedWith(Player other) => Allies.Contains(other.Id);
+
+    /// <summary>Number of alliances this player has.</summary>
+    public int AllianceCount => Allies.Count;
+
+    /// <summary>Until this tick the player is a traitor (broke an alliance): easier to attack.</summary>
+    public int TraitorUntilTick { get; internal set; } = -1;
+
+    /// <summary>How this player feels about each other player (by id), in hundredths: -10000..10000. Null until it matters.</summary>
+    internal int[]? Relations;
 
     internal Player(ushort id, string name, PlayerKind kind, Difficulty difficulty, string flag)
     {

@@ -59,6 +59,8 @@ layout_mode = 1
 anchors_preset = 0
 offset_right = 380.0
 offset_bottom = 380.0
+scale = Vector2(0.6, 0.6)
+pivot_offset = Vector2(190, 190)
 mouse_filter = 2
 script = ExtResource("1_vuy4x")
 

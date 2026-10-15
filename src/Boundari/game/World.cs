@@ -90,7 +90,16 @@ public partial class World : Node2D
     private MapOverlay _overlay = null!;
     private DevTools _devTools = null!;
     private CoordinateGrid _grid = null!;
+    private AllianceArcs _arcs = null!;
+    private Control? _mainControl;       // the HUD script (main_control.gd) that opens the radial menu
     private bool _showPlayers = true, _showLabels = true;
+
+    // Dev start: the prompt asking "start of game or mid-game?", and fast-forwarding to mid-game.
+    private const int MidGameTicks = 10 * 60 * Balance.TicksPerSecond; // ten minutes in
+    private const int FastForwardBatch = 40;                           // ticks per frame while fast-forwarding
+    private CanvasLayer _startPrompt = null!;
+    private int _fastForwardLeft, _fastForwardTotal;
+    private bool _fastForwarding;
     private BuildingType? _placing;
     private NukeType? _aiming;
     private readonly System.Collections.Generic.List<(BuildingType Type, Button Button)> _buildButtons = new();
@@ -135,6 +144,11 @@ public partial class World : Node2D
         MoveChild(_labels, _overlay.GetIndex() + 1);
         _overlay.WaitForSim = SyncSim;
         _labels.WaitForSim = SyncSim;
+        _arcs = new AllianceArcs { Name = "AllianceArcs", Labels = _labels };
+        AddChild(_arcs);
+        MoveChild(_arcs, _labels.GetIndex() + 1);
+        _mainControl = GetNodeOrNull<Control>("Main_Layer/Main_Control");
+        _startPrompt = MakeStartPrompt();
         _devTools = new DevTools
         {
             View = _view,
@@ -143,6 +157,7 @@ public partial class World : Node2D
                 _showPlayers = show;
                 _view.ShowTerritory = show;
                 _overlay.Visible = show;
+                _arcs.Visible = show;
                 _labels.Visible = show && _showLabels;
             },
             ShowLabels = show =>
@@ -233,18 +248,29 @@ public partial class World : Node2D
     /// <summary>After each frame is drawn: start the next tick if one is due.</summary>
     private void OnFramePostDraw()
     {
-        if (_game is null || _simTask is not null)
-            return;
-        double tickLength = 1.0 / Balance.TicksPerSecond;
-        if (_tickTime < tickLength)
-            return;
-        _tickTime -= tickLength;
+        if (_game is null || _simTask is not null || _startPrompt.Visible)
+            return; // (paused while the dev start prompt is up)
+        int steps = 1;
+        if (_fastForwardLeft > 0)
+        {
+            steps = Math.Min(_fastForwardLeft, FastForwardBatch);
+            _fastForwardLeft -= steps;
+            _tickTime = 0;
+        }
+        else
+        {
+            double tickLength = 1.0 / Balance.TicksPerSecond;
+            if (_tickTime < tickLength)
+                return;
+            _tickTime -= tickLength;
+        }
         var game = _game;
         _simTick = game.Tick;
         _simTask = System.Threading.Tasks.Task.Run(() =>
         {
             long started = Stopwatch.GetTimestamp();
-            game.Step();
+            for (int i = 0; i < steps; i++)
+                game.Step();
             _simElapsed = Stopwatch.GetTimestamp() - started;
         });
     }
@@ -292,7 +318,9 @@ public partial class World : Node2D
         UpdatePlacing();
         FrameProfiler.Stop("  placing", hudStart);
         long hudOnly = FrameProfiler.Start();
+        UpdateFastForward();
         _hud.Update(_game, _me);
+        _arcs.SetRequests(IncomingAllianceRequests());
         FrameProfiler.Stop("  hud", hudOnly);
         var hovered = HoveredPlayer();
         _view.HoverId = hovered?.Id ?? -1;
@@ -348,6 +376,8 @@ public partial class World : Node2D
             StopPlacing();
             return;
         }
+        if (e is InputEventMouseButton { ButtonIndex: MouseButton.Right, Pressed: true } rightClick)
+            OnRightClick(GetCanvasTransform().AffineInverse() * rightClick.Position);
         if (e is not InputEventMouseButton { ButtonIndex: MouseButton.Left } button)
             return;
         if (button.Pressed)
@@ -588,7 +618,9 @@ public partial class World : Node2D
         if (tile < 0 || !_map.IsLand(tile))
             return;
 
-        if (_game.Phase == GamePhase.Spawning)
+        if (_startPrompt.Visible || _fastForwarding)
+            return; // the dev start prompt is up, or the game is fast-forwarding
+        if (_game.Phase == GamePhase.Spawning || (_me.LateSpawn && !_me.HasSpawned))
         {
             _game.Submit(new SpawnIntent(_me.Id, tile));
             return;
@@ -680,10 +712,24 @@ public partial class World : Node2D
         if (_args.Showcase)
             Showcase();
 
+        if (_args.AllyRequests > 0)
+            AskForAlliances(_args.AllyRequests);
+
         _view.SetOwners(_game.Owner, _game.Fallout);
         _shownTick = _game.Tick;
         _game.ChangedTiles.Clear();
         _tickTime = 0;
+
+        _arcs.Me = _me.Id;
+        _arcs.SetRequests(Array.Empty<AllianceArcs.Request>());
+        _fastForwardLeft = 0;
+        _fastForwarding = false;
+        _hud.Status = null;
+        // Dev start: ask whether to start now or fast-forward to mid-game (not for scripted runs).
+        string start = _args.Start ?? (DevCheats && !_args.NoCheats && _args.Screenshot is null && !_args.Autoplay && _args.Bench is null ? "ask" : "now");
+        _startPrompt.Visible = start == "ask";
+        if (start == "mid")
+            BeginMidGame();
     }
 
     /// <summary>Testing aid: spawns the human player on a random big landmass.</summary>
@@ -875,6 +921,10 @@ public partial class World : Node2D
 
     private async void SaveScreenshotAndQuit(string path)
     {
+        if (_args.RightClick?.StartsWith("requester") == true)
+            await RightClickRequester();
+        while (_fastForwarding) // --start=mid: wait for the fast-forward
+            await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
         // A few frames, and enough time for background work (label placement) to land.
         var started = Time.GetTicksMsec();
         for (int i = 0; i < 4 || Time.GetTicksMsec() - started < 600; i++)
@@ -885,7 +935,8 @@ public partial class World : Node2D
     }
 
     private record struct Args(string? Map, ulong? Seed, int? Bots, int? Nations, Difficulty? Difficulty, bool NoCheats, double? Bench, string? Dev, bool Autoplay, int Ticks,
-        bool NoHillshade, float Zoom, Vector2? Focus, string? Screenshot, bool Perf, Vector2? Hover, bool HoverLeader, bool Showcase, string? ShowcaseFocus);
+        bool NoHillshade, float Zoom, Vector2? Focus, string? Screenshot, bool Perf, Vector2? Hover, bool HoverLeader, bool Showcase, string? ShowcaseFocus,
+        string? Start = null, int AllyRequests = 0, string? RightClick = null);
 
     private static Args ParseArgs()
     {
@@ -916,6 +967,9 @@ public partial class World : Node2D
                     break;
                 case "screenshot": args.Screenshot = value; break;
                 case "perf": args.Perf = true; break;
+                case "start": args.Start = value; break;             // now / mid / ask
+                case "ally-requests": args.AllyRequests = int.Parse(value, inv); break;
+                case "right-click": args.RightClick = value; break; // "requester": right-click whoever asked us to ally (screenshots)
                 case "showcase": args.Showcase = true; args.ShowcaseFocus = value; break;
                 case "hover" when value == "leader": args.HoverLeader = true; break;
                 case "hover":

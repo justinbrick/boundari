@@ -5,6 +5,10 @@ extends Control
 # square and Godot can't tell which one the mouse is on. Instead this script looks at
 # the pictures itself: the wedge under the mouse is the one whose picture isn't
 # see-through there. That wedge lightens on hover and darkens while pressed.
+#
+# The alliance wedge (bottom right) can also show a moving green outline: the game
+# turns it on (set_alliance_pending) when the player you right-clicked has asked you
+# to ally. See alliance_pulse.gdshader.
 
 # 380x380 → radius 190
 const MENU_RADIUS := 190.0
@@ -12,6 +16,11 @@ const ALPHA_THRESHOLD := 0.02         # less opaque than this counts as "not on 
 # How much lighter/darker a wedge gets: its frosted-glass panel (blur.gdshader's tint) and its picture.
 const HOVER_TINT := 1.45
 const PRESSED_TINT := 0.6
+const ALLIANCE_WEDGE := "BR_Rect"
+const PULSE_SHADER := preload("res://alliance_pulse.gdshader")
+
+# Wedge pictures' pixels, read once and shared by every menu opened afterwards.
+static var _image_cache := {}
 
 ## Sent when a wedge is clicked (pressed and released on the same wedge). The name is the
 ## wedge's holder node, e.g. "T_Rect" or "Center_Rect".
@@ -22,15 +31,19 @@ var _images: Array[Image] = []         # their pixels, for checking what's see-t
 var _panels: Array[CanvasItem] = []    # each wedge's frosted-glass panel behind it (may be null)
 var _hovered := -1
 var _pressed := -1
+var _pulse: TextureRect = null
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_collect(self)
 	for button in _buttons:
 		var texture: Texture2D = button.texture_normal
-		var image := texture.get_image() if texture else null
-		if image and image.is_compressed():
-			image.decompress()
+		var image: Image = _image_cache.get(texture)
+		if image == null and texture:
+			image = texture.get_image()
+			if image and image.is_compressed():
+				image.decompress()
+			_image_cache[texture] = image
 		_images.append(image)
 		# The panels share materials: give each its own copy so only one lights up.
 		var panel := button.get_parent() as CanvasItem
@@ -91,8 +104,49 @@ func _input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 
 func _inside_circle(screen_pos: Vector2) -> bool:
-	var center: Vector2 = global_position + (size * 0.5)
-	return center.distance_to(screen_pos) <= MENU_RADIUS
+	# Through the menu's transform, so it still works when the menu is scaled.
+	var xf := get_global_transform_with_canvas()
+	var center: Vector2 = xf * (size * 0.5)
+	return center.distance_to(screen_pos) <= MENU_RADIUS * xf.get_scale().x
+
+## Shows (or hides) the moving green outline on the alliance wedge.
+func set_alliance_pending(on: bool) -> void:
+	if not on:
+		if _pulse:
+			_pulse.queue_free()
+			_pulse = null
+		return
+	if _pulse:
+		return
+	var i := -1
+	for k in _buttons.size():
+		if _buttons[k].get_parent().name == ALLIANCE_WEDGE:
+			i = k
+	if i < 0 or _images[i] == null:
+		return
+	var button := _buttons[i]
+	var material := ShaderMaterial.new()
+	material.shader = PULSE_SHADER
+	material.set_shader_parameter("centre", _centroid(_images[i]) / Vector2(_images[i].get_size()))
+	material.set_shader_parameter("tex_size", float(_images[i].get_width()))
+	_pulse = TextureRect.new()
+	_pulse.texture = button.texture_normal
+	_pulse.material = material
+	_pulse.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	button.get_parent().add_child(_pulse)   # after the wedge picture, so it's drawn on top
+	_pulse.position = button.position
+
+## Middle of a wedge picture's visible part, in pixels.
+func _centroid(image: Image) -> Vector2:
+	var sum := Vector2.ZERO
+	var count := 0.0
+	for y in range(0, image.get_height(), 3):
+		for x in range(0, image.get_width(), 3):
+			var a := image.get_pixel(x, y).a
+			if a > ALPHA_THRESHOLD:
+				sum += Vector2(x, y) * a
+				count += a
+	return sum / count if count > 0.0 else Vector2(image.get_size()) * 0.5
 
 func _set_hovered(index: int) -> void:
 	if index == _hovered:

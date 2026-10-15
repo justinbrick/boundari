@@ -243,6 +243,7 @@ public sealed partial class Game
         long t0 = Stopwatch.GetTimestamp();
         foreach (var ai in _ais)
             ai.Think();
+        RunAlliances();
         long t1 = Stopwatch.GetTimestamp();
         GrowEconomies();
         SailBoats();
@@ -290,6 +291,9 @@ public sealed partial class Game
             case SpawnIntent spawn when Phase == GamePhase.Spawning:
                 Spawn(player, spawn.Tile);
                 break;
+            case SpawnIntent late when player.LateSpawn && !player.HasSpawned:
+                Spawn(player, late.Tile, takeOwned: true);
+                break;
             case AttackIntent attack when Phase == GamePhase.Running:
                 StartAttack(player, attack.TargetId, attack.Troops > 0
                     ? Math.Min(attack.Troops, player.Troops)
@@ -297,6 +301,15 @@ public sealed partial class Game
                 break;
             case NukeIntent nuke:
                 LaunchNuke(player, nuke.Type, nuke.Tile);
+                break;
+            case AllianceIntent ally when Phase == GamePhase.Running && GetPlayer(ally.TargetId) is { } other:
+                RequestAlliance(player, other);
+                break;
+            case BreakAllianceIntent split when GetPlayer(split.TargetId) is { } former:
+                BreakAlliance(player, former);
+                break;
+            case RejectAllianceIntent no when GetPlayer(no.RequesterId) is { } asker && PendingRequest(asker, player) is { } request:
+                RejectAlliance(request);
                 break;
             case DemolishIntent demolish when Phase == GamePhase.Running:
                 StartDemolition(player, demolish.Tile);
@@ -330,9 +343,12 @@ public sealed partial class Game
         }
     }
 
-    private void Spawn(Player player, int tile)
+    /// <summary>Dev option: lets a player who hasn't spawned yet drop in after the spawn phase (see <see cref="Player.LateSpawn"/>).</summary>
+    public void AllowLateSpawn(Player player) => player.LateSpawn = true;
+
+    private void Spawn(Player player, int tile, bool takeOwned = false)
     {
-        if (tile < 0 || tile >= Map.TileCount || !Map.IsLand(tile) || Owner[tile] != Nobody || Fallout[tile])
+        if (tile < 0 || tile >= Map.TileCount || !Map.IsLand(tile) || (Owner[tile] != Nobody && !takeOwned) || Fallout[tile])
             return;
 
         // Moving your spawn during the spawn phase: give back the old land first.
@@ -350,7 +366,7 @@ public sealed partial class Game
         while (frontier.Count > 0)
         {
             int t = frontier.Dequeue();
-            if (Owner[t] != Nobody)
+            if (Owner[t] != Nobody && !takeOwned)
                 continue;
             SetOwner(t, player.Id);
             player.SpawnArea.Add(t);
@@ -569,6 +585,8 @@ public sealed partial class Game
     {
         if (tile < 0 || tile >= Map.TileCount || !Map.IsLand(tile) || Owner[tile] == player.Id)
             return;
+        if (player.Allies.Contains(Owner[tile]))
+            return; // no landings on allies
         if (BoatsAtSea(player) >= Balance.MaxBoatsPerPlayer)
             return;
         long troops = player.Troops * Math.Clamp(ratioPercent, 1, 100) / 100;
@@ -675,9 +693,9 @@ public sealed partial class Game
         var player = boat.Owner;
         int tile = boat.LandingTile;
         ushort target = Owner[tile];
-        if (target == player.Id)
+        if (target == player.Id || player.Allies.Contains(target))
         {
-            player.Troops += boat.Troops; // already ours: troops just come home
+            player.Troops += boat.Troops; // already ours (or an ally's now): troops just come home
             return;
         }
         var defender = GetPlayer(target);
@@ -685,7 +703,10 @@ public sealed partial class Game
         if (boat.Troops <= cost)
             return; // too few to even take the beach
         if (defender is not null)
+        {
             defender.Troops = Math.Max(0, defender.Troops - DefenderLoss(defender));
+            OnAttacked(player, defender);
+        }
         SetOwner(tile, player.Id);
 
         var attack = _attacks.Find(a => a.Attacker == player && a.TargetId == target);
@@ -1454,9 +1475,9 @@ public sealed partial class Game
 
     private bool TargetValid(Warship ship) => ship.Target switch
     {
-        Boat b => !b.Sunk && _boats.Contains(b),
-        Warship w => w.Alive && _warships.Contains(w),
-        TradeShip t => !t.Captured && t.Owner != ship.Owner && _tradeShips.Contains(t),
+        Boat b => !b.Sunk && _boats.Contains(b) && !ship.Owner.IsAlliedWith(b.Owner),
+        Warship w => w.Alive && _warships.Contains(w) && !ship.Owner.IsAlliedWith(w.Owner),
+        TradeShip t => !t.Captured && t.Owner != ship.Owner && _tradeShips.Contains(t) && !ship.Owner.IsAlliedWith(t.Owner),
         _ => true,
     };
 
@@ -1474,12 +1495,12 @@ public sealed partial class Game
         object? best = null;
         long bestDist = long.MaxValue;
         foreach (var b in _boats)
-            if (b.Owner != ship.Owner && !b.Sunk && Dist(b.Tile) <= range && Dist(b.Tile) < bestDist && !AlreadyShot(b))
+            if (b.Owner != ship.Owner && !ship.Owner.IsAlliedWith(b.Owner) && !b.Sunk && Dist(b.Tile) <= range && Dist(b.Tile) < bestDist && !AlreadyShot(b))
                 (best, bestDist) = (b, Dist(b.Tile));
         if (best is not null)
             return best;
         foreach (var w in _warships)
-            if (w.Owner != ship.Owner && w.Alive && Dist(w.Tile) <= range && Dist(w.Tile) < bestDist)
+            if (w.Owner != ship.Owner && !ship.Owner.IsAlliedWith(w.Owner) && w.Alive && Dist(w.Tile) <= range && Dist(w.Tile) < bestDist)
                 (best, bestDist) = (w, Dist(w.Tile));
         if (best is not null)
             return best;
@@ -1489,7 +1510,7 @@ public sealed partial class Game
         foreach (var t in _tradeShips)
         {
             // Leave alone ships that are trading with us, or already taken.
-            if (t.Owner == ship.Owner || t.Captured || t.To.Owner == ship.Owner.Id || Dist(t.Tile) > range)
+            if (t.Owner == ship.Owner || ship.Owner.IsAlliedWith(t.Owner) || t.Captured || t.To.Owner == ship.Owner.Id || Dist(t.Tile) > range)
                 continue;
             long pdx = t.Tile % Map.Width - px, pdy = t.Tile / Map.Width - py;
             if (pdx * pdx + pdy * pdy <= patrol && Dist(t.Tile) < bestDist)
@@ -1759,6 +1780,8 @@ public sealed partial class Game
             return;
         if (troops <= 0)
             return;
+        if (attacker.Allies.Contains(targetId))
+            return; // allies can't attack each other
         if (targetId != Nobody)
             attacker.AttacksSent++;
 
@@ -1793,6 +1816,8 @@ public sealed partial class Game
         }
         if (attack.Front.Count == 0)
             return; // doesn't border the target: nothing to attack (boats come later)
+        if (targetId != Nobody)
+            OnAttacked(attacker, _players[targetId]);
 
         attacker.Troops -= troops;
         attack.Troops += troops;
@@ -1844,7 +1869,8 @@ public sealed partial class Game
             while (attack.Front.TryPeek(out int top, out _) && (Owner[top] != attack.TargetId || !Touches(top, attack.Attacker.Id)))
                 attack.Front.Dequeue();
             bool outOfTroops = attack.Front.Count > 0 && attack.Troops < TileCost(attack.Front.Peek(), attack.Attacker, defender);
-            if (attack.Front.Count == 0 || outOfTroops || !attack.Attacker.IsAlive)
+            bool nowAllies = attack.Attacker.Allies.Contains(attack.TargetId); // allied after the attack began: pull back
+            if (attack.Front.Count == 0 || outOfTroops || nowAllies || !attack.Attacker.IsAlive)
             {
                 attack.Attacker.Troops += attack.Troops; // survivors come home
                 _attacks.RemoveAt(a--);
@@ -1873,6 +1899,8 @@ public sealed partial class Game
             travel *= Balance.DefensePostSpeedFactor;
         else if (attack.TargetId == Nobody && Fallout[tile])
             travel = travel * FalloutFactorTenths() / 10;
+        if (attack.TargetId != Nobody && IsTraitor(_players[attack.TargetId]))
+            travel = travel * AllianceRules.TraitorTravelPercent / 100;
         attack.Front.Enqueue(tile, Math.Max(from, attack.Clock - Balance.WaveSpeedPerTick) + travel);
     }
 
@@ -1896,6 +1924,8 @@ public sealed partial class Game
             cost = cost * FalloutFactorTenths() / 10;
         if (defender is { IsBot: true } && !attacker.IsBot)
             cost = cost * Balance.VsBotTroopCostPercent / 100;
+        if (defender is not null && IsTraitor(defender))
+            cost = cost * AllianceRules.TraitorTroopLossPercent / 100;
         return Math.Max(cost, 1);
     }
 

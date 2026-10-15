@@ -82,6 +82,11 @@ public sealed partial class Game
             wait = lastDeparture - Tick;
         silo.Reloads.Enqueue(Tick);
 
+        if (type == NukeType.TsarBomba && GetPlayer(Owner[tile]) is { } victim)
+            OnTsarBombaLaunched(player, victim);
+        else
+            OnBombLaunched(player, type, tile);
+
         if (type == NukeType.TsarBomba)
             LaunchTsarBomba(player, silo.Tile, tile, wait);
         else
@@ -267,7 +272,7 @@ public sealed partial class Game
             targets.Clear();
             foreach (var n in _nukes)
             {
-                if (n.Gone || n.TargetedBySam || n.Type == NukeType.TsarBomba || n.Owner.Id == sam.Owner)
+                if (n.Gone || n.TargetedBySam || n.Type == NukeType.TsarBomba || n.Owner.Id == sam.Owner || n.Owner.Allies.Contains(sam.Owner))
                     continue;
                 int cur = Math.Max(0, n.Index);
                 if (DistSq(sam.Tile, TileAtPoint(n.PathX[cur], n.PathY[cur])) > detect2)

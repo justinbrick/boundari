@@ -46,6 +46,14 @@ public partial class TerritoryLabels : Node2D
 
     /// <summary>The player under the mouse (0 = none): their label is always shown, on top, readable.</summary>
     public ushort Hovered { get; set; }
+
+    /// <summary>Where a player's name sits on the map (the middle of their main territory), if they have one.</summary>
+    public bool TryGetAnchor(ushort id, out Vector2 position)
+    {
+        bool found = _labels.TryGetValue(id, out var label);
+        position = found ? label!.Position : default;
+        return found;
+    }
     private readonly Dictionary<string, Texture2D?> _flags = new();
     private Game? _game;
     private double _sinceRefresh = RefreshSeconds;

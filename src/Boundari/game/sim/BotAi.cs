@@ -128,6 +128,8 @@ internal sealed class BotAi : IPlayerAi
             return BoatToEmptyLand();
         if (target is not null && !Borders(target))
             return false; // only reachable by sea: bots don't sail at players
+        if (target is not null && _player.IsAlliedWith(target))
+            return false;
 
         // Against empty land, or a bot holding buildings, keep only the small expand reserve.
         bool expand = target is null || (target.IsBot && _game.BuildingsOf(target).Count > 0);
