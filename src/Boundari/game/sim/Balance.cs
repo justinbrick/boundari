@@ -13,7 +13,7 @@ public static class Balance
 
     // --- Spawning ---
     public const int SpawnPhaseTicks = 10 * TicksPerSecond;
-    public const int SpawnRadius = 6;
+    public const int SpawnRadius = 4; // OpenFront: euclidean radius 4
     // Like OpenFront: humans start with 25K troops, bots with 10K, nations by difficulty.
     public const long StartTroops = 25_000;
     public const long BotStartTroops = 10_000;
@@ -32,15 +32,7 @@ public static class Balance
     // Trade ships sail at this speed (thousandths of a tile per tick).
     public const long TradeShipSpeedPerTick = 1500;
 
-    // --- Attacking ---
-    // Troops it costs to take one farmland tile of empty land (OpenFront: 80/5 for
-    // players, 80/10 for bots, scaled by terrain).
-    public const long NeutralTileCost = 16;
-    public const long BotNeutralTileCost = 8;
-
-    // Bots are soft targets: people and nations lose 30% fewer troops attacking them (OpenFront).
-    public const long VsBotTroopCostPercent = 70;
-
+    // --- Attacking --- (the numbers themselves are in AttackRules, GameAttacks.cs)
     // A player pushed below this many tiles by an attack is finished off (OpenFront):
     // the attacker takes the scraps and their gold.
     public const int ConquerBelowTiles = 100;
@@ -48,44 +40,6 @@ public static class Balance
     // Tearing down a building takes 30 s, and you can start one every 30 s (OpenFront).
     public const int DemolishTicks = 30 * TicksPerSecond;
     public const int DemolishCooldownTicks = 30 * TicksPerSecond;
-
-    // Extra cost per tile when attacking a player, per troop of their density
-    // (troops per tile), in tenths: 12 = 1.2x their density.
-    public const long DefenderDensityCostTenths = 12;
-
-    // Troops the defender loses per tile taken, in tenths of their density.
-    public const long DefenderLossTenths = 8;
-
-    // --- Attack speed ---
-    // Time to cross one farmland tile, in travel units. Other terrain scales this by
-    // its cost multiplier, and each tile also gets a random factor.
-    public const long TravelUnit = 1000;
-
-    // How far an attack's wave advances per tick, in travel units.
-    public const long WaveSpeedPerTick = 230;
-
-    // Random spread of crossing times, in percent of normal (min..max). Wide spread
-    // gives ragged, natural-looking fronts instead of geometric shapes.
-    public const int TravelRandomMinPercent = 40;
-    public const int TravelRandomMaxPercent = 170;
-
-    // Tiles already touched by several of the attacker's tiles are crossed faster
-    // (percent of normal, by number of touching tiles). This fills in pockets so
-    // territories stay solid instead of growing spiky fingers.
-    public static readonly int[] SurroundedTravelPercent = { 100, 100, 55, 25, 8 };
-
-    // Attacks slow down as they run out of troops, easing into a crawl before they stop
-    // (like OpenFront). Below this share of the troops sent (percent), speed drops in
-    // proportion to what's left, down to the minimum speed (permille of full speed).
-    public const int SlowdownBelowPercent = 40;
-    public const int MinSpeedPermille = 60;
-
-    // How much terrain affects the troops a tile costs, in percent of its effect on speed.
-    // 100 = forest costs as many extra troops as it adds time; 0 = terrain only slows you.
-    public const int TerrainTroopCostPercent = 50;
-
-    // Safety cap so one huge attack can't stall a tick.
-    public const int MaxTilesPerTick = 6000;
 
     // --- Boats ---
     public const int MaxBoatsPerPlayer = 3;
@@ -115,8 +69,6 @@ public static class Balance
     // Land within this range of a defender's post costs attackers 5x the troops and
     // takes them 3x as long to take.
     public const int DefensePostRange = 30;
-    public const int DefensePostTroopFactor = 5;
-    public const int DefensePostSpeedFactor = 3;
 
     // --- SAMs and silos (for when nukes arrive) ---
     public const int SamCooldownTicks = 90;
@@ -151,59 +103,6 @@ public static class Balance
     // Multipliers in tenths (10 = normal) for both the troops it takes to capture a tile
     // and how long the attack wave takes to cross it. A tile's value is its land cover
     // (averaged over its cover cells) times its elevation band.
-
-    /// <summary>Land-cover multiplier. Farmland is the baseline.</summary>
-    public static int CoverCostTenths(CoverType cover) => cover switch
-    {
-        CoverType.Meadow => 12,
-        CoverType.Forest => 20,
-        CoverType.Water => 25,  // small lakes and marsh
-        CoverType.Rock => 25,
-        CoverType.Snow => 40,
-        _ => 10,                // farmland, or no data
-    };
-
-    /// <summary>Elevation multiplier.</summary>
-    public static int ElevationCostTenths(TerrainType terrain) => terrain switch
-    {
-        TerrainType.Highlands => 14,
-        TerrainType.Mountains => 20,
-        _ => 10,
-    };
-
-    /// <summary>How hard each tile is to take, in tenths (10 = plain farmland).</summary>
-    public static short[] TileCostTenths(GameMap map)
-    {
-        var costs = new short[map.TileCount];
-        var cover = map.Cover;
-        for (int y = 0; y < map.Height; y++)
-        {
-            for (int x = 0; x < map.Width; x++)
-            {
-                int tile = map.Index(x, y);
-                if (!map.IsLand(tile))
-                    continue;
-                int coverCost = 10;
-                if (cover is not null)
-                {
-                    int sum = 0, n = 0, s = cover.Scale;
-                    for (int cy = y * s; cy < (y + 1) * s; cy++)
-                        for (int cx = x * s; cx < (x + 1) * s; cx++)
-                        {
-                            var c = cover.Cells[cover.Index(cx, cy)];
-                            if (c == CoverType.None)
-                                continue;
-                            sum += CoverCostTenths(c);
-                            n++;
-                        }
-                    if (n > 0)
-                        coverCost = (sum + n / 2) / n;
-                }
-                costs[tile] = (short)(coverCost * ElevationCostTenths(map.Terrain[tile]) / 10);
-            }
-        }
-        return costs;
-    }
 
     /// <summary>Starting troops, as in OpenFront (Hard nations start like people).</summary>
     public static long StartTroopsFor(PlayerKind kind, Difficulty difficulty) => kind switch

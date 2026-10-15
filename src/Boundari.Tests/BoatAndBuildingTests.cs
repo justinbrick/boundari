@@ -152,31 +152,60 @@ public class CombatTests
     [Fact]
     public void PocketsSurroundedByOnePlayer_AreAbsorbed()
     {
+        // A holds the west half of the continent and B the east; A also keeps a small pocket
+        // deep inside B's half. B walls the pocket in, so it's handed to B (OpenFront's clusters).
         var map = MapGenerator.Generate(21, new MapGenSettings { Width = 400, Height = 250, MinIslandTiles = 8, MinLakeTiles = 30 });
         var game = new Game(map, 1, spawnPhaseTicks: 2);
         var a = game.AddPlayer("A");
         var b = game.AddPlayer("B");
         int biggest = Enumerable.Range(0, map.LandmassSizes.Length).OrderByDescending(i => map.LandmassSizes[i]).First();
-        // An inland spot, far from the coast.
-        int centre = Enumerable.Range(0, map.TileCount).Where(t => map.LandmassId[t] == biggest && !game.IsCoastal(t))
-            .OrderByDescending(t => DistanceToCoast(game, t)).First();
-        game.Submit(new SpawnIntent(a.Id, centre));
-        game.Step();
-        game.Step();
-        game.Step();
-        // Hand A a big home far away, and B everything around A's spawn: A's spawn is now a pocket.
-        var setOwner = typeof(Game).GetMethod("SetOwner", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
-        int cx = centre % map.Width, cy = centre / map.Width;
-        for (int t = 0; t < map.TileCount; t++)
-        {
-            if (!map.IsLand(t) || map.LandmassId[t] != biggest || game.Owner[t] == a.Id)
-                continue;
-            int dx = t % map.Width - cx, dy = t / map.Width - cy;
-            setOwner.Invoke(game, new object[] { t, dx * dx + dy * dy < 30 * 30 ? b.Id : a.Id });
-        }
-        for (int t = 0; t < 200; t++)
+        int[] land = Enumerable.Range(0, map.TileCount).Where(t => map.LandmassId[t] == biggest).ToArray();
+        game.Submit(new SpawnIntent(a.Id, land[0]));
+        game.Submit(new SpawnIntent(b.Id, land[^1]));
+        for (int t = 0; t < 3; t++)
             game.Step();
-        Assert.Equal(b.Id, game.Owner[centre]);
+        int midX = (int)land.Select(t => t % map.Width).Average();
+        int pocket = land.Where(t => t % map.Width > midX + 20 && !game.IsCoastal(t)).OrderByDescending(t => DistanceToCoast(game, t)).First();
+        int px = pocket % map.Width, py = pocket / map.Width;
+        var setOwner = typeof(Game).GetMethod("SetOwner", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+        foreach (int t in land)
+        {
+            int dx = t % map.Width - px, dy = t / map.Width - py;
+            bool inPocket = dx * dx + dy * dy <= 16;
+            setOwner.Invoke(game, new object[] { t, inPocket || t % map.Width < midX ? a.Id : b.Id });
+        }
+        for (int t = 0; t < 30; t++)
+            game.Step();
+        Assert.Equal(b.Id, game.Owner[pocket]);
+        Assert.True(a.TileCount > 100, "A's main body (on the coast) is left alone");
+    }
+
+    [Fact]
+    public void APlayerWalledInByOneEnemy_IsAnnexed()
+    {
+        // B's whole land is a disc inside A's, with no coast: OpenFront hands all of it to A.
+        var map = MapGenerator.Generate(21, new MapGenSettings { Width = 400, Height = 250, MinIslandTiles = 8, MinLakeTiles = 30 });
+        var game = new Game(map, 1, spawnPhaseTicks: 2);
+        var a = game.AddPlayer("A");
+        var b = game.AddPlayer("B");
+        int biggest = Enumerable.Range(0, map.LandmassSizes.Length).OrderByDescending(i => map.LandmassSizes[i]).First();
+        int[] land = Enumerable.Range(0, map.TileCount).Where(t => map.LandmassId[t] == biggest).ToArray();
+        int centre = land.Where(t => !game.IsCoastal(t)).OrderByDescending(t => DistanceToCoast(game, t)).First();
+        game.Submit(new SpawnIntent(a.Id, land[0]));
+        game.Submit(new SpawnIntent(b.Id, centre));
+        for (int t = 0; t < 3; t++)
+            game.Step();
+        int cx = centre % map.Width, cy = centre / map.Width;
+        var setOwner = typeof(Game).GetMethod("SetOwner", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+        foreach (int t in land)
+        {
+            int dx = t % map.Width - cx, dy = t / map.Width - cy;
+            setOwner.Invoke(game, new object[] { t, dx * dx + dy * dy < 20 * 20 ? b.Id : a.Id });
+        }
+        for (int t = 0; t < 30; t++)
+            game.Step();
+        Assert.Equal(0, b.TileCount);
+        Assert.Equal(a.Id, game.Owner[centre]);
     }
 
     [Fact]

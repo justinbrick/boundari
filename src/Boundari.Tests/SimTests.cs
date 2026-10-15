@@ -125,32 +125,3 @@ public class SimTests
         return false;
     }
 }
-
-public class TerrainCostTests
-{
-    [Fact]
-    public void LandCover_ChangesHowHardTilesAreToTake()
-    {
-        var map = MapGenerator.Generate(9, new MapGenSettings { Width = 100, Height = 60, MinIslandTiles = 8, MinLakeTiles = 30 });
-        map.Cover = new LandCover(4, map.Width, map.Height);
-        int plain = -1;
-        for (int i = 0; i < map.TileCount && plain < 0; i++)
-            if (map.Terrain[i] == TerrainType.Plains)
-                plain = i;
-        int x = plain % map.Width, y = plain / map.Width;
-
-        void Paint(CoverType type)
-        {
-            for (int cy = y * 4; cy < y * 4 + 4; cy++)
-                for (int cx = x * 4; cx < x * 4 + 4; cx++)
-                    map.Cover.Cells[map.Cover.Index(cx, cy)] = type;
-        }
-
-        Paint(CoverType.Farmland);
-        Assert.Equal(10, Balance.TileCostTenths(map)[plain]);
-        Paint(CoverType.Forest);
-        Assert.Equal(20, Balance.TileCostTenths(map)[plain]);
-        Paint(CoverType.Snow);
-        Assert.Equal(40, Balance.TileCostTenths(map)[plain]);
-    }
-}

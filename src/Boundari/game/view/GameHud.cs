@@ -50,7 +50,7 @@ public sealed class GameHud
     }
 
     /// <summary>Share of troops to send when attacking, from the HUD slider (1..100).</summary>
-    public int AttackRatioPercent => Mathf.Clamp((int)(_ratio?.Value ?? 35), 1, 100);
+    public int AttackRatioPercent => Mathf.Clamp((int)(_ratio?.Value ?? 20), 1, 100);
 
     /// <summary>Shown in place of the usual status line while set (e.g. fast-forward progress).</summary>
     public string? Status { get; set; }

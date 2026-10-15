@@ -54,7 +54,7 @@ public sealed class Player
     public bool HasSpawned { get; internal set; }
 
     internal int LastLandChange;
-    internal int LastEnclaveCheck = -1;
+    internal int LastClusterCalc = int.MinValue; // when its walled-in pockets were last checked (GameClusters.cs)
 
     /// <summary>How many of each building type this player has built (for prices).</summary>
     internal readonly int[] Constructed = new int[Enum.GetValues<BuildingType>().Length];

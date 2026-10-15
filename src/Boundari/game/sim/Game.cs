@@ -27,9 +27,6 @@ public sealed partial class Game
     /// <summary>Owner of each tile (player id), or <see cref="Nobody"/>.</summary>
     public readonly ushort[] Owner;
 
-    /// <summary>How hard each tile is to take, in tenths (10 = plain farmland). See <see cref="Balance"/>.</summary>
-    public readonly short[] CostTenths;
-
     public int Tick { get; private set; }
     public GamePhase Phase { get; private set; } = GamePhase.Spawning;
     public readonly int SpawnPhaseTicks;
@@ -64,7 +61,6 @@ public sealed partial class Game
     private const int RoutePlanningBudget = 15_000;  // tile expansions per tick (~3 ms)
     private Waterways? _waterways;
     private readonly bool[]? _coastal;
-    private readonly bool[] _open; // land on a coast or the map edge: never part of an enclave
     private readonly List<Intent> _pending = new();
     private readonly List<IPlayerAi> _ais = new();
     private readonly List<Building> _demolishing = new();
@@ -82,14 +78,10 @@ public sealed partial class Game
         Fallout = new bool[map.TileCount];
         SpawnPhaseTicks = spawnPhaseTicks;
         Owner = new ushort[map.TileCount];
-        CostTenths = Balance.TileCostTenths(map);
         _coastal = new bool[map.TileCount];
         Span<int> bodies = stackalloc int[4];
         for (int t = 0; t < map.TileCount; t++)
             _coastal[t] = map.IsLand(t) && Waterways.TouchingBodies(t, bodies) > 0;
-        _open = new bool[map.TileCount];
-        for (int t = 0; t < map.TileCount; t++)
-            _open[t] = _coastal[t] || t % map.Width == 0 || t % map.Width == map.Width - 1 || t < map.Width || t >= map.TileCount - map.Width;
         _rng = new Rng(seed);
     }
 
@@ -262,8 +254,7 @@ public sealed partial class Game
         RunWarships(); FlyShells(); Lap(4);
         RunNukes(); Lap(5);
         long te = Stopwatch.GetTimestamp();
-        if (Tick % EnclaveCheckTicks == 0)
-            AbsorbEnclaves();
+        RemoveClusters();
         q = te;
         Lap(6);
         Profile[4] += Stopwatch.GetTimestamp() - te;
@@ -685,42 +676,6 @@ public sealed partial class Game
             _boats.RemoveAt(i--);
             Land(boat);
         }
-    }
-
-    /// <summary>The boat's troops come ashore and attack whoever owns the landing tile.</summary>
-    private void Land(Boat boat)
-    {
-        var player = boat.Owner;
-        int tile = boat.LandingTile;
-        ushort target = Owner[tile];
-        if (target == player.Id || player.Allies.Contains(target))
-        {
-            player.Troops += boat.Troops; // already ours (or an ally's now): troops just come home
-            return;
-        }
-        var defender = GetPlayer(target);
-        long cost = TileCost(tile, player, defender);
-        if (boat.Troops <= cost)
-            return; // too few to even take the beach
-        if (defender is not null)
-        {
-            defender.Troops = Math.Max(0, defender.Troops - DefenderLoss(defender));
-            OnAttacked(player, defender);
-        }
-        SetOwner(tile, player.Id);
-
-        var attack = _attacks.Find(a => a.Attacker == player && a.TargetId == target);
-        if (attack is null)
-        {
-            attack = new Attack(player, target, 0);
-            _attacks.Add(attack);
-        }
-        attack.Troops += boat.Troops - cost;
-        attack.TroopsSent += boat.Troops - cost;
-        Span<int> nb = stackalloc int[4];
-        int count = LandNeighbours(tile, nb);
-        for (int k = 0; k < count; k++)
-            Enqueue(attack, nb[k], attack.Clock);
     }
 
     // ------------------------------------------------------------------
@@ -1660,273 +1615,18 @@ public sealed partial class Game
     }
 
     // ------------------------------------------------------------------
-    //  Enclaves
+    //  Conquest
     // ------------------------------------------------------------------
 
-    // Land cut off from its owner and completely surrounded by a single other player
-    // is handed to that player (like OpenFront), which cleans up the pockets left behind
-    // when fronts tangle. Each player is checked every EnclaveGroups * EnclaveCheckTicks
-    // ticks, and only if their land changed since.
-    // Each player is checked every EnclaveCheckTicks x EnclaveGroups ticks (8 s), a twentieth
-    // of the players at a time, so no single tick floods everyone's land.
-    private const int EnclaveCheckTicks = 4;
-    private const int EnclaveGroups = 20;
-    private int[]? _enclaveStamp;
-    private int[]? _enclaveQueue;
-    private int _enclaveSearch;
-
-    private void AbsorbEnclaves()
+    /// <summary>The conqueror takes the loser's gold (half from a person, none from one who never fought).</summary>
+    private static void TakeGold(Player winner, Player loser)
     {
-        _enclaveStamp ??= new int[Map.TileCount];
-        _enclaveQueue ??= new int[Map.TileCount];
-        int group = (Tick / EnclaveCheckTicks) % EnclaveGroups;
-        for (int id = 1; id < _players.Count; id++)
+        long gold = loser.Kind == PlayerKind.Human && loser.AttacksSent == 0 ? 0 : loser.Gold;
+        if (gold > 0)
         {
-            var p = _players[id];
-            if (id % EnclaveGroups != group || p.TileCount == 0 || p.LastLandChange < p.LastEnclaveCheck)
-                continue;
-            p.LastEnclaveCheck = Tick;
-            AbsorbEnclaves(p);
+            winner.Gold += loser.Kind == PlayerKind.Human ? gold / 2 : gold;
+            loser.Gold -= gold;
         }
-    }
-
-    private void AbsorbEnclaves(Player p)
-    {
-        var stamp = _enclaveStamp!;
-        var queue = _enclaveQueue!;
-        int search = ++_enclaveSearch;
-        Span<int> nb = stackalloc int[4];
-        var pieces = new List<(int Start, int Length, ushort Surrounder)>();
-        int used = 0;
-
-        var starts = new List<int>(p.Border);
-        starts.Sort(); // HashSet order isn't guaranteed; keep every machine identical
-        foreach (int start in starts)
-        {
-            if (stamp[start] == search || Owner[start] != p.Id)
-                continue;
-            // Flood this piece of p's land (into the shared queue), noting who surrounds it.
-            int head = used, tail = used;
-            queue[tail++] = start;
-            stamp[start] = search;
-            ushort surrounder = Nobody;
-            bool enclosed = true;
-            // Tight loop (this runs over whole territories): open tiles (coast, map edge) can't
-            // be enclosed, so their neighbours can be read without bounds checks; water and
-            // unowned land both read as Nobody.
-            var owner = Owner;
-            var open = _open;
-            int w = Map.Width;
-            ushort pid = p.Id;
-            while (head < tail)
-            {
-                int t = queue[head++];
-                if (open[t])
-                {
-                    enclosed = false;
-                    int count = LandNeighbours(t, nb);
-                    for (int k = 0; k < count; k++)
-                        if (owner[nb[k]] == pid && stamp[nb[k]] != search)
-                        {
-                            stamp[nb[k]] = search;
-                            queue[tail++] = nb[k];
-                        }
-                    continue;
-                }
-                for (int k = 0; k < 4; k++)
-                {
-                    int n = k switch { 0 => t - 1, 1 => t + 1, 2 => t - w, _ => t + w };
-                    ushort o = owner[n];
-                    if (o == pid)
-                    {
-                        if (stamp[n] != search)
-                        {
-                            stamp[n] = search;
-                            queue[tail++] = n;
-                        }
-                    }
-                    else if (o == Nobody || (surrounder != Nobody && o != surrounder))
-                        enclosed = false;
-                    else
-                        surrounder = o;
-                }
-            }
-            pieces.Add((used, tail - used, enclosed ? surrounder : Nobody));
-            used = tail;
-        }
-
-        // Never take a player's biggest piece: being surrounded isn't the same as being cut off.
-        int biggest = 0;
-        for (int i = 1; i < pieces.Count; i++)
-            if (pieces[i].Length > pieces[biggest].Length)
-                biggest = i;
-        for (int i = 0; i < pieces.Count; i++)
-        {
-            var (from, length, surrounder) = pieces[i];
-            if (i == biggest || surrounder == Nobody)
-                continue;
-            for (int k = from; k < from + length; k++)
-                SetOwner(queue[k], surrounder);
-        }
-    }
-
-    // ------------------------------------------------------------------
-    //  Attacks (continued)
-    // ------------------------------------------------------------------
-
-    private void StartAttack(Player attacker, ushort targetId, long troops)
-    {
-        if (targetId == attacker.Id || (targetId != Nobody && GetPlayer(targetId) is not { IsAlive: true }))
-            return;
-        if (troops <= 0)
-            return;
-        if (attacker.Allies.Contains(targetId))
-            return; // allies can't attack each other
-        if (targetId != Nobody)
-            attacker.AttacksSent++;
-
-        // Attacking someone who is attacking you: the two armies meet and cancel out first.
-        var incoming = targetId == Nobody ? null : _attacks.Find(a => a.Attacker.Id == targetId && a.TargetId == attacker.Id);
-        if (incoming is not null)
-        {
-            if (incoming.Troops > troops)
-            {
-                incoming.Troops -= troops;
-                attacker.Troops -= troops;
-                return;
-            }
-            troops -= incoming.Troops;
-            attacker.Troops -= incoming.Troops;
-            incoming.Troops = 0; // removed when the attack loop next sees it out of troops
-            if (troops <= 0)
-                return;
-        }
-
-        // Reinforce an attack already heading for the same target.
-        var attack = _attacks.Find(a => a.Attacker == attacker && a.TargetId == targetId);
-        bool isNew = attack is null;
-        attack ??= new Attack(attacker, targetId, 0);
-
-        Span<int> nb = stackalloc int[4];
-        foreach (int t in attacker.Border)
-        {
-            int count = LandNeighbours(t, nb);
-            for (int k = 0; k < count; k++)
-                Enqueue(attack, nb[k], attack.Clock);
-        }
-        if (attack.Front.Count == 0)
-            return; // doesn't border the target: nothing to attack (boats come later)
-        if (targetId != Nobody)
-            OnAttacked(attacker, _players[targetId]);
-
-        attacker.Troops -= troops;
-        attack.Troops += troops;
-        attack.TroopsSent += troops;
-        if (isNew)
-            _attacks.Add(attack);
-    }
-
-    private void AdvanceAttacks()
-    {
-        Span<int> nb = stackalloc int[4];
-        for (int a = 0; a < _attacks.Count; a++)
-        {
-            var attack = _attacks[a];
-            attack.Clock += Balance.WaveSpeedPerTick * SpeedPermille(attack) / 1000;
-            int budget = Balance.MaxTilesPerTick;
-            var defender = GetPlayer(attack.TargetId);
-
-            // Take every front tile the wave has reached by now.
-            while (budget > 0 && attack.Front.TryPeek(out int tile, out long arrival) && arrival <= attack.Clock)
-            {
-                if (Owner[tile] != attack.TargetId || !Touches(tile, attack.Attacker.Id))
-                {
-                    attack.Front.Dequeue();
-                    continue;
-                }
-
-                long cost = TileCost(tile, attack.Attacker, defender);
-                if (attack.Troops < cost)
-                    break;
-                attack.Front.Dequeue();
-
-                attack.Troops -= cost;
-                if (defender is not null)
-                    defender.Troops = Math.Max(0, defender.Troops - DefenderLoss(defender));
-                SetOwner(tile, attack.Attacker.Id);
-                int count = LandNeighbours(tile, nb);
-                for (int k = 0; k < count; k++)
-                    Enqueue(attack, nb[k], arrival);
-                budget--;
-                if (defender is not null && defender.TileCount < Balance.ConquerBelowTiles)
-                {
-                    Conquer(attack.Attacker, defender);
-                    break;
-                }
-            }
-
-            // Drop stale entries so the checks below look at a real front tile.
-            while (attack.Front.TryPeek(out int top, out _) && (Owner[top] != attack.TargetId || !Touches(top, attack.Attacker.Id)))
-                attack.Front.Dequeue();
-            bool outOfTroops = attack.Front.Count > 0 && attack.Troops < TileCost(attack.Front.Peek(), attack.Attacker, defender);
-            bool nowAllies = attack.Attacker.Allies.Contains(attack.TargetId); // allied after the attack began: pull back
-            if (attack.Front.Count == 0 || outOfTroops || nowAllies || !attack.Attacker.IsAlive)
-            {
-                attack.Attacker.Troops += attack.Troops; // survivors come home
-                _attacks.RemoveAt(a--);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Puts a tile on the attack's front, arriving <c>from</c> (the time its attacking
-    /// neighbour fell) plus the time to cross it: terrain, randomness, and a discount
-    /// when several of the attacker's tiles already surround it.
-    /// </summary>
-    private void Enqueue(Attack attack, int tile, long from)
-    {
-        if (Owner[tile] != attack.TargetId)
-            return;
-        Span<int> nb = stackalloc int[4];
-        int own = 0, count = LandNeighbours(tile, nb);
-        for (int k = 0; k < count; k++)
-            if (Owner[nb[k]] == attack.Attacker.Id)
-                own++;
-        long travel = Balance.TravelUnit * CostTenths[tile] / 10
-            * _rng.RangeInt(Balance.TravelRandomMinPercent, Balance.TravelRandomMaxPercent) / 100
-            * Balance.SurroundedTravelPercent[own] / 100;
-        if (DefendedByPost(tile, attack.TargetId))
-            travel *= Balance.DefensePostSpeedFactor;
-        else if (attack.TargetId == Nobody && Fallout[tile])
-            travel = travel * FalloutFactorTenths() / 10;
-        if (attack.TargetId != Nobody && IsTraitor(_players[attack.TargetId]))
-            travel = travel * AllianceRules.TraitorTravelPercent / 100;
-        attack.Front.Enqueue(tile, Math.Max(from, attack.Clock - Balance.WaveSpeedPerTick) + travel);
-    }
-
-    /// <summary>Full speed until the attack runs low on troops, then easing down to a crawl.</summary>
-    private static long SpeedPermille(Attack attack)
-    {
-        long threshold = Math.Max(1, attack.TroopsSent * Balance.SlowdownBelowPercent / 100);
-        return Math.Clamp(attack.Troops * 1000 / threshold, Balance.MinSpeedPermille, 1000);
-    }
-
-    private long TileCost(int tile, Player attacker, Player? defender)
-    {
-        // Terrain counts fully towards crossing time, but only partly towards troop cost.
-        long terrain = 10 + (CostTenths[tile] - 10) * Balance.TerrainTroopCostPercent / 100;
-        long cost = (attacker.IsBot ? Balance.BotNeutralTileCost : Balance.NeutralTileCost) * terrain / 10;
-        if (defender is not null)
-            cost += Density(defender) * Balance.DefenderDensityCostTenths * terrain / 100;
-        if (defender is not null && DefendedByPost(tile, defender.Id))
-            cost *= Balance.DefensePostTroopFactor;
-        if (defender is null && Fallout[tile])
-            cost = cost * FalloutFactorTenths() / 10;
-        if (defender is { IsBot: true } && !attacker.IsBot)
-            cost = cost * Balance.VsBotTroopCostPercent / 100;
-        if (defender is not null && IsTraitor(defender))
-            cost = cost * AllianceRules.TraitorTroopLossPercent / 100;
-        return Math.Max(cost, 1);
     }
 
     /// <summary>
@@ -1936,12 +1636,7 @@ public sealed partial class Game
     /// </summary>
     private void Conquer(Player winner, Player loser)
     {
-        long gold = loser.Kind == PlayerKind.Human && loser.AttacksSent == 0 ? 0 : loser.Gold;
-        if (gold > 0)
-        {
-            winner.Gold += loser.Kind == PlayerKind.Human ? gold / 2 : gold;
-            loser.Gold -= gold;
-        }
+        TakeGold(winner, loser);
 
         // The loser's land: flood out from its edges (every piece has some).
         var tiles = new List<int>();
@@ -1987,10 +1682,6 @@ public sealed partial class Game
                 break;
         }
     }
-
-    private static long DefenderLoss(Player defender) => Density(defender) * Balance.DefenderLossTenths / 10;
-
-    private static long Density(Player p) => p.Troops / Math.Max(1, p.TileCount);
 
     // ------------------------------------------------------------------
     //  Territory

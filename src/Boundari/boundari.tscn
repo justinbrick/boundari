@@ -4082,7 +4082,7 @@ theme_override_icons/grabber_highlight = ExtResource("31_l6ikw")
 theme_override_styles/slider = SubResource("StyleBoxFlat_l6ikw")
 theme_override_styles/grabber_area = SubResource("StyleBoxFlat_8yhk8")
 theme_override_styles/grabber_area_highlight = SubResource("StyleBoxFlat_fpsoq")
-value = 35.0
+value = 20.0
 scrollable = false
 script = ExtResource("39_4ibk2")
 metadata/_edit_use_anchors_ = true
@@ -4104,7 +4104,7 @@ modulate = Color(1, 1, 1, 0.74509805)
 layout_mode = 2
 theme_override_fonts/font = SubResource("FontVariation_l6ikw")
 theme_override_font_sizes/font_size = 16
-text = "35"
+text = "20"
 vertical_alignment = 1
 metadata/_edit_use_anchors_ = true
 

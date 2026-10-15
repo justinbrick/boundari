@@ -1,0 +1,299 @@
+using System;
+using Boundari.Core;
+using Boundari.Map;
+
+namespace Boundari.Sim;
+
+/// <summary>OpenFront's attack numbers (EngineConfig.attackLogic and AttackExecution).</summary>
+public static class AttackRules
+{
+    // Per terrain: "mag" (how bloody a tile is: attacker losses) and tile cost (how slow).
+    public static (double Mag, double TileCost) Terrain(TerrainType t) => t switch
+    {
+        TerrainType.Highlands => (100, 20),
+        TerrainType.Mountains => (120, 25),
+        _ => (80, 16.5),
+    };
+
+    // Queue priority: tiles on higher ground wait longer (OpenFront's addNeighbors "mag").
+    // Doubled so it stays a whole number: plains 2, highlands 3, mountains 4.
+    public static int PriorityTerrainTimes2(TerrainType t) => t switch
+    {
+        TerrainType.Highlands => 3,
+        TerrainType.Mountains => 4,
+        _ => 2,
+    };
+
+    public const double LargeTerritoryMidpoint = 300_000;
+    public const double LargeTerritorySteepness = 2.5;
+    public const double LargeAttackerDepth = 0.7;
+    public const double LargeDefenderDepth = 0.3;
+    public const double LargeAttackerSpeedDepth = 0.73;
+    public const double BotDefenderLossMult = 0.7;     // people and nations lose 30% less attacking tribes
+    public const double TerraNulliusCostScale = 2000;
+    public const double TerraNulliusMinCost = 5;
+    public const double TerraNulliusMaxCost = 100;
+    public const double AttackerLossBase = 0.463;
+    public const double CheapestTroopRatio = 0.6;
+    public const double AttackerLossPerDensity = 0.0039;
+    public const double SpeedCostDivisor = 8.55;
+    public const double DefensePostLossFactor = 5;     // attacking near a defense post: 5x the losses...
+    public const double DefensePostSpeedFactor = 3;    // ...and 3x the time
+    public const int RetreatMalusPercent = 25;         // a boat landing on its own coast loses a quarter
+
+    /// <summary>~1 for small territories, easing to 1 - depth for huge ones (halfway at 300k tiles).</summary>
+    public static double LargeTerritoryBonus(int tiles, double depth)
+    {
+        if (tiles <= 0)
+            return 1;
+        double r = Math.Pow(tiles / LargeTerritoryMidpoint, LargeTerritorySteepness); // = e^(2.5 (ln n - ln 300k))
+        return 1 - depth * (r / (1 + r));
+    }
+}
+
+// Attacks, the way OpenFront runs them (AttackExecution + EngineConfig.attackLogic).
+public sealed partial class Game
+{
+    /// <summary>
+    /// A land attack: takes the troops, cancels against any attack the target has coming
+    /// at us, absorbs our earlier attacks on the same target, and queues every target tile
+    /// along our border. If there's nothing to take, the troops come straight back.
+    /// </summary>
+    private void StartAttack(Player attacker, ushort targetId, long troops)
+    {
+        if (targetId == attacker.Id || (targetId != Nobody && GetPlayer(targetId) is not { IsAlive: true }))
+            return;
+        if (troops <= 0 || attacker.Allies.Contains(targetId))
+            return; // (allies can't attack each other)
+        if (targetId != Nobody)
+            attacker.AttacksSent++;
+
+        attacker.Troops -= troops;
+        var attack = new Attack(attacker, targetId, troops, -1, new Rng(_rng.Fork()));
+        RefreshToConquer(attack);
+        if (CancelAgainstIncoming(attack))
+            return;
+        for (int i = _attacks.Count - 1; i >= 0; i--)
+        {
+            var other = _attacks[i];
+            if (other.Attacker == attacker && other.TargetId == targetId)
+            {
+                attack.TroopsExact += other.TroopsExact;
+                _attacks.RemoveAt(i);
+            }
+        }
+        if (attack.ToConquer.Count == 0)
+        {
+            Retreat(attack); // doesn't border the target: nothing to attack
+            return;
+        }
+        if (targetId != Nobody)
+            OnAttacked(attacker, _players[targetId]);
+        _attacks.Add(attack);
+    }
+
+    /// <summary>
+    /// A boat's troops come ashore: the landing tile is taken for free and an attack spreads
+    /// from it (not merged with other attacks). Landing on our own coast costs a quarter of
+    /// the troops, like a called-off attack; landing on an ally's just brings them home.
+    /// </summary>
+    private void Land(Boat boat)
+    {
+        var player = boat.Owner;
+        int tile = boat.LandingTile;
+        ushort target = Owner[tile];
+        if (target == player.Id)
+        {
+            player.Troops += boat.Troops * (100 - AttackRules.RetreatMalusPercent) / 100;
+            return;
+        }
+        if (player.Allies.Contains(target))
+        {
+            player.Troops += boat.Troops;
+            return;
+        }
+        SetOwner(tile, player.Id);
+        var attack = new Attack(player, target, boat.Troops, tile, new Rng(_rng.Fork()));
+        AddNeighbours(attack, tile);
+        if (CancelAgainstIncoming(attack))
+            return;
+        if (attack.ToConquer.Count == 0)
+        {
+            Retreat(attack);
+            return;
+        }
+        if (GetPlayer(target) is { } defender)
+            OnAttacked(player, defender);
+        _attacks.Add(attack);
+    }
+
+    /// <summary>Two attacks between the same pair, in opposite directions, cancel out. True if this one was used up.</summary>
+    private bool CancelAgainstIncoming(Attack attack)
+    {
+        for (int i = _attacks.Count - 1; i >= 0; i--)
+        {
+            var incoming = _attacks[i];
+            if (incoming.Attacker.Id != attack.TargetId || incoming.TargetId != attack.Attacker.Id)
+                continue;
+            if (incoming.TroopsExact > attack.TroopsExact)
+            {
+                incoming.TroopsExact -= attack.TroopsExact;
+                return true;
+            }
+            attack.TroopsExact -= incoming.TroopsExact;
+            _attacks.RemoveAt(i);
+        }
+        return false;
+    }
+
+    /// <summary>Ends an attack, sending what's left home.</summary>
+    private void Retreat(Attack attack)
+    {
+        attack.Attacker.Troops += (long)attack.TroopsExact;
+        _attacks.Remove(attack);
+    }
+
+    /// <summary>Queues every target tile next to the attacker's border (a fresh start, as OpenFront's refreshToConquer).</summary>
+    private void RefreshToConquer(Attack attack)
+    {
+        attack.ToConquer.Clear();
+        attack.Border.Clear();
+        var border = new int[attack.Attacker.Border.Count];
+        attack.Attacker.Border.CopyTo(border);
+        Array.Sort(border); // HashSet order isn't guaranteed; keep every machine identical
+        foreach (int tile in border)
+            AddNeighbours(attack, tile);
+    }
+
+    /// <summary>
+    /// Queues the target's tiles around a tile. Priority (lower goes first) is the current
+    /// tick plus a random 10..16, scaled down for tiles we already half-surround and up for
+    /// high ground: that randomness is what lets fast attacks race ahead in branching veins.
+    /// Worked in quarter-ticks so it's a whole number.
+    /// </summary>
+    private void AddNeighbours(Attack attack, int tile)
+    {
+        Span<int> nb = stackalloc int[4];
+        Span<int> nb2 = stackalloc int[4];
+        int count = LandNeighbours(tile, nb);
+        for (int k = 0; k < count; k++)
+        {
+            int n = nb[k];
+            if (Owner[n] != attack.TargetId)
+                continue;
+            attack.Border.Add(n);
+            int mine = 0, inner = LandNeighbours(n, nb2);
+            for (int j = 0; j < inner; j++)
+                if (Owner[nb2[j]] == attack.Attacker.Id)
+                    mine++;
+            long factor4 = 4 - 2 * mine + 2 * AttackRules.PriorityTerrainTimes2(Map.Terrain[n]); // 4 x (1 - mine/2 + mag/2)
+            long priority = (attack.Rng.RangeInt(0, 6) + 10) * factor4 + 4L * Tick;
+            attack.ToConquer.Enqueue(n, priority);
+        }
+    }
+
+    /// <summary>
+    /// Every tick, each attack takes tiles off its queue until its tick budget (1) is
+    /// spent. Each tile costs a fraction of the budget (see <see cref="AttackLogic"/>) and
+    /// troops from the attack, and the defender loses its average troops per tile. An
+    /// attack ends when its troops run out (lost) or its queue empties (survivors go home).
+    /// </summary>
+    private void AdvanceAttacks()
+    {
+        for (int a = 0; a < _attacks.Count; a++)
+        {
+            var attack = _attacks[a];
+            var attacker = attack.Attacker;
+            var defender = GetPlayer(attack.TargetId);
+            if (!attacker.IsAlive)
+            {
+                _attacks.RemoveAt(a--);
+                continue;
+            }
+            if (attacker.Allies.Contains(attack.TargetId))
+            {
+                Retreat(attack); // allied after the attack began: pull back
+                a--;
+                continue;
+            }
+
+            int borderSize = Math.Max(1, attack.Border.Count + attack.Rng.RangeInt(0, 4));
+            double budget = 1;
+            while (budget > 0)
+            {
+                if (attack.TroopsExact < 1)
+                {
+                    _attacks.RemoveAt(a--); // out of troops: the attack dies out
+                    break;
+                }
+                if (!attack.ToConquer.TryDequeue(out int tile, out _))
+                {
+                    Retreat(attack); // nothing left to take
+                    a--;
+                    break;
+                }
+                attack.Border.Remove(tile);
+                if (Owner[tile] != attack.TargetId || !Touches(tile, attacker.Id))
+                    continue; // stale: taken by someone, or no longer next to us
+                AddNeighbours(attack, tile);
+                var (attackerLoss, defenderLoss, tickFraction) = AttackLogic(attack, tile, defender, attack.TroopsExact, borderSize);
+                budget -= tickFraction;
+                attack.TroopsExact = Math.Max(0, attack.TroopsExact - attackerLoss);
+                if (defender is not null)
+                    defender.Troops = Math.Max(0, defender.Troops - (long)defenderLoss);
+                SetOwner(tile, attacker.Id);
+                if (defender is not null && defender.TileCount > 0 && defender.TileCount < Balance.ConquerBelowTiles)
+                    Conquer(attacker, defender);
+            }
+        }
+    }
+
+    /// <summary>
+    /// OpenFront's attackLogic for one tile: troops the attacker loses, troops the defender
+    /// loses, and the share of the tick it takes. Against empty land it's cheap and its
+    /// pace depends on how many troops the attack has; against a player both cost and pace
+    /// are driven by the defender-to-attack troop ratio, the defender's troops per tile,
+    /// and how big both territories are. Spread over the front: longer fronts go faster.
+    /// </summary>
+    private (double AttackerLoss, double DefenderLoss, double TickFraction) AttackLogic(Attack attack, int tile, Player? defender, double attackTroops, int borderSize)
+    {
+        var (mag, tileCost) = AttackRules.Terrain(Map.Terrain[tile]);
+        if (defender is not null && DefendedByPost(tile, defender.Id))
+        {
+            mag *= AttackRules.DefensePostLossFactor;
+            tileCost *= AttackRules.DefensePostSpeedFactor;
+        }
+        if (Fallout[tile])
+        {
+            // Fallout: 5x dearer and slower, easing to 3x as more of the map is poisoned.
+            double fallout = 5 - 2.0 * FalloutTiles / Math.Max(1, Map.LandTileCount);
+            mag *= fallout;
+            tileCost *= fallout;
+        }
+
+        var attacker = attack.Attacker;
+        if (defender is null)
+        {
+            double loss = mag / (attacker.IsBot ? 10 : 5);
+            double cost = Math.Clamp(AttackRules.TerraNulliusCostScale * tileCost / attackTroops,
+                AttackRules.TerraNulliusMinCost, AttackRules.TerraNulliusMaxCost);
+            return (loss, 0, cost / (borderSize * 2.0));
+        }
+
+        if (!attacker.IsBot && defender.IsBot)
+            mag *= AttackRules.BotDefenderLossMult;
+        double largeAttacker = AttackRules.LargeTerritoryBonus(attacker.TileCount, AttackRules.LargeAttackerDepth);
+        double largeDefender = AttackRules.LargeTerritoryBonus(defender.TileCount, AttackRules.LargeDefenderDepth);
+        bool traitor = IsTraitor(defender);
+        double traitorLoss = traitor ? AllianceRules.TraitorTroopLossPercent / 100.0 : 1;
+        double traitorCost = traitor ? AllianceRules.TraitorTravelPercent / 100.0 : 1;
+
+        double defenderLoss = (double)defender.Troops / Math.Max(1, defender.TileCount);
+        double ratio = defender.Troops / attackTroops;
+        double attackerLoss = mag * traitorLoss * Math.Clamp(ratio, AttackRules.CheapestTroopRatio, 2)
+            * (AttackRules.AttackerLossBase * largeAttacker * largeDefender + AttackRules.AttackerLossPerDensity * defenderLoss);
+        double speedCost = Math.Clamp(ratio, 0.82, 7.5) * Math.Clamp(ratio / 20, 1, 50) / AttackRules.SpeedCostDivisor;
+        double largeAttackerSpeed = AttackRules.LargeTerritoryBonus(attacker.TileCount, AttackRules.LargeAttackerSpeedDepth);
+        return (attackerLoss, defenderLoss, speedCost * tileCost * largeAttackerSpeed * largeDefender * traitorCost / borderSize);
+    }
+}

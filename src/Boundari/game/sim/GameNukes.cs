@@ -438,10 +438,6 @@ public sealed partial class Game
         _explosions.Add(new Explosion(n.To, n.Type, Tick));
     }
 
-    /// <summary>Fallout makes empty land slower and dearer to retake: 5x, easing to 3x as more of the map is poisoned (OpenFront).</summary>
-    private long FalloutFactorTenths() =>
-        50 - 20L * FalloutTiles / Math.Max(1, Map.LandTileCount);
-
     private int TileAtPoint(float x, float y) =>
         Map.Index(Math.Clamp((int)x, 0, Map.Width - 1), Math.Clamp((int)y, 0, Map.Height - 1));
 
