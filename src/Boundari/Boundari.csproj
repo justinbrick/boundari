@@ -4,5 +4,8 @@
     <TargetFramework Condition=" '$(GodotTargetPlatform)' == 'android' ">net9.0</TargetFramework>
     <EnableDynamicLoading>true</EnableDynamicLoading>
     <Nullable>enable</Nullable>
+    <!-- Optimise even the editor's Debug build: the simulation and drawing code run several
+         times faster, and breakpoints still work (stepping is just a little less exact). -->
+    <Optimize>true</Optimize>
   </PropertyGroup>
 </Project>

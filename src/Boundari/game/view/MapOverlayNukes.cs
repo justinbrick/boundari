@@ -46,7 +46,7 @@ public partial class MapOverlay
         float size = IconPixels(zoom, MinBuildingPixels, MaxBuildingPixels, BuildingTiles) / zoom;
         foreach (var b in _game!.Buildings)
         {
-            if (b.Type is not (BuildingType.Silo or BuildingType.Sam) || b.Reloading == 0)
+            if (b.Type is not (BuildingType.Silo or BuildingType.Sam) || b.Reloading == 0 || !OnScreen(TileCentre(b.Tile, w), size))
                 continue;
             int cooldown = b.Type == BuildingType.Sam ? Balance.SamCooldownTicks : Balance.SiloCooldownTicks;
             float done = Math.Clamp((_game.Tick - 1 + _tickFraction - b.ReloadStartTick) / cooldown, 0, 1);

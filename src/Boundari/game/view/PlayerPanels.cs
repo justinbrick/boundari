@@ -22,7 +22,14 @@ public sealed class PlayerPanels
     private sealed class Row
     {
         public Label? Pos, Name, Percent, Troops, Cash;
+        public bool? ShownAsMe; // colour last applied (re-colouring makes Godot redo the theme)
     }
+
+    // The hover panel counts buildings across the map, so it refreshes 10 times a second
+    // (or at once when the mouse moves to someone else).
+    private const double InfoRefreshSeconds = 0.1;
+    private double _sinceInfo = InfoRefreshSeconds;
+    private Player? _infoShown;
 
     private static readonly string[] RowNodes = { "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th" };
 
@@ -89,9 +96,18 @@ public sealed class PlayerPanels
         if ((_sinceRefresh += delta) >= LeaderboardRefreshSeconds)
         {
             _sinceRefresh = 0;
+            long started = FrameProfiler.Start();
             UpdateLeaderboard(game, me);
+            FrameProfiler.Stop("  leaderboard", started);
         }
-        UpdateInfo(game, hovered);
+        if ((_sinceInfo += delta) >= InfoRefreshSeconds || hovered != _infoShown)
+        {
+            _sinceInfo = 0;
+            _infoShown = hovered;
+            long started = FrameProfiler.Start();
+            UpdateInfo(game, hovered);
+            FrameProfiler.Stop("  hover panel", started);
+        }
     }
 
     private void UpdateLeaderboard(Game game, Player me)
@@ -107,7 +123,7 @@ public sealed class PlayerPanels
         {
             var row = _rows[i];
             bool used = i < ranked.Count;
-            if (row.Pos?.GetParent() is CanvasItem rowNode)
+            if (row.Pos?.GetParent() is CanvasItem rowNode && rowNode.Visible != used)
                 rowNode.Visible = used;
             if (used)
                 Fill(row, i + 1, ranked[i], land, ranked[i] == me);
@@ -127,9 +143,13 @@ public sealed class PlayerPanels
         Set(row.Pos, rank.ToString(CultureInfo.InvariantCulture));
         Set(row.Name, p.Name);
         // Your own row stands out in gold.
-        var color = isMe ? new Color(1f, 0.85f, 0.4f) : new Color(1, 1, 1);
-        foreach (var label in new[] { row.Pos, row.Name, row.Percent, row.Troops, row.Cash })
-            label?.AddThemeColorOverride("font_color", color);
+        if (row.ShownAsMe != isMe)
+        {
+            row.ShownAsMe = isMe;
+            var color = isMe ? new Color(1f, 0.85f, 0.4f) : new Color(1, 1, 1);
+            foreach (var label in new[] { row.Pos, row.Name, row.Percent, row.Troops, row.Cash })
+                label?.AddThemeColorOverride("font_color", color);
+        }
         Set(row.Percent, Percent(p.TileCount, land));
         Set(row.Troops, GameHud.FormatCount(p.Troops));
         Set(row.Cash, GameHud.FormatCount(p.Gold));
@@ -139,11 +159,13 @@ public sealed class PlayerPanels
     {
         if (_info is null)
             return;
-        _info.Visible = p is not null && p.TileCount > 0;
-        if (!_info.Visible)
+        bool visible = p is not null && p.TileCount > 0;
+        if (_info.Visible != visible)
+            _info.Visible = visible;
+        if (!visible)
             return;
 
-        if (_infoFlag is not null)
+        if (_infoFlag is not null && _infoFlag.Texture != Flag(p!.Flag))
             _infoFlag.Texture = Flag(p!.Flag);
         Set(_infoName, p!.Name);
         Set(_infoPlace, _ranks.TryGetValue(p.Id, out int rank) ? Ordinal(rank) : "");
@@ -186,9 +208,5 @@ public sealed class PlayerPanels
         return n.ToString(CultureInfo.InvariantCulture) + suffix;
     }
 
-    private static void Set(Label? label, string text)
-    {
-        if (label is not null && label.Text != text)
-            label.Text = text;
-    }
+    private static void Set(Label? label, string text) => GameHud.SetText(label, text);
 }

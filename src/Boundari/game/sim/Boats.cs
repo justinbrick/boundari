@@ -253,7 +253,7 @@ public sealed class Waterways
                     _ws.CameFrom[From] = -1;
                     _open.Enqueue(From, 0);
                     _searching = true;
-                    budget -= 1000; // rough cost of the coarse pass
+                    return; // the coarse pass is this tick's work; the detailed search starts next tick
                 }
                 int used = Expand(budget);
                 budget -= Math.Max(used, 1);

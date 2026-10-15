@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Globalization;
 using Boundari.Sim;
 using Godot;
@@ -71,10 +72,19 @@ public sealed class GameHud
         };
     }
 
-    private static void Set(Label? label, string text)
+    private static void Set(Label? label, string text) => SetText(label, text);
+
+    // What each label was last given: reading Label.Text back from the engine every frame
+    // allocates a string, and setting it (even to the same text) makes Godot redo the layout.
+    private static readonly Dictionary<Label, string> Shown = new();
+
+    /// <summary>Sets a label's text only if it changed.</summary>
+    public static void SetText(Label? label, string text)
     {
-        if (label is not null && label.Text != text)
-            label.Text = text;
+        if (label is null || (Shown.TryGetValue(label, out var old) && old == text))
+            return;
+        Shown[label] = text;
+        label.Text = text;
     }
 
     /// <summary>950, 9.5K, 142K, 1.52M, 15.2M ...</summary>

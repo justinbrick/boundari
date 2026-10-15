@@ -40,6 +40,10 @@ public sealed partial class Game
     /// <summary>Time spent per part of a tick (bots, economy+boats, trade+warships+enclaves, attacks, enclaves alone), in Stopwatch ticks. For profiling only.</summary>
     public readonly long[] Profile = new long[5];
 
+    /// <summary>Slowest single tick of each part of the world update, in Stopwatch ticks (see <see cref="StepParts"/>). For profiling only.</summary>
+    public readonly long[] StepWorst = new long[7];
+    public static readonly string[] StepParts = { "ports", "trade ships", "construction+rails", "trains", "warships", "nukes", "enclaves" };
+
     private readonly List<Player> _players = new() { null! }; // index = id; 0 is "nobody"
     private readonly List<Attack> _attacks = new();
     private readonly List<Boat> _boats = new();
@@ -57,9 +61,10 @@ public sealed partial class Game
     private readonly Dictionary<(int, int), int[]?> _tradeRoutes = new();
     private Waterways.RouteJob? _routeJob;           // trade route being planned
     private (int From, int To) _routeJobPorts;
-    private const int RoutePlanningBudget = 25_000;  // tile expansions per tick (~5 ms)
+    private const int RoutePlanningBudget = 15_000;  // tile expansions per tick (~3 ms)
     private Waterways? _waterways;
     private readonly bool[]? _coastal;
+    private readonly bool[] _open; // land on a coast or the map edge: never part of an enclave
     private readonly List<Intent> _pending = new();
     private readonly List<IPlayerAi> _ais = new();
     private readonly List<Building> _demolishing = new();
@@ -82,6 +87,9 @@ public sealed partial class Game
         Span<int> bodies = stackalloc int[4];
         for (int t = 0; t < map.TileCount; t++)
             _coastal[t] = map.IsLand(t) && Waterways.TouchingBodies(t, bodies) > 0;
+        _open = new bool[map.TileCount];
+        for (int t = 0; t < map.TileCount; t++)
+            _open[t] = _coastal[t] || t % map.Width == 0 || t % map.Width == map.Width - 1 || t < map.Width || t >= map.TileCount - map.Width;
         _rng = new Rng(seed);
     }
 
@@ -239,16 +247,24 @@ public sealed partial class Game
         GrowEconomies();
         SailBoats();
         long t2 = Stopwatch.GetTimestamp();
-        RunPorts();
-        SailTradeShips();
-        FinishConstruction();
-        RunTrains();
-        RunWarships();
-        FlyShells();
-        RunNukes();
+        long q = t2;
+        void Lap(int part)
+        {
+            long now = Stopwatch.GetTimestamp();
+            StepWorst[part] = Math.Max(StepWorst[part], now - q);
+            q = now;
+        }
+        RunPorts(); Lap(0);
+        SailTradeShips(); Lap(1);
+        FinishConstruction(); LayRails(); Lap(2);
+        RunTrains(); Lap(3);
+        RunWarships(); FlyShells(); Lap(4);
+        RunNukes(); Lap(5);
         long te = Stopwatch.GetTimestamp();
         if (Tick % EnclaveCheckTicks == 0)
             AbsorbEnclaves();
+        q = te;
+        Lap(6);
         Profile[4] += Stopwatch.GetTimestamp() - te;
         long t3 = Stopwatch.GetTimestamp();
         AdvanceAttacks();
@@ -1019,16 +1035,32 @@ public sealed partial class Game
         }
         nearby.Sort((a, c) => a.D != c.D ? a.D.CompareTo(c.D) : a.S.Building.Tile.CompareTo(c.S.Building.Tile));
         foreach (var (other, _) in nearby)
+            _railQueue.Enqueue((station, other)); // laid over the next few ticks, closest first
+    }
+
+    // Rail links waiting to be laid. Finding a route takes a while, so a new factory's
+    // links are spread over a few ticks instead of all landing in one.
+    private readonly Queue<(Station From, Station To)> _railQueue = new();
+    private const int RailsPerTick = 3;
+
+    private void LayRails()
+    {
+        for (int laid = 0; laid < RailsPerTick && _railQueue.Count > 0;)
         {
+            var (station, other) = _railQueue.Dequeue();
+            if (!_stations.ContainsKey(station.Building) || !_stations.ContainsKey(other.Building))
+                continue; // one end is gone
             if (Hops(station, other, RailRules.AlreadyConnectedHops) >= 0)
                 continue; // already well connected that way
-            int[]? path = RailPath(b.Tile, other.Building.Tile);
+            laid++;
+            int[]? path = RailPath(station.Building.Tile, other.Building.Tile);
             if (path is null)
                 continue;
             var rail = new Railroad(station, other, path);
             station.Rails.Add(rail);
             other.Rails.Add(rail);
             _railroads.Add(rail);
+            _clustersDirty = true;
         }
     }
 
@@ -1608,8 +1640,10 @@ public sealed partial class Game
     // is handed to that player (like OpenFront), which cleans up the pockets left behind
     // when fronts tangle. Each player is checked every EnclaveGroups * EnclaveCheckTicks
     // ticks, and only if their land changed since.
-    private const int EnclaveCheckTicks = 20;
-    private const int EnclaveGroups = 4;
+    // Each player is checked every EnclaveCheckTicks x EnclaveGroups ticks (8 s), a twentieth
+    // of the players at a time, so no single tick floods everyone's land.
+    private const int EnclaveCheckTicks = 4;
+    private const int EnclaveGroups = 20;
     private int[]? _enclaveStamp;
     private int[]? _enclaveQueue;
     private int _enclaveSearch;
@@ -1650,17 +1684,33 @@ public sealed partial class Game
             stamp[start] = search;
             ushort surrounder = Nobody;
             bool enclosed = true;
+            // Tight loop (this runs over whole territories): open tiles (coast, map edge) can't
+            // be enclosed, so their neighbours can be read without bounds checks; water and
+            // unowned land both read as Nobody.
+            var owner = Owner;
+            var open = _open;
+            int w = Map.Width;
+            ushort pid = p.Id;
             while (head < tail)
             {
                 int t = queue[head++];
-                if (IsCoastal(t) || OnMapEdge(t))
-                    enclosed = false;
-                int count = LandNeighbours(t, nb);
-                for (int k = 0; k < count; k++)
+                if (open[t])
                 {
-                    int n = nb[k];
-                    ushort o = Owner[n];
-                    if (o == p.Id)
+                    enclosed = false;
+                    int count = LandNeighbours(t, nb);
+                    for (int k = 0; k < count; k++)
+                        if (owner[nb[k]] == pid && stamp[nb[k]] != search)
+                        {
+                            stamp[nb[k]] = search;
+                            queue[tail++] = nb[k];
+                        }
+                    continue;
+                }
+                for (int k = 0; k < 4; k++)
+                {
+                    int n = k switch { 0 => t - 1, 1 => t + 1, 2 => t - w, _ => t + w };
+                    ushort o = owner[n];
+                    if (o == pid)
                     {
                         if (stamp[n] != search)
                         {
@@ -1691,12 +1741,6 @@ public sealed partial class Game
             for (int k = from; k < from + length; k++)
                 SetOwner(queue[k], surrounder);
         }
-    }
-
-    private bool OnMapEdge(int tile)
-    {
-        int x = tile % Map.Width, y = tile / Map.Width;
-        return x == 0 || y == 0 || x == Map.Width - 1 || y == Map.Height - 1;
     }
 
     // ------------------------------------------------------------------

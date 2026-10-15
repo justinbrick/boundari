@@ -9,8 +9,7 @@ namespace Boundari.View;
 /// Territory colours, military style: people and nations get muted service colours (olive
 /// drab, khaki, field grey, navy, rust...), each picked to be as distinct as possible from
 /// those already handed out; once the list runs out it starts over a shade darker or lighter.
-/// Tribes are all one solid off-white, drawn opaque over the terrain, like OpenFront's
-/// current bot colour.
+/// Tribes are all one cream white, like OpenFront's current bot colour.
 /// </summary>
 public static class PlayerColors
 {
@@ -22,13 +21,13 @@ public static class PlayerColors
         "7a6070", "3a5550", "5c4a3a", "7a8085", "5a4050", "8a9070", "8f6a4a", "4a4f66", "704a48", "5a6e5e",
     };
 
-    /// <summary>Tribes: solid off-white. The near-zero alpha tells the map shader to draw them opaque.</summary>
-    public static readonly Color Tribe = new(0.92f, 0.91f, 0.88f, 0.02f);
+    /// <summary>Tribes: all the same cream white, see-through like everyone else.</summary>
+    public static readonly Color Tribe = new(0.96f, 0.93f, 0.84f);
 
     // Past this many picks, choosing the most distinct colour isn't worth the time (OpenFront).
     private const int DistinctPicks = 50;
 
-    /// <summary>A colour for every player id (index 0, nobody, is unused). Alpha below 1 means "draw opaque".</summary>
+    /// <summary>A colour for every player id (index 0, nobody, is unused).</summary>
     public static Color[] For(IReadOnlyList<Player> players, ulong seed)
     {
         int count = 1;

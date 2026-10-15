@@ -89,19 +89,42 @@ public partial class MapOverlay : Node2D
     {
         if (_game is null)
             return;
+        long started = FrameProfiler.Start();
+        DrawAll();
+        FrameProfiler.Stop("overlay draw", started);
+    }
+
+    private void DrawAll()
+    {
+        if (_game is null)
+            return;
         float zoom = GetViewport().GetCamera2D()?.Zoom.X ?? 1;
         _zoom = zoom;
         int w = _game.Map.Width;
+        // What's on screen (in map units): anything outside isn't drawn at all.
+        _visible = GetCanvasTransform().AffineInverse() * GetViewportRect();
 
         // --- Railroads and trains (under the buildings) ---
+        long part = FrameProfiler.Start();
         DrawRails(zoom, w);
+        FrameProfiler.Stop("  overlay rails+trains", part);
+        part = FrameProfiler.Start();
 
         // --- Buildings ---
         float size = IconPixels(zoom, MinBuildingPixels, MaxBuildingPixels, BuildingTiles) / zoom;
+        bool tiny = size * zoom < TinyIconPixels;
         foreach (var b in _game.Buildings)
         {
             var at = TileCentre(b.Tile, w);
+            if (!OnScreen(at, size))
+                continue;
             bool ready = b.IsReady(_game.Tick);
+            if (tiny) // a few pixels across: a plain square reads the same and costs far less
+            {
+                var colour = ColorOf(b.Owner).Lerp(Colors.White, 0.35f);
+                DrawRect(new Rect2(at - new Vector2(size, size) * 0.4f, new Vector2(size, size) * 0.8f), new Color(colour, ready ? 1f : 0.55f));
+                continue;
+            }
             DrawBuilding(b.Type, at, size, ColorOf(b.Owner), ready ? 1f : 0.55f);
             if (!ready) // construction progress ring
             {
@@ -139,10 +162,14 @@ public partial class MapOverlay : Node2D
                 DrawBuilding(ghost, at, size, _me is null ? tint : ColorOf(_me.Id), 0.75f, tint);
         }
 
+        FrameProfiler.Stop("  overlay buildings", part);
+        part = FrameProfiler.Start();
         // --- Trade ships: just the ship, no lines ---
         float boatSize = IconPixels(zoom, BoatPixels, BoatPixels, 1) / zoom;
         foreach (var ship in _game.TradeShips)
         {
+            if (!OnScreen(TileCentre(ship.Tile, w), boatSize * 2))
+                continue;
             long progress = ship.Progress - Balance.TradeShipSpeedPerTick + (long)(Balance.TradeShipSpeedPerTick * _tickFraction);
             var (pos, heading) = AlongPath(ship.Path, Math.Max(0, progress), w);
             DrawBoat(pos, heading, boatSize * 0.8f, ColorOf(ship.Owner.Id), trade: true);
@@ -155,10 +182,14 @@ public partial class MapOverlay : Node2D
         {
             long progress = boat.Progress - Balance.BoatSpeedPerTick + (long)(Balance.BoatSpeedPerTick * _tickFraction);
             var (pos, heading) = AlongPath(boat.Path, Math.Max(0, progress), w);
-            DrawTrail(boat, Math.Max(0, progress), pos, w, zoom);
             if (boat.Owner == _me)
-                DrawRoute(boat, progress, w, zoom);
+                DrawRoute(boat, progress, w, zoom); // your own boats' routes may cross the screen
+            if (!OnScreen(pos, boatSize * 30))
+                continue;
+            DrawTrail(boat, Math.Max(0, progress), pos, w, zoom);
             DrawBoat(pos, heading, boatSize, ColorOf(boat.Owner.Id));
+            if (boatSize * zoom < TinyIconPixels)
+                continue; // too small to label
             string troops = GameHud.FormatCount(boat.Troops);
             int fontSize = Math.Max(1, (int)(12 / zoom));
             float textWidth = _font.GetStringSize(troops, HorizontalAlignment.Left, -1, fontSize).X;
@@ -167,8 +198,11 @@ public partial class MapOverlay : Node2D
             DrawString(_font, textPos, troops, HorizontalAlignment.Left, -1, fontSize, Colors.White);
         }
 
+        FrameProfiler.Stop("  overlay ships+boats", part);
+        part = FrameProfiler.Start();
         // --- Bombs, interceptors and explosions (on top of everything) ---
         DrawNukeLayer(zoom, w);
+        FrameProfiler.Stop("  overlay bombs+reloads", part);
     }
 
     /// <summary>
@@ -253,14 +287,9 @@ public partial class MapOverlay : Node2D
         float railWidth = Math.Max(1.2f / zoom, 0.25f);
         foreach (var rail in _game!.Railroads)
         {
-            // Rails are straight runs with right-angle turns: just draw the corners.
-            var points = new List<Vector2> { TileCentre(rail.Tiles[0], w) };
-            for (int i = 1; i < rail.Tiles.Length - 1; i++)
-                if (rail.Tiles[i] - rail.Tiles[i - 1] != rail.Tiles[i + 1] - rail.Tiles[i])
-                    points.Add(TileCentre(rail.Tiles[i], w));
-            points.Add(TileCentre(rail.Tiles[^1], w));
-            if (points.Count >= 2)
-                DrawPolyline(points.ToArray(), railColour, railWidth, true);
+            var shape = _railShapes.GetValue(rail, r => new RailShape(r, w));
+            if (shape.Corners.Length >= 2 && _visible.Grow(2).Intersects(shape.Bounds, includeBorders: true))
+                DrawPolyline(shape.Corners, railColour, railWidth, true);
         }
 
         float car = Math.Max(3f / zoom, 0.6f);
@@ -274,10 +303,42 @@ public partial class MapOverlay : Node2D
                 if (along < 0)
                     break;
                 int i = Math.Min((int)along, train.Tiles.Length - 1);
+                if (c == 0 && !OnScreen(TileCentre(train.Tiles[i], w), 20))
+                    break; // the whole train is off screen
                 int j = Math.Min(i + 1, train.Tiles.Length - 1);
                 var pos = TileCentre(train.Tiles[i], w).Lerp(TileCentre(train.Tiles[j], w), along - (int)along);
                 DrawRect(new Rect2(pos - new Vector2(car, car) / 2, new Vector2(car, car)), c == 0 ? colour.Darkened(0.4f) : colour);
             }
+        }
+    }
+
+    // Icons smaller than this on screen (pixels) are drawn as plain squares.
+    private const float TinyIconPixels = 6;
+    private Rect2 _visible;
+
+    /// <summary>Whether something at this point (with this much room around it) could be on screen.</summary>
+    private bool OnScreen(Vector2 at, float margin) => _visible.Grow(margin).HasPoint(at);
+
+    // Rails as just their corner points (they're straight runs), worked out once per rail.
+    private readonly System.Runtime.CompilerServices.ConditionalWeakTable<Railroad, RailShape> _railShapes = new();
+
+    private sealed class RailShape
+    {
+        public readonly Vector2[] Corners;
+        public readonly Rect2 Bounds;
+
+        public RailShape(Railroad rail, int w)
+        {
+            var points = new List<Vector2> { TileCentre(rail.Tiles[0], w) };
+            for (int i = 1; i < rail.Tiles.Length - 1; i++)
+                if (rail.Tiles[i] - rail.Tiles[i - 1] != rail.Tiles[i + 1] - rail.Tiles[i])
+                    points.Add(TileCentre(rail.Tiles[i], w));
+            points.Add(TileCentre(rail.Tiles[^1], w));
+            Corners = points.ToArray();
+            var bounds = new Rect2(Corners[0], Vector2.Zero);
+            foreach (var p in Corners)
+                bounds = bounds.Expand(p);
+            Bounds = bounds;
         }
     }
 
@@ -300,6 +361,13 @@ public partial class MapOverlay : Node2D
             var from = TileCentre(ship.PreviousTile, w);
             var to = TileCentre(ship.Tile, w);
             var pos = from.Lerp(to, _tickFraction);
+            if (!OnScreen(pos, size))
+                continue;
+            if (size * zoom < TinyIconPixels)
+            {
+                DrawRect(new Rect2(pos - new Vector2(size, size) * 0.3f, new Vector2(size, size) * 0.6f), ColorOf(ship.Owner.Id).Darkened(0.2f));
+                continue;
+            }
             float heading = (to - from).LengthSquared() > 0 ? (to - from).Angle() : ship.Id * 0.7f;
             DrawWarship(pos, heading, size, ColorOf(ship.Owner.Id), (float)ship.Health / WarshipRules.MaxHealth);
         }
@@ -350,8 +418,8 @@ public partial class MapOverlay : Node2D
         int upTo = (int)Math.Min(progress / 1000, boat.Path.Length - 1);
         if (upTo < 1)
             return;
-        // About one point every couple of pixels is plenty.
-        int step = Math.Max(1, (int)(2.5f / Math.Max(zoom, 0.01f)));
+        // About one point every couple of pixels is plenty, and never more than ~64 points.
+        int step = Math.Max(Math.Max(1, (int)(2.5f / Math.Max(zoom, 0.01f))), upTo / 64);
         var points = new List<Vector2>(upTo / step + 2);
         for (int i = 0; i <= upTo; i += step)
             points.Add(TileCentre(boat.Path[i], w));
@@ -361,6 +429,11 @@ public partial class MapOverlay : Node2D
 
     private void DrawBoat(Vector2 at, float heading, float size, Color owner, bool trade = false)
     {
+        if (size * _zoom < TinyIconPixels) // a few pixels across: just a dot
+        {
+            DrawRect(new Rect2(at - new Vector2(size, size) * 0.3f, new Vector2(size, size) * 0.6f), owner.Lerp(Colors.White, trade ? 0.5f : 0.2f));
+            return;
+        }
         float l = size, hw = size * 0.32f;
         Vector2[] hull =
         {

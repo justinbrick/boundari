@@ -72,20 +72,27 @@ public partial class MapView : Sprite2D
         _map = map;
         int w = map.Width, h = map.Height;
 
-        // Two half-floats per tile: coast field and elevation.
-        var terrain = new byte[w * h * 4];
+        // Four half-floats per tile: coast field, elevation, hill shade, and how steep the
+        // coast field is (precomputed here so the shader needn't sample the neighbours).
+        double metresPerTile = (map.Geo?.KmPerTile(h) ?? 2.5) * 1000;
+        var terrain = new byte[w * h * 8];
         var span = terrain.AsSpan();
         for (int i = 0; i < map.TileCount; i++)
         {
-            BinaryPrimitives.WriteHalfLittleEndian(span.Slice(i * 4, 2), (Half)map.CoastField[i]);
-            BinaryPrimitives.WriteHalfLittleEndian(span.Slice(i * 4 + 2, 2), (Half)map.Elevation[i]);
+            int x = i % w, y = i / w;
+            int l = y * w + Math.Max(x - 1, 0), r = y * w + Math.Min(x + 1, w - 1);
+            int u = Math.Max(y - 1, 0) * w + x, d = Math.Min(y + 1, h - 1) * w + x;
+            BinaryPrimitives.WriteHalfLittleEndian(span.Slice(i * 8, 2), (Half)map.CoastField[i]);
+            BinaryPrimitives.WriteHalfLittleEndian(span.Slice(i * 8 + 2, 2), (Half)map.Elevation[i]);
+            BinaryPrimitives.WriteHalfLittleEndian(span.Slice(i * 8 + 4, 2), (Half)HillShade(map, l, r, u, d, metresPerTile));
+            float slope = 0.5f * MathF.Sqrt(Sq(map.CoastField[r] - map.CoastField[l]) + Sq(map.CoastField[d] - map.CoastField[u]));
+            BinaryPrimitives.WriteHalfLittleEndian(span.Slice(i * 8 + 6, 2), (Half)slope);
         }
-        var terrainTexture = ImageTexture.CreateFromImage(Image.CreateFromData(w, h, false, Image.Format.Rgh, terrain));
+        var terrainTexture = ImageTexture.CreateFromImage(Image.CreateFromData(w, h, false, Image.Format.Rgbah, terrain));
         Texture = terrainTexture; // also sizes the sprite: 1 world unit per tile
         _material.SetShaderParameter("terrain_tex", terrainTexture);
 
         _material.SetShaderParameter("map_size", new Vector2(w, h));
-        _material.SetShaderParameter("metres_per_tile", (float)((map.Geo?.KmPerTile(h) ?? 2.5) * 1000));
         UploadCover(map);
 
         _territory = new TerritoryTextures(map);
@@ -94,6 +101,21 @@ public partial class MapView : Sprite2D
         _material.SetShaderParameter("owner_chunk", TerritoryTextures.ChunkSize);
         _material.SetShaderParameter("owner_chunks_x", _territory.ChunksX);
         SetOwners(null);
+    }
+
+    // Hill shading: how much the land is exaggerated, and where the light comes from (north-west).
+    private const double ReliefExaggeration = 5;
+    private static readonly Vector3 LightDir = new Vector3(-1, -1, 1.5f).Normalized();
+
+    private static float Sq(float v) => v * v;
+
+    /// <summary>Brightness of a tile's slope under the light (1 = flat), from its neighbours' heights.</summary>
+    private static float HillShade(GameMap map, int left, int right, int up, int down, double metresPerTile)
+    {
+        double gx = (ElevationScale.ToMetres(map.Elevation[right]) - ElevationScale.ToMetres(map.Elevation[left])) * 0.5 / metresPerTile * ReliefExaggeration;
+        double gy = (ElevationScale.ToMetres(map.Elevation[down]) - ElevationScale.ToMetres(map.Elevation[up])) * 0.5 / metresPerTile * ReliefExaggeration;
+        var normal = new Vector3((float)-gx, (float)-gy, 1).Normalized();
+        return Math.Clamp(normal.Dot(LightDir) / LightDir.Z, 0.45f, 1.4f);
     }
 
     /// <summary>Shows these owners immediately (pass null to clear all territory).</summary>

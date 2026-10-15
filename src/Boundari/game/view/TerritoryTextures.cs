@@ -14,7 +14,7 @@ namespace Boundari.View;
 /// </summary>
 public sealed class TerritoryTextures
 {
-    public const int ChunkSize = 256;
+    public const int ChunkSize = 128; // small, so a change re-uploads little
     public const ushort Water = ushort.MaxValue;
     public const ushort Fallout = ushort.MaxValue - 1; // unowned land poisoned by a bomb
 
@@ -76,7 +76,7 @@ public sealed class TerritoryTextures
             Write(i, id, id, LongAgo);
         }
         Array.Fill(_dirty, true);
-        Flush();
+        Flush(all: true);
     }
 
     /// <summary>
@@ -98,14 +98,24 @@ public sealed class TerritoryTextures
         }
     }
 
-    /// <summary>Uploads the chunks that changed since the last flush.</summary>
-    public void Flush()
+    // Chunks uploaded per frame at most; the rest go on the next frames (territory is drawn a
+    // tick behind, which is several frames, so this never shows), keeping big fights from
+    // turning into one slow frame.
+    private const int MaxUploadsPerFlush = 24;
+    private int _nextFlush;
+
+    /// <summary>Uploads chunks that changed since they were last uploaded (a limited number per call).</summary>
+    public void Flush(bool all = false)
     {
-        for (int l = 0; l < _layers; l++)
+        int uploads = 0, start = _nextFlush;
+        for (int k = 0; k < _layers && (all || uploads < MaxUploadsPerFlush); k++)
         {
+            int l = (start + k) % _layers;
             if (!_dirty[l])
                 continue;
             _dirty[l] = false;
+            uploads++;
+            _nextFlush = (l + 1) % _layers;
             _ownerImages[l].SetData(ChunkSize, ChunkSize, false, Image.Format.Rgba8, _ownerBytes[l]);
             _timeImages[l].SetData(ChunkSize, ChunkSize, false, Image.Format.Rf, _timeBytes[l]);
             OwnerArray.UpdateLayer(_ownerImages[l], l);

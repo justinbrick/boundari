@@ -43,6 +43,7 @@ namespace Boundari;
 ///   --focus=X,Y        centre the camera on this point, as 0..1 fractions of the map
 ///   --screenshot=PATH  save a screenshot after loading, then quit
 ///   --perf             print the frame rate every 2 seconds
+///   --bench=SECONDS    run flat out (no vsync), print where frame time goes every 2 s, then quit
 ///   --showcase         (testing) after --autoplay: build one of everything and launch a boat;
 ///                      --showcase=nukes[:N] also fires a MOAB, Fat Man and Tsar Bomba, then runs N ticks
 ///   --hover=X,Y        pretend the mouse is over this map point (0..1 fractions), for screenshots;
@@ -165,8 +166,11 @@ public partial class World : Node2D
             _stepMs += stepMs;
             _worstStepMs = Math.Max(_worstStepMs, stepMs);
             _steps++;
+            FrameProfiler.Stop("sim", stepStart);
+            long recordStart = FrameProfiler.Start();
             _view.RecordTick(_game.Owner, _game.Fallout, _game.ChangedTiles, tick);
             _game.ChangedTiles.Clear();
+            FrameProfiler.Stop("territory record", recordStart);
             _tickTime -= tickLength;
         }
         _tickTime = Math.Min(_tickTime, tickLength);
@@ -178,13 +182,50 @@ public partial class World : Node2D
             GD.Print($"perf: {Engine.GetFramesPerSecond()} fps, tick {_game.Tick}, {_game.Attacks.Count} attacks");
         }
 
+        long flushStart = FrameProfiler.Start();
         _view.FlushTerritory();
+        FrameProfiler.Stop("territory upload", flushStart);
         _view.SetVisualTime(_game.Tick - 1 + (float)(_tickTime / tickLength));
         _overlay.SetTickFraction((float)(_tickTime / tickLength));
+        long hudStart = FrameProfiler.Start();
         UpdatePlacing();
+        FrameProfiler.Stop("  placing", hudStart);
+        long hudOnly = FrameProfiler.Start();
         _hud.Update(_game, _me);
+        FrameProfiler.Stop("  hud", hudOnly);
         var hovered = HoveredPlayer();
         _panels.Update(_game, _me, hovered, delta);
+        FrameProfiler.Stop("hud+panels", hudStart);
+        FrameProfiler.EndFrame();
+        if (_args.Bench is { } bench)
+            RunBench(delta, bench);
+    }
+
+    private double _benchTime, _benchReport;
+
+    /// <summary>
+    /// --bench=SECONDS: runs the real game flat out (no vsync) and prints where frame time
+    /// goes every 2 seconds, plus the GPU's time per frame, then quits.
+    /// </summary>
+    private void RunBench(double delta, double seconds)
+    {
+        var viewport = GetViewport().GetViewportRid();
+        if (_benchTime == 0)
+        {
+            DisplayServer.WindowSetVsyncMode(DisplayServer.VSyncMode.Disabled);
+            RenderingServer.ViewportSetMeasureRenderTime(viewport, true);
+            FrameProfiler.Report(); // start clean
+        }
+        _benchTime += delta;
+        if ((_benchReport += delta) >= 2)
+        {
+            _benchReport = 0;
+            double gpu = RenderingServer.ViewportGetMeasuredRenderTimeGpu(viewport);
+            double renderCpu = RenderingServer.ViewportGetMeasuredRenderTimeCpu(viewport);
+            GD.Print($"bench t={_benchTime:F0}s {Engine.GetFramesPerSecond()} fps, tick {_game.Tick}, gpu {gpu:F2} ms, render cpu {renderCpu:F2} ms | {FrameProfiler.Report()}");
+        }
+        if (_benchTime >= seconds)
+            GetTree().Quit();
     }
 
     public override void _Input(InputEvent e)
@@ -289,30 +330,17 @@ public partial class World : Node2D
     }
 
     /// <summary>Moves the placement preview with the mouse and greys out buttons you can't afford.</summary>
+    private double _sinceButtons = 1;
+    private readonly System.Collections.Generic.Dictionary<Button, string> _buttonPrices = new();
+
     private void UpdatePlacing()
     {
-        foreach (var (type, button) in _buildButtons)
+        // Prices and affordability change slowly (and working out prices scans every
+        // building), so the hotbar refreshes 5 times a second, not every frame.
+        if ((_sinceButtons += GetProcessDeltaTime()) >= 0.2)
         {
-            long cost = _game.BuildingCost(_me, type);
-            bool affordable = _me.CanAfford(cost) && _game.Phase == GamePhase.Running;
-            float alpha = affordable ? 1f : 0.4f;
-            if (button.Modulate.A != alpha)
-                button.Modulate = new Color(1, 1, 1, alpha);
-            // The hotbar tooltip (hoveroverhaul.gd) shows the price on its third line.
-            string price = GameHud.FormatCount(cost);
-            if ((string)button.Get("line3") != price)
-                button.Set("line3", price);
-        }
-        foreach (var (nuke, button) in _nukeButtons)
-        {
-            long cost = _game.NukeCost(nuke);
-            bool usable = _me.CanAfford(cost) && !_game.NukesLocked && _game.ReadySilo(_me, 0) is not null;
-            float alpha = usable ? 1f : 0.4f;
-            if (button.Modulate.A != alpha)
-                button.Modulate = new Color(1, 1, 1, alpha);
-            string price = GameHud.FormatCount(cost);
-            if ((string)button.Get("line3") != price)
-                button.Set("line3", price);
+            _sinceButtons = 0;
+            UpdateButtons();
         }
         if (_aiming is { } nukeType)
         {
@@ -340,6 +368,36 @@ public partial class World : Node2D
             _overlay.ClearGhost();
         else
             _overlay.SetGhost(type2, tile, _game.CanBuild(_me, type2, tile));
+    }
+
+    /// <summary>Greys out what you can't afford, and keeps each button's tooltip price current.</summary>
+    private void UpdateButtons()
+    {
+        foreach (var (type, button) in _buildButtons)
+        {
+            long cost = _game.BuildingCost(_me, type);
+            SetButton(button, _me.CanAfford(cost) && _game.Phase == GamePhase.Running, cost);
+        }
+        bool siloReady = _game.ReadySilo(_me, 0) is not null;
+        foreach (var (nuke, button) in _nukeButtons)
+        {
+            long cost = _game.NukeCost(nuke);
+            SetButton(button, _me.CanAfford(cost) && !_game.NukesLocked && siloReady, cost);
+        }
+    }
+
+    private void SetButton(Button button, bool usable, long cost)
+    {
+        float alpha = usable ? 1f : 0.4f;
+        if (button.Modulate.A != alpha)
+            button.Modulate = new Color(1, 1, 1, alpha);
+        // The hotbar tooltip (hoveroverhaul.gd) shows the price on its third line.
+        string price = GameHud.FormatCount(cost);
+        if (!_buttonPrices.TryGetValue(button, out var shown) || shown != price)
+        {
+            _buttonPrices[button] = price;
+            button.Set("line3", price);
+        }
     }
 
     // How far (in screen pixels) a port snaps to your nearest coastline.
@@ -710,13 +768,13 @@ public partial class World : Node2D
         GetTree().Quit();
     }
 
-    private record struct Args(string? Map, ulong? Seed, int? Bots, int? Nations, Difficulty? Difficulty, bool NoCheats, bool Autoplay, int Ticks,
+    private record struct Args(string? Map, ulong? Seed, int? Bots, int? Nations, Difficulty? Difficulty, bool NoCheats, double? Bench, bool Autoplay, int Ticks,
         bool NoHillshade, float Zoom, Vector2? Focus, string? Screenshot, bool Perf, Vector2? Hover, bool HoverLeader, bool Showcase, string? ShowcaseFocus);
 
     private static Args ParseArgs()
     {
         var inv = System.Globalization.CultureInfo.InvariantCulture;
-        var args = new Args(null, null, null, null, null, false, false, 0, false, 1, null, null, false, null, false, false, null);
+        var args = new Args(null, null, null, null, null, false, null, false, 0, false, 1, null, null, false, null, false, false, null);
         foreach (string arg in OS.GetCmdlineUserArgs())
         {
             string[] kv = arg.TrimStart('-').Split('=', 2);
@@ -729,6 +787,7 @@ public partial class World : Node2D
                 case "nations": args.Nations = int.Parse(value, inv); break;
                 case "tribes": args.Bots = int.Parse(value, inv); break;
                 case "no-cheats": args.NoCheats = true; break;
+                case "bench": args.Bench = double.Parse(value, inv); break;
                 case "difficulty": args.Difficulty = Enum.Parse<Difficulty>(value, ignoreCase: true); break;
                 case "autoplay": args.Autoplay = true; break;
                 case "ticks": args.Ticks = int.Parse(value, inv); break;

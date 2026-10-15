@@ -5,7 +5,9 @@ shader_type canvas_item;
 // and territories on top. Every pixel is computed from smooth data, so
 // shapes stay sharp and curved at any zoom.
 
-// R = coast field (> 0 is land, coastline at 0), G = elevation (0..1).
+// R = coast field (> 0 is land, coastline at 0), G = elevation (0..1),
+// B = hill shade (worked out once per tile in MapView.cs), A = steepness of the coast field
+// (to turn it into a distance to the shore). Precomputing B and A saves 16 texture reads a pixel.
 uniform sampler2D terrain_tex : filter_linear, repeat_disable;
 // Land cover type per cell (see LandCover.cs), cover_scale cells per tile side.
 uniform sampler2D cover_tex : filter_nearest, repeat_disable;
@@ -28,12 +30,10 @@ uniform float visual_time = 0.0;
 uniform sampler2D palette_tex : filter_nearest, repeat_disable;
 
 uniform vec2 map_size = vec2(2000.0, 1250.0);
-uniform float metres_per_tile = 2500.0;
 
 group_uniforms topography;
 uniform bool show_hillshade = true;
 uniform float relief_strength : hint_range(0.0, 1.0) = 0.5;
-uniform float relief_exaggeration : hint_range(0.0, 20.0) = 5.0;
 
 group_uniforms water;
 uniform vec4 water_color : source_color = vec4(0.37, 0.63, 0.78, 1.0);
@@ -80,7 +80,7 @@ void bspline_weights(float f, out float w[4]) {
 }
 
 // Smooth (bicubic B-spline) terrain sample from 4 bilinear taps. `tile` is in tile units.
-vec2 terrain_at(vec2 tile) {
+vec4 terrain_at(vec2 tile) {
 	vec2 p = tile - 0.5;
 	vec2 i = floor(p);
 	vec2 f = p - i;
@@ -94,25 +94,11 @@ vec2 terrain_at(vec2 tile) {
 	vec2 g1 = w2 + w3;
 	vec2 h0 = (i - 0.5 + w1 / g0) / map_size;
 	vec2 h1 = (i + 1.5 + w3 / g1) / map_size;
-	vec2 a = texture(terrain_tex, vec2(h0.x, h0.y)).rg;
-	vec2 b = texture(terrain_tex, vec2(h1.x, h0.y)).rg;
-	vec2 c = texture(terrain_tex, vec2(h0.x, h1.y)).rg;
-	vec2 d = texture(terrain_tex, vec2(h1.x, h1.y)).rg;
+	vec4 a = texture(terrain_tex, vec2(h0.x, h0.y));
+	vec4 b = texture(terrain_tex, vec2(h1.x, h0.y));
+	vec4 c = texture(terrain_tex, vec2(h0.x, h1.y));
+	vec4 d = texture(terrain_tex, vec2(h1.x, h1.y));
 	return g0.y * (g0.x * a + g1.x * b) + g1.y * (g0.x * c + g1.x * d);
-}
-
-// Inverse of ElevationScale.cs: 0..1 elevation back to metres.
-float to_metres(float e) {
-	if (e <= 0.0) {
-		return 0.0;
-	}
-	if (e <= 0.55) {
-		return e / 0.55 * 350.0;
-	}
-	if (e <= 0.85) {
-		return 350.0 + (e - 0.55) / 0.30 * 1650.0;
-	}
-	return 2000.0 + (min(e, 1.0) - 0.85) / 0.15 * 3500.0;
 }
 
 int id_at(sampler2D ids_tex, ivec2 c, bool rg16) {
@@ -203,6 +189,13 @@ void owner_at(ivec2 c, out int owner, out int previous, out float fade_in) {
 	fade_in = clamp((visual_time - captured) / capture_fade, 0.0, 1.0);
 }
 
+// Just the owner of a tile (one texture read).
+int owner_id_at(ivec2 c) {
+	c = clamp(c, ivec2(0), ivec2(map_size) - 1);
+	vec4 o = texelFetch(owner_tex, ivec3(c % owner_chunk, (c.y / owner_chunk) * owner_chunks_x + c.x / owner_chunk), 0);
+	return int(o.r * 255.0 + 0.5) + int(o.g * 255.0 + 0.5) * 256;
+}
+
 // Smooth territory lookup: nearby tiles vote for their owner with Gaussian weights
 // over a ~6x6 area. Smoothing wider than one tile is what turns the tile staircase
 // into clean curves. Tiles still fading in split their vote between the old and new
@@ -218,11 +211,7 @@ void territory_at(vec2 tile, out int best_id, out float edge) {
 	bool settled = f0 >= 1.0;
 	for (int j = -1; j <= 1 && settled; j++) {
 		for (int i = -1; i <= 1 && settled; i++) {
-			int id;
-			int prev;
-			float f;
-			owner_at(centre + ivec2(i, j) * 2, id, prev, f);
-			settled = id == id0 && f >= 1.0;
+			settled = owner_id_at(centre + ivec2(i, j) * 2) == id0;
 		}
 	}
 	best_id = id0;
@@ -358,13 +347,9 @@ void fragment() {
 	vec2 tile = UV * map_size;
 	float tiles_per_px = max(length(dFdx(tile)), length(dFdy(tile)));
 
-	vec2 t = terrain_at(tile);
+	vec4 t = terrain_at(tile);
 	float h = t.r;
 	float elev = t.g;
-	vec2 tx0 = terrain_at(tile - vec2(1.0, 0.0));
-	vec2 tx1 = terrain_at(tile + vec2(1.0, 0.0));
-	vec2 ty0 = terrain_at(tile - vec2(0.0, 1.0));
-	vec2 ty1 = terrain_at(tile + vec2(0.0, 1.0));
 
 	// Anti-aliased land mask: about one screen pixel wide at every zoom level.
 	float fw = max(fwidth(h), 1e-6);
@@ -375,20 +360,15 @@ void fragment() {
 	vec3 flat_ground = ground;
 
 	if (show_hillshade) {
-		// Soft hill shading, lit from the north-west.
-		vec2 grad = vec2(to_metres(tx1.g) - to_metres(tx0.g), to_metres(ty1.g) - to_metres(ty0.g))
-			* 0.5 / metres_per_tile * relief_exaggeration;
-		vec3 normal = normalize(vec3(-grad, 1.0));
-		vec3 light_dir = normalize(vec3(-1.0, -1.0, 1.5));
-		float shade = clamp(dot(normal, light_dir) / light_dir.z, 0.45, 1.4);
-		ground *= mix(1.0, shade, relief_strength);
+		// Soft hill shading, lit from the north-west (precomputed per tile).
+		ground *= mix(1.0, t.b, relief_strength);
 	}
 
 	ground = mix(ground, flat_ground, cover_water); // water stays flat
 	vec3 color = mix(water_color.rgb, ground, land);
 
 	// Distance to the shore in tiles (negative out in the water).
-	float h_slope = max(length(vec2(tx1.r - tx0.r, ty1.r - ty0.r) * 0.5), 1e-5);
+	float h_slope = max(t.a, 1e-5);
 	float shore_dist = h / h_slope;
 	float px = max(tiles_per_px, 1e-5);
 

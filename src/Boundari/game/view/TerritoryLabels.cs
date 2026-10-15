@@ -51,8 +51,12 @@ public partial class TerritoryLabels : Node2D
 
     public void SetGame(Game game)
     {
+        _placing?.Wait(); // let a placement for the old map finish before swapping arrays
+        _placing = null;
         _game = game;
         _labels.Clear();
+        _names.Clear();
+        _troops.Clear();
         int w = (game.Map.Width + CellTiles - 1) / CellTiles, h = (game.Map.Height + CellTiles - 1) / CellTiles;
         _cellOwner = new int[w * h];
         _dist = new int[w * h];
@@ -63,10 +67,20 @@ public partial class TerritoryLabels : Node2D
     {
         if (_game is null)
             return;
-        if ((_sinceRefresh += delta) >= RefreshSeconds)
+        // Where labels go is worked out on a background thread twice a second (it reads the
+        // owner grid while the game runs; an occasional stale tile doesn't matter for a label).
+        if (_placing is { IsCompleted: true } done)
+        {
+            _placing = null;
+            long started = FrameProfiler.Start();
+            Apply(done.Result);
+            FrameProfiler.Stop("labels place", started);
+        }
+        if ((_sinceRefresh += delta) >= RefreshSeconds && _placing is null)
         {
             _sinceRefresh = 0;
-            Place();
+            var game = _game;
+            _placing = System.Threading.Tasks.Task.Run(() => Place(game));
         }
 
         float t = 1 - MathF.Exp(-GlideRate * (float)delta);
@@ -78,14 +92,15 @@ public partial class TerritoryLabels : Node2D
         QueueRedraw();
     }
 
+    private System.Threading.Tasks.Task<Dictionary<ushort, (int Cell, int Dist)>>? _placing;
+
     /// <summary>
     /// Finds each territory's "pole of inaccessibility": the cell furthest from its own
     /// border, measured with a two-pass chamfer distance that only travels through the
     /// same owner's land. That's where the label fits best and reads most naturally.
     /// </summary>
-    private void Place()
+    private Dictionary<ushort, (int Cell, int Dist)> Place(Game game)
     {
-        var game = _game!;
         var map = game.Map;
         int w = (map.Width + CellTiles - 1) / CellTiles, h = (map.Height + CellTiles - 1) / CellTiles;
         for (int cy = 0; cy < h; cy++)
@@ -125,6 +140,28 @@ public partial class TerritoryLabels : Node2D
                 best[(ushort)o] = (i, _dist[i]);
         }
 
+        return best;
+
+        void Relax(int i, int a, int b, int c, int d)
+        {
+            int o = _cellOwner[i];
+            if (o <= 0)
+                return;
+            int v = _dist[i];
+            if (_cellOwner[i + a] == o) v = Math.Min(v, _dist[i + a] + 3);
+            if (_cellOwner[i + b] == o) v = Math.Min(v, _dist[i + b] + 3);
+            if (_cellOwner[i + c] == o) v = Math.Min(v, _dist[i + c] + 4);
+            if (_cellOwner[i + d] == o) v = Math.Min(v, _dist[i + d] + 4);
+            _dist[i] = v;
+        }
+    }
+
+    private void Apply(Dictionary<ushort, (int Cell, int Dist)> best)
+    {
+        if (_game is null)
+            return;
+        var map = _game.Map;
+        int w = (map.Width + CellTiles - 1) / CellTiles;
         foreach (var key in new List<ushort>(_labels.Keys))
             if (!best.ContainsKey(key))
                 _labels.Remove(key);
@@ -144,25 +181,24 @@ public partial class TerritoryLabels : Node2D
             }
         }
 
-        void Relax(int i, int a, int b, int c, int d)
-        {
-            int o = _cellOwner[i];
-            if (o <= 0)
-                return;
-            int v = _dist[i];
-            if (_cellOwner[i + a] == o) v = Math.Min(v, _dist[i + a] + 3);
-            if (_cellOwner[i + b] == o) v = Math.Min(v, _dist[i + b] + 3);
-            if (_cellOwner[i + c] == o) v = Math.Min(v, _dist[i + c] + 4);
-            if (_cellOwner[i + d] == o) v = Math.Min(v, _dist[i + d] + 4);
-            _dist[i] = v;
-        }
     }
 
     public override void _Draw()
     {
         if (_game is null)
             return;
+        long started = FrameProfiler.Start();
+        DrawLabels();
+        FrameProfiler.Stop("labels draw", started);
+    }
+
+    private void DrawLabels()
+    {
+        if (_game is null)
+            return;
         float zoom = GetViewport().GetCamera2D()?.Zoom.X ?? 1;
+        var view = GetCanvasTransform().AffineInverse() * GetViewportRect();
+        var canvas = GetCanvasItem();
 
         foreach (var (id, label) in _labels)
         {
@@ -170,17 +206,26 @@ public partial class TerritoryLabels : Node2D
             if (player is null || label.Radius < 1)
                 continue;
 
-            // Size to the room inside the territory, then shrink if the name is too wide.
-            int size = Math.Max(1, (int)(label.Radius * 0.55f));
+            // Size to the room inside the territory (shrinking only makes it smaller, so
+            // skip tiny or off-screen labels before doing any text work).
+            float size = label.Radius * 0.55f;
+            if (size * zoom < MinScreenFontPixels)
+                continue;
+            if (!view.Grow(label.Radius * 2).HasPoint(label.Position))
+                continue;
+
+            // Text is laid out once at a fixed size and scaled here, instead of being
+            // re-shaped at a new size every frame (which was most of the frame time).
+            var name = NameLine(id, player.Name);
             var flag = FlagTexture(player.Flag);
-            float nameWidth = _font.GetStringSize(player.Name, HorizontalAlignment.Left, -1, size).X;
+            float nameWidth = name.GetSize().X * size / RefSize;
             float flagWidth = flag is null ? 0 : size * 0.95f;
             float gap = flag is null ? 0 : size * 0.25f;
             float total = flagWidth + gap + nameWidth;
             if (total > label.Radius * 1.8f)
             {
-                size = Math.Max(1, (int)(size * label.Radius * 1.8f / total));
-                nameWidth = _font.GetStringSize(player.Name, HorizontalAlignment.Left, -1, size).X;
+                size *= label.Radius * 1.8f / total;
+                nameWidth = name.GetSize().X * size / RefSize;
                 flagWidth = flag is null ? 0 : size * 0.95f;
                 gap = flag is null ? 0 : size * 0.25f;
                 total = flagWidth + gap + nameWidth;
@@ -188,7 +233,8 @@ public partial class TerritoryLabels : Node2D
             if (size * zoom < MinScreenFontPixels)
                 continue;
 
-            float ascent = _font.GetAscent(size);
+            float scale = size / RefSize;
+            float ascent = name.GetLineAscent() * scale;
             var nameBaseline = new Vector2(label.Position.X - total / 2 + flagWidth + gap, label.Position.Y);
             if (flag is not null)
             {
@@ -196,17 +242,38 @@ public partial class TerritoryLabels : Node2D
                 var rect = new Rect2(label.Position.X - total / 2, nameBaseline.Y - ascent * 0.5f - flagHeight * 0.55f, flagWidth, flagHeight);
                 DrawTextureRect(flag, rect, false);
             }
-            int outline = Math.Max(1, size / 10);
-            DrawStringOutline(_font, nameBaseline, player.Name, HorizontalAlignment.Left, -1, size, outline, OutlineColor);
-            DrawString(_font, nameBaseline, player.Name, HorizontalAlignment.Left, -1, size, TextColor);
+            DrawSetTransform(nameBaseline - new Vector2(0, ascent), 0, new Vector2(scale, scale));
+            name.DrawOutline(canvas, Vector2.Zero, RefOutline, OutlineColor);
+            name.Draw(canvas, Vector2.Zero, TextColor);
 
-            int troopSize = Math.Max(1, (int)(size * 0.7f));
-            string troops = GameHud.FormatCount(player.Troops);
-            float troopWidth = _font.GetStringSize(troops, HorizontalAlignment.Left, -1, troopSize).X;
-            var troopBaseline = new Vector2(label.Position.X - troopWidth / 2, label.Position.Y + troopSize * 1.05f);
-            DrawStringOutline(_font, troopBaseline, troops, HorizontalAlignment.Left, -1, troopSize, outline, OutlineColor);
-            DrawString(_font, troopBaseline, troops, HorizontalAlignment.Left, -1, troopSize, TextColor);
+            var troops = TroopLine(id, GameHud.FormatCount(player.Troops));
+            float troopScale = scale * 0.7f;
+            float troopWidth = troops.GetSize().X * troopScale;
+            var troopBaseline = new Vector2(label.Position.X - troopWidth / 2, label.Position.Y + size * 0.7f * 1.05f);
+            DrawSetTransform(troopBaseline - new Vector2(0, troops.GetLineAscent() * troopScale), 0, new Vector2(troopScale, troopScale));
+            troops.DrawOutline(canvas, Vector2.Zero, RefOutline, OutlineColor);
+            troops.Draw(canvas, Vector2.Zero, TextColor);
+            DrawSetTransform(Vector2.Zero, 0, Vector2.One);
         }
+    }
+
+    // Labels are laid out at this font size, then scaled to fit.
+    private const int RefSize = 64;
+    private const int RefOutline = 6;
+    private readonly Dictionary<ushort, (string Text, TextLine Line)> _names = new();
+    private readonly Dictionary<ushort, (string Text, TextLine Line)> _troops = new();
+
+    private TextLine NameLine(ushort id, string text) => Cached(_names, id, text);
+    private TextLine TroopLine(ushort id, string text) => Cached(_troops, id, text);
+
+    private TextLine Cached(Dictionary<ushort, (string Text, TextLine Line)> cache, ushort id, string text)
+    {
+        if (cache.TryGetValue(id, out var entry) && entry.Text == text)
+            return entry.Line;
+        var line = new TextLine();
+        line.AddString(text, _font, RefSize);
+        cache[id] = (text, line);
+        return line;
     }
 
     private Texture2D? FlagTexture(string code)
