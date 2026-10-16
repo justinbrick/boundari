@@ -2,13 +2,15 @@ extends Control
 
 @export var popup_offset_y: float = 34.0   # how high above the button the panel sits
 
-@onready var buttons_row: HBoxContainer = $ButtonsRow
-@onready var info_panel: Panel = $InfoPanel
-@onready var vbox: VBoxContainer = $InfoPanel/VBoxContainer
-@onready var label1: Label = $InfoPanel/VBoxContainer/Header
-@onready var label2: Label = $InfoPanel/VBoxContainer/Description
-@onready var hbox_cash: HBoxContainer = $InfoPanel/VBoxContainer/HBox_Cash
-@onready var label3: Label = $InfoPanel/VBoxContainer/HBox_Cash/Amount
+# The build buttons' hover hint (InfoPanel) is optional: while it's not in the scene the
+# hint is simply skipped (it comes back by itself when the panel is added again).
+@onready var buttons_row: HBoxContainer = get_node_or_null("ButtonsRow")
+@onready var info_panel: Panel = get_node_or_null("InfoPanel")
+@onready var vbox: VBoxContainer = get_node_or_null("InfoPanel/VBoxContainer")
+@onready var label1: Label = get_node_or_null("InfoPanel/VBoxContainer/Header")
+@onready var label2: Label = get_node_or_null("InfoPanel/VBoxContainer/Description")
+@onready var hbox_cash: HBoxContainer = get_node_or_null("InfoPanel/VBoxContainer/HBox_Cash")
+@onready var label3: Label = get_node_or_null("InfoPanel/VBoxContainer/HBox_Cash/Amount")
 
 # ============================================================
 # RADIAL MENU SETUP
@@ -19,6 +21,8 @@ var current_menu: Control = null
 
 
 func _ready() -> void:
+	if info_panel == null or vbox == null or hbox_cash == null or buttons_row == null:
+		return   # no hover hint in the scene right now
 	# Start hidden and make sure the popup never interferes with the mouse
 	info_panel.visible = false
 	info_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -52,6 +56,8 @@ func _ready() -> void:
 # INFO PANEL HOVER LOGIC
 # ============================================================
 func _on_button_mouse_entered(button: Button) -> void:
+	if info_panel == null:
+		return
 	# Read the 3 exported lines from the button's script (hoveroverhaul.gd)
 	label1.text = button.line1
 	label2.text = button.line2
@@ -74,7 +80,8 @@ func _on_button_mouse_entered(button: Button) -> void:
 
 
 func _on_button_mouse_exited(_button: Button) -> void:
-	info_panel.hide()
+	if info_panel:
+		info_panel.hide()
 
 
 
