@@ -1143,6 +1143,7 @@ corner_radius_bottom_left = 4
 script = ExtResource("bw_world")
 
 [node name="TestImage" type="Sprite2D" parent="." unique_id=747275518]
+visible = false
 position = Vector2(957, 539)
 texture = ExtResource("2_mwd57")
 metadata/_edit_lock_ = true
