@@ -112,4 +112,27 @@ public class AttackTests
 
         static double Sig(int n) => 1 / (1 + Math.Exp(-2.5 * (Math.Log(n) - Math.Log(300_000))));
     }
+
+    [Fact]
+    public void Forest_TakesTwiceAsLong_AndCostsHalfAgainTheTroops()
+    {
+        var map = MapGenerator.Generate(9, new MapGenSettings { Width = 100, Height = 60, MinIslandTiles = 8, MinLakeTiles = 30 });
+        map.Cover = new LandCover(4, map.Width, map.Height);
+        int plain = Enumerable.Range(0, map.TileCount).First(t => map.Terrain[t] == TerrainType.Plains);
+        int other = Enumerable.Range(0, map.TileCount).First(t => map.Terrain[t] == TerrainType.Plains && t != plain);
+        int x = plain % map.Width, y = plain / map.Width;
+        for (int cy = y * 4; cy < y * 4 + 4; cy++)
+            for (int cx = x * 4; cx < x * 4 + 4; cx++)
+                map.Cover.Cells[map.Cover.Index(cx, cy)] = CoverType.Forest;
+        var game = new Game(map, 1);
+        var a = game.AddPlayer("A");
+        Assert.Equal(20, game.CoverTenths[plain]);
+        var attack = (Attack)typeof(Attack).GetConstructors(BindingFlags.NonPublic | BindingFlags.Instance)[0]
+            .Invoke(new object[] { a, (ushort)0, 3_000L, -1, new Boundari.Core.Rng(1) });
+        var logic = typeof(Game).GetMethod("AttackLogic", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        var (forestLoss, _, forestFrac) = ((double, double, double))logic.Invoke(game, new object[] { attack, plain, null!, 3_000.0, 40 })!;
+        var (fieldLoss, _, fieldFrac) = ((double, double, double))logic.Invoke(game, new object[] { attack, other, null!, 3_000.0, 40 })!;
+        Assert.Equal(fieldLoss * 1.5, forestLoss, 6);
+        Assert.Equal(fieldFrac * 2, forestFrac, 9);
+    }
 }

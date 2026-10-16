@@ -41,6 +41,53 @@ public static class AttackRules
     public const double DefensePostSpeedFactor = 3;    // ...and 3x the time
     public const int RetreatMalusPercent = 25;         // a boat landing on its own coast loses a quarter
 
+    // Land cover (our addition on top of OpenFront's elevation types): how much harder a
+    // tile is to cross than farmland, in tenths. It scales the tile's time fully and its
+    // troop cost by half as much, and pushes the tile back in the attack's queue, so fronts
+    // race through open country and flow around forests, marsh, rock and snow.
+    public static int CoverTenths(CoverType cover) => cover switch
+    {
+        CoverType.Meadow => 12,
+        CoverType.Forest => 20,
+        CoverType.Water => 25,  // small lakes and marsh
+        CoverType.Rock => 25,
+        CoverType.Snow => 40,
+        _ => 10,                // farmland, or no data
+    };
+    public const int CoverTroopCostPercent = 50;
+
+    /// <summary>Each tile's average land-cover difficulty, in tenths (10 = farmland).</summary>
+    public static short[] TileCoverTenths(GameMap map)
+    {
+        var tenths = new short[map.TileCount];
+        var cover = map.Cover;
+        for (int y = 0; y < map.Height; y++)
+            for (int x = 0; x < map.Width; x++)
+            {
+                int tile = map.Index(x, y);
+                if (!map.IsLand(tile))
+                    continue;
+                int value = 10;
+                if (cover is not null)
+                {
+                    int sum = 0, n = 0, s = cover.Scale;
+                    for (int cy = y * s; cy < (y + 1) * s; cy++)
+                        for (int cx = x * s; cx < (x + 1) * s; cx++)
+                        {
+                            var c = cover.Cells[cover.Index(cx, cy)];
+                            if (c == CoverType.None)
+                                continue;
+                            sum += CoverTenths(c);
+                            n++;
+                        }
+                    if (n > 0)
+                        value = (sum + n / 2) / n;
+                }
+                tenths[tile] = (short)value;
+            }
+        return tenths;
+    }
+
     /// <summary>~1 for small territories, easing to 1 - depth for huge ones (halfway at 300k tiles).</summary>
     public static double LargeTerritoryBonus(int tiles, double depth)
     {
@@ -168,8 +215,8 @@ public sealed partial class Game
     /// <summary>
     /// Queues the target's tiles around a tile. Priority (lower goes first) is the current
     /// tick plus a random 10..16, scaled down for tiles we already half-surround and up for
-    /// high ground: that randomness is what lets fast attacks race ahead in branching veins.
-    /// Worked in quarter-ticks so it's a whole number.
+    /// high ground and rough land cover: that randomness is what lets fast attacks race ahead
+    /// in branching veins. Worked in 40ths of a tick so it's a whole number.
     /// </summary>
     private void AddNeighbours(Attack attack, int tile)
     {
@@ -186,8 +233,9 @@ public sealed partial class Game
             for (int j = 0; j < inner; j++)
                 if (Owner[nb2[j]] == attack.Attacker.Id)
                     mine++;
-            long factor4 = 4 - 2 * mine + 2 * AttackRules.PriorityTerrainTimes2(Map.Terrain[n]); // 4 x (1 - mine/2 + mag/2)
-            long priority = (attack.Rng.RangeInt(0, 6) + 10) * factor4 + 4L * Tick;
+            // 40 x (1 - mine/2 + mag x cover/2), OpenFront's factor with land cover on its terrain term.
+            long factor40 = 40 - 20 * mine + AttackRules.PriorityTerrainTimes2(Map.Terrain[n]) * CoverTenths[n];
+            long priority = (attack.Rng.RangeInt(0, 6) + 10) * factor40 + 40L * Tick;
             attack.ToConquer.Enqueue(n, priority);
         }
     }
@@ -258,6 +306,9 @@ public sealed partial class Game
     private (double AttackerLoss, double DefenderLoss, double TickFraction) AttackLogic(Attack attack, int tile, Player? defender, double attackTroops, int borderSize)
     {
         var (mag, tileCost) = AttackRules.Terrain(Map.Terrain[tile]);
+        double cover = CoverTenths[tile] / 10.0;
+        tileCost *= cover;
+        mag *= 1 + (cover - 1) * AttackRules.CoverTroopCostPercent / 100;
         if (defender is not null && DefendedByPost(tile, defender.Id))
         {
             mag *= AttackRules.DefensePostLossFactor;

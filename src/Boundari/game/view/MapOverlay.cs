@@ -11,22 +11,32 @@ namespace Boundari.View;
 /// </summary>
 public partial class MapOverlay : Node2D
 {
-    // Building icon size: about this many tiles across, but never smaller/larger than these pixels.
-    private const float BuildingTiles = 11; // just under the 12-tile spacing, so icons never overlap
-    private const float MinBuildingPixels = 32;
-    private const float MaxBuildingPixels = 80;
+    // Building icons, sized the way OpenFront does it (its numbers x1.5, our measured
+    // screen-pixel factor), by zoom in screen pixels per tile:
+    //   zoomed far out (<= DotsZoom): just the shape, a fixed size on screen however far out;
+    //   up to FullSizeZoom: shrinking with the map, from full size down;
+    //   up to GrowZoom: a fixed BuildingPixels on screen;
+    //   further in: growing with the map, as if drawn on it.
+    private const float BuildingPixels = 90;
+    private const float DotsZoom = 1.8f;
+    private const float DotScale = 0.3f;
+    private const float FullSizeZoom = 4.5f;
+    private const float GrowZoom = 10.5f;
     private const float BoatPixels = 18;
     private const float WarshipPixels = 40;
 
     // Zoomed out past this (pixels per tile), icons stop holding their minimum size and
     // shrink with the map, so a zoomed-out view isn't buried in icons.
     private const float ShrinkBelowPixelsPerTile = 2.2f;
-    private const float GlyphMinPixels = 14; // smaller icons are drawn as plain shapes
 
     private static readonly Dictionary<BuildingType, string> IconFiles = new()
     {
-        [BuildingType.Port] = "port", [BuildingType.City] = "city", [BuildingType.Factory] = "factory",
-        [BuildingType.Defense] = "defense", [BuildingType.Silo] = "silo", [BuildingType.Sam] = "sam",
+        [BuildingType.Port] = "res://ui/structures32x/harbour32x.svg",
+        [BuildingType.City] = "res://ui/structures32x/barracks32x.svg",
+        [BuildingType.Factory] = "res://ui/structures32x/depot32x.svg",
+        [BuildingType.Defense] = "res://ui/structures32x/defense32x.svg",
+        [BuildingType.Silo] = "res://ui/structures32x/silo32x.svg",
+        [BuildingType.Sam] = "res://ui/small_icons_new/sam.svg", // no new flak icon yet
     };
 
     private readonly Dictionary<BuildingType, Texture2D?> _icons = new();
@@ -47,11 +57,9 @@ public partial class MapOverlay : Node2D
     public override void _Ready()
     {
         _font = ThemeDB.FallbackFont;
-        foreach (var (type, file) in IconFiles)
-        {
-            string path = $"res://ui/small_icons_new/{file}.svg";
+        TextureFilter = TextureFilterEnum.LinearWithMipmaps; // icons stay smooth when drawn small
+        foreach (var (type, path) in IconFiles)
             _icons[type] = ResourceLoader.Exists(path) ? GD.Load<Texture2D>(path) : null;
-        }
     }
 
     public void SetPalette(Color[] palette) => _palette = palette;
@@ -123,27 +131,21 @@ public partial class MapOverlay : Node2D
         part = FrameProfiler.Start();
 
         // --- Buildings ---
-        float size = IconPixels(zoom, MinBuildingPixels, MaxBuildingPixels, BuildingTiles) / zoom;
-        bool tiny = size * zoom < TinyIconPixels;
+        float size = BuildingIconPixels(zoom) / zoom;
+        bool dots = zoom <= DotsZoom;
         foreach (var b in _game.Buildings)
         {
             var at = TileCentre(b.Tile, w);
             if (!OnScreen(at, size))
                 continue;
             bool ready = b.IsReady(_game.Tick);
-            if (tiny) // a few pixels across: a plain square reads the same and costs far less
-            {
-                var colour = ColorOf(b.Owner).Lerp(Colors.White, 0.35f);
-                DrawRect(new Rect2(at - new Vector2(size, size) * 0.4f, new Vector2(size, size) * 0.8f), new Color(colour, ready ? 1f : 0.55f));
-                continue;
-            }
-            DrawBuilding(b.Type, at, size, ColorOf(b.Owner), ready ? 1f : 0.55f);
+            DrawBuilding(b.Type, at, size, ColorOf(b.Owner), ready ? 1f : 0.55f, glyph: !dots);
             if (!ready) // construction progress ring
             {
                 float done = Math.Clamp((float)(_game.Tick - b.StartTick) / Math.Max(1, b.ReadyTick - b.StartTick), 0, 1);
                 DrawArc(at, size * 0.62f, -Mathf.Pi / 2, -Mathf.Pi / 2 + Mathf.Tau * done, 32, Colors.White, size * 0.08f, true);
             }
-            if (b.Level > 1 && size * zoom >= GlyphMinPixels)
+            if (b.Level > 1 && !dots)
                 DrawLevel(at + new Vector2(size * 0.42f, -size * 0.42f), b.Level, size, zoom);
         }
 
@@ -166,7 +168,7 @@ public partial class MapOverlay : Node2D
             };
             if (reach > 0)
                 DrawArc(at, reach, 0, Mathf.Tau, 96, new Color(1, 1, 1, 0.55f), 1.5f / zoom, true);
-            if (_ghostStacks && size * zoom >= GlyphMinPixels)
+            if (_ghostStacks && zoom > DotsZoom)
                 DrawLevel(at + new Vector2(size * 0.42f, -size * 0.42f), _ghostLevel, size, zoom, plus: true);
             if (ghost == BuildingType.Warship)
                 DrawWarship(at, 0, IconPixels(zoom, WarshipPixels, WarshipPixels, 1) / zoom, _me is null ? tint : ColorOf(_me.Id), 1f, tint);
@@ -241,7 +243,7 @@ public partial class MapOverlay : Node2D
         DrawSetTransform(Vector2.Zero, 0, Vector2.One);
     }
 
-    private void DrawBuilding(BuildingType type, Vector2 at, float size, Color owner, float alpha, Color? outlineOverride = null)
+    private void DrawBuilding(BuildingType type, Vector2 at, float size, Color owner, float alpha, Color? outlineOverride = null, bool glyph = true)
     {
         var points = Shape(type, at, size / 2);
         var fill = owner.Lerp(Colors.White, 0.35f);
@@ -251,7 +253,7 @@ public partial class MapOverlay : Node2D
         points.CopyTo(closed, 0);
         closed[^1] = points[0];
         DrawPolyline(closed, new Color(outline, alpha), size * 0.09f, true);
-        if (size * GetViewport().GetCamera2D()!.Zoom.X >= GlyphMinPixels && _icons.GetValueOrDefault(type) is { } icon)
+        if (glyph && _icons.GetValueOrDefault(type) is { } icon)
         {
             float s = size * 0.55f;
             DrawTextureRect(icon, new Rect2(at - new Vector2(s, s) / 2, new Vector2(s, s)), false, new Color(owner.Darkened(0.6f), alpha));
@@ -352,6 +354,16 @@ public partial class MapOverlay : Node2D
                 bounds = bounds.Expand(p);
             Bounds = bounds;
         }
+    }
+
+    /// <summary>A building icon's size on screen at this zoom (OpenFront's structure scaling; see the constants).</summary>
+    private static float BuildingIconPixels(float zoom)
+    {
+        if (zoom <= DotsZoom)
+            return BuildingPixels * DotScale;
+        if (zoom >= GrowZoom)
+            return BuildingPixels * zoom / GrowZoom;
+        return BuildingPixels * Math.Min(1, zoom / FullSizeZoom);
     }
 
     /// <summary>

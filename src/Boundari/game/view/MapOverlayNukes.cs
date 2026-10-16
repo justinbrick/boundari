@@ -43,7 +43,7 @@ public partial class MapOverlay
     /// <summary>Silos and SAMs with every missile out: a grey ring filling up as the first one reloads.</summary>
     private void DrawReloads(float zoom, int w)
     {
-        float size = IconPixels(zoom, MinBuildingPixels, MaxBuildingPixels, BuildingTiles) / zoom;
+        float size = BuildingIconPixels(zoom) / zoom;
         foreach (var b in _game!.Buildings)
         {
             if (b.Type is not (BuildingType.Silo or BuildingType.Sam) || b.Reloading == 0 || !OnScreen(TileCentre(b.Tile, w), size))

@@ -27,6 +27,9 @@ public sealed partial class Game
     /// <summary>Owner of each tile (player id), or <see cref="Nobody"/>.</summary>
     public readonly ushort[] Owner;
 
+    /// <summary>How hard each tile's land cover is to cross, in tenths (10 = farmland). See <see cref="AttackRules.CoverTenths"/>.</summary>
+    public readonly short[] CoverTenths;
+
     public int Tick { get; private set; }
     public GamePhase Phase { get; private set; } = GamePhase.Spawning;
     public readonly int SpawnPhaseTicks;
@@ -78,6 +81,7 @@ public sealed partial class Game
         Fallout = new bool[map.TileCount];
         SpawnPhaseTicks = spawnPhaseTicks;
         Owner = new ushort[map.TileCount];
+        CoverTenths = AttackRules.TileCoverTenths(map);
         _coastal = new bool[map.TileCount];
         Span<int> bodies = stackalloc int[4];
         for (int t = 0; t < map.TileCount; t++)
