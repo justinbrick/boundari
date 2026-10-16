@@ -150,7 +150,7 @@ public partial class MapView : Sprite2D
     /// <summary>Sets colours by owner id (index 0 is unclaimed land and is ignored).</summary>
     public void SetPalette(ReadOnlySpan<Color> colors)
     {
-        int count = Math.Min(colors.Length, PaletteSize * PaletteSize - 2);
+        int count = Math.Min(colors.Length, TerritoryTextures.MaxPlayerIds);
         for (int id = 1; id < count; id++)
             _paletteImage.SetPixel(id % PaletteSize, id / PaletteSize, colors[id]);
         // Fallout: scorched, sickly olive.

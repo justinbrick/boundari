@@ -18,7 +18,8 @@ uniform float cover_scale = 4.0;
 // Colour of each CoverType, set from MapView.cs.
 uniform vec3 cover_colors[7];
 // Territory, split into owner_chunk-sized chunks (one texture-array layer each).
-// RGBA8: RG = owner id, BA = previous owner id (0 = unclaimed, 65535 = water).
+// RGBA8: owner id and previous owner id in 12 bits each (R + low half of G, high half
+// of G + B; 0 = unclaimed, 4095 = water), then A = capture fade length in 1/16 ticks.
 uniform sampler2DArray owner_tex : filter_nearest, repeat_disable;
 // R32F: tick (with fraction) when each tile changed hands, for animating captures.
 uniform sampler2DArray capture_tex : filter_nearest, repeat_disable;
@@ -49,8 +50,6 @@ uniform bool show_territory = true;
 uniform float territory_opacity : hint_range(0.0, 1.0) = 0.5;
 // How far (in tiles) borders are smoothed. Bigger = rounder, smoother bends.
 uniform float border_smoothing : hint_range(0.5, 2.0) = 1.0;
-// How long (in ticks) a captured tile takes to fade to its new owner.
-uniform float capture_fade : hint_range(0.05, 3.0) = 0.6;
 // Border thickness, roughly in tiles.
 uniform float border_width : hint_range(0.0, 1.0) = 0.3;
 uniform float coast_border_width : hint_range(0.0, 3.0) = 0.6;
@@ -67,8 +66,8 @@ uniform float patch_morph : hint_range(0.0, 2.0) = 0.0;
 // Contour lines every this many metres (0 = off).
 uniform float contour_interval = 0.0;
 
-const int WATER = 65535;
-const int FALLOUT = 65534; // land poisoned by a bomb (nobody owns it)
+const int WATER = 4095;
+const int FALLOUT = 4094; // land poisoned by a bomb (nobody owns it)
 const int COVER_NONE = 0;
 const int COVER_FARMLAND = 1;
 const int COVER_MEADOW = 2;
@@ -257,18 +256,19 @@ void vote(sampler2D ids_tex, ivec2 size, vec2 cell_pos, bool rg16, int skip,
 void owner_at(ivec2 c, out int owner, out int previous, out float fade_in) {
 	c = clamp(c, ivec2(0), ivec2(map_size) - 1);
 	ivec3 cc = ivec3(c % owner_chunk, (c.y / owner_chunk) * owner_chunks_x + c.x / owner_chunk);
-	vec4 o = texelFetch(owner_tex, cc, 0);
-	owner = int(o.r * 255.0 + 0.5) + int(o.g * 255.0 + 0.5) * 256;
-	previous = int(o.b * 255.0 + 0.5) + int(o.a * 255.0 + 0.5) * 256;
+	ivec4 b = ivec4(texelFetch(owner_tex, cc, 0) * 255.0 + 0.5);
+	owner = b.r + (b.g & 15) * 256;
+	previous = (b.g >> 4) + b.b * 16;
 	float captured = texelFetch(capture_tex, cc, 0).r;
-	fade_in = clamp((visual_time - captured) / capture_fade, 0.0, 1.0);
+	float fade_length = float(b.a) / 16.0; // ticks
+	fade_in = clamp((visual_time - captured) / fade_length, 0.0, 1.0);
 }
 
 // Just the owner of a tile (one texture read).
 int owner_id_at(ivec2 c) {
 	c = clamp(c, ivec2(0), ivec2(map_size) - 1);
-	vec4 o = texelFetch(owner_tex, ivec3(c % owner_chunk, (c.y / owner_chunk) * owner_chunks_x + c.x / owner_chunk), 0);
-	return int(o.r * 255.0 + 0.5) + int(o.g * 255.0 + 0.5) * 256;
+	ivec4 b = ivec4(texelFetch(owner_tex, ivec3(c % owner_chunk, (c.y / owner_chunk) * owner_chunks_x + c.x / owner_chunk), 0) * 255.0 + 0.5);
+	return b.r + (b.g & 15) * 256;
 }
 
 // Smooth territory lookup: nearby tiles vote for their owner with Gaussian weights
