@@ -238,7 +238,7 @@ public sealed partial class Game
     {
         if (type == NukeType.Warhead)
             return;
-        var (inner, outer) = NukeRules.Blast(type);
+        var (inner, outer) = Rules.Blast(type);
         var weight = new Dictionary<ushort, int>(); // in halves: inner tiles 2, outer 1
         int w = Map.Width, cx = target % w, cy = target / w;
         for (int y = Math.Max(0, cy - outer); y <= Math.Min(Map.Height - 1, cy + outer); y++)
@@ -252,7 +252,7 @@ public sealed partial class Game
             }
         var hit = new SortedSet<ushort>();
         foreach (var (id, halves) in weight)
-            if (halves >= AllianceRules.NukeBreakTiles * 2)
+            if (halves >= Rules.NukeBreakTiles * 2)
                 hit.Add(id);
         long outer2 = (long)outer * outer;
         foreach (var b in _buildings.Values)

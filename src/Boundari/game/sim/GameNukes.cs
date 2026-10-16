@@ -90,15 +90,15 @@ public sealed partial class Game
         if (type == NukeType.TsarBomba)
             LaunchTsarBomba(player, silo.Tile, tile, wait);
         else
-            _nukes.Add(MakeNuke(player, type, silo.Tile, tile, NukeRules.Speed(type), wait, Nobody));
+            _nukes.Add(MakeNuke(player, type, silo.Tile, tile, Rules.NukeSpeed(type), wait, Nobody));
     }
 
     private Nuke MakeNuke(Player owner, NukeType type, int from, int to, double speed, int wait, ushort targetPlayer)
     {
         int w = Map.Width;
-        var (xs, ys) = NukeRules.Arc(from % w, from / w, to % w, to / w, Map.Height, speed);
+        var (xs, ys) = NukeRules.Arc(from % w, from / w, to % w, to / w, Map.Height, speed, Rules.NukeArcMinHeight);
         var targetable = new bool[xs.Length];
-        long r2 = (long)NukeRules.TargetableRange * NukeRules.TargetableRange;
+        long r2 = (long)Rules.NukeTargetableRange * Rules.NukeTargetableRange;
         for (int i = 0; i < xs.Length; i++)
         {
             int t = TileAtPoint(xs[i], ys[i]);
@@ -114,18 +114,18 @@ public sealed partial class Game
     private void LaunchTsarBomba(Player player, int from, int target, int wait)
     {
         int w = Map.Width, tx = target % w, ty = target / w;
-        int split = Map.Index((tx + from % w) / 2, Math.Max(0, ty - 500) + 50);
+        int split = Map.Index((tx + from % w) / 2, Math.Max(0, ty - Rules.MirvClimb) + Rules.MirvClimbFloor);
         int sx = split % w, sy = split / w, fx = from % w, fy = from / w;
 
         // OpenFront's flight time: ~14 ticks, plus a little for long climbs (in hundredths of a tick).
-        double ideal = NukeRules.ArcLength(fx, fy, sx, sy) / NukeRules.Speed(NukeType.TsarBomba);
+        double ideal = NukeRules.ArcLength(fx, fy, sx, sy, Rules.NukeArcMinHeight) / Rules.NukeSpeed(NukeType.TsarBomba);
         int idealTicks = (int)(ideal * 100), baseTicks = NukeRules.MirvFlightTicks * 100, ticks = baseTicks;
         if (idealTicks > baseTicks)
             ticks = baseTicks + (int)Math.Sqrt(idealTicks - baseTicks) * 14 + (idealTicks - baseTicks) * 10 / 100;
         else if (idealTicks < baseTicks)
             ticks = baseTicks - (int)Math.Sqrt(baseTicks - idealTicks) * 10;
         ticks = Math.Max(100, ticks);
-        double length = NukeRules.Arc(fx, fy, sx, sy, Map.Height, 1).X.Length; // ~1 tile per point
+        double length = NukeRules.Arc(fx, fy, sx, sy, Map.Height, 1, Rules.NukeArcMinHeight).X.Length; // ~1 tile per point
         var mirv = MakeNuke(player, NukeType.TsarBomba, from, split, Math.Max(1, length * 100 / ticks), wait, Owner[target]);
         _nukes.Add(mirv);
         _mirvAims[mirv] = target;
@@ -214,12 +214,12 @@ public sealed partial class Game
         ushort target = mirv.TargetPlayer;
         var rng = new Rng(_rng.Fork());
         var targets = new List<int> { aim };
-        long range2 = (long)NukeRules.MirvRange * NukeRules.MirvRange;
+        long range2 = (long)Rules.MirvRange * Rules.MirvRange;
         for (int attempt = 0; attempt < 1500 && targets.Count < NukeRules.MirvWarheads; attempt++)
             for (int tries = 0; tries < 100; tries++)
             {
-                int x = bx + rng.RangeInt(-NukeRules.MirvRange, NukeRules.MirvRange);
-                int y = by + rng.RangeInt(-NukeRules.MirvRange, NukeRules.MirvRange);
+                int x = bx + rng.RangeInt(-Rules.MirvRange, Rules.MirvRange);
+                int y = by + rng.RangeInt(-Rules.MirvRange, Rules.MirvRange);
                 if (!Map.InBounds(x, y))
                     continue;
                 int t = Map.Index(x, y);
@@ -227,7 +227,7 @@ public sealed partial class Game
                     continue;
                 bool overlaps = false;
                 foreach (int taken in targets)
-                    if (Math.Abs(taken % w - x) + Math.Abs(taken / w - y) < NukeRules.MirvSpread)
+                    if (Math.Abs(taken % w - x) + Math.Abs(taken / w - y) < Rules.MirvSpread)
                     {
                         overlaps = true;
                         break;
@@ -245,7 +245,7 @@ public sealed partial class Game
         {
             int extraSpeed = i < 70 ? 0 : i < 140 ? 1 : i < 210 ? 2 : i < 280 ? 3 : 4;
             _nukes.Add(MakeNuke(mirv.Owner, NukeType.Warhead, mirv.To, targets[i],
-                NukeRules.Speed(NukeType.Warhead) + extraSpeed, remaining + rng.RangeInt(0, 14), target));
+                Rules.NukeSpeed(NukeType.Warhead) + extraSpeed, remaining + rng.RangeInt(0, 14), target));
         }
     }
 
@@ -261,14 +261,14 @@ public sealed partial class Game
     private void RunSams()
     {
         int w = Map.Width;
-        long detect2 = (long)NukeRules.MaxSamRange * 4 * NukeRules.MaxSamRange * 4;
-        long max2 = (long)NukeRules.MaxSamRange * NukeRules.MaxSamRange;
+        long detect2 = (long)Rules.MaxSamRange * 4 * Rules.MaxSamRange * 4;
+        long max2 = (long)Rules.MaxSamRange * Rules.MaxSamRange;
         var targets = new List<(Nuke Nuke, int Tile, long Score)>();
         foreach (var sam in _buildings.Values)
         {
             if (sam.Type != BuildingType.Sam || !IsLoaded(sam))
                 continue;
-            long range2 = (long)Balance.SamRange(sam.Level) * Balance.SamRange(sam.Level);
+            long range2 = (long)Rules.SamRange(sam.Level) * Rules.SamRange(sam.Level);
             targets.Clear();
             foreach (var n in _nukes)
             {
@@ -287,7 +287,7 @@ public sealed partial class Game
                     increasing = lastDist >= 0 && d2 > lastDist ? increasing + 1 : 0;
                     lastDist = d2;
                     int nukeTicks = i - n.Index + n.WaitTicks;
-                    int samTicks = (Math.Abs(point % w - sam.Tile % w) + Math.Abs(point / w - sam.Tile / w) + NukeRules.SamMissileSpeed - 1) / NukeRules.SamMissileSpeed;
+                    int samTicks = (Math.Abs(point % w - sam.Tile % w) + Math.Abs(point / w - sam.Tile / w) + Rules.SamMissileSpeed - 1) / Rules.SamMissileSpeed;
                     if (n.Targetable[i] && d2 <= range2 && nukeTicks >= samTicks)
                     {
                         if (nukeTicks - samTicks <= 1) // fire now; otherwise wait for a later tick
@@ -313,7 +313,7 @@ public sealed partial class Game
                     break;
                 sam.Reloads.Enqueue(Tick);
                 nuke.TargetedBySam = true;
-                int flight = (Math.Abs(point % w - sam.Tile % w) + Math.Abs(point / w - sam.Tile / w) + NukeRules.SamMissileSpeed - 1) / NukeRules.SamMissileSpeed;
+                int flight = (Math.Abs(point % w - sam.Tile % w) + Math.Abs(point / w - sam.Tile / w) + Rules.SamMissileSpeed - 1) / Rules.SamMissileSpeed;
                 _samMissiles.Add(new SamMissile(_players[sam.Owner], sam.Tile, point, nuke, flight));
             }
         }
@@ -348,7 +348,7 @@ public sealed partial class Game
     /// </summary>
     private void Detonate(Nuke n)
     {
-        var (inner, outer) = NukeRules.Blast(n.Type);
+        var (inner, outer) = Rules.Blast(n.Type);
         long inner2 = (long)inner * inner, outer2 = (long)outer * outer;
         var rng = new Rng(_rng.Fork());
         _blastMark ??= new int[Map.TileCount];
@@ -408,11 +408,11 @@ public sealed partial class Game
             for (int i = 0; i < count; i++)
             {
                 int left = before - i;
-                troops -= NukeRules.Deaths(n.Type, troops, left, max);
+                troops -= NukeRules.Deaths(n.Type, troops, left, max, Rules.Area);
                 for (int a = 0; a < attackTroops.Count; a++)
-                    attackTroops[a] -= NukeRules.Deaths(n.Type, attackTroops[a], left, max);
+                    attackTroops[a] -= NukeRules.Deaths(n.Type, attackTroops[a], left, max, Rules.Area);
                 for (int b = 0; b < boatTroops.Count; b++)
-                    boatTroops[b] -= NukeRules.Deaths(n.Type, boatTroops[b], left, max);
+                    boatTroops[b] -= NukeRules.Deaths(n.Type, boatTroops[b], left, max, Rules.Area);
             }
             p.Troops = Math.Max(0, (long)troops);
             for (int a = 0; a < attacks.Count; a++)

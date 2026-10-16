@@ -73,10 +73,14 @@ public sealed partial class Game
     /// <summary>How strong nations are this match.</summary>
     public readonly Difficulty Difficulty;
 
+    /// <summary>OpenFront's tile-measured numbers, adjusted to this map's tile size.</summary>
+    public readonly ScaledRules Rules;
+
     public Game(GameMap map, ulong seed, int spawnPhaseTicks = Balance.SpawnPhaseTicks, Difficulty difficulty = Difficulty.Medium)
     {
         Map = map;
         Seed = seed;
+        Rules = new ScaledRules(map.TileScale);
         Difficulty = difficulty;
         Fallout = new bool[map.TileCount];
         SpawnPhaseTicks = spawnPhaseTicks;
@@ -103,7 +107,7 @@ public sealed partial class Game
     public int TsarBombasLaunched { get; internal set; }
 
     /// <summary>Water bodies and sea routes for boats (worked out on first use; World.cs does it at match start).</summary>
-    public Waterways Waterways => _waterways ??= new Waterways(Map);
+    public Waterways Waterways => _waterways ??= new Waterways(Map, Rules.Linear);
     public Player? GetPlayer(ushort id) => id > 0 && id < _players.Count ? _players[id] : null;
     public int SecondsUntilStart => Math.Max(0, (SpawnPhaseTicks - Tick + Balance.TicksPerSecond - 1) / Balance.TicksPerSecond);
 
@@ -111,7 +115,7 @@ public sealed partial class Game
     {
         if (_players.Count >= ushort.MaxValue - 1)
             throw new InvalidOperationException("Too many players.");
-        var player = new Player((ushort)_players.Count, name, kind, Difficulty, flag) { Troops = Balance.StartTroopsFor(kind, Difficulty) };
+        var player = new Player((ushort)_players.Count, name, kind, Difficulty, flag) { Troops = Balance.StartTroopsFor(kind, Difficulty), AreaScale = Rules.Area };
         _players.Add(player);
         return player;
     }
@@ -167,7 +171,7 @@ public sealed partial class Game
 
     private int NationSpawnTile(int x, int y)
     {
-        const int Delta = 25;
+        int Delta = Rules.NationSpawnSpread;
         for (int tries = 0; tries < 50; tries++)
         {
             int tx = _rng.RangeInt(x - Delta, x + Delta), ty = _rng.RangeInt(y - Delta, y + Delta);
@@ -353,7 +357,7 @@ public sealed partial class Game
         player.SpawnArea.Clear();
 
         // Spread out over connected land only, so a spawn never jumps across a river.
-        int cx = tile % Map.Width, cy = tile / Map.Width, r = Balance.SpawnRadius;
+        int cx = tile % Map.Width, cy = tile / Map.Width, r = Rules.SpawnRadius;
         var frontier = new Queue<int>();
         var seen = new HashSet<int> { tile };
         frontier.Enqueue(tile);
@@ -381,7 +385,7 @@ public sealed partial class Game
     {
         // Best of many random tries: the spot furthest from existing spawns. On crowded
         // maps that may be closer than MinSpawnSpacing, which beats not spawning at all.
-        long wanted = (long)Balance.MinSpawnSpacing * Balance.MinSpawnSpacing;
+        long wanted = (long)Rules.MinSpawnSpacing * Rules.MinSpawnSpacing;
         int best = -1;
         long bestDist = -1;
         for (int tries = 0; tries < 80 && bestDist < wanted; tries++)
@@ -466,7 +470,7 @@ public sealed partial class Game
     {
         if (!Balance.Stackable(type) || tile < 0 || tile >= Map.TileCount)
             return null;
-        int spacing = Balance.MinBuildingSpacing, x = tile % Map.Width, y = tile / Map.Width;
+        int spacing = Rules.MinBuildingSpacing, x = tile % Map.Width, y = tile / Map.Width;
         Building? best = null;
         long bestDist = long.MaxValue;
         foreach (var b in _buildings.Values)
@@ -523,7 +527,7 @@ public sealed partial class Game
             return false;
         if (type == BuildingType.Port && !IsCoastal(tile))
             return false;
-        int spacing = Balance.MinBuildingSpacing, x = tile % Map.Width, y = tile / Map.Width;
+        int spacing = Rules.MinBuildingSpacing, x = tile % Map.Width, y = tile / Map.Width;
         foreach (var b in _buildings.Values)
         {
             int dx = b.Tile % Map.Width - x, dy = b.Tile / Map.Width - y;
@@ -608,13 +612,13 @@ public sealed partial class Game
         // If they have no coast near there on our waters, no boat goes at all.
         ushort targetOwner = Owner[tile];
         int cx = tile % Map.Width, cy = tile / Map.Width;
-        long reach2 = (long)Balance.BoatLandingSearchRadius * Balance.BoatLandingSearchRadius;
+        long reach2 = (long)Rules.BoatLandingSearchRadius * Rules.BoatLandingSearchRadius;
         int landing = -1, landingBody = Waterways.NoBody;
         var queue = new Queue<int>();
         var seen = new HashSet<int> { tile };
         queue.Enqueue(tile);
         Span<int> nb = stackalloc int[4];
-        while (queue.Count > 0 && seen.Count < Balance.BoatLandingSearchTiles)
+        while (queue.Count > 0 && seen.Count < Rules.BoatLandingSearchTiles)
         {
             int t = queue.Dequeue();
             int touching = ways.TouchingBodies(t, bodies);
@@ -674,7 +678,7 @@ public sealed partial class Game
                 _boats.RemoveAt(i--); // nobody left to land for
                 continue;
             }
-            boat.Progress += Balance.BoatSpeedPerTick;
+            boat.Progress += Rules.BoatSpeedPerTick;
             if (!boat.Arrived)
                 continue;
             _boats.RemoveAt(i--);
@@ -756,7 +760,7 @@ public sealed partial class Game
             for (int level = 0; level < candidates[i].Port.Level; level++)
             {
                 weighted.Add(candidates[i].Port);
-                if (i < bonus && candidates[i].Distance >= TradeRules.ShortRangeDebuffTiles)
+                if (i < bonus && candidates[i].Distance >= Rules.ShortRangeDebuffTiles)
                     weighted.Add(candidates[i].Port);
             }
         }
@@ -816,12 +820,12 @@ public sealed partial class Game
                 _tradeShips.RemoveAt(i--);
                 continue;
             }
-            ship.Progress += Balance.TradeShipSpeedPerTick;
+            ship.Progress += Rules.TradeShipSpeedPerTick;
             if (!ship.Arrived)
                 continue;
             _tradeShips.RemoveAt(i--);
 
-            long gold = TradeRules.Gold(ship.EarlierTiles + ship.Path.Length);
+            long gold = TradeRules.Gold((int)Math.Round((ship.EarlierTiles + ship.Path.Length) / Rules.Linear)); // in reference tiles
             if (ship.Captured)
             {
                 ship.Owner.Gold += gold; // the captor keeps it all
@@ -863,7 +867,7 @@ public sealed partial class Game
         var posts = _players[owner].DefensePosts;
         if (posts.Count == 0)
             return false;
-        int x = tile % Map.Width, y = tile / Map.Width, r = Balance.DefensePostRange;
+        int x = tile % Map.Width, y = tile / Map.Width, r = Rules.DefensePostRange;
         foreach (int post in posts)
         {
             int dx = post % Map.Width - x, dy = post / Map.Width - y;
@@ -962,7 +966,7 @@ public sealed partial class Game
 
     private bool FactoryNear(int tile)
     {
-        int x = tile % Map.Width, y = tile / Map.Width, r = RailRules.StationMaxRange;
+        int x = tile % Map.Width, y = tile / Map.Width, r = Rules.StationMaxRange;
         foreach (var s in _stations.Keys)
         {
             if (s.Type != BuildingType.Factory)
@@ -978,7 +982,7 @@ public sealed partial class Game
     private void OnFactoryBuilt(Building factory)
     {
         AddStation(factory);
-        int x = factory.Tile % Map.Width, y = factory.Tile / Map.Width, r = RailRules.StationMaxRange;
+        int x = factory.Tile % Map.Width, y = factory.Tile / Map.Width, r = Rules.StationMaxRange;
         var nearby = new List<(Building B, int D)>();
         foreach (var b in _buildings.Values)
         {
@@ -1009,7 +1013,7 @@ public sealed partial class Game
         _clustersDirty = true;
 
         int x = b.Tile % Map.Width, y = b.Tile / Map.Width;
-        int max = RailRules.StationMaxRange, min = RailRules.StationMinRange;
+        int max = Rules.StationMaxRange, min = Rules.StationMinRange;
         var nearby = new List<(Station S, int D)>();
         foreach (var other in _stations.Values)
         {
@@ -1087,12 +1091,16 @@ public sealed partial class Game
     // Rail search memory: a window of tiles around the start (a rail can't reach further),
     // with one search state per tile and heading (up, down, left, right), reused between
     // searches. A state's entries count only if its mark is the current search.
-    private const int RailWindow = 2 * RailRules.MaxRailLength + 3;
-    private readonly int[] _railCost = new int[RailWindow * RailWindow * 4];
-    private readonly int[] _railFrom = new int[RailWindow * RailWindow * 4];
-    private readonly int[] _railMark = new int[RailWindow * RailWindow * 4];
-    private readonly short[] _railSteps = new short[RailWindow * RailWindow * 4];
-    private readonly byte[] _railWater = new byte[RailWindow * RailWindow * 4];
+    private int RailWindow => 2 * Rules.MaxRailLength + 3;
+    private int[]? _railCostStore, _railFromStore, _railMarkStore;
+    private short[]? _railStepsStore;
+    private byte[]? _railWaterStore;
+    private int RailCells => RailWindow * RailWindow * 4;
+    private int[] _railCost => _railCostStore ??= new int[RailCells];
+    private int[] _railFrom => _railFromStore ??= new int[RailCells];
+    private int[] _railMark => _railMarkStore ??= new int[RailCells];
+    private short[] _railSteps => _railStepsStore ??= new short[RailCells];
+    private byte[] _railWater => _railWaterStore ??= new byte[RailCells];
     private readonly PriorityQueue<int, int> _railOpen = new();
     private int _railSearch;
     private static readonly int[] RailDx = { 0, 0, -1, 1 }, RailDy = { -1, 1, 0, 0 };
@@ -1106,14 +1114,14 @@ public sealed partial class Game
     private int[]? RailPath(int from, int to)
     {
         int w = Map.Width, h = Map.Height, tx = to % w, ty = to / w, fx = from % w, fy = from / w;
-        if (Math.Abs(tx - fx) + Math.Abs(ty - fy) + 1 > RailRules.MaxRailLength)
+        if (Math.Abs(tx - fx) + Math.Abs(ty - fy) + 1 > Rules.MaxRailLength)
             return null;
         int half = RailWindow / 2, ox = fx - half, oy = fy - half;
         int State(int x, int y, int dir) => ((y - oy) * RailWindow + (x - ox)) * 4 + dir;
         int Heuristic(int x, int y)
         {
             int dx = Math.Abs(x - tx), dy = Math.Abs(y - ty);
-            return RailRules.StepCost * (dx + dy) + (dx != 0 && dy != 0 ? RailRules.TurnCost : 0);
+            return RailRules.StepCost * (dx + dy) + (dx != 0 && dy != 0 ? Rules.RailTurnCost : 0);
         }
 
         int search = ++_railSearch;
@@ -1149,7 +1157,7 @@ public sealed partial class Game
                     continue; // no U-turns
                 if (onWater && nd != dir)
                     continue; // bridges run straight
-                int cost = g + (nd != dir ? RailRules.TurnCost : 0);
+                int cost = g + (nd != dir ? Rules.RailTurnCost : 0);
                 Visit(x, y, state, nd, cost, _railSteps[state], _railWater[state]);
             }
         }
@@ -1165,10 +1173,10 @@ public sealed partial class Game
             int n = Map.Index(nx, ny);
             bool water2 = Map.IsWater(n);
             int run = water2 ? water + 1 : 0;
-            if (run > RailRules.MaxBridgeTiles || (water2 && nx == tx && ny == ty))
+            if (run > Rules.MaxBridgeTiles || (water2 && nx == tx && ny == ty))
                 return;
             int nsteps = steps + 1;
-            if (nsteps + Math.Abs(nx - tx) + Math.Abs(ny - ty) + 1 > RailRules.MaxRailLength)
+            if (nsteps + Math.Abs(nx - tx) + Math.Abs(ny - ty) + 1 > Rules.MaxRailLength)
                 return; // can't reach the far station within the length limit from here
             int ng = cost + (water2 ? RailRules.BridgeStepCost : RailRules.StepCost);
             int s = State(nx, ny, dir);
@@ -1263,7 +1271,7 @@ public sealed partial class Game
                 _trains.RemoveAt(i--);
                 continue;
             }
-            train.Progress += RailRules.TrainSpeedPerTick;
+            train.Progress += Rules.TrainSpeedPerTick;
             int at = (int)Math.Min(train.Progress / 1000, train.Tiles.Length - 1);
             while (train.NextStop < train.Stops.Length && at >= train.StopTileIndex[train.NextStop])
             {
@@ -1362,7 +1370,7 @@ public sealed partial class Game
         int body = Waterways.Body[tile];
         int x = tile % Map.Width, y = tile / Map.Width;
         Building? best = null;
-        long bestDist = (long)WarshipRules.MaxDistanceFromPort * WarshipRules.MaxDistanceFromPort + 1;
+        long bestDist = (long)Rules.WarshipMaxDistanceFromPort * Rules.WarshipMaxDistanceFromPort + 1;
         foreach (var port in _ports.Keys)
         {
             if (port.Owner != player.Id || !port.IsReady(Tick) || Waterways.ShoreWater(port.Tile, body) < 0)
@@ -1420,7 +1428,7 @@ public sealed partial class Game
     private bool NearOwnPort(Warship ship)
     {
         int x = ship.Tile % Map.Width, y = ship.Tile / Map.Width;
-        long range = (long)WarshipRules.HealRange * WarshipRules.HealRange;
+        long range = (long)Rules.WarshipHealRange * Rules.WarshipHealRange;
         foreach (var port in _ports.Keys)
         {
             if (port.Owner != ship.Owner.Id)
@@ -1444,7 +1452,7 @@ public sealed partial class Game
     private object? FindTarget(Warship ship)
     {
         int x = ship.Tile % Map.Width, y = ship.Tile / Map.Width;
-        long range = (long)WarshipRules.TargetRange * WarshipRules.TargetRange;
+        long range = (long)Rules.WarshipTargetRange * Rules.WarshipTargetRange;
         long Dist(int tile)
         {
             long dx = tile % Map.Width - x, dy = tile / Map.Width - y;
@@ -1465,7 +1473,7 @@ public sealed partial class Game
             return best;
 
         int px = ship.PatrolTile % Map.Width, py = ship.PatrolTile / Map.Width;
-        long patrol = (long)WarshipRules.PatrolRange * WarshipRules.PatrolRange;
+        long patrol = (long)Rules.WarshipPatrolRange * Rules.WarshipPatrolRange;
         foreach (var t in _tradeShips)
         {
             // Leave alone ships that are trading with us, or already taken.
@@ -1495,7 +1503,7 @@ public sealed partial class Game
         ship.LastShotTick = Tick;
         int dx = targetTile % Map.Width - ship.Tile % Map.Width, dy = targetTile / Map.Width - ship.Tile / Map.Width;
         int distance = (int)Math.Sqrt((double)dx * dx + (double)dy * dy);
-        int flight = Math.Max(1, (distance + WarshipRules.ShellTilesPerTick - 1) / WarshipRules.ShellTilesPerTick);
+        int flight = Math.Max(1, (distance + Rules.WarshipShellTilesPerTick - 1) / Rules.WarshipShellTilesPerTick);
         int damage = ship.Rng.RangeInt(WarshipRules.MinShellDamage, WarshipRules.MaxShellDamage);
         _shells.Add(new Shell(ship, target, ship.Tile, Tick, Tick + flight, damage));
     }
@@ -1523,10 +1531,10 @@ public sealed partial class Game
     /// <summary>Chase a trade ship; once alongside, capture it and sail it to our nearest port.</summary>
     private void Hunt(Warship ship, TradeShip trade)
     {
-        for (int step = 0; step < WarshipRules.ChaseTilesPerTick; step++)
+        for (int step = 0; step < Rules.WarshipChaseTilesPerTick; step++)
         {
             int dx = Math.Abs(trade.Tile % Map.Width - ship.Tile % Map.Width), dy = Math.Abs(trade.Tile / Map.Width - ship.Tile / Map.Width);
-            if (dx + dy <= WarshipRules.CaptureRange)
+            if (dx + dy <= Rules.WarshipCaptureRange)
             {
                 Capture(ship, trade);
                 return;
@@ -1602,8 +1610,8 @@ public sealed partial class Game
             int px = ship.PatrolTile % Map.Width, py = ship.PatrolTile / Map.Width, body = Waterways.Body[ship.Tile];
             for (int tries = 0; tries < 12 && ship.Path is null; tries++)
             {
-                int x = px + ship.Rng.RangeInt(-WarshipRules.PatrolRange, WarshipRules.PatrolRange);
-                int y = py + ship.Rng.RangeInt(-WarshipRules.PatrolRange, WarshipRules.PatrolRange);
+                int x = px + ship.Rng.RangeInt(-Rules.WarshipPatrolRange, Rules.WarshipPatrolRange);
+                int y = py + ship.Rng.RangeInt(-Rules.WarshipPatrolRange, Rules.WarshipPatrolRange);
                 if (x < 0 || y < 0 || x >= Map.Width || y >= Map.Height)
                     continue;
                 int goal = Map.Index(x, y);
@@ -1614,7 +1622,7 @@ public sealed partial class Game
             if (ship.Path is null)
                 return;
         }
-        for (int step = 0; step < WarshipRules.TilesPerTick && ship.PathIndex < ship.Path.Length - 1; step++)
+        for (int step = 0; step < Rules.WarshipTilesPerTick && ship.PathIndex < ship.Path.Length - 1; step++)
             ship.Tile = ship.Path[++ship.PathIndex];
     }
 

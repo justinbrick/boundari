@@ -88,12 +88,12 @@ public static class AttackRules
         return tenths;
     }
 
-    /// <summary>~1 for small territories, easing to 1 - depth for huge ones (halfway at 300k tiles).</summary>
-    public static double LargeTerritoryBonus(int tiles, double depth)
+    /// <summary>~1 for small territories, easing to 1 - depth for huge ones (halfway at the midpoint: 300k reference tiles).</summary>
+    public static double LargeTerritoryBonus(int tiles, double depth, double midpoint = LargeTerritoryMidpoint)
     {
         if (tiles <= 0)
             return 1;
-        double r = Math.Pow(tiles / LargeTerritoryMidpoint, LargeTerritorySteepness); // = e^(2.5 (ln n - ln 300k))
+        double r = Math.Pow(tiles / midpoint, LargeTerritorySteepness); // = e^(2.5 (ln n - ln midpoint))
         return 1 - depth * (r / (1 + r));
     }
 }
@@ -290,7 +290,7 @@ public sealed partial class Game
                 if (defender is not null)
                     defender.Troops = Math.Max(0, defender.Troops - (long)defenderLoss);
                 SetOwner(tile, attacker.Id);
-                if (defender is not null && defender.TileCount > 0 && defender.TileCount < Balance.ConquerBelowTiles)
+                if (defender is not null && defender.TileCount > 0 && defender.TileCount < Rules.ConquerBelowTiles)
                     Conquer(attacker, defender);
             }
         }
@@ -322,19 +322,23 @@ public sealed partial class Game
             tileCost *= fallout;
         }
 
+        // Finer tiles (see ScaledRules): each tile is a smaller share of the land, so it costs
+        // that much fewer troops (base costs over Area) and takes that much less time (the
+        // front is Linear times longer already, so the rest comes off each tile's time).
         var attacker = attack.Attacker;
+        double area = Rules.Area, linear = Rules.Linear;
         if (defender is null)
         {
-            double loss = mag / (attacker.IsBot ? 10 : 5);
+            double loss = mag / (attacker.IsBot ? 10 : 5) / area;
             double cost = Math.Clamp(AttackRules.TerraNulliusCostScale * tileCost / attackTroops,
                 AttackRules.TerraNulliusMinCost, AttackRules.TerraNulliusMaxCost);
-            return (loss, 0, cost / (borderSize * 2.0));
+            return (loss, 0, cost / (borderSize * 2.0) / linear);
         }
 
         if (!attacker.IsBot && defender.IsBot)
             mag *= AttackRules.BotDefenderLossMult;
-        double largeAttacker = AttackRules.LargeTerritoryBonus(attacker.TileCount, AttackRules.LargeAttackerDepth);
-        double largeDefender = AttackRules.LargeTerritoryBonus(defender.TileCount, AttackRules.LargeDefenderDepth);
+        double largeAttacker = AttackRules.LargeTerritoryBonus(attacker.TileCount, AttackRules.LargeAttackerDepth, Rules.LargeTerritoryMidpoint);
+        double largeDefender = AttackRules.LargeTerritoryBonus(defender.TileCount, AttackRules.LargeDefenderDepth, Rules.LargeTerritoryMidpoint);
         bool traitor = IsTraitor(defender);
         double traitorLoss = traitor ? AllianceRules.TraitorTroopLossPercent / 100.0 : 1;
         double traitorCost = traitor ? AllianceRules.TraitorTravelPercent / 100.0 : 1;
@@ -342,9 +346,9 @@ public sealed partial class Game
         double defenderLoss = (double)defender.Troops / Math.Max(1, defender.TileCount);
         double ratio = defender.Troops / attackTroops;
         double attackerLoss = mag * traitorLoss * Math.Clamp(ratio, AttackRules.CheapestTroopRatio, 2)
-            * (AttackRules.AttackerLossBase * largeAttacker * largeDefender + AttackRules.AttackerLossPerDensity * defenderLoss);
+            * (AttackRules.AttackerLossBase * largeAttacker * largeDefender / area + AttackRules.AttackerLossPerDensity * defenderLoss);
         double speedCost = Math.Clamp(ratio, 0.82, 7.5) * Math.Clamp(ratio / 20, 1, 50) / AttackRules.SpeedCostDivisor;
-        double largeAttackerSpeed = AttackRules.LargeTerritoryBonus(attacker.TileCount, AttackRules.LargeAttackerSpeedDepth);
-        return (attackerLoss, defenderLoss, speedCost * tileCost * largeAttackerSpeed * largeDefender * traitorCost / borderSize);
+        double largeAttackerSpeed = AttackRules.LargeTerritoryBonus(attacker.TileCount, AttackRules.LargeAttackerSpeedDepth, Rules.LargeTerritoryMidpoint);
+        return (attackerLoss, defenderLoss, speedCost * tileCost * largeAttackerSpeed * largeDefender * traitorCost / borderSize / linear);
     }
 }

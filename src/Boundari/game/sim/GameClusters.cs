@@ -31,7 +31,7 @@ public sealed partial class Game
                 continue;
             if (p.LastClusterCalc == int.MinValue)
                 p.LastClusterCalc = id % TicksPerClusterCalc - TicksPerClusterCalc; // as if set at the start; staggers players, like OpenFront
-            if (Tick - p.LastClusterCalc <= TicksPerClusterCalc && p.TileCount >= Balance.ConquerBelowTiles)
+            if (Tick - p.LastClusterCalc <= TicksPerClusterCalc && p.TileCount >= Rules.ConquerBelowTiles)
                 continue;
             if (p.LastLandChange < p.LastClusterCalc)
                 continue;

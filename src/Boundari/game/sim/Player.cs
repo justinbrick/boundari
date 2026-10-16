@@ -67,10 +67,14 @@ public sealed class Player
     /// <summary>Troops gained over the last second, for the HUD.</summary>
     public long TroopsPerSecond { get; internal set; }
 
-    public long MaxTroops => Balance.MaxTroops(TileCount, CityLevels, Kind, Difficulty);
+    public long MaxTroops => Balance.MaxTroops(ReferenceTiles, CityLevels, Kind, Difficulty);
 
     /// <summary>Same, without what cities add.</summary>
-    public long MaxTroopsWithoutCities => Balance.MaxTroops(TileCount, 0, Kind, Difficulty);
+    public long MaxTroopsWithoutCities => Balance.MaxTroops(ReferenceTiles, 0, Kind, Difficulty);
+
+    /// <summary>The map's tiles per reference tile, squared (see ScaledRules): troop caps count land in reference tiles.</summary>
+    internal double AreaScale { get; init; } = 1;
+    private int ReferenceTiles => AreaScale == 1 ? TileCount : (int)Math.Round(TileCount / AreaScale);
 
     /// <summary>Attacks and boats this player has sent (someone who never fought gives up no gold when conquered).</summary>
     internal int AttacksSent;

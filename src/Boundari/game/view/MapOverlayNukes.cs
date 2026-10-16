@@ -82,7 +82,7 @@ public partial class MapOverlay
         // Where it will land (people see bombs coming): the blast circle, red if it's coming for you.
         if (n.Type != NukeType.TsarBomba)
         {
-            var (inner, outer) = NukeRules.Blast(n.Type);
+            var (inner, outer) = _game!.Rules.Blast(n.Type);
             var target = TileCentre(n.To, w);
             var ring = atMe ? DangerRed : mine ? new Color(1, 1, 1, 0.8f) : new Color(colour, 0.8f);
             if (n.Type != NukeType.Warhead || atMe || mine)
@@ -162,7 +162,7 @@ public partial class MapOverlay
                 DrawArc(at, r * 1.4f, 0, Mathf.Tau, 24, new Color(1, 0.8f, 0.4f, 0.8f * (1 - age / 0.8f)), 1.5f / zoom, true);
                 continue;
             }
-            int outer = NukeRules.Blast(e.Type).Outer;
+            int outer = _game!.Rules.Blast(e.Type).Outer;
             float grow = Math.Min(1, age / 0.35f);
             float fade = Math.Clamp(1 - (age - 0.3f) / 1.7f, 0, 1);
             if (fade > 0)
@@ -185,12 +185,12 @@ public partial class MapOverlay
         var tint = _aimValid ? new Color(1f, 0.85f, 0.3f) : DangerRed;
         if (type == NukeType.TsarBomba)
         {
-            DrawArc(at, NukeRules.MirvRange, 0, Mathf.Tau, 128, new Color(tint, 0.5f), 1.5f / zoom, true);
+            DrawArc(at, _game!.Rules.MirvRange, 0, Mathf.Tau, 128, new Color(tint, 0.5f), 1.5f / zoom, true);
             DrawCircle(at, 20, new Color(tint, 0.35f));
         }
         else
         {
-            var (inner, outer) = NukeRules.Blast(type);
+            var (inner, outer) = _game!.Rules.Blast(type);
             DrawCircle(at, outer, new Color(tint, 0.12f));
             DrawCircle(at, inner, new Color(tint, 0.28f));
             DrawArc(at, outer, 0, Mathf.Tau, 64, new Color(tint, 0.8f), 1.5f / zoom, true);
@@ -200,7 +200,7 @@ public partial class MapOverlay
             int sx = silo.Tile % w, sy = silo.Tile / w;
             int tx = type == NukeType.TsarBomba ? (_aimTile % w + sx) / 2 : _aimTile % w;
             int ty = type == NukeType.TsarBomba ? Math.Max(0, _aimTile / w - 500) + 50 : _aimTile / w;
-            var (xs, ys) = NukeRules.Arc(sx, sy, tx, ty, _game.Map.Height, 3);
+            var (xs, ys) = NukeRules.Arc(sx, sy, tx, ty, _game.Map.Height, 3, _game.Rules.NukeArcMinHeight);
             var points = new List<Vector2>(xs.Length + 1) { TileCentre(silo.Tile, w) };
             for (int i = 0; i < xs.Length; i++)
                 points.Add(new Vector2(xs[i], ys[i]));

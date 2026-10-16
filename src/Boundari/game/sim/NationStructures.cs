@@ -37,13 +37,13 @@ internal sealed class NationStructures
     private const int MaxSilos = 3;
 
     // Spacing used to score spots: OpenFront uses the atom bomb's outer radius (30 tiles).
-    private const int BorderSpacing = 30;
-    private const int StructureSpacing = BorderSpacing * 2;
+    private readonly int BorderSpacing;   // 30 tiles on the reference map (see ScaledRules)
+    private readonly int StructureSpacing;
 
     private const int SampleTiles = 25;
-    private const double UpgradeDensity = 1.0 / 1500; // buildings per tile above which it stacks instead
-    private const int MinPortWater = 3000;            // ignore ponds smaller than this for ports
-    private const double HighNationDensity = 1.0 / 7500;
+    private readonly double UpgradeDensity; // buildings per tile above which it stacks instead (1/1500 on the reference map)
+    private readonly int MinPortWater;      // ignore ponds smaller than this for ports (3000 tiles on the reference map)
+    private readonly double HighNationDensity;
     private const int PostSaveUpPhaseTicks = 15 * Balance.TicksPerSecond;
 
     // Defense posts (OpenFront).
@@ -57,6 +57,11 @@ internal sealed class NationStructures
         _player = player;
         _rng = rng;
         _difficulty = game.Difficulty;
+        BorderSpacing = game.Rules.D(30);
+        StructureSpacing = BorderSpacing * 2;
+        UpgradeDensity = 1.0 / 1500 / game.Rules.Area;
+        MinPortWater = game.Rules.A(3000);
+        HighNationDensity = 1.0 / 7500 / game.Rules.Area;
     }
 
     // ---- Difficulty tables (OpenFront) ----
@@ -286,7 +291,7 @@ internal sealed class NationStructures
             double score = 0;
             foreach (var sam in sams)
             {
-                double r = Balance.SamRange(sam.Level);
+                double r = _game.Rules.SamRange(sam.Level);
                 if (DistSq(b.Tile, sam.Tile) <= r * r)
                     score += 10 + (sam.Level - 1) * 7.5;
             }
@@ -328,7 +333,7 @@ internal sealed class NationStructures
     {
         BuildingType.Port => PortValue(),
         BuildingType.City => InteriorValue(BuildingType.City, BuildingType.Factory, StructureSpacing),
-        BuildingType.Factory => InteriorValue(BuildingType.Factory, BuildingType.City, RailRules.StationMaxRange),
+        BuildingType.Factory => InteriorValue(BuildingType.Factory, BuildingType.City, _game.Rules.StationMaxRange),
         BuildingType.Silo => InteriorValue(BuildingType.Silo, null, StructureSpacing),
         BuildingType.Sam => SamValue(),
         _ => _ => 0,
@@ -375,7 +380,7 @@ internal sealed class NationStructures
         foreach (var b in _game.BuildingsOf(_player))
             if (b.Type is BuildingType.City or BuildingType.Factory or BuildingType.Silo or BuildingType.Port)
                 protect.Add((b.Tile, byLevel ? b.Level : 1));
-        double range = Balance.SamRange(1);
+        double range = _game.Rules.SamRange(1);
         return t =>
         {
             double w = Height(t) + Math.Min(BorderDistance(t, BorderSpacing), BorderSpacing);
@@ -411,8 +416,8 @@ internal sealed class NationStructures
     /// <summary>Sum over rail networks within station range of the best stop weight on each.</summary>
     private double Connectivity(int tile, List<(int Tile, int Cluster, double Weight)> stations)
     {
-        long min = (long)RailRules.StationMinRange * RailRules.StationMinRange;
-        long max = (long)RailRules.StationMaxRange * RailRules.StationMaxRange;
+        long min = (long)_game.Rules.StationMinRange * _game.Rules.StationMinRange;
+        long max = (long)_game.Rules.StationMaxRange * _game.Rules.StationMaxRange;
         var best = new Dictionary<int, double>();
         double lone = 0;
         foreach (var (t, cluster, weight) in stations)
@@ -545,7 +550,7 @@ internal sealed class NationStructures
             return false;
 
         int allowed = _difficulty == Difficulty.Medium ? 1 : (int)Math.Ceiling(ratio / DefensePostsPerRatio);
-        double range = Balance.DefensePostRange;
+        double range = _game.Rules.DefensePostRange;
         double scaled = _difficulty == Difficulty.Medium ? 0 : Math.Min(ratio, 2);
         double minDist = range * (2.0 / 3 + scaled / 3);
         double maxDist = minDist + range / 2;
@@ -601,7 +606,7 @@ internal sealed class NationStructures
         if (front.Count == 0)
             return -1;
         var posts = TilesOf(BuildingType.Defense);
-        double spread = Balance.DefensePostRange * 1.5, spread2 = spread * spread;
+        double spread = _game.Rules.DefensePostRange * 1.5, spread2 = spread * spread;
         bool NearPost(int t) => posts.Exists(p => DistSq(t, p) < spread2);
 
         var anchors = front.FindAll(f => !NearPost(f));

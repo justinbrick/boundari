@@ -100,6 +100,9 @@ public partial class MapView : Sprite2D
         _material.SetShaderParameter("terrain_tex", terrainTexture);
 
         _material.SetShaderParameter("map_size", new Vector2(w, h));
+        // Shorelines are sized in tiles: keep them the same on the ground on finer maps.
+        _material.SetShaderParameter("shoreline_tiles", 0.32f * (float)map.TileScale);
+        _material.SetShaderParameter("shore_glow_tiles", 2.5f * (float)map.TileScale);
         UploadCover(map);
 
         _territory = new TerritoryTextures(map);

@@ -111,21 +111,21 @@ public static class NukeRules
     /// Troops a player loses for each tile a bomb takes from them (OpenFront's nukeDeathFactor):
     /// a share of their troops per tile for big bombs; warheads hurt only big armies much.
     /// </summary>
-    public static double Deaths(NukeType type, double troops, int tilesLeft, long maxTroops)
+    public static double Deaths(NukeType type, double troops, int tilesLeft, long maxTroops, double areaScale = 1)
     {
         if (type != NukeType.Warhead)
             return 5 * troops / Math.Max(1, tilesLeft);
         double excess = Math.Max(0, troops - 0.03 * maxTroops);
-        return 500 * (1 - Math.Exp(-2 * excess / Math.Max(1, maxTroops)));
+        return 500 * (1 - Math.Exp(-2 * excess / Math.Max(1, maxTroops))) / areaScale; // per tile: finer tiles, fewer each
     }
 
     /// <summary>
     /// The arc a bomb flies (OpenFront's parabola): a cubic curve bulging "up" the map by a
     /// third of the distance (at least 50 tiles), walked <paramref name="step"/> tiles at a time.
     /// </summary>
-    public static (float[] X, float[] Y) Arc(int fromX, int fromY, int toX, int toY, int mapHeight, double step, bool clampToMap = true)
+    public static (float[] X, float[] Y) Arc(int fromX, int fromY, int toX, int toY, int mapHeight, double step, double minHeight = 50, bool clampToMap = true)
     {
-        var (p1, p2) = ControlPoints(fromX, fromY, toX, toY, mapHeight, clampToMap);
+        var (p1, p2) = ControlPoints(fromX, fromY, toX, toY, mapHeight, clampToMap, minHeight);
         double length = ArcLength(fromX, fromY, p1, p2, toX, toY, out var samples);
         var xs = new List<float>();
         var ys = new List<float>();
@@ -146,16 +146,16 @@ public static class NukeRules
     }
 
     /// <summary>Length of the arc between two tiles (as a bomb would fly it without the map's top edge in the way).</summary>
-    public static double ArcLength(int fromX, int fromY, int toX, int toY)
+    public static double ArcLength(int fromX, int fromY, int toX, int toY, double minHeight = 50)
     {
-        var (p1, p2) = ControlPoints(fromX, fromY, toX, toY, 0, clamp: false);
+        var (p1, p2) = ControlPoints(fromX, fromY, toX, toY, 0, clamp: false, minHeight);
         return ArcLength(fromX, fromY, p1, p2, toX, toY, out _);
     }
 
-    private static ((double X, double Y), (double X, double Y)) ControlPoints(int fx, int fy, int tx, int ty, int mapHeight, bool clamp)
+    private static ((double X, double Y), (double X, double Y)) ControlPoints(int fx, int fy, int tx, int ty, int mapHeight, bool clamp, double minHeight)
     {
         double dx = tx - fx, dy = ty - fy;
-        double height = Math.Max(Math.Sqrt(dx * dx + dy * dy) / 3, 50);
+        double height = Math.Max(Math.Sqrt(dx * dx + dy * dy) / 3, minHeight);
         double p1y = fy + dy / 4 - height, p2y = fy + dy * 3 / 4 - height;
         if (clamp)
         {

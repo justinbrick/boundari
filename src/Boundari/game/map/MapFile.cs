@@ -62,7 +62,7 @@ public static class MapFile
         int width = r.ReadInt32();
         int height = r.ReadInt32();
         ulong seed = r.ReadUInt64();
-        var map = new GameMap(width, height, seed) { Name = name };
+        var map = new GameMap(width, height, seed) { Name = name, TileScale = GameMap.TileScaleFor(name, width) };
         if (version >= 2 && r.ReadBoolean())
             map.Geo = new MapGeo(r.ReadDouble(), r.ReadDouble(), r.ReadDouble(), r.ReadDouble(), r.ReadDouble());
         if (version >= 3 && r.ReadBoolean())

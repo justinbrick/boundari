@@ -33,7 +33,7 @@ public partial class TerritoryLabels : Node2D
     private const float TroopLineOffset = 0.91f;        // troop line's middle below the name's, in font sizes
     private const float TroopScale = 20f / 32;
     private const float HoverFadeAlpha = 0.5f;          // OpenFront's see-through name plate under the mouse
-    private const int NearShoreWater = 10;              // water this close to land counts as room
+    private const int NearShoreWater = 10;              // water this close to land counts as room (reference tiles)
     // Mockup values at their font sizes (name 32, troops 20), as shares of the font size.
     private const float NameSpacing = 8f / 32, TroopSpacing = 4f / 20;
     private const float NameOutline = 4f / 32, TroopOutline = 3f / 20;
@@ -115,6 +115,7 @@ public partial class TerritoryLabels : Node2D
     /// <summary>Land tiles on a coast, and water within <see cref="NearShoreWater"/> tiles of land.</summary>
     private static bool[] RoomAroundCoasts(GameMap map)
     {
+        int nearShore = Math.Max(1, (int)Math.Round(NearShoreWater * map.TileScale));
         int w = map.Width, h = map.Height;
         var room = new bool[map.TileCount];
         var dist = new byte[map.TileCount];
@@ -134,7 +135,7 @@ public partial class TerritoryLabels : Node2D
         while (queue.Count > 0)
         {
             int t = queue.Dequeue(), d = dist[t] + 1, x = t % w, y = t / w;
-            if (d >= NearShoreWater)
+            if (d >= nearShore)
                 continue;
             if (x > 0) Visit(t - 1);
             if (x < w - 1) Visit(t + 1);

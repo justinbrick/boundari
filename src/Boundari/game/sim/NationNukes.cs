@@ -30,11 +30,10 @@ internal sealed class NationNukes
     private const double StrikeMinTroopRatio = 0.5;
     private const double CrownNearWinShare = 0.5;
     private const int FullCoverageValue = 50_000;
-    private const int StrikeBorderMargin = 10;
+    private readonly int StrikeBorderMargin;   // 10 tiles on the reference map
     private const int RecentNukeMemoryTicks = 600;
     private const int MirvCooldownTicks = 300;
     private const int MirvCoverageSamples = 40;
-    private const int LandTilesPerWarhead = 2000;
 
     public NationNukes(Game game, Player player, Rng rng)
     {
@@ -42,6 +41,7 @@ internal sealed class NationNukes
         _player = player;
         _rng = rng;
         _difficulty = game.Difficulty;
+        StrikeBorderMargin = game.Rules.D(10);
     }
 
     private static double MinCoverage(NukeType type) => type == NukeType.Moab ? 0.25 : 0.4;
@@ -221,7 +221,7 @@ internal sealed class NationNukes
 
     private int BestTile(NukeType type, Player target, List<int> candidates, List<Building> silos, List<Building> structures, bool strike)
     {
-        int outer = NukeRules.Blast(type).Outer;
+        int outer = _game.Rules.Blast(type).Outer;
         var scored = new List<(int Tile, double Score)>();
         foreach (int tile in candidates)
         {
@@ -283,7 +283,7 @@ internal sealed class NationNukes
     /// <summary>Worth of the buildings in the blast, less a little for distance from our silo and a lot for re-bombing a spot.</summary>
     private double TileValue(int tile, List<Building> silos, List<Building> structures, NukeType type)
     {
-        int outer = NukeRules.Blast(type).Outer;
+        int outer = _game.Rules.Blast(type).Outer;
         double value = 0;
         foreach (var b in structures)
             if (AiTiles.DistSq(_game, b.Tile, tile) <= (long)outer * outer)
@@ -309,7 +309,7 @@ internal sealed class NationNukes
 
         foreach (var (_, recentTile, recentType) in _recent)
         {
-            int inner = NukeRules.Blast(recentType).Inner;
+            int inner = _game.Rules.Blast(recentType).Inner;
             if (AiTiles.DistSq(_game, tile, recentTile) <= (long)inner * inner)
                 value -= 1_000_000;
         }
@@ -319,7 +319,7 @@ internal sealed class NationNukes
     /// <summary>Share of the blast area (inner circle counted double) that is enemy land.</summary>
     private double EnemyCoverage(int center, NukeType type)
     {
-        var (inner, outer) = NukeRules.Blast(type);
+        var (inner, outer) = _game.Rules.Blast(type);
         var map = _game.Map;
         int step = Math.Max(1, outer / 10), cx = center % map.Width, cy = center / map.Width;
         double total = 0, enemy = 0;
@@ -343,7 +343,7 @@ internal sealed class NationNukes
     private bool BlastHitsOwnLand(int center, NukeType type, int margin)
     {
         var map = _game.Map;
-        int outer = NukeRules.Blast(type).Outer + margin, cx = center % map.Width, cy = center / map.Width;
+        int outer = _game.Rules.Blast(type).Outer + margin, cx = center % map.Width, cy = center / map.Width;
         for (int dy = -outer; dy <= outer; dy++)
             for (int dx = -outer; dx <= outer; dx++)
                 if (dx * dx + dy * dy <= outer * outer && map.InBounds(cx + dx, cy + dy)
@@ -354,12 +354,12 @@ internal sealed class NationNukes
 
     private bool AlreadyLandingNear(int tile, NukeType type)
     {
-        int inner = NukeRules.Blast(type).Inner;
+        int inner = _game.Rules.Blast(type).Inner;
         foreach (var n in _game.Nukes)
         {
             if (n.Gone || n.Type == NukeType.TsarBomba)
                 continue;
-            long sum = inner + NukeRules.Blast(n.Type).Inner;
+            long sum = inner + _game.Rules.Blast(n.Type).Inner;
             if (AiTiles.DistSq(_game, tile, n.To) <= sum * sum)
                 return true;
         }
@@ -370,7 +370,7 @@ internal sealed class NationNukes
     {
         foreach (var b in _game.Buildings)
             if (b.Type == BuildingType.Sam && b.Owner != _player.Id
-                && AiTiles.DistSq(_game, b.Tile, tile) <= (long)Balance.SamRange(b.Level) * Balance.SamRange(b.Level))
+                && AiTiles.DistSq(_game, b.Tile, tile) <= (long)_game.Rules.SamRange(b.Level) * _game.Rules.SamRange(b.Level))
                 return true;
         return false;
     }
@@ -613,7 +613,7 @@ internal sealed class NationNukes
     /// <summary>Estimated share of warheads that SAMs (each shooting its level in warheads) would miss.</summary>
     private static double LeakShare(Game game, Player attacker, Player target, Rng rng)
     {
-        double warheads = Math.Min(NukeRules.MirvWarheads, Math.Max(1, target.TileCount / (double)LandTilesPerWarhead));
+        double warheads = Math.Min(NukeRules.MirvWarheads, Math.Max(1, target.TileCount / (double)game.Rules.A(2000))); // 2000 reference tiles a warhead
         var samples = AiTiles.RandomTerritory(game, target, rng, MirvCoverageSamples);
         if (samples.Count == 0)
             return 1;
@@ -630,7 +630,7 @@ internal sealed class NationNukes
             bool any = false;
             foreach (var sam in sams)
             {
-                long r = Balance.SamRange(sam.Level);
+                long r = game.Rules.SamRange(sam.Level);
                 if (AiTiles.DistSq(game, tile, sam.Tile) > r * r)
                     continue;
                 inRange[sam] = inRange.GetValueOrDefault(sam) + perSample;

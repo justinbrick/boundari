@@ -33,7 +33,7 @@ internal sealed class BotAi : IPlayerAi
     private bool _emptyLandNearby = true; // until a look finds none left
 
     // OpenFront: a boat grabs empty land at most this many tiles out to sea, with a fifth of the troops.
-    private const int BoatReach = 5;
+    private readonly int BoatReach; // tiles across a strait (5 on the reference map)
     private const int BoatTroopsPercent = 20;
     private const int CoastSampleStep = 10;
 
@@ -42,6 +42,7 @@ internal sealed class BotAi : IPlayerAi
         _game = game;
         _player = player;
         _rng = rng;
+        BoatReach = game.Rules.D(5);
         _attackRate = rng.RangeInt(40, 79);
         _attackTick = rng.RangeInt(0, _attackRate - 1);
         _triggerPercent = rng.RangeInt(50, 59);

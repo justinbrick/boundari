@@ -135,4 +135,33 @@ public class AttackTests
         Assert.Equal(fieldLoss * 1.5, forestLoss, 6);
         Assert.Equal(fieldFrac * 2, forestFrac, 9);
     }
+
+    [Fact]
+    public void FinerMaps_ScaleOpenFrontsTileNumbers()
+    {
+        var rules = new ScaledRules(2);
+        Assert.Equal(60, rules.DefensePostRange);           // distances double
+        Assert.Equal(400, rules.ConquerBelowTiles);         // tile counts quadruple
+        Assert.Equal(Balance.SamRange(1) * 2, rules.SamRange(1));
+
+        // Empty land on a map with tiles half as wide: a quarter of the troops a tile, half the time.
+        var map = MapGenerator.Generate(9, new MapGenSettings { Width = 100, Height = 60, MinIslandTiles = 8, MinLakeTiles = 30 });
+        int plain = Enumerable.Range(0, map.TileCount).First(t => map.Terrain[t] == TerrainType.Plains);
+        var logic = typeof(Game).GetMethod("AttackLogic", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        (double Loss, double Frac) Logic(double scale)
+        {
+            map.TileScale = scale;
+            var game = new Game(map, 1);
+            var a = game.AddPlayer("A");
+            var attack = (Attack)typeof(Attack).GetConstructors(BindingFlags.NonPublic | BindingFlags.Instance)[0]
+                .Invoke(new object[] { a, (ushort)0, 3_000L, -1, new Boundari.Core.Rng(1) });
+            var (loss, _, frac) = ((double, double, double))logic.Invoke(game, new object[] { attack, plain, null!, 3_000.0, 40 })!;
+            return (loss, frac);
+        }
+        var normal = Logic(1);
+        var fine = Logic(2);
+        map.TileScale = 1;
+        Assert.Equal(normal.Loss / 4, fine.Loss, 6);
+        Assert.Equal(normal.Frac / 2, fine.Frac, 9);
+    }
 }

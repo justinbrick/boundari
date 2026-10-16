@@ -54,9 +54,11 @@ public sealed class Waterways
     /// <summary>Tiles in each body of water.</summary>
     public readonly int[] BodySize;
 
-    public Waterways(GameMap map)
+    public Waterways(GameMap map, double tileScale = 1)
     {
         _map = map;
+        ShoreMargin = Math.Max(1, (int)Math.Round(BaseShoreMargin * tileScale));
+        CellMargin = Math.Max(1, (int)Math.Round(BaseCellMargin * tileScale));
         Body = new int[map.TileCount];
         Array.Fill(Body, NoBody);
         var queue = new int[map.TileCount];
@@ -122,7 +124,8 @@ public sealed class Waterways
     // Boats keep their distance from land when there's room: each step within ShoreMargin
     // tiles of a coast costs extra, more the closer it is (so in a river or strait they
     // take the middle). Distances are worked out once, when the map loads.
-    private const int ShoreMargin = 18;
+    private const int BaseShoreMargin = 18;    // tiles, on the reference map (scaled by the tile scale)
+    private readonly int ShoreMargin;
     private const int ShorePenaltyPerTile = 3; // extra cost per step, per tile closer than the margin
     private byte[] _shoreDist = Array.Empty<byte>(); // water tiles: tiles to the nearest land (capped at ShoreMargin)
 
@@ -184,7 +187,8 @@ public sealed class Waterways
 
     // The rough route keeps off coasts too (else its corridor would hug them): steps into
     // cells within CellMargin cells of land cost extra, more the closer they are.
-    private const int CellMargin = 3;
+    private const int BaseCellMargin = 3;
+    private readonly int CellMargin;
     private const int CellCoastPenalty = 8;
     private int _cellsWide, _cellsHigh;
 
@@ -350,7 +354,7 @@ public sealed class Waterways
                         continue; // don't squeeze diagonally between two land tiles
                     if (mark[n] == closed)
                         continue;
-                    int ng = g + (dx != 0 && dy != 0 ? 14 : 10) + (ShoreMargin - shore[n]) * ShorePenaltyPerTile;
+                    int ng = g + (dx != 0 && dy != 0 ? 14 : 10) + (_w.ShoreMargin - shore[n]) * ShorePenaltyPerTile;
                     if (mark[n] == seen && cost[n] <= ng)
                         continue;
                     mark[n] = seen;

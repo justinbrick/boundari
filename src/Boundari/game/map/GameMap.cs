@@ -27,6 +27,20 @@ public sealed class GameMap
     /// <summary>Display name, e.g. "World". Empty for random maps.</summary>
     public string Name { get; set; } = "";
 
+    /// <summary>
+    /// How many of this map's tiles span one tile of the map OpenFront's numbers were tuned
+    /// on (our Europe at 3000 tiles wide): 1 for that, bigger for finer maps. See Sim.ScaledRules.
+    /// </summary>
+    public double TileScale { get; set; } = 1;
+
+    /// <summary>The tile scale for a built-in map, from its name and width (1 for anything else).</summary>
+    public static double TileScaleFor(string name, int width) => name switch
+    {
+        "Europe" => width / 3000.0,
+        "World" => width / 2400.0,
+        _ => 1,
+    };
+
     /// <summary>Real-world location, or null for random maps.</summary>
     public MapGeo? Geo { get; set; }
 

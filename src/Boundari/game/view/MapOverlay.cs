@@ -101,14 +101,14 @@ public partial class MapOverlay : Node2D
             var tint = _ghostValid ? new Color(0.45f, 0.95f, 0.5f) : new Color(1f, 0.35f, 0.3f);
             if (!_ghostStacks)
             {
-                c.DrawCircle(at, Balance.MinBuildingSpacing, new Color(tint, 0.12f));
-                c.DrawArc(at, Balance.MinBuildingSpacing, 0, Mathf.Tau, 48, new Color(tint, 0.6f), 1.5f / zoom);
+                c.DrawCircle(at, _game.Rules.MinBuildingSpacing, new Color(tint, 0.12f));
+                c.DrawArc(at, _game.Rules.MinBuildingSpacing, 0, Mathf.Tau, 48, new Color(tint, 0.6f), 1.5f / zoom);
             }
             float reach = ghost switch
             {
-                BuildingType.Defense => Balance.DefensePostRange,
-                BuildingType.Sam => Balance.SamRange(_ghostLevel),
-                BuildingType.Factory => RailRules.StationMaxRange,
+                BuildingType.Defense => _game.Rules.DefensePostRange,
+                BuildingType.Sam => _game.Rules.SamRange(_ghostLevel),
+                BuildingType.Factory => _game.Rules.StationMaxRange,
                 _ => 0,
             };
             if (reach > 0)
@@ -125,7 +125,7 @@ public partial class MapOverlay : Node2D
         float zoom = _zoom;
         int w = _game!.Map.Width;
         float size = BuildingIconPixels(zoom) / zoom;
-        var mode = zoom <= DotsZoom ? StructureIcons.Mode.ShapeOnly : StructureIcons.Mode.WithGlyph;
+        var mode = Dots(zoom) ? StructureIcons.Mode.ShapeOnly : StructureIcons.Mode.WithGlyph;
         foreach (var b in _game.Buildings)
         {
             var at = TileCentre(b.Tile, w);
@@ -209,7 +209,7 @@ public partial class MapOverlay : Node2D
         // --- On top of the building icons: construction rings and level badges ---
         long part = FrameProfiler.Start();
         float size = BuildingIconPixels(zoom) / zoom;
-        bool dots = zoom <= DotsZoom;
+        bool dots = Dots(zoom);
         foreach (var b in _game.Buildings)
         {
             var at = TileCentre(b.Tile, w);
@@ -241,7 +241,7 @@ public partial class MapOverlay : Node2D
         {
             if (!OnScreen(TileCentre(ship.Tile, w), boatSize * 2))
                 continue;
-            long progress = ship.Progress - Balance.TradeShipSpeedPerTick + (long)(Balance.TradeShipSpeedPerTick * _tickFraction);
+            long progress = ship.Progress - _game.Rules.TradeShipSpeedPerTick + (long)(_game.Rules.TradeShipSpeedPerTick * _tickFraction);
             var (pos, heading) = AlongPath(ship.Path, Math.Max(0, progress), w);
             DrawBoat(pos, heading, boatSize * 0.8f, ColorOf(ship.Owner.Id), trade: true);
         }
@@ -251,7 +251,7 @@ public partial class MapOverlay : Node2D
         // --- Transport boats (drawn one tick behind, like territory, so they glide) ---
         foreach (var boat in _game.Boats)
         {
-            long progress = boat.Progress - Balance.BoatSpeedPerTick + (long)(Balance.BoatSpeedPerTick * _tickFraction);
+            long progress = boat.Progress - _game.Rules.BoatSpeedPerTick + (long)(_game.Rules.BoatSpeedPerTick * _tickFraction);
             var (pos, heading) = AlongPath(boat.Path, Math.Max(0, progress), w);
             if (boat.Owner == _me)
                 DrawRoute(boat, progress, w, zoom); // your own boats' routes may cross the screen
@@ -335,7 +335,7 @@ public partial class MapOverlay : Node2D
         float car = Math.Max(3f / zoom, 0.6f);
         foreach (var train in _game.Trains)
         {
-            float progress = (train.Progress - RailRules.TrainSpeedPerTick + RailRules.TrainSpeedPerTick * _tickFraction) / 1000f;
+            float progress = (train.Progress - _game.Rules.TrainSpeedPerTick + _game.Rules.TrainSpeedPerTick * _tickFraction) / 1000f;
             var colour = ColorOf(train.Owner.Id);
             for (int c = 0; c < 6; c++) // engine + 5 cars, a couple of tiles apart
             {
@@ -440,8 +440,15 @@ public partial class MapOverlay : Node2D
     }
 
     /// <summary>A building icon's size on screen at this zoom (OpenFront's structure scaling; see the constants).</summary>
-    private static float BuildingIconPixels(float zoom)
+    /// <summary>Zoom in screen pixels per tile of the reference map (finer maps have smaller tiles; see Sim.ScaledRules).</summary>
+    private float ReferenceZoom(float zoom) => zoom * (float)(_game?.Rules.Linear ?? 1);
+
+    /// <summary>Zoomed out far enough that buildings are plain shapes.</summary>
+    private bool Dots(float zoom) => ReferenceZoom(zoom) <= DotsZoom;
+
+    private float BuildingIconPixels(float mapZoom)
     {
+        float zoom = ReferenceZoom(mapZoom);
         if (zoom <= DotsZoom)
             return BuildingPixels * DotScale;
         if (zoom >= GrowZoom)
