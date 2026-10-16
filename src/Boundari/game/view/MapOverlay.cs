@@ -313,15 +313,23 @@ public partial class MapOverlay : Node2D
     }
 
     /// <summary>Railroads as thin dark lines, trains as short strings of cars along them.</summary>
+    // Roads (the depots' railroads): a whole number of screen pixels wide, at least this many,
+    // or this many tiles once zoomed in; coloured by whose land each stretch crosses.
+    private const float RoadMinPixels = 2;
+    private const float RoadTiles = 0.3f;
+    private static readonly Color BridgeColour = new(0.24f, 0.22f, 0.2f);
+
     private void DrawRails(CanvasItem layer, float zoom, int w)
     {
-        var railColour = new Color(0.18f, 0.16f, 0.14f, 0.75f);
-        float railWidth = Math.Max(1.2f / zoom, 0.25f);
+        int widthPixels = Math.Max((int)RoadMinPixels, (int)MathF.Round(RoadTiles * zoom));
+        float half = widthPixels / zoom / 2;
+        var toScreen = layer.GetCanvasTransform();
+        var toMap = toScreen.AffineInverse();
         foreach (var rail in _game!.Railroads)
         {
             var shape = _railShapes.GetValue(rail, r => new RailShape(r, w));
             if (shape.Corners.Length >= 2 && _visible.Grow(2).Intersects(shape.Bounds, includeBorders: true))
-                layer.DrawPolyline(shape.Corners, railColour, railWidth, true);
+                DrawRoad(layer, rail, w, half, toScreen, toMap);
         }
 
         float car = Math.Max(3f / zoom, 0.6f);
@@ -353,6 +361,63 @@ public partial class MapOverlay : Node2D
 
     // Rails as just their corner points (they're straight runs), worked out once per rail.
     private readonly System.Runtime.CompilerServices.ConditionalWeakTable<Railroad, RailShape> _railShapes = new();
+
+    /// <summary>
+    /// One road: straight runs between its right-angle turns, cut wherever it passes into
+    /// someone else's land. Each piece is a flat rectangle snapped to whole screen pixels,
+    /// so the road stays crisp; pieces overlap by half a width so corners join cleanly.
+    /// </summary>
+    private void DrawRoad(CanvasItem layer, Railroad rail, int w, float half, Transform2D toScreen, Transform2D toMap)
+    {
+        var tiles = rail.Tiles;
+        // Half-tile steps: tile i's colour covers from halfway back to halfway forward.
+        Vector2 runStart = TileCentre(tiles[0], w), runEnd = runStart;
+        Color runColour = RoadColour(tiles[0]);
+        Vector2 runDirection = Vector2.Zero;
+        for (int i = 1; i < tiles.Length; i++)
+        {
+            Vector2 a = TileCentre(tiles[i - 1], w), b = TileCentre(tiles[i], w), mid = (a + b) / 2;
+            var direction = (b - a).Normalized();
+            var colour = RoadColour(tiles[i]);
+            // First half (still the previous tile's colour), then the second half (this tile's).
+            Extend(mid, direction, runColour);
+            Extend(b, direction, colour);
+        }
+        Flush();
+
+        void Extend(Vector2 to, Vector2 direction, Color colour)
+        {
+            if (direction != runDirection && runDirection != Vector2.Zero || colour != runColour)
+            {
+                Flush();
+                runStart = runEnd;
+            }
+            runDirection = direction;
+            runColour = colour;
+            runEnd = to;
+        }
+
+        void Flush()
+        {
+            var min = new Vector2(Math.Min(runStart.X, runEnd.X), Math.Min(runStart.Y, runEnd.Y)) - new Vector2(half, half);
+            var max = new Vector2(Math.Max(runStart.X, runEnd.X), Math.Max(runStart.Y, runEnd.Y)) + new Vector2(half, half);
+            // Snap to whole screen pixels so edges are sharp and the width never wobbles.
+            var a = toScreen * min;
+            var b = toScreen * max;
+            a = new Vector2(MathF.Round(a.X), MathF.Round(a.Y));
+            b = new Vector2(Math.Max(MathF.Round(b.X), a.X + 1), Math.Max(MathF.Round(b.Y), a.Y + 1));
+            var from = toMap * a;
+            var to = toMap * b;
+            layer.DrawRect(new Rect2(from, to - from), runColour);
+        }
+    }
+
+    /// <summary>A road's colour on this tile: the owner's territory colour, darker (bridges and empty land: dark grey).</summary>
+    private Color RoadColour(int tile)
+    {
+        ushort owner = _game!.Owner[tile];
+        return owner == Game.Nobody || !_game.Map.IsLand(tile) ? BridgeColour : ColorOf(owner).Darkened(0.45f);
+    }
 
     private sealed class RailShape
     {

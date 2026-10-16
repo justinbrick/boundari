@@ -80,8 +80,7 @@ public partial class TerritoryLabels : Node2D
     private readonly Dictionary<string, Texture2D?> _flags = new();
     private Game? _game;
     private double _sinceRefresh = RefreshSeconds;
-    private Font _font = null!;
-    private Font _troopFont = null!;
+    private Font _baseFont = null!;
     private Vector2 _mouse;     // in map tiles, for fading the name plate under it
 
     // Placement scratch (background thread only).
@@ -92,21 +91,10 @@ public partial class TerritoryLabels : Node2D
 
     public override void _Ready()
     {
-        // The default font, as a distance-field copy so it stays sharp at any zoom (with
-        // enough range for the outlines), styled like the mockups.
-        var file = (FontFile)((FontFile)ThemeDB.FallbackFont).Duplicate();
-        file.MultichannelSignedDistanceField = true;
-        file.MsdfPixelRange = 32;
-        _font = Styled(file, NameSpacing);
-        _troopFont = Styled(file, TroopSpacing);
-
-        static FontVariation Styled(Font baseFont, float spacing) => new()
-        {
-            BaseFont = baseFont,
-            VariationEmbolden = 1.0f,
-            VariationTransform = new Transform2D(new Vector2(1, 0), new Vector2(0, 0.95f), Vector2.Zero),
-            SpacingGlyph = (int)MathF.Round(spacing * RefSize),
-        };
+        // Plain (not distance-field) text: emboldening a distance-field font punches holes
+        // where letter strokes overlap. To stay crisp at any zoom, text is laid out at the
+        // nearest of a set of fixed sizes instead (see Bucket).
+        _baseFont = ThemeDB.FallbackFont;
     }
 
     public void SetGame(Game game)
@@ -384,8 +372,9 @@ public partial class TerritoryLabels : Node2D
         float cap = em * CapHeight;
         if (cap * zoom < MinScreenCapPixels)
             return;
-        float scale = em / RefSize;
-        var name = NameLine(id, player.Name.ToUpperInvariant());
+        int nameBucket = Bucket(em * zoom), troopBucket = Bucket(em * TroopScale * zoom);
+        float scale = em / nameBucket;
+        var name = Line(_names, id, player.Name.ToUpperInvariant(), nameBucket, NameSpacing);
         float nameWidth = name.GetSize().X * scale;
         var pos = label.Position;
         if (!view.Grow(nameWidth + em * 4).HasPoint(pos))
@@ -396,8 +385,8 @@ public partial class TerritoryLabels : Node2D
         var flag = FlagTexture(player.Flag);
         float flagHeight = cap * FlagCapShare, flagWidth = flag is null ? 0 : flagHeight * FlagAspect;
         float flagGap = flag is null ? 0 : em * FlagGap;
-        var troops = TroopLine(id, GameHud.FormatCount(player.Troops));
-        float troopScale = scale * TroopScale;
+        var troops = Line(_troops, id, GameHud.FormatCount(player.Troops), troopBucket, TroopSpacing);
+        float troopScale = em * TroopScale / troopBucket;
         float troopWidth = troops.GetSize().X * troopScale;
         float troopCap = cap * TroopScale;
         float troopMiddle = pos.Y + em * TroopLineOffset;
@@ -417,10 +406,10 @@ public partial class TerritoryLabels : Node2D
         // TextLine draws from the top of its line; the baseline is one ascent down.
         float nameAscent = name.GetLineAscent() * scale;
         DrawText(name, new Vector2(pos.X - nameWidth / 2, pos.Y + cap / 2 - nameAscent), scale,
-            NameShadow * RefSize, NameOutline * RefSize, text, outline, shadow, canvas);
+            NameShadow * nameBucket, NameOutline * nameBucket, text, outline, shadow, canvas);
         float troopAscent = troops.GetLineAscent() * troopScale;
         DrawText(troops, new Vector2(pos.X - troopWidth / 2, troopMiddle + troopCap / 2 - troopAscent), troopScale,
-            TroopShadow * RefSize, TroopOutline * RefSize, text, outline, shadow, canvas);
+            TroopShadow * troopBucket, TroopOutline * troopBucket, text, outline, shadow, canvas);
         DrawSetTransform(Vector2.Zero, 0, Vector2.One);
     }
 
@@ -434,21 +423,43 @@ public partial class TerritoryLabels : Node2D
         line.Draw(canvas, Vector2.Zero, text);
     }
 
-    // Labels are laid out at this font size, then scaled to fit.
-    private const int RefSize = 64;
-    private readonly Dictionary<ushort, (string Text, TextLine Line)> _names = new();
-    private readonly Dictionary<ushort, (string Text, TextLine Line)> _troops = new();
+    // Text is laid out at the smallest of these sizes (pixels) that's at least its size on
+    // screen, then scaled down a touch to fit: always sharp, never blown up from a small one.
+    private static readonly int[] Buckets = { 10, 14, 20, 28, 40, 56, 80, 112, 160, 224, 320, 448 };
 
-    private TextLine NameLine(ushort id, string text) => Cached(_names, id, text, _font);
-    private TextLine TroopLine(ushort id, string text) => Cached(_troops, id, text, _troopFont);
-
-    private TextLine Cached(Dictionary<ushort, (string Text, TextLine Line)> cache, ushort id, string text, Font font)
+    private static int Bucket(float screenPixels)
     {
-        if (cache.TryGetValue(id, out var entry) && entry.Text == text)
+        foreach (int b in Buckets)
+            if (b >= screenPixels)
+                return b;
+        return Buckets[^1];
+    }
+
+    private readonly Dictionary<(ushort Id, int Size), (string Text, TextLine Line)> _names = new();
+    private readonly Dictionary<(ushort Id, int Size), (string Text, TextLine Line)> _troops = new();
+    private readonly Dictionary<(int Size, float Spacing), Font> _styled = new();
+
+    /// <summary>The mockup's styling at one size: emboldened, 95% height, letter-spaced.</summary>
+    private Font Styled(int size, float spacing)
+    {
+        if (!_styled.TryGetValue((size, spacing), out var font))
+            _styled[(size, spacing)] = font = new FontVariation
+            {
+                BaseFont = _baseFont,
+                VariationEmbolden = 1.0f,
+                VariationTransform = new Transform2D(new Vector2(1, 0), new Vector2(0, 0.95f), Vector2.Zero),
+                SpacingGlyph = (int)MathF.Round(spacing * size),
+            };
+        return font;
+    }
+
+    private TextLine Line(Dictionary<(ushort Id, int Size), (string Text, TextLine Line)> cache, ushort id, string text, int size, float spacing)
+    {
+        if (cache.TryGetValue((id, size), out var entry) && entry.Text == text)
             return entry.Line;
         var line = new TextLine();
-        line.AddString(text, font, RefSize);
-        cache[id] = (text, line);
+        line.AddString(text, Styled(size, spacing), size);
+        cache[(id, size)] = (text, line);
         return line;
     }
 
