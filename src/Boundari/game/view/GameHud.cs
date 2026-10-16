@@ -21,6 +21,7 @@ public sealed class GameHud
     private readonly Label? _cashRate;
     private readonly Label? _attackTroops;
     private readonly HSlider? _ratio;
+    private readonly AttackRatioSlider? _ratioTicks;
     private readonly Label _status;
 
     public GameHud(Node root)
@@ -32,6 +33,15 @@ public sealed class GameHud
         _cashRate = root.GetNodeOrNull<Label>(Info + "Panel_Cur/HBoxContainer/Cur_Rate");
         _attackTroops = root.GetNodeOrNull<Label>(Info + "Ratio_Panel/HBoxContainer2/Amount");
         _ratio = root.GetNodeOrNull<HSlider>(Info + "Ratio_Panel/Slider_Control/VBox_Slider/HSlider");
+
+        // The tick slider fills the space above the "Attack Ratio" title (bottom right).
+        if (root.GetNodeOrNull<Control>("Main_Layer/Main_Control/HBox_AHudTEST/Ratio_Control") is { } ratioBox)
+        {
+            ratioBox.Visible = true;
+            float titleTop = ratioBox.GetNodeOrNull<Control>("Titles_Panel")?.AnchorTop ?? 0.66f;
+            _ratioTicks = new AttackRatioSlider { Name = "AttackRatioSlider", AnchorRight = 1, AnchorBottom = titleTop };
+            ratioBox.AddChild(_ratioTicks);
+        }
 
         // Status line along the top of the screen (spawn countdown, defeat, ...).
         _status = new Label
@@ -49,8 +59,8 @@ public sealed class GameHud
         layer.AddChild(_status);
     }
 
-    /// <summary>Share of troops to send when attacking, from the HUD slider (1..100).</summary>
-    public int AttackRatioPercent => Mathf.Clamp((int)(_ratio?.Value ?? 20), 1, 100);
+    /// <summary>Share of troops to send when attacking, from the HUD slider (10..100; the old slider 1..100).</summary>
+    public int AttackRatioPercent => _ratioTicks?.Value ?? Mathf.Clamp((int)(_ratio?.Value ?? 20), 1, 100);
 
     /// <summary>Shown in place of the usual status line while set (e.g. fast-forward progress).</summary>
     public string? Status { get; set; }
