@@ -31,8 +31,11 @@ public static class Program
         new("world", "World", -180, 180, -58, 84, 0, 2400, "50m", 3, MinIslandTiles: 12, MinLakeTiles: 20, LandCoverScale: 0,
             RiverMaxRank: 3, RiverWidth: 2.0),
         // Iceland to the Urals' foothills, Scandinavia's tip to North Africa. ~1.7 km per tile.
-        new("europe", "Europe", -25, 45, 33, 72, 50, 3000, "10m", 6, MinIslandTiles: 45, MinLakeTiles: 68, LandCoverScale: 3,
-            RiverMaxRank: 7, RiverWidth: 3.9),
+        // 4000 wide (tile scale 1.33 over the original 3000: finer territory; OpenFront's tile
+        // numbers are scaled to match, see Sim.ScaledRules). Islands, lakes and rivers keep their
+        // real-world sizes: 45 / 68 tiles and 3.9 wide at 3000.
+        new("europe", "Europe", -25, 45, 33, 72, 50, 4000, "10m", 6, MinIslandTiles: 80, MinLakeTiles: 121, LandCoverScale: 2,
+            RiverMaxRank: 7, RiverWidth: 5.2),
     };
 
     // Coast field units per tile of distance. Matches the scale of the random

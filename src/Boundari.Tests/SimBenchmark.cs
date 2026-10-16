@@ -94,6 +94,9 @@ public class BoatBenchmark
         var game = new Game(map, 1, spawnPhaseTicks: 1);
         var me = game.AddPlayer("Me");
         int brest = Tile(-4.3, 48.3);
+        for (int r = 1; !map.IsLand(brest) && r < 30; r++) // nearest land (the exact spot may be a water tile)
+            brest = Enumerable.Range(-r, 2 * r + 1).SelectMany(dy => Enumerable.Range(-r, 2 * r + 1).Select(dx => brest + dy * map.Width + dx))
+                .FirstOrDefault(t => t >= 0 && t < map.TileCount && map.IsLand(t), brest);
         _out.WriteLine($"brest land {map.IsLand(brest)} coastal {game.IsCoastal(brest)}");
         game.Submit(new SpawnIntent(me.Id, brest));
         game.Step();
