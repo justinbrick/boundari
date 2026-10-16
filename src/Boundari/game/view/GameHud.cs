@@ -24,6 +24,8 @@ public sealed class GameHud
     private readonly AttackRatioSlider? _ratioTicks;
     private readonly Label _status;
 
+    private const float SliderHeight = 44;
+
     public GameHud(Node root)
     {
         _troops = root.GetNodeOrNull<Label>(Info + "Panel_Pop/HBoxContainer/Pop1");
@@ -34,13 +36,12 @@ public sealed class GameHud
         _attackTroops = root.GetNodeOrNull<Label>(Info + "Ratio_Panel/HBoxContainer2/Amount");
         _ratio = root.GetNodeOrNull<HSlider>(Info + "Ratio_Panel/Slider_Control/VBox_Slider/HSlider");
 
-        // The tick slider fills the space above the "Attack Ratio" title (bottom right).
-        if (root.GetNodeOrNull<Control>("Main_Layer/Main_Control/HBox_AHudTEST/Ratio_Control") is { } ratioBox)
+        // The tick slider sits on top of the build bar's titles (Infrastructure / Action /
+        // Wartime), as wide as that strip.
+        if (root.GetNodeOrNull<Control>("Main_Layer/Main_Control/HBox_AHudTEST/In_Panel/Struct_Titles_Panel") is { } titles)
         {
-            ratioBox.Visible = true;
-            float titleTop = ratioBox.GetNodeOrNull<Control>("Titles_Panel")?.AnchorTop ?? 0.66f;
-            _ratioTicks = new AttackRatioSlider { Name = "AttackRatioSlider", AnchorRight = 1, AnchorBottom = titleTop };
-            ratioBox.AddChild(_ratioTicks);
+            _ratioTicks = new AttackRatioSlider { Name = "AttackRatioSlider", AnchorRight = 1, OffsetTop = -SliderHeight };
+            titles.AddChild(_ratioTicks);
         }
 
         // Status line along the top of the screen (spawn countdown, defeat, ...).
