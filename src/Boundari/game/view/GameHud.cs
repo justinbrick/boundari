@@ -24,7 +24,7 @@ public sealed class GameHud
     private readonly AttackRatioSlider? _ratioTicks;
     private readonly Label _status;
 
-    private const float SliderHeight = 44;
+    private const float SliderHeight = 54;
 
     public GameHud(Node root)
     {

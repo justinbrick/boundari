@@ -5,9 +5,10 @@ namespace Boundari.View;
 
 /// <summary>
 /// The attack ratio slider (10..100%): a row of 91 ticks, one per whole percent, evenly
-/// spaced. The ticks swell into a smooth bump around the handle (a vertical line above
-/// the tallest tick, with the percentage to its left), and the bump glides when the value
-/// changes. Click or drag anywhere on it to pick a tick; the mouse wheel steps one percent.
+/// spaced, over a faint shadow. The ticks bend up towards a point at the handle (a vertical
+/// line above the tick under it, which stands well above its neighbours, with the
+/// percentage to its left), and the bend glides when the value changes. Click or drag
+/// anywhere on it to pick a tick; the mouse wheel steps one percent.
 /// </summary>
 public partial class AttackRatioSlider : Control
 {
@@ -17,8 +18,13 @@ public partial class AttackRatioSlider : Control
     private const float MinSidePadding = 6;
     private const int TickWidth = 2;
     private const float TickHeight = 8;      // far from the handle
-    private const float PeakHeight = 22;     // the tick under the handle
-    private const float BumpSpread = 3;      // ticks: about 3x this out, they're back to normal
+    private const float BendHeight = 14;     // the bend's extra height where it meets the handle
+    private const float BendReach = 20;      // ticks either side the bend reaches (normal beyond)
+    private const float BendSharpness = 2.5f; // higher = steeper near the handle, longer tail
+    private const float PeakExtra = 10;      // the tick under the handle stands this much above the bend
+    private const float PeakHeight = TickHeight + BendHeight + PeakExtra;
+    private const float ShadowAlpha = 0.3f; // backdrop: darkest along the bottom, gone at the top
+    private const float ShadowSideFade = 60; // pixels: the backdrop also fades out at both ends
     private const float HandleGap = 3;       // between the handle line and the tallest tick
     private const float HandleTop = 2;
     private const float BottomMargin = 1;
@@ -53,6 +59,19 @@ public partial class AttackRatioSlider : Control
 
     private int PercentAt(float x) =>
         Math.Clamp((int)MathF.Round((x - RowLeft - TickWidth / 2f) / Spacing) + Min, Min, Max);
+
+    /// <summary>A vague upward shadow behind the whole slider.</summary>
+    private void DrawShadow()
+    {
+        float w = Size.X, h = Size.Y, side = Math.Min(ShadowSideFade, w / 2);
+        float[] xs = { 0, side, w - side, w };
+        float[] bottomAlpha = { 0, ShadowAlpha, ShadowAlpha, 0 };
+        var clear = new Color(0, 0, 0, 0);
+        for (int k = 0; k < 3; k++)
+            DrawPolygon(
+                new[] { new Vector2(xs[k], 0), new Vector2(xs[k + 1], 0), new Vector2(xs[k + 1], h), new Vector2(xs[k], h) },
+                new[] { clear, clear, new Color(0, 0, 0, bottomAlpha[k + 1]), new Color(0, 0, 0, bottomAlpha[k]) });
+    }
 
     public override void _GuiInput(InputEvent e)
     {
@@ -91,14 +110,17 @@ public partial class AttackRatioSlider : Control
 
     public override void _Draw()
     {
+        DrawShadow();
         float bottom = MathF.Round(Size.Y - BottomMargin);
         for (int i = 0; i < Ticks; i++)
         {
-            // A bell-shaped bump centred on the (gliding) handle.
-            float d = (Min + i - _shown) / BumpSpread;
-            float lift = MathF.Exp(-d * d / 2);
-            float height = TickHeight + (PeakHeight - TickHeight) * lift;
-            var colour = TickColour.Lerp(PeakColour, lift);
+            // A bend rising to a point at the (gliding) handle, plus the peak tick itself
+            // (handed smoothly from one tick to the next as the handle glides).
+            float d = MathF.Abs(Min + i - _shown);
+            float bend = d < BendReach ? MathF.Pow(1 - d / BendReach, BendSharpness) : 0;
+            float peak = Math.Max(0, 1 - d);
+            float height = TickHeight + BendHeight * bend + PeakExtra * peak;
+            var colour = TickColour.Lerp(PeakColour, Math.Max(bend * bend, peak));
             float x = TickX(Min + i);
             // Whole pixels, plus a faint top row for the fraction, so it rises smoothly but stays crisp.
             int whole = (int)height;
