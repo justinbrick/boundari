@@ -14,6 +14,12 @@ namespace Boundari.Sim;
 // to the neighbour attacking us hardest (or, with no attacks, the one with the longest
 // shared border). Each player is checked every 20 ticks (every tick under 100 tiles), and
 // only if their land changed.
+//
+// Then OpenFront's severed-land rule: land a bomb's fallout has cut off from the main body
+// (the player's largest piece) goes to the enemy around it when it has no way out of its
+// own: no coast or map edge, and nothing next to it but other players and fallout (at
+// least one of each). The walled-in rule above can't catch this, because its walk goes
+// through the crater and so links the piece to the main body.
 public sealed partial class Game
 {
     private const int TicksPerClusterCalc = 20;
@@ -114,6 +120,158 @@ public sealed partial class Game
         for (int i = 0; i < clusters.Count; i++)
             if (surrounded[i])
                 RemoveCluster(p, clusters[i]);
+        AnnexSeveredLand(p);
+    }
+
+    // ------------------------------------------------------------------
+    //  Severed land (OpenFront's severedLand / annexSeveredClusters)
+    // ------------------------------------------------------------------
+
+    private void AnnexSeveredLand(Player p)
+    {
+        if (FalloutTiles == 0 || p.TileCount == 0)
+            return; // only fallout can cut land off
+        // A cut-off piece always touches fallout: start only from our tiles next to it.
+        var starts = new List<int>();
+        Span<int> nb = stackalloc int[4];
+        foreach (int t in p.Border)
+        {
+            int count = Neighbours4(t, nb);
+            for (int k = 0; k < count; k++)
+                if (Owner[nb[k]] == Nobody && Fallout[nb[k]])
+                {
+                    starts.Add(t);
+                    break;
+                }
+        }
+        if (starts.Count == 0)
+            return;
+        starts.Sort(); // HashSet order isn't guaranteed; keep every machine identical
+
+        var stamp = _clusterStamp!;
+        int seenGen = ++_clusterGen, failGen = ++_clusterGen;
+        var pieces = new List<List<int>>();
+        foreach (int start in starts)
+            if (Owner[start] == p.Id && stamp[start] != seenGen && stamp[start] != failGen
+                && SeveredTerritory(p, start, seenGen, failGen) is { } piece)
+                pieces.Add(piece);
+        if (pieces.Count == 0)
+            return;
+
+        // The main body stays even when it has no way out itself: it's the largest piece of
+        // land, whether one of these or the rest of the territory.
+        int biggest = 0, inPieces = 0;
+        for (int i = 0; i < pieces.Count; i++)
+        {
+            inPieces += pieces[i].Count;
+            if (pieces[i].Count > pieces[biggest].Count)
+                biggest = i;
+        }
+        int rest = p.TileCount - inPieces;
+        bool biggestIsMain = pieces[biggest].Count > rest || pieces[biggest].Count >= LargestOtherPiece(p, seenGen);
+
+        for (int i = 0; i < pieces.Count; i++)
+        {
+            if (i == biggest && biggestIsMain)
+                continue;
+            var tiles = pieces[i];
+            if (Owner[tiles[0]] != p.Id)
+                continue; // an earlier hand-over this pass took it
+            var capturing = CapturingPlayer(p, tiles);
+            if (capturing is null)
+                continue;
+            if (tiles.Count == p.TileCount)
+                TakeGold(capturing, p); // that was everything they had
+            foreach (int t in tiles)
+                SetOwner(t, capturing.Id);
+        }
+    }
+
+    /// <summary>
+    /// Our connected land around <paramref name="start"/> if it's cut off: no tile on the
+    /// coast or map edge, and every neighbour that isn't ours is another player's land or
+    /// fallout, with at least one of each. Tiles walked are stamped (seen, or failed so other
+    /// starts in the same land stop at once).
+    /// </summary>
+    private List<int>? SeveredTerritory(Player p, int start, int seenGen, int failGen)
+    {
+        var stamp = _clusterStamp!;
+        var tiles = new List<int> { start };
+        stamp[start] = seenGen;
+        _clusterStack.Clear();
+        _clusterStack.Push(start);
+        bool enemy = false, fallout = false;
+        Span<int> nb = stackalloc int[4];
+        while (_clusterStack.Count > 0)
+        {
+            int t = _clusterStack.Pop();
+            if (_coastal![t] || OnMapEdge(t))
+                return Fail();
+            int count = Neighbours4(t, nb);
+            for (int k = 0; k < count; k++)
+            {
+                int n = nb[k];
+                ushort o = Owner[n];
+                if (o == p.Id)
+                {
+                    if (stamp[n] == failGen)
+                        return Fail();
+                    if (stamp[n] == seenGen)
+                        continue;
+                    stamp[n] = seenGen;
+                    tiles.Add(n);
+                    _clusterStack.Push(n);
+                }
+                else if (o != Nobody)
+                    enemy = true;
+                else if (Fallout[n])
+                    fallout = true;
+                else
+                    return Fail(); // open land: a way out
+            }
+        }
+        return enemy && fallout ? tiles : Fail(); // (failed: not counted as cut off when sizing the rest)
+
+        List<int>? Fail()
+        {
+            foreach (int t in tiles)
+                stamp[t] = failGen;
+            return null;
+        }
+    }
+
+    /// <summary>The size of our largest connected piece of land outside the tiles stamped <paramref name="skipGen"/>.</summary>
+    private int LargestOtherPiece(Player p, int skipGen)
+    {
+        var stamp = _clusterStamp!;
+        int gen = ++_clusterGen, largest = 0;
+        var border = new List<int>(p.Border);
+        border.AddRange(p.Coast);
+        border.Sort();
+        Span<int> nb = stackalloc int[4];
+        foreach (int start in border) // every piece has border (or coast) tiles
+        {
+            if (Owner[start] != p.Id || stamp[start] == skipGen || stamp[start] == gen)
+                continue;
+            int size = 0;
+            stamp[start] = gen;
+            _clusterStack.Clear();
+            _clusterStack.Push(start);
+            while (_clusterStack.Count > 0)
+            {
+                int t = _clusterStack.Pop();
+                size++;
+                int count = Neighbours4(t, nb);
+                for (int k = 0; k < count; k++)
+                    if (Owner[nb[k]] == p.Id && stamp[nb[k]] != gen && stamp[nb[k]] != skipGen)
+                    {
+                        stamp[nb[k]] = gen;
+                        _clusterStack.Push(nb[k]);
+                    }
+            }
+            largest = Math.Max(largest, size);
+        }
+        return largest;
     }
 
     /// <summary>
