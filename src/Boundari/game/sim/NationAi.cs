@@ -83,6 +83,7 @@ internal sealed class NationAi : IPlayerAi
             _nextDiplomacy = _game.Tick + _cycle;
             _alliances.HandleRequests();
             _alliances.HandleRenewals();
+            _alliances.HandleEmbargoes();
         }
         if (_game.Tick >= _nextBuild)
         {

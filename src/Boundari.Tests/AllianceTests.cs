@@ -85,6 +85,42 @@ public class AllianceTests
     }
 
     [Fact]
+    public void Embargo_StopsTrade_AndMakesANationDistrustful_UntilLifted()
+    {
+        var (game, a, b) = Setup(PlayerKind.Nation);
+        Assert.True(game.CanTrade(a, b));
+        Assert.Equal(Relation.Neutral, game.RelationOf(b, a));
+
+        game.Submit(new EmbargoIntent(a.Id, b.Id, true));
+        Wait(game, 1);
+        Assert.True(game.HasEmbargo(a, b));
+        Assert.False(game.CanTrade(a, b) || game.CanTrade(b, a)); // either way
+        Assert.Equal(Relation.Distrustful, game.RelationOf(b, a));
+
+        game.Submit(new EmbargoIntent(a.Id, b.Id, false));
+        Wait(game, 1);
+        Assert.True(game.CanTrade(a, b));
+        Assert.Equal(Relation.Neutral, game.RelationOf(b, a));
+    }
+
+    [Fact]
+    public void Target_MarksForTenSeconds_CostsRelation_AndHasACooldown()
+    {
+        var (game, a, b) = Setup();
+        game.Submit(new TargetIntent(a.Id, b.Id));
+        Wait(game, 1);
+        Assert.True(game.IsMarkedFor(a, b));
+        Assert.Equal(Relation.Distrustful, game.RelationOf(b, a));
+        Assert.False(game.CanTarget(a, b)); // cooling down
+
+        Wait(game, EmbargoRules.TargetDurationTicks);
+        Assert.False(game.IsMarkedFor(a, b)); // run out
+        Assert.False(game.CanTarget(a, b));
+        Wait(game, EmbargoRules.TargetCooldownTicks - EmbargoRules.TargetDurationTicks);
+        Assert.True(game.CanTarget(a, b));
+    }
+
+    [Fact]
     public void Events_AreRecordedOnlyForTheWatchedPlayer()
     {
         var (game, a, b) = Setup();

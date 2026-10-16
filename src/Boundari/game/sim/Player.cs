@@ -115,6 +115,13 @@ public sealed class Player
     /// <summary>Number of alliances this player has.</summary>
     public int AllianceCount => Allies.Count;
 
+    /// <summary>Ids of the players this one has stopped trading with (see GameEmbargoes.cs).</summary>
+    internal readonly HashSet<ushort> Embargoes = new();
+
+    /// <summary>Players this one marked as targets, oldest first, and when; and the last time it marked one.</summary>
+    internal readonly List<(int Tick, ushort Id)> Targets = new();
+    internal int LastTargetTick = -1;
+
     /// <summary>Until this tick the player is a traitor (broke an alliance): easier to attack.</summary>
     public int TraitorUntilTick { get; internal set; } = -1;
 

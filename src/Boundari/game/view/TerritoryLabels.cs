@@ -430,6 +430,8 @@ public partial class TerritoryLabels : Node2D
     private static readonly Color RequestTag = new(0.36f, 0.56f, 0.36f);
     private static readonly Color TraitorTag = new(0.78f, 0.18f, 0.16f);
     private static readonly Color BombTag = new(0.3f, 0.3f, 0.32f);
+    private static readonly Color EmbargoTag = new(0.55f, 0.36f, 0.12f);
+    private static readonly Color TargetTag = new(0.86f, 0.24f, 0.2f);
     private static readonly Color BombAtMeTag = new(0.85f, 0.2f, 0.15f);
 
     private ushort _leader;
@@ -458,7 +460,7 @@ public partial class TerritoryLabels : Node2D
         }
     }
 
-    /// <summary>Small coloured tags in a row, centred above the name: leader, ally, wants to ally, traitor, bombs.</summary>
+    /// <summary>Small coloured tags in a row, centred above the name: leader, ally, wants to ally, traitor, embargo, target, bombs.</summary>
     private void DrawTags(Player player, Vector2 bottomCentre, float height, float zoom, float alpha)
     {
         _tags.Clear();
@@ -473,6 +475,15 @@ public partial class TerritoryLabels : Node2D
         }
         if (_game!.IsTraitor(player))
             _tags.Add(("TRAITOR", TraitorTag));
+        if (Me is not null && player != Me)
+        {
+            if (_game.HasEmbargo(Me, player))
+                _tags.Add(("EMBARGOED", EmbargoTag));
+            else if (_game.HasEmbargo(player, Me))
+                _tags.Add(("EMBARGOES YOU", EmbargoTag));
+            if (_game.IsMarkedFor(Me, player))
+                _tags.Add(("TARGET", TargetTag));
+        }
         if (player != Me && _bombers.TryGetValue(player.Id, out bool atMe))
             _tags.Add((atMe ? "BOMBING YOU" : "BOMBS", atMe ? BombAtMeTag : BombTag));
         if (_tags.Count == 0)

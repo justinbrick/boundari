@@ -43,6 +43,26 @@ internal sealed class NationAlliances
         }
     }
 
+    /// <summary>
+    /// OpenFront: stops trading with players it's hostile toward, and resumes once it feels
+    /// neutral again (Hard: only once friendly; Impossible: never).
+    /// </summary>
+    public void HandleEmbargoes()
+    {
+        foreach (var other in _game.Players)
+        {
+            if (other == _player || !other.HasSpawned || !other.IsAlive)
+                continue;
+            var relation = _game.RelationOf(_player, other);
+            bool embargo = _game.HasEmbargo(_player, other);
+            if (relation == Relation.Hostile && !embargo)
+                _game.Submit(new EmbargoIntent(_player.Id, other.Id, true));
+            else if (embargo && ((relation >= Relation.Neutral && D != Difficulty.Hard && D != Difficulty.Impossible)
+                || (relation >= Relation.Friendly && D != Difficulty.Impossible)))
+                _game.Submit(new EmbargoIntent(_player.Id, other.Id, false));
+        }
+    }
+
     /// <summary>Agrees to renew an alliance its ally asked to renew, if it would still ally with them (OpenFront).</summary>
     public void HandleRenewals()
     {

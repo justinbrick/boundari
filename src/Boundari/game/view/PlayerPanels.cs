@@ -39,6 +39,19 @@ public sealed class PlayerPanels
     private readonly Control? _info;
     private readonly TextureRect? _infoFlag;
     private readonly Label? _infoName, _infoPlace, _infoLand, _infoCash, _infoTroops, _infoMaxTroops, _infoAttacking;
+    private readonly Label? _infoRelation, _infoTrade;
+    private string? _relationShown, _tradeShown;
+
+    // The hover panel's relation and trade answers: found by name, or where the scene
+    // currently has them (its placeholder "Name2" labels).
+    private const string InfoRows = "Main_Layer/Main_Control/Display_Rec/Panel/HBoxContainer/VBoxContainer2/VBoxContainer/HBoxContainer3/";
+
+    // Relation colours: allies and friends green, neutral plain, distrustful orange, hostile red.
+    private static readonly Color AlliesColour = new(0.472f, 1f, 0.44f); // the scene's green
+    private static readonly Color FriendlyColour = new(0.62f, 0.86f, 0.5f);
+    private static readonly Color NeutralColour = new(1, 1, 1);
+    private static readonly Color DistrustfulColour = new(1f, 0.6f, 0.2f);
+    private static readonly Color HostileColour = new(1f, 0.32f, 0.28f);
     private readonly List<(BuildingType Type, Label Label)> _infoBuildings = new();
 
     private readonly Dictionary<string, Texture2D?> _flags = new();
@@ -61,6 +74,9 @@ public sealed class PlayerPanels
         _infoTroops = root.GetNodeOrNull<Label>(InfoBox + "Panel_Pop/HBoxContainer/HBoxContainer2/Pop1");
         _infoMaxTroops = root.GetNodeOrNull<Label>(InfoBox + "Panel_Pop/HBoxContainer/HBoxContainer2/Pop2");
         _infoAttacking = root.GetNodeOrNull<Label>(InfoBox + "Panel_Attacking/HBoxContainer/Attack_Amount");
+        var display = root.GetNodeOrNull(Info.TrimEnd('/'));
+        _infoRelation = display?.FindChild("Relation_Answer", true, false) as Label ?? root.GetNodeOrNull<Label>(InfoRows + "HBoxContainer3/Name2");
+        _infoTrade = display?.FindChild("Trade_Answer", true, false) as Label ?? root.GetNodeOrNull<Label>(InfoRows + "HBoxContainer2/Name2");
 
         // Building counts: each cell in the panel is named after its building.
         foreach (string row in new[] { "HBox_Row1", "HBox_Row2", "HBox_Row3" })
@@ -105,7 +121,7 @@ public sealed class PlayerPanels
             _sinceInfo = 0;
             _infoShown = hovered;
             long started = FrameProfiler.Start();
-            UpdateInfo(game, hovered);
+            UpdateInfo(game, me, hovered);
             FrameProfiler.Stop("  hover panel", started);
         }
     }
@@ -155,7 +171,7 @@ public sealed class PlayerPanels
         Set(row.Cash, GameHud.FormatCount(p.Gold));
     }
 
-    private void UpdateInfo(Game game, Player? p)
+    private void UpdateInfo(Game game, Player me, Player? p)
     {
         if (_info is null)
             return;
@@ -179,8 +195,38 @@ public sealed class PlayerPanels
             if (a.Attacker == p)
                 attacking += a.Troops;
         Set(_infoAttacking, GameHud.FormatCount(attacking));
+        ShowRelation(game, me, p);
+        string trade = p == me ? "-" : game.CanTrade(me, p) ? "Active" : "Stopped";
+        Set(_infoTrade, trade);
+        if (_infoTrade is not null && _tradeShown != trade)
+        {
+            _tradeShown = trade;
+            _infoTrade.AddThemeColorOverride("font_color", trade == "Stopped" ? DistrustfulColour : AlliesColour);
+        }
         foreach (var (type, label) in _infoBuildings)
             Set(label, game.CountLevels(p, type).ToString(CultureInfo.InvariantCulture));
+    }
+
+    /// <summary>How the hovered player feels about you (as OpenFront shows it), or "Allies".</summary>
+    private void ShowRelation(Game game, Player me, Player p)
+    {
+        if (_infoRelation is null)
+            return;
+        var (text, colour) = p == me ? ("-", NeutralColour)
+            : me.IsAlliedWith(p) ? ("Allies", AlliesColour)
+            : game.RelationOf(p, me) switch
+            {
+                Relation.Hostile => ("Hostile", HostileColour),
+                Relation.Distrustful => ("Distrustful", DistrustfulColour),
+                Relation.Friendly => ("Friendly", FriendlyColour),
+                _ => ("Neutral", NeutralColour),
+            };
+        Set(_infoRelation, text);
+        if (_relationShown != text) // re-colouring makes Godot redo the theme: only when it changes
+        {
+            _relationShown = text;
+            _infoRelation.AddThemeColorOverride("font_color", colour);
+        }
     }
 
     private Texture2D? Flag(string code)

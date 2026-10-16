@@ -18,6 +18,9 @@ public enum GameEventKind : byte
     BoatLaunched,           // A sent a boat towards B's coast
     NukeLaunched,           // A launched a bomb (Detail = NukeType) at B's land
     Conquered,              // A finished B off
+    EmbargoStarted,         // A stopped trading with B
+    EmbargoStopped,         // A resumed trading with B
+    Targeted,               // A marked B as a target (also told to A's allies)
 }
 
 /// <summary>An event: who did it (A), to whom (B), and any extra detail.</summary>

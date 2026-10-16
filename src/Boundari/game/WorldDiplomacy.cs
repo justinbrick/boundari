@@ -20,6 +20,9 @@ public partial class World
     /// <summary>The target wedge (top left). With an ally it becomes "break alliance".</summary>
     private const string TargetWedge = "TL_Rect";
 
+    /// <summary>The trade wedge (top right): stops or resumes trade with them (an embargo toggle).</summary>
+    private const string TradeWedge = "TR_Rect";
+
     private static readonly Color BreakAllianceColour = new(1.6f, 0.45f, 0.45f);
 
     // ------------------------------------------------------------------
@@ -60,9 +63,18 @@ public partial class World
             : _game.PendingRequest(them, _me) is not null);
         wedges.Call("set_alliance_pending", theyAsked);
 
-        // Target wedge: "break alliance" with an ally (placeholder text for now).
+        // Target wedge: "break alliance" with an ally (placeholder text for now), otherwise
+        // mark them as a target (not again within 15 s).
         if (allied)
             wedges.Call("set_wedge_state", TargetWedge, true, BreakAllianceColour, "Break\nalliance");
+        else
+            wedges.Call("set_wedge_state", TargetWedge, them is not null && _game.CanTarget(_me, them), Colors.White, "");
+
+        // Trade wedge: trading is on by default; a click stops it (an embargo) or resumes it.
+        // Greyed out for allies (unless an embargo from before the alliance needs lifting).
+        bool embargoed = them is not null && _game.HasEmbargo(_me, them);
+        wedges.Call("set_wedge_state", TradeWedge, them is not null && (embargoed || !allied), Colors.White,
+            embargoed ? "Resume\ntrade" : "");
         wedges.Connect("wedge_pressed", Callable.From<string>(wedge => OnWedgePressed(wedge, (ushort)target, tile)));
     }
 
@@ -80,10 +92,18 @@ public partial class World
         else if (wedge == TargetWedge)
         {
             SyncSim();
-            if (_game.GetPlayer(target) is { } them && _me.IsAlliedWith(them))
-                _game.Submit(new BreakAllianceIntent(_me.Id, them.Id));
-            else
-                return; // marking a target isn't built yet
+            if (_game.GetPlayer(target) is not { } them || them == _me)
+                return;
+            _game.Submit(_me.IsAlliedWith(them)
+                ? new BreakAllianceIntent(_me.Id, them.Id)
+                : new TargetIntent(_me.Id, them.Id));
+        }
+        else if (wedge == TradeWedge)
+        {
+            SyncSim();
+            if (_game.GetPlayer(target) is not { } them || them == _me)
+                return;
+            _game.Submit(new EmbargoIntent(_me.Id, them.Id, Start: !_game.HasEmbargo(_me, them)));
         }
         else if (wedge == BoatWedge)
         {
@@ -118,12 +138,20 @@ public partial class World
         GetViewport().PushInput(new InputEventMouseButton { ButtonIndex = MouseButton.Right, Pressed = true, Position = screen, GlobalPosition = screen }, true);
         GetViewport().PushInput(new InputEventMouseButton { ButtonIndex = MouseButton.Right, Pressed = false, Position = screen, GlobalPosition = screen }, true);
         GD.Print($"right-click: {request.From.Name} at {screen}");
-        if (_args.RightClick is not ("requester-accept" or "requester-ally-menu"))
+        // Then click a wedge (middles at the menu's 0.8 scale): alliance (bottom right) to
+        // accept, or trade (top right) / target (top left); and maybe reopen the menu after.
+        var offset = _args.RightClick switch
+        {
+            "requester-accept" or "requester-ally-menu" => new Vector2(77, 77),
+            "requester-embargo" => new Vector2(77, -77),
+            "requester-target" => new Vector2(-77, -77),
+            _ => (Vector2?)null,
+        };
+        if (offset is null)
             return;
-        // Then click the alliance wedge (bottom right of the menu) and see the alliance form.
         for (int i = 0; i < 3; i++)
             await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
-        var wedge = screen + new Vector2(77, 77); // the alliance wedge's middle at the menu's 0.8 scale
+        var wedge = screen + offset.Value;
         GetViewport().PushInput(new InputEventMouseMotion { Position = wedge, GlobalPosition = wedge }, true);
         GetViewport().PushInput(new InputEventMouseButton { ButtonIndex = MouseButton.Left, Pressed = true, Position = wedge, GlobalPosition = wedge }, true);
         GetViewport().PushInput(new InputEventMouseButton { ButtonIndex = MouseButton.Left, Pressed = false, Position = wedge, GlobalPosition = wedge }, true);
@@ -131,10 +159,11 @@ public partial class World
         while (Time.GetTicksMsec() - clicked < 500) // a few game ticks
             await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
         SyncSim();
-        GD.Print($"right-click: allied with {request.From.Name} now: {_me.IsAlliedWith(request.From)}; menu open: {IsInstanceValid(_mainControl?.Get("current_menu").AsGodotObject())}");
-        if (_args.RightClick != "requester-ally-menu")
-            return;
-        // Then open the menu on the new ally (break alliance, dimmed renew).
+        GD.Print($"right-click: allied with {request.From.Name} now: {_me.IsAlliedWith(request.From)}; embargo: {_game.HasEmbargo(_me, request.From)}; " +
+                 $"marked: {_game.IsMarkedFor(_me, request.From)}; menu open: {IsInstanceValid(_mainControl?.Get("current_menu").AsGodotObject())}");
+        if (_args.RightClick is "requester-accept" or "requester-embargo")
+            return; // (embargo: leave the map clear to see the tag)
+        // Then open the menu on them again, to see how it changed.
         GetViewport().PushInput(new InputEventMouseButton { ButtonIndex = MouseButton.Right, Pressed = true, Position = screen, GlobalPosition = screen }, true);
         GetViewport().PushInput(new InputEventMouseButton { ButtonIndex = MouseButton.Right, Pressed = false, Position = screen, GlobalPosition = screen }, true);
         for (int i = 0; i < 4; i++)

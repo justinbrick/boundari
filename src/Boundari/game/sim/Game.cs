@@ -308,6 +308,12 @@ public sealed partial class Game
             case BreakAllianceIntent split when GetPlayer(split.TargetId) is { } former:
                 BreakAlliance(player, former);
                 break;
+            case EmbargoIntent embargo when GetPlayer(embargo.TargetId) is { } trader:
+                SetEmbargo(player, trader, embargo.Start);
+                break;
+            case TargetIntent mark when Phase == GamePhase.Running && GetPlayer(mark.TargetId) is { } marked:
+                MarkTarget(player, marked);
+                break;
             case RetreatIntent retreat:
                 OrderRetreat(player, retreat.AttackId);
                 break;
@@ -758,7 +764,7 @@ public sealed partial class Game
         Span<int> other = stackalloc int[4];
         foreach (var dest in _ports.Keys)
         {
-            if (dest.Owner == port.Owner || !_players[dest.Owner].IsAlive || !dest.IsReady(Tick))
+            if (dest.Owner == port.Owner || !_players[dest.Owner].IsAlive || !dest.IsReady(Tick) || !CanTrade(port.Owner, dest.Owner))
                 continue;
             int m = Waterways.TouchingBodies(dest.Tile, other);
             bool sameWater = false;
@@ -837,7 +843,8 @@ public sealed partial class Game
             // Cancelled if the destination is gone or changed hands (a captured ship needs
             // the captor's port; a normal one must not end up trading with itself).
             bool lost = ship.Captured ? ship.To.Owner != ship.Owner.Id : ship.To.Owner == ship.Owner.Id;
-            if (ship.To.Removed || lost || !ship.Owner.IsAlive)
+            bool embargoed = !ship.Captured && !CanTrade(ship.Owner.Id, ship.To.Owner); // OpenFront: an embargo cancels it
+            if (ship.To.Removed || lost || embargoed || !ship.Owner.IsAlive)
             {
                 _tradeShips.RemoveAt(i--);
                 continue;
@@ -1295,9 +1302,15 @@ public sealed partial class Game
             }
             train.Progress += Rules.TrainSpeedPerTick;
             int at = (int)Math.Min(train.Progress / 1000, train.Tiles.Length - 1);
+            bool stopped = false;
             while (train.NextStop < train.Stops.Length && at >= train.StopTileIndex[train.NextStop])
             {
                 var stop = train.Stops[train.NextStop++];
+                if (stop.Building.Owner != train.Owner.Id && !CanTrade(train.Owner.Id, stop.Building.Owner))
+                {
+                    stopped = true; // OpenFront: a train goes no further than an embargoed player's station
+                    break;
+                }
                 if (stop.Active && stop.IsTradeStop)
                 {
                     var stationOwner = _players[stop.Building.Owner];
@@ -1312,7 +1325,7 @@ public sealed partial class Game
                     train.TradeStopsVisited++;
                 }
             }
-            if (train.NextStop >= train.Stops.Length)
+            if (stopped || train.NextStop >= train.Stops.Length)
                 _trains.RemoveAt(i--);
         }
     }
