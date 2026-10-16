@@ -193,10 +193,13 @@ public partial class TroopMeterFill : Control
         _radius = Math.Max(0, panel.CornerRadiusTopLeft - _inset);
     }
 
-    public void SetTarget(float home, float away)
+    /// <param name="snap">Jump straight there instead of easing (e.g. it now shows someone else).</param>
+    public void SetTarget(float home, float away, bool snap = false)
     {
         _home = home;
         _away = away;
+        if (snap)
+            _started = false;
         if (!_started)
         {
             _started = true;

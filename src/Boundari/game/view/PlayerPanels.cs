@@ -16,7 +16,6 @@ public sealed class PlayerPanels
 {
     private const string Leader = "Main_Layer/Main_Control/Leader_Rect/";
     private const string Info = "Main_Layer/Main_Control/Display_Rec/";
-    private const string InfoBox = Info + "Panel/Control/VBoxContainer/";
     private const double LeaderboardRefreshSeconds = 0.5;
 
     private sealed class Row
@@ -38,13 +37,10 @@ public sealed class PlayerPanels
 
     private readonly Control? _info;
     private readonly TextureRect? _infoFlag;
-    private readonly Label? _infoName, _infoPlace, _infoLand, _infoCash, _infoTroops, _infoMaxTroops, _infoAttacking;
-    private readonly Label? _infoRelation, _infoTrade;
+    private readonly Label? _infoName, _infoPlace, _infoLand, _infoCash, _infoTroops, _infoMaxTroops;
+    private readonly Label? _infoRelation, _infoTrade, _infoType;
+    private readonly TroopMeterFill? _infoMeter;
     private string? _relationShown, _tradeShown;
-
-    // The hover panel's relation and trade answers: found by name, or where the scene
-    // currently has them (its placeholder "Name2" labels).
-    private const string InfoRows = "Main_Layer/Main_Control/Display_Rec/Panel/HBoxContainer/VBoxContainer2/VBoxContainer/HBoxContainer3/";
 
     // Relation colours: allies and friends green, neutral plain, distrustful orange, hostile red.
     private static readonly Color AlliesColour = new(0.472f, 1f, 0.44f); // the scene's green
@@ -52,7 +48,8 @@ public sealed class PlayerPanels
     private static readonly Color NeutralColour = new(1, 1, 1);
     private static readonly Color DistrustfulColour = new(1f, 0.6f, 0.2f);
     private static readonly Color HostileColour = new(1f, 0.32f, 0.28f);
-    private readonly List<(BuildingType Type, Label Label)> _infoBuildings = new();
+    // Structure counts: the number, its icon, and the dim look they have in the scene (used while it's 0).
+    private readonly List<(BuildingType Type, Label Label, CanvasItem Icon, Color DimLabel, Color DimIcon)> _infoBuildings = new();
 
     private readonly Dictionary<string, Texture2D?> _flags = new();
     private double _sinceRefresh = LeaderboardRefreshSeconds;
@@ -65,27 +62,65 @@ public sealed class PlayerPanels
                 _rows.Add(r);
         _myRow = ReadRow(root.GetNodeOrNull(Leader + "Personal_Panel/3rd"));
 
+        // The hover panel (Display_Rec), found by what's in it rather than exact paths, so
+        // it keeps working while it's being laid out:
+        //   the flag, with the name and place beside it;
+        //   rows of "<title> <answer>" for Trade, Relation and Type (the answer is the row's
+        //   other label, e.g. Relation_Answer);
+        //   Land_Amount (land %);
+        //   a box holding Current_Troops and Max_Troops (the troop meter) and a box with a
+        //   single label (gold);
+        //   structure counts: an icon and a number each, the building told by its icon.
         _info = root.GetNodeOrNull<Control>(Info.TrimEnd('/'));
-        _infoFlag = root.GetNodeOrNull<TextureRect>(InfoBox + "HBoxContainer/Flag");
-        _infoName = root.GetNodeOrNull<Label>(InfoBox + "HBoxContainer/Name");
-        _infoPlace = root.GetNodeOrNull<Label>(InfoBox + "HBoxContainer/Place");
-        _infoLand = root.GetNodeOrNull<Label>(InfoBox + "Panel_Land/HBoxContainer/HBoxContainer2/Land_Amount");
-        _infoCash = root.GetNodeOrNull<Label>(InfoBox + "Panel_Cash/HBoxContainer/Cash_Amount");
-        _infoTroops = root.GetNodeOrNull<Label>(InfoBox + "Panel_Pop/HBoxContainer/HBoxContainer2/Pop1");
-        _infoMaxTroops = root.GetNodeOrNull<Label>(InfoBox + "Panel_Pop/HBoxContainer/HBoxContainer2/Pop2");
-        _infoAttacking = root.GetNodeOrNull<Label>(InfoBox + "Panel_Attacking/HBoxContainer/Attack_Amount");
-        var display = root.GetNodeOrNull(Info.TrimEnd('/'));
-        _infoRelation = display?.FindChild("Relation_Answer", true, false) as Label ?? root.GetNodeOrNull<Label>(InfoRows + "HBoxContainer3/Name2");
-        _infoTrade = display?.FindChild("Trade_Answer", true, false) as Label ?? root.GetNodeOrNull<Label>(InfoRows + "HBoxContainer2/Name2");
-
-        // Building counts: each cell in the panel is named after its building.
-        foreach (string row in new[] { "HBox_Row1", "HBox_Row2", "HBox_Row3" })
-            if (root.GetNodeOrNull(InfoBox + row) is { } r)
-                foreach (var cell in r.GetChildren())
-                    if (Enum.TryParse<BuildingType>(cell.Name, true, out var type) && cell.GetNodeOrNull<Label>("Label") is { } label)
-                        _infoBuildings.Add((type, label));
         if (_info is not null)
+        {
+            _infoFlag = _info.FindChild("Flag", true, false) as TextureRect;
+            _infoName = _infoFlag?.GetParent().GetNodeOrNull<Label>("Name");
+            _infoPlace = _infoFlag?.GetParent().GetNodeOrNull<Label>("Place");
+            _infoLand = _info.FindChild("Land_Amount", true, false) as Label;
+            foreach (var row in Descendants(_info))
+            {
+                if (row is not HBoxContainer box)
+                    continue;
+                var labels = new List<Label>();
+                foreach (var c in box.GetChildren())
+                    if (c is Label l)
+                        labels.Add(l);
+                if (labels.Count != 2)
+                    continue;
+                switch (labels[0].Text.Trim())
+                {
+                    case "Trade": _infoTrade = labels[1]; break;
+                    case "Relation": _infoRelation = labels[1]; break;
+                    case "Type": _infoType = labels[1]; break;
+                }
+            }
+            foreach (var node in Descendants(_info))
+            {
+                if (node is not Panel panel)
+                    continue;
+                var current = panel.FindChild("Current_Troops", true, false) as Label;
+                var max = panel.FindChild("Max_Troops", true, false) as Label;
+                if (current is not null && max is not null)
+                {
+                    _infoTroops = current;
+                    _infoMaxTroops = max;
+                    _infoMeter = new TroopMeterFill { Name = "Fill", MouseFilter = Control.MouseFilterEnum.Ignore };
+                    _infoMeter.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+                    panel.AddChild(_infoMeter);
+                    panel.MoveChild(_infoMeter, 0); // behind the numbers
+                    if (panel.GetThemeStylebox("panel") is StyleBoxFlat style)
+                        _infoMeter.MatchPanel(style);
+                }
+                else if (current is not null && panel.Name.ToString().StartsWith("Display", StringComparison.Ordinal))
+                    _infoCash = current; // the one-number box: gold
+            }
+            foreach (var node in Descendants(_info))
+                if (node is TextureRect icon && icon != _infoFlag && icon.Texture?.ResourcePath is { } path
+                    && BuildingFromIcon(path) is { } type && icon.GetParent().GetNodeOrNull<Label>("Label") is { } count)
+                    _infoBuildings.Add((type, count, icon, count.Modulate, icon.Modulate));
             _info.Visible = false;
+        }
     }
 
     /// <summary>
@@ -187,14 +222,23 @@ public sealed class PlayerPanels
         Set(_infoPlace, _ranks.TryGetValue(p.Id, out int rank) ? Ordinal(rank) : "");
         string percent = Percent(p.TileCount, Math.Max(1, game.Map.LandTileCount));
         Set(_infoLand, percent.TrimEnd('%'));
-        Set(_infoCash, "$" + GameHud.FormatCount(p.Gold));
+        Set(_infoCash, p.InfiniteGold ? "$∞" : "$" + GameHud.FormatCount(p.Gold));
         Set(_infoTroops, GameHud.FormatCount(p.Troops));
         Set(_infoMaxTroops, GameHud.FormatCount(p.MaxTroops));
         long attacking = 0;
         foreach (var a in game.Attacks)
             if (a.Attacker == p)
                 attacking += a.Troops;
-        Set(_infoAttacking, GameHud.FormatCount(attacking));
+        if (_infoMeter is not null)
+        {
+            // Like the troop meter at the bottom: troops at home, then those out attacking.
+            double cap = Math.Max(p.MaxTroops, 1);
+            float home = (float)Math.Clamp(p.Troops / cap, 0, 1);
+            float away = (float)Math.Clamp(attacking / cap, 0, 1 - home);
+            _infoMeter.SetTarget(home, away, snap: p != _meterShows);
+            _meterShows = p;
+        }
+        Set(_infoType, p.Kind switch { PlayerKind.Nation => "Nation", PlayerKind.Bot => "Tribe", _ => "Player" });
         ShowRelation(game, me, p);
         string trade = p == me ? "-" : game.CanTrade(me, p) ? "Active" : "Stopped";
         Set(_infoTrade, trade);
@@ -203,8 +247,17 @@ public sealed class PlayerPanels
             _tradeShown = trade;
             _infoTrade.AddThemeColorOverride("font_color", trade == "Stopped" ? DistrustfulColour : AlliesColour);
         }
-        foreach (var (type, label) in _infoBuildings)
-            Set(label, game.CountLevels(p, type).ToString(CultureInfo.InvariantCulture));
+        foreach (var (type, label, icon, dimLabel, dimIcon) in _infoBuildings)
+        {
+            int n = type == BuildingType.Warship ? game.CountWarships(p) : game.CountLevels(p, type);
+            Set(label, n.ToString(CultureInfo.InvariantCulture));
+            var lit = n > 0 ? Colors.White : dimLabel; // like the bottom bar: full brightness once they have one
+            if (label.Modulate != lit)
+                label.Modulate = lit;
+            var litIcon = n > 0 ? Colors.White : dimIcon;
+            if (icon.Modulate != litIcon)
+                icon.Modulate = litIcon;
+        }
     }
 
     /// <summary>How the hovered player feels about you (as OpenFront shows it), or "Allies".</summary>
@@ -226,6 +279,32 @@ public sealed class PlayerPanels
         {
             _relationShown = text;
             _infoRelation.AddThemeColorOverride("font_color", colour);
+        }
+    }
+
+    private Player? _meterShows; // whose troops the hover meter shows (a new player snaps, no glide)
+
+    /// <summary>Which building a structure icon stands for, from its file name (harbour32x.svg, sam2.svg...).</summary>
+    private static BuildingType? BuildingFromIcon(string path)
+    {
+        string file = System.IO.Path.GetFileName(path).ToLowerInvariant();
+        return file.StartsWith("harbour") || file.StartsWith("port") ? BuildingType.Port
+            : file.StartsWith("barracks") || file.StartsWith("city") ? BuildingType.City
+            : file.StartsWith("depot") || file.StartsWith("factory") ? BuildingType.Factory
+            : file.StartsWith("defense") ? BuildingType.Defense
+            : file.StartsWith("silo") ? BuildingType.Silo
+            : file.StartsWith("sam") || file.StartsWith("flak") ? BuildingType.Sam
+            : file.StartsWith("warship") ? BuildingType.Warship
+            : null;
+    }
+
+    private static IEnumerable<Node> Descendants(Node node)
+    {
+        foreach (var child in node.GetChildren())
+        {
+            yield return child;
+            foreach (var deeper in Descendants(child))
+                yield return deeper;
         }
     }
 
