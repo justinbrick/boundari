@@ -111,6 +111,7 @@ public partial class World : Node2D
     private Camera2D _camera = null!;
     private GameHud _hud = null!;
     private PlayerPanels _panels = null!;
+    private PlayerBar _bar = null!;
     private TerritoryLabels _labels = null!;
     private GameMap _map = null!;
     private string _mapId = "";
@@ -132,6 +133,7 @@ public partial class World : Node2D
         _camera = GetNode<Camera2D>("Camera2D");
         _hud = new GameHud(this);
         _panels = new PlayerPanels(this);
+        _bar = new PlayerBar(this);
         _grid = new CoordinateGrid { Name = "CoordinateGrid", Visible = false };
         AddChild(_grid);
         MoveChild(_grid, _view.GetIndex() + 1); // on the map, under buildings and labels
@@ -320,6 +322,7 @@ public partial class World : Node2D
         long hudOnly = FrameProfiler.Start();
         UpdateFastForward();
         _hud.Update(_game, _me);
+        _bar.Update(_game, _me, delta);
         _arcs.SetRequests(IncomingAllianceRequests());
         FrameProfiler.Stop("  hud", hudOnly);
         var hovered = HoveredPlayer();

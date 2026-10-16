@@ -14,6 +14,9 @@ public partial class World
     /// <summary>The radial menu's alliance wedge (its holder node in RadialMenu.tscn).</summary>
     private const string AllianceWedge = "BR_Rect";
 
+    /// <summary>The boat wedge (bottom left): the same as pressing B on the clicked land.</summary>
+    private const string BoatWedge = "BL_Rect";
+
     // ------------------------------------------------------------------
     //  Radial menu
     // ------------------------------------------------------------------
@@ -26,10 +29,10 @@ public partial class World
     {
         int tile = _view.TileAt(worldPosition);
         ushort target = tile >= 0 && _map.IsLand(tile) ? _game.Owner[tile] : Game.Nobody;
-        CallDeferred(MethodName.SetUpRadialMenu, (int)target);
+        CallDeferred(MethodName.SetUpRadialMenu, (int)target, tile);
     }
 
-    private void SetUpRadialMenu(int target)
+    private void SetUpRadialMenu(int target, int tile)
     {
         if (_mainControl?.Get("current_menu").AsGodotObject() is not Control menu || !IsInstanceValid(menu))
             return;
@@ -39,18 +42,26 @@ public partial class World
         var them = _game.GetPlayer((ushort)target);
         bool askedUs = them is not null && them != _me && _game.PendingRequest(them, _me) is not null;
         wedges.Call("set_alliance_pending", askedUs);
-        wedges.Connect("wedge_pressed", Callable.From<string>(wedge => OnWedgePressed(wedge, (ushort)target)));
+        wedges.Connect("wedge_pressed", Callable.From<string>(wedge => OnWedgePressed(wedge, (ushort)target, tile)));
     }
 
-    private void OnWedgePressed(string wedge, ushort target)
+    private void OnWedgePressed(string wedge, ushort target, int tile)
     {
         if (_args.RightClick is not null)
             GD.Print($"right-click: wedge {wedge} pressed on #{target}");
-        if (wedge != AllianceWedge)
+        if (wedge == AllianceWedge)
+        {
+            SyncSim();
+            if (_game.GetPlayer(target) is { } them && them != _me && _me.IsAlive && !_me.IsAlliedWith(them))
+                _game.Submit(new AllianceIntent(_me.Id, them.Id)); // asks them, or accepts if they asked us
+        }
+        else if (wedge == BoatWedge)
+        {
+            SyncSim();
+            SendBoat(tile);
+        }
+        else
             return; // the other wedges don't do anything yet
-        SyncSim();
-        if (_game.GetPlayer(target) is { } them && them != _me && _me.IsAlive && !_me.IsAlliedWith(them))
-            _game.Submit(new AllianceIntent(_me.Id, them.Id)); // asks them, or accepts if they asked us
         _mainControl?.Call("hide_radial_menu");
     }
 

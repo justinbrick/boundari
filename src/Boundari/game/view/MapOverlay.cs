@@ -60,9 +60,14 @@ public partial class MapOverlay : Node2D
         foreach (var (type, path) in IconFiles)
             _icons[type] = ResourceLoader.Exists(path) ? GD.Load<Texture2D>(path) : null;
 
-        // Layers drawn behind this node's own drawing, in this order: rails and placement
-        // ranges, then the building icons (crisp, from a shader). Badges, construction rings,
-        // ships and bombs are drawn by this node, on top.
+        // Layers drawn behind this node's own drawing, in this order: roads (in a group, so
+        // they fade with zoom as one picture), trains and placement ranges, then the building
+        // icons (crisp, from a shader). Badges, construction rings, ships and bombs are drawn
+        // by this node, on top.
+        _roadGroup = new CanvasGroup { Name = "Roads", ShowBehindParent = true, FitMargin = 0, ClearMargin = 0 };
+        AddChild(_roadGroup);
+        _roads = new OverlayLayer { Name = "RoadLines", Paint = PaintRoads };
+        _roadGroup.AddChild(_roads);
         _under = new OverlayLayer { Name = "RailsAndRanges", ShowBehindParent = true, Paint = PaintUnder };
         AddChild(_under);
         _iconLayer = new StructureIcons { Name = "StructureIcons", ShowBehindParent = true, Paint = PaintIcons };
@@ -71,6 +76,8 @@ public partial class MapOverlay : Node2D
     }
 
     private OverlayLayer _under = null!;
+    private CanvasGroup _roadGroup = null!;
+    private OverlayLayer _roads = null!;
     private StructureIcons _iconLayer = null!;
 
     /// <summary>Whether there's a game to draw; waits for a running tick if needed.</summary>
@@ -85,7 +92,17 @@ public partial class MapOverlay : Node2D
         return true;
     }
 
-    /// <summary>Under the icons: railroads and trains, and the placement preview's ranges.</summary>
+    /// <summary>The roads, faded by zoom like OpenFront's railroads (see <see cref="RoadFade"/>).</summary>
+    private void PaintRoads(OverlayLayer c)
+    {
+        if (!ReadyToPaint(c))
+            return;
+        long part = FrameProfiler.Start();
+        DrawRoads(c, _zoom, _game!.Map.Width);
+        FrameProfiler.Stop("  overlay roads", part);
+    }
+
+    /// <summary>Under the icons: trains, and the placement preview's ranges.</summary>
     private void PaintUnder(OverlayLayer c)
     {
         if (!ReadyToPaint(c))
@@ -93,8 +110,8 @@ public partial class MapOverlay : Node2D
         float zoom = _zoom;
         int w = _game!.Map.Width;
         long part = FrameProfiler.Start();
-        DrawRails(c, zoom, w);
-        FrameProfiler.Stop("  overlay rails+trains", part);
+        DrawTrains(c, zoom, w);
+        FrameProfiler.Stop("  overlay trains", part);
         if (_ghostType is { } ghost && _ghostTile >= 0)
         {
             var at = TileCentre(_ghostTile, w);
@@ -181,6 +198,12 @@ public partial class MapOverlay : Node2D
         if (Frozen)
             return;
         QueueRedraw();
+        // The group's own colour fades the whole road picture at once (no darker overlaps).
+        float fade = RoadFade(GetViewport().GetCamera2D()?.Zoom.X ?? 1);
+        _roadGroup.Visible = fade > 0;
+        _roadGroup.SelfModulate = new Color(1, 1, 1, fade);
+        if (fade > 0)
+            _roads.QueueRedraw();
         _under.QueueRedraw();
         _iconLayer.QueueRedraw();
     }
@@ -312,14 +335,22 @@ public partial class MapOverlay : Node2D
         DrawString(font, at + new Vector2(-extent.X / 2, fontSize * 0.36f), text, HorizontalAlignment.Left, -1, fontSize, Colors.White);
     }
 
-    /// <summary>Railroads as thin dark lines, trains as short strings of cars along them.</summary>
     // Roads (the depots' railroads): a whole number of screen pixels wide, at least this many,
     // or this many tiles once zoomed in; coloured by whose land each stretch crosses.
     private const float RoadMinPixels = 2;
     private const float RoadTiles = 0.3f;
     private static readonly Color BridgeColour = new(0.24f, 0.22f, 0.2f);
 
-    private void DrawRails(CanvasItem layer, float zoom, int w)
+    // Roads fade in with zoom like OpenFront's railroads (its railMinZoom 3 and railFadeRange 2,
+    // x1.5 for our screen pixels): invisible at or below RoadHiddenZoom, fully shown from
+    // RoadShownZoom (reference screen pixels per tile), linear in between.
+    private const float RoadHiddenZoom = 1.5f;
+    private const float RoadShownZoom = 4.5f;
+
+    private float RoadFade(float zoom) =>
+        Math.Clamp((ReferenceZoom(zoom) - RoadHiddenZoom) / (RoadShownZoom - RoadHiddenZoom), 0, 1);
+
+    private void DrawRoads(CanvasItem layer, float zoom, int w)
     {
         int widthPixels = Math.Max((int)RoadMinPixels, (int)MathF.Round(RoadTiles * zoom));
         float half = widthPixels / zoom / 2;
@@ -331,9 +362,12 @@ public partial class MapOverlay : Node2D
             if (shape.Corners.Length >= 2 && _visible.Grow(2).Intersects(shape.Bounds, includeBorders: true))
                 DrawRoad(layer, rail, w, half, toScreen, toMap);
         }
+    }
 
+    private void DrawTrains(CanvasItem layer, float zoom, int w)
+    {
         float car = Math.Max(3f / zoom, 0.6f);
-        foreach (var train in _game.Trains)
+        foreach (var train in _game!.Trains)
         {
             float progress = (train.Progress - _game.Rules.TrainSpeedPerTick + _game.Rules.TrainSpeedPerTick * _tickFraction) / 1000f;
             var colour = ColorOf(train.Owner.Id);
