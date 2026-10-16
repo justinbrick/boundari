@@ -6,10 +6,12 @@ using Godot;
 namespace Boundari.View;
 
 /// <summary>
-/// Your outgoing attacks and boats, like OpenFront's attacks list: one tab each with the
-/// troops and where they're going, and a button to call it off. The tabs are the ones
-/// built in boundari.tscn (Control_Outgoing: rows of three); more rows are copied from
-/// the first as needed. Called-off ones say "Retreating..." until the troops are home.
+/// Attacks and boats, like OpenFront's attacks list: one tab each with the troops and who
+/// it's from or where it's going. Incoming ones (attacks on you, boats heading for your
+/// coast) come first, in red, saying who they're from; your own outgoing ones follow, with
+/// a button to call them off ("Retreating..." until the troops are home). The tabs are the
+/// ones built in boundari.tscn (Control_Outgoing: rows of three); more rows are copied from
+/// the first as needed.
 /// </summary>
 public sealed class OutgoingAttacks
 {
@@ -22,6 +24,8 @@ public sealed class OutgoingAttacks
         public Button? Close;
         public bool IsBoat;
         public int Id = -1; // the attack or boat shown, -1 = unused
+        public bool? ShownIncoming; // how the tab is currently styled
+        public Color DestinationColour, TroopsColour;
     }
 
     private readonly Action<Intent> _submit;
@@ -29,7 +33,8 @@ public sealed class OutgoingAttacks
     private readonly Control? _template;
     private readonly List<Control> _rowNodes = new();
     private readonly List<Tab> _tabs = new();
-    private readonly List<(bool IsBoat, int Id, long Troops, string Where, bool Retreating)> _items = new();
+    private readonly List<(bool Incoming, bool IsBoat, int Id, long Troops, string Where, bool Retreating)> _items = new();
+    private static readonly Color IncomingColour = new(1f, 0.42f, 0.38f);
     private Player? _me;
 
     /// <param name="submit">Sends an intent to the game (from the main thread).</param>
@@ -39,6 +44,10 @@ public sealed class OutgoingAttacks
         _rows = root.GetNodeOrNull<VBoxContainer>(Path);
         if (_rows is null)
             return;
+        // It may be hidden in the editor (to keep it out of the way while designing): the
+        // game shows it; empty rows hide themselves.
+        if (_rows.GetParent() is CanvasItem area)
+            area.Visible = true;
         foreach (var child in _rows.GetChildren())
             if (child is HBoxContainer row)
             {
@@ -61,6 +70,8 @@ public sealed class OutgoingAttacks
                 Destination = tabRoot.FindChild("Destination", true, false) as Label,
                 Close = tabRoot.FindChild("Button_Retreat", true, false) as Button,
             };
+            tab.DestinationColour = tab.Destination?.GetThemeColor("font_color") ?? Colors.White;
+            tab.TroopsColour = tab.Troops?.GetThemeColor("font_color") ?? Colors.White;
             if (tab.Close is not null)
             {
                 tab.Close.FocusMode = Control.FocusModeEnum.None; // keep Space/Enter for the game
@@ -74,7 +85,7 @@ public sealed class OutgoingAttacks
 
     private void CallOff(Tab tab)
     {
-        if (_me is null || tab.Id < 0)
+        if (_me is null || tab.Id < 0 || tab.ShownIncoming == true)
             return;
         _submit(tab.IsBoat ? new BoatRetreatIntent(_me.Id, tab.Id) : new RetreatIntent(_me.Id, tab.Id));
     }
@@ -88,15 +99,20 @@ public sealed class OutgoingAttacks
         _items.Clear();
         foreach (var a in game.Attacks)
             if (a.Attacker == me)
-                _items.Add((false, a.Id, a.Troops, a.TargetId == Game.Nobody ? "Wilderness" : game.GetPlayer(a.TargetId)?.Name ?? "?", a.Retreating));
+                _items.Add((false, false, a.Id, a.Troops, a.TargetId == Game.Nobody ? "Wilderness" : game.GetPlayer(a.TargetId)?.Name ?? "?", a.Retreating));
+            else if (a.TargetId == me.Id)
+                _items.Add((true, false, a.Id, a.Troops, "From " + a.Attacker.Name, a.Retreating));
         foreach (var b in game.Boats)
             if (b.Owner == me)
             {
                 ushort owner = game.Owner[b.LandingTile];
                 string where = owner == Game.Nobody ? "Wilderness" : game.GetPlayer(owner)?.Name ?? "?";
-                _items.Add((true, b.Id, b.Troops, "Boat to " + where, b.Retreating));
+                _items.Add((false, true, b.Id, b.Troops, "Boat to " + where, b.Retreating));
             }
-        _items.Sort((x, y) => x.Id.CompareTo(y.Id)); // oldest first, so tabs don't jump around
+            else if (!b.Retreating && game.Owner[b.LandingTile] == me.Id)
+                _items.Add((true, true, b.Id, b.Troops, "Boat from " + b.Owner.Name, false));
+        // Incoming first, then oldest first, so tabs don't jump around.
+        _items.Sort((x, y) => x.Incoming != y.Incoming ? y.Incoming.CompareTo(x.Incoming) : x.Id.CompareTo(y.Id));
 
         // Enough rows of three for everything.
         while (_tabs.Count < _items.Count && _template is not null)
@@ -122,6 +138,15 @@ public sealed class OutgoingAttacks
             tab.Id = item.Id;
             GameHud.SetText(tab.Troops, GameHud.FormatCount(item.Troops));
             GameHud.SetText(tab.Destination, item.Retreating ? "Retreating..." : item.Where);
+            if (tab.ShownIncoming != item.Incoming)
+            {
+                // Incoming: red, and no X (you can't call off someone else's attack).
+                tab.ShownIncoming = item.Incoming;
+                tab.Destination?.AddThemeColorOverride("font_color", item.Incoming ? IncomingColour : tab.DestinationColour);
+                tab.Troops?.AddThemeColorOverride("font_color", item.Incoming ? IncomingColour : tab.TroopsColour);
+                if (tab.Close is not null)
+                    tab.Close.Visible = !item.Incoming;
+            }
             if (tab.Close is not null && tab.Close.Disabled != item.Retreating)
                 tab.Close.Disabled = item.Retreating;
         }

@@ -910,6 +910,14 @@ public partial class World : Node2D
             Showcase();
         if (_args.Aim is { } aimArg && Enum.TryParse<NukeType>(aimArg, true, out var aimType))
             AimForScreenshot(aimType);
+        if (_args.Incoming)
+        {
+            // Up to three neighbours attack us.
+            foreach (var them in _game.BorderingPlayers(_me).Take(3))
+                _game.Submit(new AttackIntent(them.Id, _me.Id, 30));
+            _game.Step();
+            GD.Print($"incoming: {_game.Attacks.Count(a => a.TargetId == _me.Id)} attacks on us");
+        }
 
         if (_args.AllyRequests > 0)
             AskForAlliances(_args.AllyRequests);
@@ -1135,7 +1143,7 @@ public partial class World : Node2D
 
     private record struct Args(string? Map, ulong? Seed, int? Bots, int? Nations, Difficulty? Difficulty, bool NoCheats, double? Bench, string? Dev, bool Autoplay, int Ticks,
         float Zoom, Vector2? Focus, string? Screenshot, bool Perf, Vector2? Hover, bool HoverLeader, bool Showcase, string? ShowcaseFocus,
-        string? Start = null, int AllyRequests = 0, string? RightClick = null, string? Aim = null);
+        string? Start = null, int AllyRequests = 0, string? RightClick = null, string? Aim = null, bool Incoming = false);
 
     private static Args ParseArgs()
     {
@@ -1167,6 +1175,7 @@ public partial class World : Node2D
                 case "perf": args.Perf = true; break;
                 case "start": args.Start = value; break;             // now / mid / ask
                 case "ally-requests": args.AllyRequests = int.Parse(value, inv); break;
+                case "incoming": args.Incoming = true; break; // (testing) a neighbour attacks you, to show the incoming tabs
                 case "aim": args.Aim = value; break; // (testing) "moab"/"fatman": aim at the biggest other nation, screen centred on the arc
                 case "right-click": args.RightClick = value; break; // "requester": right-click whoever asked us to ally (screenshots)
                 case "showcase": args.Showcase = true; args.ShowcaseFocus = value; break;
