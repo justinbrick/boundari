@@ -70,6 +70,9 @@ public partial class TerritoryLabels : Node2D
     /// <summary>The player under the mouse (0 = none): their label is always shown, on top, readable.</summary>
     public ushort Hovered { get; set; }
 
+    /// <summary>The player at this screen: tags like "ally" are from their point of view.</summary>
+    public Player? Me { get; set; }
+
     /// <summary>Where a player's name sits on the map (the middle of their main territory), if they have one.</summary>
     public bool TryGetAnchor(ushort id, out Vector2 position)
     {
@@ -349,6 +352,7 @@ public partial class TerritoryLabels : Node2D
         var view = GetCanvasTransform().AffineInverse() * GetViewportRect();
         var canvas = GetCanvasItem();
 
+        GatherTagFacts();
         foreach (var (id, label) in _labels)
             if (id != Hovered)
                 DrawLabel(id, label, zoom, view, canvas, false);
@@ -411,7 +415,89 @@ public partial class TerritoryLabels : Node2D
         float troopAscent = troops.GetLineAscent() * troopScale;
         DrawText(troops, new Vector2(pos.X - troopWidth / 2, troopMiddle + troopCap / 2 - troopAscent), troopScale,
             TroopShadow * troopBucket, TroopOutline * troopBucket, text, outline, shadow, canvas);
+        DrawTags(player, new Vector2(pos.X, pos.Y - Math.Max(cap, flagHeight) / 2 - cap * TagGap), cap * TagHeight, zoom, alpha);
         DrawSetTransform(Vector2.Zero, 0, Vector2.One);
+    }
+
+    // ------------------------------------------------------------------
+    //  Tags above names (placeholders for OpenFront's icons)
+    // ------------------------------------------------------------------
+
+    private const float TagHeight = 0.75f;  // as a share of the name's capitals
+    private const float TagGap = 0.3f;      // between the tags and the name, likewise
+    private static readonly Color LeaderTag = new(0.85f, 0.66f, 0.12f);
+    private static readonly Color AllyTag = new(0.24f, 0.62f, 0.3f);
+    private static readonly Color RequestTag = new(0.36f, 0.56f, 0.36f);
+    private static readonly Color TraitorTag = new(0.78f, 0.18f, 0.16f);
+    private static readonly Color BombTag = new(0.3f, 0.3f, 0.32f);
+    private static readonly Color BombAtMeTag = new(0.85f, 0.2f, 0.15f);
+
+    private ushort _leader;
+    private readonly Dictionary<ushort, bool> _bombers = new(); // player with bombs in the air: aimed at me?
+    private readonly List<(string Text, Color Colour)> _tags = new();
+    private readonly StyleBoxFlat _tagBox = new() { AntiAliasing = true };
+
+    /// <summary>Once per draw: who leads, and who has bombs in the air (and whether any are coming at me).</summary>
+    private void GatherTagFacts()
+    {
+        _leader = 0;
+        int most = 0;
+        foreach (var p in _game!.Players)
+            if (p.IsAlive && p.HasSpawned && p.TileCount > most)
+            {
+                most = p.TileCount;
+                _leader = p.Id;
+            }
+        _bombers.Clear();
+        foreach (var nuke in _game.Nukes)
+        {
+            if (nuke.Gone)
+                continue;
+            bool atMe = Me is not null && _game.Owner[nuke.To] == Me.Id;
+            _bombers[nuke.Owner.Id] = atMe || _bombers.GetValueOrDefault(nuke.Owner.Id);
+        }
+    }
+
+    /// <summary>Small coloured tags in a row, centred above the name: leader, ally, wants to ally, traitor, bombs.</summary>
+    private void DrawTags(Player player, Vector2 bottomCentre, float height, float zoom, float alpha)
+    {
+        _tags.Clear();
+        if (player.Id == _leader)
+            _tags.Add(("LEADER", LeaderTag));
+        if (Me is not null && player != Me)
+        {
+            if (Me.IsAlliedWith(player))
+                _tags.Add(("ALLY", AllyTag));
+            else if (_game!.PendingRequest(player, Me) is not null)
+                _tags.Add(("WANTS ALLIANCE", RequestTag));
+        }
+        if (_game!.IsTraitor(player))
+            _tags.Add(("TRAITOR", TraitorTag));
+        if (player != Me && _bombers.TryGetValue(player.Id, out bool atMe))
+            _tags.Add((atMe ? "BOMBING YOU" : "BOMBS", atMe ? BombAtMeTag : BombTag));
+        if (_tags.Count == 0)
+            return;
+
+        // Laid out at a whole font size near its size on screen, then scaled, like the names.
+        float textHeight = height * 0.62f;
+        int px = Bucket(textHeight * zoom);
+        float s = textHeight / px;
+        var font = ThemeDB.FallbackFont;
+        float pad = px * 0.45f, gap = px * 0.35f, boxHeight = height / s;
+        float total = -gap;
+        foreach (var (t, _) in _tags)
+            total += font.GetStringSize(t, HorizontalAlignment.Left, -1, px).X + pad * 2 + gap;
+        DrawSetTransform(new Vector2(bottomCentre.X - total * s / 2, bottomCentre.Y - height), 0, new Vector2(s, s));
+        float x = 0;
+        _tagBox.SetCornerRadiusAll((int)(boxHeight * 0.3f));
+        foreach (var (t, colour) in _tags)
+        {
+            float w = font.GetStringSize(t, HorizontalAlignment.Left, -1, px).X + pad * 2;
+            _tagBox.BgColor = new Color(colour, 0.9f * alpha);
+            DrawStyleBox(_tagBox, new Rect2(x, 0, w, boxHeight));
+            DrawString(font, new Vector2(x + pad, boxHeight / 2 + px * 0.36f), t, HorizontalAlignment.Left, -1, px, new Color(1, 1, 1, alpha));
+            x += w + gap;
+        }
     }
 
     /// <summary>One line in the mockup style: a faint shadow down-right, then a light outline, then the dark text (sizes in layout units).</summary>

@@ -56,6 +56,34 @@ public class AttackTests
     }
 
     [Fact]
+    public void Retreat_StopsAtOnce_ThenBringsTheTroopsHome_LessAQuarter()
+    {
+        var (game, a, b) = Setup();
+        SetTroops(a, 100_000);
+        game.Submit(new AttackIntent(a.Id, b.Id, 50));
+        game.Step();
+        var attack = Assert.Single(game.Attacks);
+        game.Submit(new RetreatIntent(a.Id, attack.Id));
+        game.Step();
+        Assert.True(attack.Retreating);
+        long troops = attack.Troops;
+        int bTiles = b.TileCount;
+
+        long before = a.Troops;
+        int ticks = 0;
+        while (game.Attacks.Count > 0 && ticks++ < 100)
+        {
+            before = a.Troops;
+            game.Step();
+            Assert.Equal(bTiles, b.TileCount); // takes nothing more while pulling back
+        }
+        Assert.Empty(game.Attacks);
+        Assert.InRange(ticks, AttackRules.RetreatDelayTicks - 2, AttackRules.RetreatDelayTicks + 1);
+        long back = a.Troops - before; // the returning troops (plus one tick's growth)
+        Assert.InRange(back, troops * 70 / 100, troops * 80 / 100);
+    }
+
+    [Fact]
     public void BiggerArmies_TakeLandFaster()
     {
         int weak = TilesTaken(30_000, 200_000);

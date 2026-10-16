@@ -17,6 +17,11 @@ public partial class World
     /// <summary>The boat wedge (bottom left): the same as pressing B on the clicked land.</summary>
     private const string BoatWedge = "BL_Rect";
 
+    /// <summary>The target wedge (top left). With an ally it becomes "break alliance".</summary>
+    private const string TargetWedge = "TL_Rect";
+
+    private static readonly Color BreakAllianceColour = new(1.6f, 0.45f, 0.45f);
+
     // ------------------------------------------------------------------
     //  Radial menu
     // ------------------------------------------------------------------
@@ -40,8 +45,24 @@ public partial class World
             return;
         SyncSim();
         var them = _game.GetPlayer((ushort)target);
-        bool askedUs = them is not null && them != _me && _game.PendingRequest(them, _me) is not null;
-        wedges.Call("set_alliance_pending", askedUs);
+        if (them == _me)
+            them = null;
+        bool allied = them is not null && _me.IsAlliedWith(them);
+        var alliance = allied ? _game.AllianceBetween(_me, them!) : null;
+
+        // Alliance wedge, like OpenFront's: ask or accept; with an ally it's the renew
+        // button, usable only in the alliance's last 30 s (dimmed before, or once we've asked).
+        bool canUse = them is not null && (allied ? _game.CanRenewAlliance(_me, them) : _game.CanRequestAlliance(_me, them));
+        wedges.Call("set_wedge_state", AllianceWedge, canUse, Colors.White, "");
+        // The moving outline: they've asked us to ally, or to renew.
+        bool theyAsked = them is not null && (allied
+            ? alliance!.AgreedToRenew(them) && canUse
+            : _game.PendingRequest(them, _me) is not null);
+        wedges.Call("set_alliance_pending", theyAsked);
+
+        // Target wedge: "break alliance" with an ally (placeholder text for now).
+        if (allied)
+            wedges.Call("set_wedge_state", TargetWedge, true, BreakAllianceColour, "Break\nalliance");
         wedges.Connect("wedge_pressed", Callable.From<string>(wedge => OnWedgePressed(wedge, (ushort)target, tile)));
     }
 
@@ -52,8 +73,17 @@ public partial class World
         if (wedge == AllianceWedge)
         {
             SyncSim();
-            if (_game.GetPlayer(target) is { } them && them != _me && _me.IsAlive && !_me.IsAlliedWith(them))
-                _game.Submit(new AllianceIntent(_me.Id, them.Id)); // asks them, or accepts if they asked us
+            // Asks them, accepts if they asked us, or (with an ally) asks to renew / agrees to renew.
+            if (_game.GetPlayer(target) is { } them && them != _me && _me.IsAlive)
+                _game.Submit(new AllianceIntent(_me.Id, them.Id));
+        }
+        else if (wedge == TargetWedge)
+        {
+            SyncSim();
+            if (_game.GetPlayer(target) is { } them && _me.IsAlliedWith(them))
+                _game.Submit(new BreakAllianceIntent(_me.Id, them.Id));
+            else
+                return; // marking a target isn't built yet
         }
         else if (wedge == BoatWedge)
         {
@@ -88,7 +118,7 @@ public partial class World
         GetViewport().PushInput(new InputEventMouseButton { ButtonIndex = MouseButton.Right, Pressed = true, Position = screen, GlobalPosition = screen }, true);
         GetViewport().PushInput(new InputEventMouseButton { ButtonIndex = MouseButton.Right, Pressed = false, Position = screen, GlobalPosition = screen }, true);
         GD.Print($"right-click: {request.From.Name} at {screen}");
-        if (_args.RightClick != "requester-accept")
+        if (_args.RightClick is not ("requester-accept" or "requester-ally-menu"))
             return;
         // Then click the alliance wedge (bottom right of the menu) and see the alliance form.
         for (int i = 0; i < 3; i++)
@@ -102,6 +132,13 @@ public partial class World
             await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
         SyncSim();
         GD.Print($"right-click: allied with {request.From.Name} now: {_me.IsAlliedWith(request.From)}; menu open: {IsInstanceValid(_mainControl?.Get("current_menu").AsGodotObject())}");
+        if (_args.RightClick != "requester-ally-menu")
+            return;
+        // Then open the menu on the new ally (break alliance, dimmed renew).
+        GetViewport().PushInput(new InputEventMouseButton { ButtonIndex = MouseButton.Right, Pressed = true, Position = screen, GlobalPosition = screen }, true);
+        GetViewport().PushInput(new InputEventMouseButton { ButtonIndex = MouseButton.Right, Pressed = false, Position = screen, GlobalPosition = screen }, true);
+        for (int i = 0; i < 4; i++)
+            await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
     }
 
     /// <summary>

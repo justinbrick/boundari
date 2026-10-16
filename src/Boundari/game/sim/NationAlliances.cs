@@ -43,6 +43,19 @@ internal sealed class NationAlliances
         }
     }
 
+    /// <summary>Agrees to renew an alliance its ally asked to renew, if it would still ally with them (OpenFront).</summary>
+    public void HandleRenewals()
+    {
+        foreach (var alliance in _game.Alliances)
+        {
+            if (alliance.A != _player && alliance.B != _player)
+                continue;
+            var ally = alliance.Other(_player);
+            if (alliance.AgreedToRenew(ally) && !alliance.AgreedToRenew(_player) && Decide(ally, isResponse: true))
+                _game.Submit(new AllianceIntent(_player.Id, ally.Id));
+        }
+    }
+
     /// <summary>Now and then asks a bordering non-ally (never a tribe, except on Easy) to ally.</summary>
     public void MaybeSendRequests(List<Player> borderingEnemies)
     {

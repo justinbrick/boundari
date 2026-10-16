@@ -57,6 +57,7 @@ public sealed partial class Game
     private readonly List<Train> _trains = new();
     private bool _clustersDirty;
     private int _nextWarshipId = 1;
+    private int _nextUnitId = 1; // attacks and boats
     private readonly Dictionary<Building, PortTrade> _ports = new();
     private readonly Dictionary<(int, int), int[]?> _tradeRoutes = new();
     private Waterways.RouteJob? _routeJob;           // trade route being planned
@@ -306,6 +307,12 @@ public sealed partial class Game
                 break;
             case BreakAllianceIntent split when GetPlayer(split.TargetId) is { } former:
                 BreakAlliance(player, former);
+                break;
+            case RetreatIntent retreat:
+                OrderRetreat(player, retreat.AttackId);
+                break;
+            case BoatRetreatIntent recall when _boats.Find(b => b.Id == recall.BoatId && b.Owner == player) is { } called:
+                called.Retreating = true;
                 break;
             case RejectAllianceIntent no when GetPlayer(no.RequesterId) is { } asker && PendingRequest(asker, player) is { } request:
                 RejectAlliance(request);
@@ -665,7 +672,7 @@ public sealed partial class Game
             return;
         player.Troops -= troops;
         player.AttacksSent++;
-        _boats.Add(new Boat(player, troops, landing, path));
+        _boats.Add(new Boat(player, troops, landing, source, path) { Id = _nextUnitId++ });
         if (GetPlayer(targetOwner) is { } heading)
             Report(GameEventKind.BoatLaunched, player, heading);
     }
@@ -678,6 +685,19 @@ public sealed partial class Game
             if (!boat.Owner.IsAlive || boat.Sunk)
             {
                 _boats.RemoveAt(i--); // nobody left to land for
+                continue;
+            }
+            if (boat.Retreating)
+            {
+                // Sails back the way it came, then comes ashore where it set off: on our own
+                // coast that costs a quarter of the troops (see Land); if the coast has been
+                // taken meanwhile, it lands there as an attack, like OpenFront's.
+                boat.Progress = Math.Max(0, boat.Progress - Rules.BoatSpeedPerTick);
+                if (boat.Progress > 0)
+                    continue;
+                _boats.RemoveAt(i--);
+                boat.LandingTile = boat.SourceTile;
+                Land(boat);
                 continue;
             }
             boat.Progress += Rules.BoatSpeedPerTick;

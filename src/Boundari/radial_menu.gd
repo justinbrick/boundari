@@ -9,6 +9,9 @@ extends Control
 # The alliance wedge (bottom right) can also show a moving green outline: the game
 # turns it on (set_alliance_pending) when the player you right-clicked has asked you
 # to ally. See alliance_pulse.gdshader.
+#
+# The game can also restyle a wedge (set_wedge_state): tint it, dim it so it can't be
+# clicked, or lay a short label over it (e.g. "Break alliance" on the target wedge).
 
 # 380x380 → radius 190
 const MENU_RADIUS := 190.0
@@ -16,6 +19,8 @@ const ALPHA_THRESHOLD := 0.02         # less opaque than this counts as "not on 
 # How much lighter/darker a wedge gets: its frosted-glass panel (blur.gdshader's tint) and its picture.
 const HOVER_TINT := 1.45
 const PRESSED_TINT := 0.6
+const DISABLED_COLOUR := Color(0.5, 0.5, 0.5, 0.7)   # a wedge that can't be used right now
+const DISABLED_PANEL_TINT := 0.75
 const ALLIANCE_WEDGE := "BR_Rect"
 const PULSE_SHADER := preload("res://alliance_pulse.gdshader")
 
@@ -31,6 +36,9 @@ var _images: Array[Image] = []         # their pixels, for checking what's see-t
 var _panels: Array[CanvasItem] = []    # each wedge's frosted-glass panel behind it (may be null)
 var _hovered := -1
 var _pressed := -1
+var _enabled: Array[bool] = []         # per wedge: false = dimmed and not clickable
+var _colours: Array[Color] = []        # per wedge: tint multiplied into its picture
+var _labels: Array[Label] = []         # per wedge: optional text laid over it
 var _pulse: TextureRect = null
 
 func _ready() -> void:
@@ -45,6 +53,9 @@ func _ready() -> void:
 				image.decompress()
 			_image_cache[texture] = image
 		_images.append(image)
+		_enabled.append(true)
+		_colours.append(Color.WHITE)
+		_labels.append(null)
 		# The panels share materials: give each its own copy so only one lights up.
 		var panel := button.get_parent() as CanvasItem
 		if panel and panel.material is ShaderMaterial:
@@ -93,6 +104,8 @@ func _input(event: InputEvent) -> void:
 			if not inside:
 				return   # outside the menu: let Main_Control close it
 			_pressed = _wedge_at(event.position)
+			if _pressed != -1 and not _enabled[_pressed]:
+				_pressed = -1   # dimmed: the click is swallowed, nothing happens
 			_refresh()
 			get_viewport().set_input_as_handled()
 		elif _pressed != -1 or inside:
@@ -136,6 +149,39 @@ func set_alliance_pending(on: bool) -> void:
 	button.get_parent().add_child(_pulse)   # after the wedge picture, so it's drawn on top
 	_pulse.position = button.position
 
+## Restyles a wedge: enabled = can be hovered and clicked (otherwise dimmed); colour =
+## a tint multiplied into its picture; text = a label laid over the middle of the wedge
+## ("" for none).
+func set_wedge_state(wedge_name: String, enabled: bool, colour: Color = Color.WHITE, text: String = "") -> void:
+	for i in _buttons.size():
+		if _buttons[i].get_parent().name != wedge_name:
+			continue
+		_enabled[i] = enabled
+		_colours[i] = colour
+		if text == "":
+			if _labels[i]:
+				_labels[i].queue_free()
+				_labels[i] = null
+		else:
+			if _labels[i] == null:
+				var label := Label.new()
+				label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+				label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+				label.add_theme_font_size_override("font_size", 22)
+				label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+				label.add_theme_constant_override("outline_size", 8)
+				var holder := _buttons[i].get_parent() as Control
+				holder.add_child(label)
+				var middle := _centroid(_images[i]) if _images[i] else Vector2(190, 190)
+				label.size = Vector2(160, 70)
+				label.position = middle - label.size * 0.5
+				_labels[i] = label
+			_labels[i].text = text
+	if _hovered != -1 and not _enabled[_hovered]:
+		_hovered = -1
+	_refresh()
+
 ## Middle of a wedge picture's visible part, in pixels.
 func _centroid(image: Image) -> Vector2:
 	var sum := Vector2.ZERO
@@ -149,6 +195,8 @@ func _centroid(image: Image) -> Vector2:
 	return sum / count if count > 0.0 else Vector2(image.get_size()) * 0.5
 
 func _set_hovered(index: int) -> void:
+	if index != -1 and not _enabled[index]:
+		index = -1   # dimmed wedges don't light up
 	if index == _hovered:
 		return
 	_hovered = index
@@ -161,6 +209,9 @@ func _refresh() -> void:
 			tint = PRESSED_TINT
 		elif i == _hovered and _pressed == -1:
 			tint = HOVER_TINT
-		_buttons[i].modulate = Color(tint, tint, tint)
+		var colour := _colours[i] * Color(tint, tint, tint)
+		if not _enabled[i]:
+			colour = _colours[i] * DISABLED_COLOUR
+		_buttons[i].modulate = colour
 		if _panels[i]:
-			(_panels[i].material as ShaderMaterial).set_shader_parameter("tint", tint)
+			(_panels[i].material as ShaderMaterial).set_shader_parameter("tint", tint if _enabled[i] else DISABLED_PANEL_TINT)

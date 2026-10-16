@@ -113,6 +113,7 @@ public partial class World : Node2D
     private PlayerPanels _panels = null!;
     private PlayerBar _bar = null!;
     private NotificationBar _notifications = null!;
+    private OutgoingAttacks _outgoing = null!;
     private TerritoryLabels _labels = null!;
     private GameMap _map = null!;
     private string _mapId = "";
@@ -136,6 +137,11 @@ public partial class World : Node2D
         _panels = new PlayerPanels(this);
         _bar = new PlayerBar(this);
         _notifications = new NotificationBar(this);
+        _outgoing = new OutgoingAttacks(this, intent =>
+        {
+            SyncSim();
+            _game.Submit(intent);
+        });
         _grid = new CoordinateGrid { Name = "CoordinateGrid", Visible = false };
         AddChild(_grid);
         MoveChild(_grid, _view.GetIndex() + 1); // on the map, under buildings and labels
@@ -327,6 +333,7 @@ public partial class World : Node2D
         UpdateFastForward();
         _hud.Update(_game, _me);
         _bar.Update(_game, _me, delta);
+        _outgoing.Update(_game, _me);
         _arcs.SetRequests(IncomingAllianceRequests());
         FrameProfiler.Stop("  hud", hudOnly);
         var hovered = HoveredPlayer();
@@ -695,6 +702,7 @@ public partial class World : Node2D
         _game = new Game(_map, RandomSeed(), difficulty: _args.Difficulty ?? Difficulty);
         _me = _game.AddPlayer("You");
         _game.EventsFor = _me.Id; // notifications
+        _labels.Me = _me;
         if (DevCheats && !_args.NoCheats)
             _game.SetCheats(_me, infiniteGold: true, instantBuild: true);
         if (_args.Nations is null && MapNations.For(_mapId) is { } mapNations)

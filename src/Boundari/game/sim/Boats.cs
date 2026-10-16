@@ -14,7 +14,16 @@ public sealed class Boat
 {
     public readonly Player Owner;
     public long Troops { get; internal set; }
-    public readonly int LandingTile;
+    public int LandingTile { get; internal set; }
+
+    /// <summary>Unique for the match (so a player can name the boat to call it back).</summary>
+    public int Id { get; internal set; }
+
+    /// <summary>The land tile it set off from (where it heads back to if called back).</summary>
+    public readonly int SourceTile;
+
+    /// <summary>Called back: sailing back along its path to where it set off.</summary>
+    public bool Retreating { get; internal set; }
 
     /// <summary>Water tiles from the launch shore to the landing shore.</summary>
     public readonly int[] Path;
@@ -22,11 +31,12 @@ public sealed class Boat
     /// <summary>Distance travelled along <see cref="Path"/>, in thousandths of a step.</summary>
     public long Progress { get; internal set; }
 
-    internal Boat(Player owner, long troops, int landingTile, int[] path)
+    internal Boat(Player owner, long troops, int landingTile, int sourceTile, int[] path)
     {
         Owner = owner;
         Troops = troops;
         LandingTile = landingTile;
+        SourceTile = sourceTile;
         Path = path;
     }
 
@@ -40,6 +50,9 @@ public sealed class Boat
 
 /// <summary>Send a share of troops by boat to land as close as possible to a tile.</summary>
 public sealed record BoatIntent(ushort PlayerId, int Tile, int RatioPercent) : Intent(PlayerId);
+
+/// <summary>Call one of your boats back (it sails home; a quarter of its troops are lost, as in OpenFront).</summary>
+public sealed record BoatRetreatIntent(ushort PlayerId, int BoatId) : Intent(PlayerId);
 
 /// <summary>Water connectivity and shortest sea routes, for boats.</summary>
 public sealed class Waterways

@@ -56,6 +56,35 @@ public class AllianceTests
     }
 
     [Fact]
+    public void Alliance_CanBeRenewed_OnlyInItsLast30Seconds_OnceBothAsk()
+    {
+        var (game, a, b) = Setup();
+        game.Submit(new AllianceIntent(a.Id, b.Id));
+        game.Submit(new AllianceIntent(b.Id, a.Id));
+        Wait(game, 2);
+        var alliance = game.AllianceBetween(a, b)!;
+        int expires = alliance.ExpiresTick;
+
+        Assert.False(game.CanRenewAlliance(a, b)); // too early
+        game.Submit(new AllianceIntent(a.Id, b.Id));
+        Wait(game, 1);
+        Assert.False(alliance.AgreedToRenew(a));
+
+        Wait(game, expires - AllianceRules.RenewWindowTicks - game.Tick);
+        Assert.True(game.CanRenewAlliance(a, b));
+        game.Submit(new AllianceIntent(a.Id, b.Id));
+        Wait(game, 1);
+        Assert.True(alliance.AgreedToRenew(a));
+        Assert.False(game.CanRenewAlliance(a, b)); // already asked
+        Assert.Equal(expires, alliance.ExpiresTick);
+
+        game.Submit(new AllianceIntent(b.Id, a.Id));
+        Wait(game, 1);
+        Assert.Equal(game.Tick - 1 + AllianceRules.DurationTicks, alliance.ExpiresTick);
+        Assert.False(alliance.AgreedToRenew(a) || alliance.AgreedToRenew(b));
+    }
+
+    [Fact]
     public void Events_AreRecordedOnlyForTheWatchedPlayer()
     {
         var (game, a, b) = Setup();

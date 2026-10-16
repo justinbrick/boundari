@@ -44,6 +44,27 @@ public class BoatAndBuildingTests
     }
 
     [Fact]
+    public void CalledBackBoat_SailsHome_AndLandsNothing()
+    {
+        var (game, me, map) = StartOnCoast();
+        int home = map.LandmassId[game.Owner.ToList().IndexOf(me.Id)];
+        int target = Enumerable.Range(0, map.TileCount)
+            .First(t => map.IsLand(t) && map.LandmassId[t] != home && map.LandmassSizes[map.LandmassId[t]] > 300);
+        game.Submit(new BoatIntent(me.Id, target, 50));
+        game.Step();
+        var boat = Assert.Single(game.Boats);
+        for (int t = 0; t < 10; t++)
+            game.Step();
+        game.Submit(new BoatRetreatIntent(me.Id, boat.Id));
+        for (int t = 0; t < 2000 && game.Boats.Count > 0; t++)
+            game.Step();
+        Assert.Empty(game.Boats);
+        Assert.True(boat.Retreating);
+        int landed = Enumerable.Range(0, map.TileCount).Count(t => game.Owner[t] == me.Id && map.LandmassId[t] == map.LandmassId[target]);
+        Assert.Equal(0, landed);
+    }
+
+    [Fact]
     public void Boat_LandsOnTheClickedPlayersOwnCoast_OrNotAtAll()
     {
         var map = MapGenerator.Generate(21, new MapGenSettings { Width = 400, Height = 250, MinIslandTiles = 8, MinLakeTiles = 30 });

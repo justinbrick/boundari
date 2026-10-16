@@ -11,6 +11,9 @@ public enum GameEventKind : byte
     AllianceRequestExpired, // A's request to B ran out unanswered
     AllianceExpired,        // A and B's alliance ran its course
     AllianceBroken,         // A broke the alliance with B
+    AllianceEnding,         // A and B's alliance has 30 s left (it can be renewed now)
+    AllianceRenewRequested, // A asked B to renew their alliance
+    AllianceRenewed,        // A's agreement renewed the alliance with B
     AttackStarted,          // A attacked B (a new attack, not more troops on one already going)
     BoatLaunched,           // A sent a boat towards B's coast
     NukeLaunched,           // A launched a bomb (Detail = NukeType) at B's land

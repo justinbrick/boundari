@@ -19,6 +19,10 @@ public sealed class Alliance
     }
 
     public Player Other(Player p) => p == A ? B : A;
+
+    // Who has asked to renew it (OpenFront's alliance extension: renewed once both have).
+    internal bool RenewA, RenewB;
+    public bool AgreedToRenew(Player p) => p == A ? RenewA : RenewB;
 }
 
 /// <summary>A pending "shall we ally?" from one player to another.</summary>
@@ -41,6 +45,7 @@ public static class AllianceRules
     public const int RequestTicks = 20 * 10;          // a request lapses after 20 s
     public const int RequestCooldownTicks = 30 * 10;  // before asking the same player again
     public const int DurationTicks = 300 * 10;        // alliances last 5 minutes
+    public const int RenewWindowTicks = 30 * 10;      // can be renewed in its last 30 s
     public const int TraitorTicks = 30 * 10;          // breaking one brands you a traitor for 30 s
     public const int TraitorTroopLossPercent = 50;    // attacking a traitor costs half the troops...
     public const int TraitorTravelPercent = 80;       // ...and goes faster
@@ -79,6 +84,16 @@ public sealed partial class Game
 
     public bool IsTraitor(Player p) => p.TraitorUntilTick > Tick;
 
+    public Alliance? AllianceBetween(Player a, Player b) =>
+        _alliances.Find(x => (x.A == a && x.B == b) || (x.A == b && x.B == a));
+
+    /// <summary>In the alliance's last 30 s, when it can be renewed (OpenFront's extension window).</summary>
+    public bool InRenewWindow(Alliance alliance) => alliance.ExpiresTick <= Tick + AllianceRules.RenewWindowTicks;
+
+    /// <summary>Whether this player may ask to renew their alliance with the other now.</summary>
+    public bool CanRenewAlliance(Player me, Player other) =>
+        AllianceBetween(me, other) is { } a && me.IsAlive && other.IsAlive && InRenewWindow(a) && !a.AgreedToRenew(me);
+
     /// <summary>The pending request from one player to another, or null.</summary>
     public AllianceRequest? PendingRequest(Player from, Player to) =>
         _allianceRequests.Find(r => r.From == from && r.To == to);
@@ -97,6 +112,11 @@ public sealed partial class Game
 
     private void RequestAlliance(Player from, Player to)
     {
+        if (from.IsAlliedWith(to))
+        {
+            RenewAlliance(from, to);
+            return;
+        }
         if (!CanRequestAlliance(from, to))
             return;
         if (PendingRequest(to, from) is { } incoming)
@@ -126,6 +146,27 @@ public sealed partial class Game
     }
 
     /// <summary>Turns a request down (<paramref name="quietly"/>: it's simply withdrawn, nobody is told).</summary>
+    /// <summary>One ally asks to renew; once both have, the alliance starts a fresh 5 minutes.</summary>
+    private void RenewAlliance(Player from, Player to)
+    {
+        if (!CanRenewAlliance(from, to))
+            return;
+        var alliance = AllianceBetween(from, to)!;
+        bool onlyOneBefore = alliance.RenewA != alliance.RenewB;
+        if (alliance.A == from)
+            alliance.RenewA = true;
+        else
+            alliance.RenewB = true;
+        if (alliance.RenewA && alliance.RenewB)
+        {
+            alliance.RenewA = alliance.RenewB = false;
+            alliance.ExpiresTick = Tick + AllianceRules.DurationTicks;
+            Report(GameEventKind.AllianceRenewed, from, to);
+        }
+        else if (!onlyOneBefore)
+            Report(GameEventKind.AllianceRenewRequested, from, to);
+    }
+
     private void RejectAlliance(AllianceRequest request, bool quietly = false)
     {
         if (_allianceRequests.Remove(request) && !quietly)
@@ -173,6 +214,11 @@ public sealed partial class Game
         for (int i = _alliances.Count - 1; i >= 0; i--)
         {
             var a = _alliances[i];
+            if (Tick == a.ExpiresTick - AllianceRules.RenewWindowTicks)
+                Report(GameEventKind.AllianceEnding, a.A, a.B);
+            // OpenFront's tribes agree to every renewal asked of them.
+            if (a.RenewA != a.RenewB && (a.RenewA ? a.B : a.A) is { IsBot: true } tribe)
+                RenewAlliance(tribe, a.Other(tribe));
             if (Tick >= a.ExpiresTick || !a.A.IsAlive || !a.B.IsAlive)
             {
                 EndAlliance(a);

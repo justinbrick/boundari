@@ -39,7 +39,8 @@ public static class AttackRules
     public const double SpeedCostDivisor = 8.55;
     public const double DefensePostLossFactor = 5;     // attacking near a defense post: 5x the losses...
     public const double DefensePostSpeedFactor = 3;    // ...and 3x the time
-    public const int RetreatMalusPercent = 25;         // a boat landing on its own coast loses a quarter
+    public const int RetreatMalusPercent = 25;
+    public const int RetreatDelayTicks = 20;            // a called-off attack's troops take 2 s to come home         // a boat landing on its own coast loses a quarter
 
     // Land cover (our addition on top of OpenFront's elevation types): how much harder a
     // tile is to cross than farmland, in tenths. It scales the tile's time fully and its
@@ -116,7 +117,7 @@ public sealed partial class Game
             attacker.AttacksSent++;
 
         attacker.Troops -= troops;
-        var attack = new Attack(attacker, targetId, troops, -1, new Rng(_rng.Fork()));
+        var attack = new Attack(attacker, targetId, troops, -1, new Rng(_rng.Fork())) { Id = _nextUnitId++ };
         RefreshToConquer(attack);
         if (CancelAgainstIncoming(attack))
             return;
@@ -166,7 +167,7 @@ public sealed partial class Game
             return;
         }
         SetOwner(tile, player.Id);
-        var attack = new Attack(player, target, boat.Troops, tile, new Rng(_rng.Fork()));
+        var attack = new Attack(player, target, boat.Troops, tile, new Rng(_rng.Fork())) { Id = _nextUnitId++ };
         AddNeighbours(attack, tile);
         if (CancelAgainstIncoming(attack))
             return;
@@ -200,10 +201,18 @@ public sealed partial class Game
     }
 
     /// <summary>Ends an attack, sending what's left home.</summary>
-    private void Retreat(Attack attack)
+    private void Retreat(Attack attack, int malusPercent = 0)
     {
-        attack.Attacker.Troops += (long)attack.TroopsExact;
+        attack.Attacker.Troops += (long)(attack.TroopsExact * (100 - malusPercent) / 100);
         _attacks.Remove(attack);
+    }
+
+    /// <summary>A player calls off one of their attacks: it stops taking land now; see <see cref="AdvanceAttacks"/>.</summary>
+    private void OrderRetreat(Player player, int attackId)
+    {
+        var attack = _attacks.Find(a => a.Id == attackId && a.Attacker == player);
+        if (attack is not null && !attack.Retreating)
+            attack.RetreatTick = Tick;
     }
 
     /// <summary>Queues every target tile next to the attacker's border (a fresh start, as OpenFront's refreshToConquer).</summary>
@@ -262,6 +271,16 @@ public sealed partial class Game
             if (!attacker.IsAlive)
             {
                 _attacks.RemoveAt(a--);
+                continue;
+            }
+            if (attack.Retreating)
+            {
+                // Called off: holds still, then the troops come home (a quarter lost if it was against a player).
+                if (Tick >= attack.RetreatTick + AttackRules.RetreatDelayTicks)
+                {
+                    Retreat(attack, attack.TargetId != Nobody ? AttackRules.RetreatMalusPercent : 0);
+                    a--;
+                }
                 continue;
             }
             if (attacker.Allies.Contains(attack.TargetId))

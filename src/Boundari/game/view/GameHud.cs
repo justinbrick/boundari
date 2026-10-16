@@ -40,7 +40,8 @@ public sealed class GameHud
         // Wartime), as wide as that strip.
         if (root.GetNodeOrNull<Control>("Main_Layer/Main_Control/HBox_AHudTEST/In_Panel/Struct_Titles_Panel") is { } titles)
         {
-            _ratioTicks = new AttackRatioSlider { Name = "AttackRatioSlider", AnchorRight = 1, OffsetTop = -SliderHeight };
+            // Hidden for now (the user's call); it still holds the ratio attacks use (20%).
+            _ratioTicks = new AttackRatioSlider { Name = "AttackRatioSlider", AnchorRight = 1, OffsetTop = -SliderHeight, Visible = false };
             titles.AddChild(_ratioTicks);
         }
 

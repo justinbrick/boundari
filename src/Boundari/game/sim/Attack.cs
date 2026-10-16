@@ -17,6 +17,13 @@ public sealed class Attack
     public readonly Player Attacker;
     public readonly ushort TargetId; // 0 = empty land
 
+    /// <summary>Unique for the match (so a player can name the attack to call it off).</summary>
+    public int Id { get; internal set; }
+
+    /// <summary>Tick the player called this attack off, or -1. A called-off attack stops taking land at once and its troops come home a little later (OpenFront's retreat).</summary>
+    public int RetreatTick { get; internal set; } = -1;
+    public bool Retreating => RetreatTick >= 0;
+
     /// <summary>Troops still in the attack (OpenFront keeps fractions here).</summary>
     internal double TroopsExact;
 

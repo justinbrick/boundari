@@ -17,9 +17,13 @@ public sealed record SpawnIntent(ushort PlayerId, int Tile) : Intent(PlayerId);
 /// </summary>
 public sealed record AttackIntent(ushort PlayerId, ushort TargetId, int RatioPercent, long Troops = 0) : Intent(PlayerId);
 
+/// <summary>Call off one of your attacks (OpenFront's retreat: the troops come home after a short delay, a quarter lost if the target was a player).</summary>
+public sealed record RetreatIntent(ushort PlayerId, int AttackId) : Intent(PlayerId);
+
 /// <summary>
 /// Ask another player for an alliance, or accept theirs if they already asked you (as in
-/// OpenFront, asking someone who asked you is how you say yes).
+/// OpenFront, asking someone who asked you is how you say yes). Sent to an ally near the
+/// end of the alliance, it asks to renew it (renewed once both have asked).
 /// </summary>
 public sealed record AllianceIntent(ushort PlayerId, ushort TargetId) : Intent(PlayerId);
 
