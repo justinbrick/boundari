@@ -75,7 +75,42 @@ public partial class World
         bool embargoed = them is not null && _game.HasEmbargo(_me, them);
         wedges.Call("set_wedge_state", TradeWedge, them is not null && (embargoed || !allied), Colors.White,
             embargoed ? "Resume\ntrade" : "");
-        wedges.Connect("wedge_pressed", Callable.From<string>(wedge => OnWedgePressed(wedge, (ushort)target, tile)));
+        var chat = new RadialChat(menu);
+        wedges.Connect("wedge_pressed", Callable.From<string>(wedge =>
+        {
+            if (RadialChat.Arrows.ContainsKey(wedge))
+                OpenChatFan(chat, wedge, (ushort)target);
+            else
+                OnWedgePressed(wedge, (ushort)target, tile);
+        }));
+    }
+
+    /// <summary>
+    /// An arrow wedge: opens (or closes) its emoji and quick-chat fan. Emojis go to the
+    /// player you right-clicked, or to everyone if it's your own land or nobody's; phrases
+    /// need a player to send them to.
+    /// </summary>
+    private void OpenChatFan(RadialChat chat, string arrow, ushort target)
+    {
+        SyncSim();
+        var them = _game.GetPlayer(target);
+        if (them == _me)
+            them = null;
+        ushort emojiTo = them?.Id ?? Game.Nobody;
+        bool canEmoji = _me.HasSpawned && _game.Phase == GamePhase.Running && _game.CanSendEmoji(_me, emojiTo);
+        bool canChat = them is not null && _game.Phase == GamePhase.Running && _game.CanQuickChat(_me, them);
+        chat.Toggle(arrow, canEmoji, canChat,
+            emoji => SendChat(new EmojiIntent(_me.Id, emojiTo, emoji)),
+            phrase => SendChat(new QuickChatIntent(_me.Id, them!.Id, phrase)));
+        if (_args.RightClick is not null)
+            GD.Print($"right-click: chat fan {arrow} (emoji {canEmoji}, phrases {canChat})");
+    }
+
+    private void SendChat(Intent intent)
+    {
+        SyncSim();
+        _game.Submit(intent);
+        _mainControl?.Call("hide_radial_menu");
     }
 
     private void OnWedgePressed(string wedge, ushort target, int tile)
@@ -145,6 +180,10 @@ public partial class World
             "requester-accept" or "requester-ally-menu" => new Vector2(77, 77),
             "requester-embargo" => new Vector2(77, -77),
             "requester-target" => new Vector2(-77, -77),
+            "requester-chat-T" => new Vector2(0, -128), // the arrow wedges
+            "requester-chat-R" or "requester-heart" => new Vector2(128, 0),
+            "requester-chat-B" => new Vector2(0, 128),
+            "requester-chat-L" => new Vector2(-128, 0),
             _ => (Vector2?)null,
         };
         if (offset is null)
@@ -152,6 +191,22 @@ public partial class World
         for (int i = 0; i < 3; i++)
             await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
         var wedge = screen + offset.Value;
+        if (_args.RightClick!.StartsWith("requester-chat") || _args.RightClick == "requester-heart")
+        {
+            await ClickAt(wedge);
+            for (int i = 0; i < 3; i++)
+                await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+            if (_args.RightClick == "requester-heart")
+            {
+                await ClickAt(screen + new Vector2(200, 0)); // the fan's emoji button
+                ulong sent = Time.GetTicksMsec();
+                while (Time.GetTicksMsec() - sent < 600)
+                    await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+                SyncSim();
+                GD.Print($"right-click: sent a heart to {request.From.Name}; they show {_game.ShownEmoji(request.From, _me)?.ToString() ?? "nothing"}");
+            }
+            return;
+        }
         GetViewport().PushInput(new InputEventMouseMotion { Position = wedge, GlobalPosition = wedge }, true);
         GetViewport().PushInput(new InputEventMouseButton { ButtonIndex = MouseButton.Left, Pressed = true, Position = wedge, GlobalPosition = wedge }, true);
         GetViewport().PushInput(new InputEventMouseButton { ButtonIndex = MouseButton.Left, Pressed = false, Position = wedge, GlobalPosition = wedge }, true);
@@ -168,6 +223,14 @@ public partial class World
         GetViewport().PushInput(new InputEventMouseButton { ButtonIndex = MouseButton.Right, Pressed = false, Position = screen, GlobalPosition = screen }, true);
         for (int i = 0; i < 4; i++)
             await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+    }
+
+    private async System.Threading.Tasks.Task ClickAt(Vector2 at)
+    {
+        GetViewport().PushInput(new InputEventMouseMotion { Position = at, GlobalPosition = at }, true);
+        GetViewport().PushInput(new InputEventMouseButton { ButtonIndex = MouseButton.Left, Pressed = true, Position = at, GlobalPosition = at }, true);
+        await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+        GetViewport().PushInput(new InputEventMouseButton { ButtonIndex = MouseButton.Left, Pressed = false, Position = at, GlobalPosition = at }, true);
     }
 
     /// <summary>

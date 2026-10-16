@@ -122,6 +122,10 @@ public sealed class Player
     internal readonly List<(int Tick, ushort Id)> Targets = new();
     internal int LastTargetTick = -1;
 
+    /// <summary>Emojis this player sent (when, to whom: 0 = everyone), oldest first; and when it last quick-chatted each player.</summary>
+    internal readonly List<(int Tick, ushort To, Emoji Emoji)> Emojis = new();
+    internal readonly Dictionary<ushort, int> LastQuickChat = new();
+
     /// <summary>Until this tick the player is a traitor (broke an alliance): easier to attack.</summary>
     public int TraitorUntilTick { get; internal set; } = -1;
 

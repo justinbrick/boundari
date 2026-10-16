@@ -314,6 +314,12 @@ public sealed partial class Game
             case TargetIntent mark when Phase == GamePhase.Running && GetPlayer(mark.TargetId) is { } marked:
                 MarkTarget(player, marked);
                 break;
+            case EmojiIntent emoji when Phase == GamePhase.Running:
+                SendEmoji(player, emoji.RecipientId, emoji.Emoji);
+                break;
+            case QuickChatIntent chat when Phase == GamePhase.Running && GetPlayer(chat.RecipientId) is { } listener:
+                SendQuickChat(player, listener, chat.Phrase);
+                break;
             case RetreatIntent retreat:
                 OrderRetreat(player, retreat.AttackId);
                 break;

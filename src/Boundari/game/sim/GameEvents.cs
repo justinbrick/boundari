@@ -21,6 +21,7 @@ public enum GameEventKind : byte
     EmbargoStarted,         // A stopped trading with B
     EmbargoStopped,         // A resumed trading with B
     Targeted,               // A marked B as a target (also told to A's allies)
+    QuickChat,              // A sent B a quick-chat phrase (Detail = index into ChatRules.Phrases)
 }
 
 /// <summary>An event: who did it (A), to whom (B), and any extra detail.</summary>

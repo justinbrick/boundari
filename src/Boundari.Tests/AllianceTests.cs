@@ -121,6 +121,41 @@ public class AllianceTests
     }
 
     [Fact]
+    public void Emojis_ShowForFiveSeconds_AreRateLimited_AndANationAnswersAnInsult()
+    {
+        var (game, a, b) = Setup(PlayerKind.Nation);
+        game.Submit(new EmojiIntent(a.Id, b.Id, Emoji.MiddleFinger));
+        Wait(game, 1);
+        Assert.Equal(Emoji.MiddleFinger, game.ShownEmoji(a, b));
+        Assert.Null(game.ShownEmoji(a, a)); // only the recipient sees it
+        Assert.Equal(Relation.Hostile, game.RelationOf(b, a));
+        Assert.NotNull(game.ShownEmoji(b, a)); // the nation answered
+
+        for (int i = 0; i < ChatRules.EmojiLimit; i++)
+            game.Submit(new EmojiIntent(a.Id, b.Id, Emoji.Grin));
+        Wait(game, 1);
+        Assert.False(game.CanSendEmoji(a, b.Id)); // five in five seconds is the limit
+        Assert.True(game.CanSendEmoji(a, Game.Nobody)); // everyone counts separately
+
+        Wait(game, ChatRules.EmojiShownTicks);
+        Assert.Null(game.ShownEmoji(a, b));
+        Assert.True(game.CanSendEmoji(a, b.Id));
+    }
+
+    [Fact]
+    public void QuickChat_ReachesTheRecipient_WithACooldown()
+    {
+        var (game, a, b) = Setup();
+        game.EventsFor = b.Id;
+        game.Submit(new QuickChatIntent(a.Id, b.Id, 9)); // "Sorry"
+        Wait(game, 1);
+        Assert.Equal(new[] { new GameEvent(GameEventKind.QuickChat, a.Id, b.Id, 9) }, game.Events);
+        Assert.False(game.CanQuickChat(a, b));
+        Wait(game, ChatRules.QuickChatCooldownTicks);
+        Assert.True(game.CanQuickChat(a, b));
+    }
+
+    [Fact]
     public void Events_AreRecordedOnlyForTheWatchedPlayer()
     {
         var (game, a, b) = Setup();

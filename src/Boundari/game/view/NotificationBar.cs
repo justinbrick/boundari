@@ -130,11 +130,15 @@ public sealed class NotificationBar
             GameEventKind.Targeted when byMe => ($"You marked {B} as a target.", false),
             GameEventKind.Targeted when toMe => ($"{A} marked you as a target!", true),
             GameEventKind.Targeted => ($"Your ally {A} marked {B} as a target.", false),
+            GameEventKind.QuickChat when toMe => ($"{A}: {Phrase(e.Detail)}", false),
+            GameEventKind.QuickChat when byMe => ($"To {B}: {Phrase(e.Detail)}", false),
             GameEventKind.Conquered when byMe => ($"You conquered {B}.", false),
             GameEventKind.Conquered when toMe => ($"{A} conquered you.", true),
             _ => (null, false),
         };
     }
+
+    private static string Phrase(int index) => index >= 0 && index < ChatRules.Phrases.Length ? ChatRules.Phrases[index] : "...";
 
     private static string BombName(NukeType type) => type switch
     {
