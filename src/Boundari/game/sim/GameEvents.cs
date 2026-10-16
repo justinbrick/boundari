@@ -22,10 +22,11 @@ public enum GameEventKind : byte
     EmbargoStopped,         // A resumed trading with B
     Targeted,               // A marked B as a target (also told to A's allies)
     QuickChat,              // A sent B a quick-chat phrase (Detail = index into ChatRules.Phrases)
+    GoldEarned,             // A earned Detail gold at Tile (trade, trains), or from conquering B (Tile -1)
 }
 
-/// <summary>An event: who did it (A), to whom (B), and any extra detail.</summary>
-public readonly record struct GameEvent(GameEventKind Kind, ushort A, ushort B, int Detail = 0);
+/// <summary>An event: who did it (A), to whom (B), any extra detail, and where (a tile, or -1).</summary>
+public readonly record struct GameEvent(GameEventKind Kind, ushort A, ushort B, long Detail = 0, int Tile = -1);
 
 public sealed partial class Game
 {
@@ -40,10 +41,17 @@ public sealed partial class Game
     /// <summary>Events involving <see cref="EventsFor"/> since the reader last cleared this list.</summary>
     public List<GameEvent> Events => _events;
 
-    private void Report(GameEventKind kind, Player a, Player? b, int detail = 0)
+    private void Report(GameEventKind kind, Player a, Player? b, long detail = 0, int tile = -1)
     {
         ushort bId = b?.Id ?? Nobody;
         if (EventsFor != Nobody && (a.Id == EventsFor || bId == EventsFor))
-            _events.Add(new GameEvent(kind, a.Id, bId, detail));
+            _events.Add(new GameEvent(kind, a.Id, bId, detail, tile));
+    }
+
+    /// <summary>Gold income worth a "+gold" pop-up for the watched player (only they are told).</summary>
+    private void ReportGold(Player earner, long gold, int tile, Player? from = null)
+    {
+        if (gold > 0 && earner.Id == EventsFor)
+            _events.Add(new GameEvent(GameEventKind.GoldEarned, earner.Id, from?.Id ?? Nobody, gold, tile));
     }
 }

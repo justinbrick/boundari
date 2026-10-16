@@ -18,7 +18,14 @@ public sealed class PlayerBar
     private const double CountRefreshSeconds = 0.1;
     private double _sinceCounts = CountRefreshSeconds;
 
-    private readonly Label? _troops, _maxTroops;
+    private readonly Label? _troops, _maxTroops, _cash;
+
+    // OpenFront's gold-gain pip: "+N" pops in above your gold (0.25 s) and stays 2 s; a new
+    // gain replaces the old one.
+    private const double GainShownSeconds = 2, GainPopSeconds = 0.25;
+    private static readonly Color GainColour = new("#4ade80");
+    private readonly Label? _gain;
+    private double _gainAge = GainShownSeconds;
     private readonly TroopMeterFill? _fill;
     private readonly List<Cell> _cells = new();
 
@@ -48,6 +55,27 @@ public sealed class PlayerBar
     {
         _troops = root.GetNodeOrNull<Label>(Player + "TroopMeter/HBoxContainer/Current_Troops");
         _maxTroops = root.GetNodeOrNull<Label>(Player + "TroopMeter/HBoxContainer/Max_Troops");
+        _cash = root.GetNodeOrNull<Label>(Player + "Panel_Cash/Label_Cash");
+        if (root.GetNodeOrNull<Control>(Player + "Panel_Cash") is { } cashPanel)
+        {
+            _gain = new Label
+            {
+                Name = "Gold_Gain",
+                HorizontalAlignment = HorizontalAlignment.Center,
+                MouseFilter = Control.MouseFilterEnum.Ignore,
+                Visible = false,
+            };
+            _gain.AddThemeColorOverride("font_color", GainColour);
+            _gain.AddThemeColorOverride("font_outline_color", new Color(0, 0, 0, 0.8f));
+            _gain.AddThemeConstantOverride("outline_size", 5);
+            _gain.AddThemeFontSizeOverride("font_size", 17);
+            if (_cash?.GetThemeFont("font") is { } font)
+                _gain.AddThemeFontOverride("font", font);
+            cashPanel.AddChild(_gain);
+            _gain.SetAnchorsPreset(Control.LayoutPreset.TopWide);
+            _gain.OffsetTop = -28;
+            _gain.OffsetBottom = -4;
+        }
         if (root.GetNodeOrNull<Control>(Player + "TroopMeter") is { } meter)
         {
             // The coloured fill goes behind the numbers, inside the panel's border.
@@ -75,6 +103,33 @@ public sealed class PlayerBar
                 }
     }
 
+    /// <summary>Shows "+gold" above your gold (the latest gain replaces any showing).</summary>
+    public void ShowGoldGain(long gold)
+    {
+        if (_gain is null || gold <= 0)
+            return;
+        _gain.Text = "+" + GameHud.FormatCount(gold);
+        _gainAge = 0;
+        _gain.Visible = true;
+        AnimateGain(0);
+    }
+
+    private void AnimateGain(double delta)
+    {
+        if (_gain is null || !_gain.Visible)
+            return;
+        _gainAge += delta;
+        if (_gainAge >= GainShownSeconds)
+        {
+            _gain.Visible = false;
+            return;
+        }
+        float pop = (float)Math.Min(1, _gainAge / GainPopSeconds);
+        float ease = 1 - (1 - pop) * (1 - pop);
+        _gain.Modulate = new Color(1, 1, 1, ease);
+        _gain.Position = new Vector2(_gain.Position.X, -28 + 4 * (1 - ease)); // rises 4 px into place
+    }
+
     public void Update(Game game, Player me, double delta)
     {
         // Troop meter, like OpenFront's: troops at home out of the cap, then the troops out
@@ -83,6 +138,8 @@ public sealed class PlayerBar
         foreach (var a in game.Attacks)
             if (a.Attacker == me)
                 attacking += a.Troops;
+        GameHud.SetText(_cash, me.InfiniteGold ? "$∞" : "$" + GameHud.FormatCount(me.Gold));
+        AnimateGain(delta);
         GameHud.SetText(_troops, GameHud.FormatCount(me.Troops));
         GameHud.SetText(_maxTroops, GameHud.FormatCount(me.MaxTroops));
         if (_fill is not null)

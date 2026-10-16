@@ -300,7 +300,7 @@ public sealed partial class Game
                     : player.Troops * Math.Clamp(attack.RatioPercent, 1, 100) / 100);
                 break;
             case NukeIntent nuke:
-                LaunchNuke(player, nuke.Type, nuke.Tile);
+                LaunchNuke(player, nuke.Type, nuke.Tile, nuke.DirectionUp);
                 break;
             case AllianceIntent ally when Phase == GamePhase.Running && GetPlayer(ally.TargetId) is { } other:
                 RequestAlliance(player, other);
@@ -864,12 +864,17 @@ public sealed partial class Game
             if (ship.Captured)
             {
                 ship.Owner.Gold += gold; // the captor keeps it all
+                ReportGold(ship.Owner, gold, ship.To.Tile);
                 continue;
             }
             // Both ends profit: whoever owns each port when the ship docks.
             if (!ship.From.Removed)
+            {
                 _players[ship.From.Owner].Gold += gold;
+                ReportGold(_players[ship.From.Owner], gold, ship.From.Tile);
+            }
             _players[ship.To.Owner].Gold += gold;
+            ReportGold(_players[ship.To.Owner], gold, ship.To.Tile);
             ship.Owner.TradeGold += gold;
         }
     }
@@ -1325,9 +1330,11 @@ public sealed partial class Game
                     {
                         stationOwner.Gold += gold;
                         stationOwner.TrainGold += gold;
+                        ReportGold(stationOwner, gold, stop.Building.Tile);
                     }
                     train.Owner.Gold += gold;
                     train.Owner.TrainGold += gold;
+                    ReportGold(train.Owner, gold, stop.Building.Tile);
                     train.TradeStopsVisited++;
                 }
             }
@@ -1672,13 +1679,15 @@ public sealed partial class Game
     // ------------------------------------------------------------------
 
     /// <summary>The conqueror takes the loser's gold (half from a person, none from one who never fought).</summary>
-    private static void TakeGold(Player winner, Player loser)
+    private void TakeGold(Player winner, Player loser)
     {
         long gold = loser.Kind == PlayerKind.Human && loser.AttacksSent == 0 ? 0 : loser.Gold;
         if (gold > 0)
         {
-            winner.Gold += loser.Kind == PlayerKind.Human ? gold / 2 : gold;
+            long gained = loser.Kind == PlayerKind.Human ? gold / 2 : gold;
+            winner.Gold += gained;
             loser.Gold -= gold;
+            ReportGold(winner, gained, -1, loser);
         }
     }
 

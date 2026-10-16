@@ -5,8 +5,8 @@ using Godot;
 namespace Boundari.View;
 
 /// <summary>
-/// Visual dev tools: a compact strip in the top-right corner. Left/Right picks a setting,
-/// Up/Down changes it. Choices are saved (user://devtools.cfg) and come back next run.
+/// Visual dev tools: a compact strip in the top-right corner. Ctrl+Left/Right picks a setting,
+/// Ctrl+Up/Down changes it. Choices are saved (user://devtools.cfg) and come back next run.
 ///   PSC patch scale        S (the map's own detail) / M (merged 2x2) / L (merged 4x4)
 ///   PMR patch morphing     1 (tight) .. 6: how far land-cover patches blend together
 ///   PSH patch shape        0 (square cells) / 60 (slightly rounded) / 100 (smooth)
@@ -69,7 +69,7 @@ public partial class DevTools : CanvasLayer
             new("TOP", "Topography (contour lines, metres)", new[] { "OFF", "100", "250", "500" }, 0,
                 i => V.ContourInterval = new[] { 0f, 100f, 250f, 500f }[i]),
             new("LBL", "Territory names, flags and troops", new[] { "ON", "OFF" }, 0, i => ShowLabels?.Invoke(i == 0)),
-            new("PLY", "Players, tribes and nations (T toggles)", new[] { "ON", "OFF" }, 0, i => ShowPlayers?.Invoke(i == 0)),
+            new("PLY", "Players, tribes and nations (F7 toggles)", new[] { "ON", "OFF" }, 0, i => ShowPlayers?.Invoke(i == 0)),
         };
         _values = new int[_settings.Count];
         for (int i = 0; i < _settings.Count; i++)
@@ -120,7 +120,7 @@ public partial class DevTools : CanvasLayer
 
         var actions = new HBoxContainer { Alignment = BoxContainer.AlignmentMode.End, MouseFilter = Control.MouseFilterEnum.Ignore };
         column.AddChild(actions);
-        var ally = new Button { Text = "Ally request (Y)", FocusMode = Control.FocusModeEnum.None, TooltipText = "A random territory on screen asks you to ally" };
+        var ally = new Button { Text = "Ally request (F6)", FocusMode = Control.FocusModeEnum.None, TooltipText = "A random territory on screen asks you to ally" };
         ally.AddThemeFontSizeOverride("font_size", 11);
         ally.Pressed += () => ForceAllianceRequest?.Invoke();
         actions.AddChild(ally);
@@ -155,16 +155,16 @@ public partial class DevTools : CanvasLayer
             return;
         switch (key.Keycode)
         {
-            case Key.Y when !key.Echo:
+            // (Dev keys stay off OpenFront's game shortcuts: F6/F7, and Ctrl with the arrows.)
+            case Key.F6 when !key.Echo:
                 ForceAllianceRequest?.Invoke();
                 GetViewport().SetInputAsHandled();
                 return;
-            case Key.T when !key.Echo:
-                int ply = _settings.FindIndex(x => x.Abbr == "PLY");
-                _values[ply] = 1 - _values[ply];
-                _settings[ply].Apply(_values[ply]);
-                Save();
+            case Key.F7 when !key.Echo:
+                Toggle("PLY");
                 break;
+            case Key.Left or Key.Right or Key.Up or Key.Down when !key.CtrlPressed:
+                return; // plain arrows pan the camera
             case Key.Left:
                 _selected = (_selected + _settings.Count - 1) % _settings.Count;
                 break;
@@ -187,6 +187,18 @@ public partial class DevTools : CanvasLayer
         GetViewport().SetInputAsHandled();
     }
 
+    /// <summary>Flips an on/off setting (e.g. "GRD", the coordinate grid: OpenFront's M key).</summary>
+    public void Toggle(string abbr)
+    {
+        int i = _settings.FindIndex(x => x.Abbr == abbr);
+        if (i < 0)
+            return;
+        _values[i] = _values[i] == 0 ? 1 : 0;
+        _settings[i].Apply(_values[i]);
+        Save();
+        Refresh();
+    }
+
     private void Refresh()
     {
         if (_strip is null)
@@ -199,7 +211,7 @@ public partial class DevTools : CanvasLayer
         }
         _strip.Text = string.Join("[color=#5d655a]  |  [/color]", parts);
         var sel = _settings[_selected];
-        _hint.Text = $"{sel.Name}: {sel.Labels[_values[_selected]]}   (←/→ pick, ↑/↓ change, T players)";
+        _hint.Text = $"{sel.Name}: {sel.Labels[_values[_selected]]}   (Ctrl+←/→ pick, Ctrl+↑/↓ change, F7 players)";
     }
 
     private void Load()

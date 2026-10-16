@@ -19,14 +19,30 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_handle_wasd(delta)
+	_handle_zoom_keys(delta)
 
+# WASD or the arrow keys pan (OpenFront's keys). Not while typing in a text box.
 func _handle_wasd(delta: float) -> void:
+	if get_viewport().gui_get_focus_owner() is LineEdit:
+		return
 	var direction := Vector2.ZERO
-	if Input.is_key_pressed(KEY_W): direction.y -= 1
-	if Input.is_key_pressed(KEY_S): direction.y += 1
-	if Input.is_key_pressed(KEY_A): direction.x -= 1
-	if Input.is_key_pressed(KEY_D): direction.x += 1
+	if Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP): direction.y -= 1
+	if Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN): direction.y += 1
+	if Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT): direction.x -= 1
+	if Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT): direction.x += 1
+	if Input.is_key_pressed(KEY_CTRL) or Input.is_key_pressed(KEY_SHIFT):
+		direction = Vector2.ZERO   # Ctrl+arrows drive the dev panel; Shift+D toggles the frame counter
 	position += direction.normalized() * pan_speed * delta * (1.0 / zoom.x)
+
+# Q/E or -/= zoom out/in around the middle of the screen, while held (OpenFront's keys).
+func _handle_zoom_keys(delta: float) -> void:
+	var dir := 0
+	if Input.is_key_pressed(KEY_E) or Input.is_key_pressed(KEY_EQUAL): dir += 1
+	if Input.is_key_pressed(KEY_Q) or Input.is_key_pressed(KEY_MINUS): dir -= 1
+	if dir == 0:
+		return
+	var new_zoom: float = clamp(zoom.x * pow(1.0 + zoom_speed * 30.0 * delta, dir), min_zoom, max_zoom)
+	zoom = Vector2(new_zoom, new_zoom)
 
 func _input(event: InputEvent) -> void:
 	if get_viewport().gui_get_hovered_control() != null:
@@ -49,8 +65,8 @@ func _input(event: InputEvent) -> void:
 		var delta_mouse := get_viewport().get_mouse_position() - drag_start_mouse
 		position = drag_start_camera - delta_mouse * (1.0 / zoom.x)
 
-	# --- Zoom toward mouse ---
-	if event is InputEventMouseButton:
+	# --- Zoom toward mouse --- (Shift+wheel changes the attack ratio instead, like OpenFront)
+	if event is InputEventMouseButton and not event.shift_pressed:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP or event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			var zoom_dir := 1 if event.button_index == MOUSE_BUTTON_WHEEL_UP else -1
 			var old_zoom: float = zoom.x

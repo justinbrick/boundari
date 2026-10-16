@@ -54,6 +54,45 @@ public sealed partial class Game
         return best;
     }
 
+    /// <summary>
+    /// What a Mortar or Missile aimed here would do, for the aiming preview (OpenFront's
+    /// trajectory preview): its path from the silo that would fire it, which stretches of it
+    /// Flak can reach (near either end), the first point an enemy Flak's range covers there
+    /// (-1 if none; allies' Flak counts if this strike would break the alliance), and which
+    /// allies it would betray. Null if no silo is ready.
+    /// </summary>
+    public NukePreview? PreviewNuke(Player player, NukeType type, int tile, bool up = true)
+    {
+        if (type is not (NukeType.Moab or NukeType.FatMan) || tile < 0 || tile >= Map.TileCount || ReadySilo(player, tile) is not { } silo)
+            return null;
+        var (xs, ys, targetable) = NukePath(silo.Tile, tile, Rules.NukeSpeed(type), up);
+        var betrayed = new SortedSet<ushort>();
+        if (player.Allies.Count > 0)
+            foreach (ushort id in HardHit(player, type, tile))
+                if (player.Allies.Contains(id))
+                    betrayed.Add(id);
+        int intercept = -1;
+        for (int i = 0; i < xs.Length && intercept < 0; i++)
+        {
+            if (!targetable[i])
+                continue;
+            int at = TileAtPoint(xs[i], ys[i]);
+            foreach (var sam in _buildings.Values)
+            {
+                if (sam.Type != BuildingType.Sam || sam.Owner == player.Id || !sam.IsReady(Tick)
+                    || (player.Allies.Contains(sam.Owner) && !betrayed.Contains(sam.Owner)))
+                    continue;
+                long range = Rules.SamRange(sam.Level);
+                if (DistSq(sam.Tile, at) <= range * range)
+                {
+                    intercept = i;
+                    break;
+                }
+            }
+        }
+        return new NukePreview(silo.Tile, xs, ys, targetable, intercept, betrayed.Count > 0);
+    }
+
     /// <summary>Whether the player could launch this bomb at that tile right now.</summary>
     public bool CanLaunch(Player player, NukeType type, int tile)
     {
@@ -64,7 +103,7 @@ public sealed partial class Game
         return player.CanAfford(NukeCost(type)) && ReadySilo(player, tile) is not null;
     }
 
-    private void LaunchNuke(Player player, NukeType type, int tile)
+    private void LaunchNuke(Player player, NukeType type, int tile, bool up = true)
     {
         if (!CanLaunch(player, type, tile))
             return;
@@ -92,13 +131,20 @@ public sealed partial class Game
         if (type == NukeType.TsarBomba)
             LaunchTsarBomba(player, silo.Tile, tile, wait);
         else
-            _nukes.Add(MakeNuke(player, type, silo.Tile, tile, Rules.NukeSpeed(type), wait, Nobody));
+            _nukes.Add(MakeNuke(player, type, silo.Tile, tile, Rules.NukeSpeed(type), wait, Nobody, up));
     }
 
-    private Nuke MakeNuke(Player owner, NukeType type, int from, int to, double speed, int wait, ushort targetPlayer)
+    private Nuke MakeNuke(Player owner, NukeType type, int from, int to, double speed, int wait, ushort targetPlayer, bool up = true)
+    {
+        var (xs, ys, targetable) = NukePath(from, to, speed, up);
+        return new Nuke(_nextNukeId++, owner, type, from, to, xs, ys, targetable, targetPlayer) { WaitTicks = wait };
+    }
+
+    /// <summary>A bomb's flight points from silo to target, and which of them Flak can reach (near either end).</summary>
+    private (float[] X, float[] Y, bool[] Targetable) NukePath(int from, int to, double speed, bool up = true)
     {
         int w = Map.Width;
-        var (xs, ys) = NukeRules.Arc(from % w, from / w, to % w, to / w, Map.Height, speed, Rules.NukeArcMinHeight);
+        var (xs, ys) = NukeRules.Arc(from % w, from / w, to % w, to / w, Map.Height, speed, Rules.NukeArcMinHeight, up: up);
         var targetable = new bool[xs.Length];
         long r2 = (long)Rules.NukeTargetableRange * Rules.NukeTargetableRange;
         for (int i = 0; i < xs.Length; i++)
@@ -106,7 +152,7 @@ public sealed partial class Game
             int t = TileAtPoint(xs[i], ys[i]);
             targetable[i] = DistSq(t, to) < r2 || DistSq(t, from) < r2;
         }
-        return new Nuke(_nextNukeId++, owner, type, from, to, xs, ys, targetable, targetPlayer) { WaitTicks = wait };
+        return (xs, ys, targetable);
     }
 
     /// <summary>

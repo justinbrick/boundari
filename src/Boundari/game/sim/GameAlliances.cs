@@ -300,6 +300,28 @@ public sealed partial class Game
     {
         if (type == NukeType.Warhead)
             return;
+        foreach (ushort id in HardHit(launcher, type, target))
+        {
+            var victim = GetPlayer(id);
+            if (victim is null || victim == launcher)
+                continue;
+            if (PendingRequest(launcher, victim) is { } mine)
+            {
+                RejectAlliance(mine, quietly: true); // bombing them withdraws our own request
+                continue;
+            }
+            if (launcher.IsAlliedWith(victim))
+                BreakAlliance(launcher, victim);
+            UpdateRelation(victim, launcher, -AllianceRules.RelationMax);
+        }
+    }
+
+    /// <summary>
+    /// Players a bomb aimed here would hit hard: 100+ tiles of their land (inner ring
+    /// counting double), or (for the launcher's allies) any of their buildings.
+    /// </summary>
+    internal SortedSet<ushort> HardHit(Player launcher, NukeType type, int target)
+    {
         var (inner, outer) = Rules.Blast(type);
         var weight = new Dictionary<ushort, int>(); // in halves: inner tiles 2, outer 1
         int w = Map.Width, cx = target % w, cy = target / w;
@@ -320,21 +342,7 @@ public sealed partial class Game
         foreach (var b in _buildings.Values)
             if (launcher.Allies.Contains(b.Owner) && DistSq(b.Tile, target) <= outer2)
                 hit.Add(b.Owner);
-
-        foreach (ushort id in hit)
-        {
-            var victim = GetPlayer(id);
-            if (victim is null || victim == launcher)
-                continue;
-            if (PendingRequest(launcher, victim) is { } mine)
-            {
-                RejectAlliance(mine, quietly: true); // bombing them withdraws our own request
-                continue;
-            }
-            if (launcher.IsAlliedWith(victim))
-                BreakAlliance(launcher, victim);
-            UpdateRelation(victim, launcher, -AllianceRules.RelationMax);
-        }
+        return hit;
     }
 
     /// <summary>A Tsar Bomba is an act of war on its target: any alliance breaks and both sides hate each other.</summary>

@@ -138,7 +138,7 @@ public sealed class NotificationBar
         };
     }
 
-    private static string Phrase(int index) => index >= 0 && index < ChatRules.Phrases.Length ? ChatRules.Phrases[index] : "...";
+    private static string Phrase(long index) => index >= 0 && index < ChatRules.Phrases.Length ? ChatRules.Phrases[index] : "...";
 
     private static string BombName(NukeType type) => type switch
     {

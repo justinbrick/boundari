@@ -251,6 +251,7 @@ public partial class World : Node2D
         long recordStart = FrameProfiler.Start();
         _view.RecordTick(_game.Owner, _game.Fallout, _game.ChangedTiles, _simTick);
         _game.ChangedTiles.Clear();
+        ShowGoldGains();
         _notifications.TakeEvents(_game, _me);
         FrameProfiler.Stop("territory record", recordStart);
         _shownTick = _game.Tick;
@@ -297,7 +298,8 @@ public partial class World : Node2D
     {
         // Fixed-rate simulation (10 ticks a second), stepped on a worker thread between frames.
         double tickLength = 1.0 / Balance.TicksPerSecond;
-        _tickTime = Math.Min(_tickTime + delta, 4 * tickLength); // never fall far behind
+        // (P pauses; comma/period change the game speed.)
+        _tickTime = Math.Min(_tickTime + delta * (_paused ? 0 : Speeds[_speed]), 4 * tickLength); // never fall far behind
         // A tick usually finishes within a few milliseconds: wait that long so the overlay
         // stays in step; only a slow tick leaves the overlay showing the last frame.
         if (_simTask is not null && (_simTask.IsCompleted || _simTask.Wait(MaxSimWaitMs)))
@@ -390,6 +392,11 @@ public partial class World : Node2D
             StopPlacing();
             return;
         }
+        if (e is InputEventMouseButton { Pressed: true, ShiftPressed: true, ButtonIndex: MouseButton.WheelUp or MouseButton.WheelDown } wheel)
+        {
+            _hud.AdjustRatio(wheel.ButtonIndex == MouseButton.WheelUp ? AttackRatioStep : -AttackRatioStep); // Shift+wheel, like OpenFront
+            return;
+        }
         if (e is InputEventMouseButton { ButtonIndex: MouseButton.Right, Pressed: true } rightClick)
             OnRightClick(GetCanvasTransform().AffineInverse() * rightClick.Position);
         if (e is not InputEventMouseButton { ButtonIndex: MouseButton.Left } button)
@@ -407,37 +414,212 @@ public partial class World : Node2D
         }
     }
 
+    // OpenFront's game speeds (single player): half, normal, double, as fast as it'll go.
+    private static readonly double[] Speeds = { 0.5, 1, 2, 1000 };
+    private static readonly string[] SpeedNames = { "Speed 0.5x", "Speed 1x", "Speed 2x", "Speed: fastest" };
+    private int _speed = 1;
+    private bool _paused;
+    private bool _rocketUp = true; // bombs arc up the map (U flips it, like OpenFront)
+
+    /// <summary>
+    /// Keyboard shortcuts, OpenFront's defaults: 1-0 build / aim bombs (numpad too), B boat,
+    /// G attack under the mouse, Shift+R hit back at the latest attacker, T/Y attack ratio,
+    /// K/L/N ally / break alliance / target under the mouse, F and R the emoji and chat menu,
+    /// U flip bomb arcs, C centre on you, M coordinate grid, Space (held) hide territory, P
+    /// pause, comma/period game speed, Shift+D the frame counter. WASD/arrows pan and Q/E or
+    /// -/= zoom (camera_2d.gd). Dev: F9 next map, F10 random map.
+    /// </summary>
     public override void _UnhandledKeyInput(InputEvent e)
     {
-        if (e is not InputEventKey { Pressed: true, Echo: false } key)
+        if (e is not InputEventKey key)
+            return;
+        if (key.Keycode == Key.Space && !key.Echo) // held: the map without territory (OpenFront's alternate view)
+        {
+            _view.ShowTerritory = !key.Pressed;
+            return;
+        }
+        if (!key.Pressed)
             return;
         SyncSim();
+        var mouseTile = _view.TileAt(GetGlobalMousePosition());
         switch (key.Keycode)
         {
-            case Key.M:
+            case Key.T: // these two repeat while held, like OpenFront's
+                _hud.AdjustRatio(-AttackRatioStep);
+                return;
+            case Key.Y:
+                _hud.AdjustRatio(AttackRatioStep);
+                return;
+        }
+        if (key.Echo)
+            return;
+        switch (key.Keycode)
+        {
+            case Key.F9:
                 int next = (Array.IndexOf(BuiltInMaps, _mapId) + 1) % BuiltInMaps.Length;
                 if (LoadMap(BuiltInMaps[next]))
                     FrameCamera(1, null);
                 break;
-            case Key.R:
+            case Key.F10:
                 Generate(RandomSeed());
                 FrameCamera(1, null);
                 break;
+            case Key.M:
+                _devTools.Toggle("GRD");
+                break;
             case Key.B:
-                SendBoat(_view.TileAt(GetGlobalMousePosition()));
+                SendBoat(mouseTile);
                 break;
-            case >= Key.Key1 and <= Key.Key7:
-                TogglePlacing(BuildButtons[key.Keycode - Key.Key1].Type);
+            case Key.G:
+                GroundAttack(mouseTile);
                 break;
-            case Key.Key8:
+            case Key.R when key.ShiftPressed:
+                Retaliate();
+                break;
+            case Key.R or Key.F: // the emoji / quick-chat menu (ours is the radial menu, with its chat fans)
+                OpenRadialMenuAtMouse();
+                break;
+            case Key.K:
+                if (PlayerAt(mouseTile) is { } asked && _game.CanRequestAlliance(_me, asked))
+                    _game.Submit(new AllianceIntent(_me.Id, asked.Id));
+                break;
+            case Key.L:
+                if (PlayerAt(mouseTile) is { } ally && _me.IsAlliedWith(ally))
+                    _game.Submit(new BreakAllianceIntent(_me.Id, ally.Id));
+                break;
+            case Key.N:
+                if (PlayerAt(mouseTile) is { } marked && _game.CanTarget(_me, marked))
+                    _game.Submit(new TargetIntent(_me.Id, marked.Id));
+                break;
+            case Key.U:
+                _rocketUp = !_rocketUp;
+                _hud.Flash(_rocketUp ? "Bombs arc up" : "Bombs arc down");
+                break;
+            case Key.C:
+                if (_labels.TryGetAnchor(_me.Id, out var home))
+                    _camera.Position = home;
+                break;
+            case Key.P:
+                _paused = !_paused;
+                _hud.Flash(_paused ? "Paused" : "Unpaused");
+                break;
+            case Key.Comma or Key.Period:
+                _speed = Math.Clamp(_speed + (key.Keycode == Key.Period ? 1 : -1), 0, Speeds.Length - 1);
+                _hud.Flash(SpeedNames[_speed]);
+                break;
+            case Key.D when key.ShiftPressed:
+                _fps.Visible = !_fps.Visible;
+                break;
+            case >= Key.Key1 and <= Key.Key9:
+            case Key.Key0:
+                PressBuildKey(key.Keycode == Key.Key0 ? 0 : (int)(key.Keycode - Key.Key0));
+                break;
+            case >= Key.Kp1 and <= Key.Kp9:
+            case Key.Kp0:
+                PressBuildKey(key.Keycode == Key.Kp0 ? 0 : (int)(key.Keycode - Key.Kp0));
+                break;
+        }
+    }
+
+    private const int AttackRatioStep = 10; // OpenFront's attack ratio increment
+
+    /// <summary>1-7 build (in the build bar's order), 8/9/0 aim a Mortar / Missile / Atomic Bomb.</summary>
+    private void PressBuildKey(int digit)
+    {
+        switch (digit)
+        {
+            case >= 1 and <= 7:
+                TogglePlacing(BuildButtons[digit - 1].Type);
+                break;
+            case 8:
                 ToggleAiming(NukeType.Moab);
                 break;
-            case Key.Key9:
+            case 9:
                 ToggleAiming(NukeType.FatMan);
                 break;
-            case Key.Key0:
+            case 0:
                 ToggleAiming(NukeType.TsarBomba);
                 break;
+        }
+    }
+
+    private int? _aimAt; // testing aid (--aim): where the bomb preview points instead of the mouse
+
+    private void AimForScreenshot(NukeType type)
+    {
+        var target = _game.Players.Where(p => p != _me && p.IsNation && p.IsAlive).MaxBy(p => p.TileCount);
+        for (int i = 0; i < 200 && _game.ReadySilo(_me, 0) is null; i++)
+            _game.Step(); // let the showcase's silo finish
+        if (target is null || _game.ReadySilo(_me, 0) is not { } silo)
+        {
+            GD.Print($"aim: target {target?.Name ?? "none"}, silos {_game.Buildings.Count(b => b.Owner == _me.Id && b.Type == BuildingType.Silo)}");
+            return;
+        }
+        int tile = Enumerable.Range(0, _map.TileCount).First(t => _game.Owner[t] == target.Id);
+        _aiming = type;
+        _aimAt = tile;
+        var a = new Vector2(silo.Tile % _map.Width, silo.Tile / _map.Width);
+        var b = new Vector2(tile % _map.Width, tile / _map.Width);
+        _showcaseFocus = (a + b) / 2 / new Vector2(_map.Width, _map.Height);
+        var preview = _game.PreviewNuke(_me, type, tile);
+        GD.Print($"aim: {type} at {target.Name}, {preview?.X.Length ?? 0} points, intercept {preview?.InterceptIndex}");
+    }
+
+    /// <summary>Whoever owns this land tile (not you), or null.</summary>
+    private Player? PlayerAt(int tile) =>
+        tile >= 0 && _map.IsLand(tile) && _game.GetPlayer(_game.Owner[tile]) is { } p && p != _me ? p : null;
+
+    /// <summary>G: attack whoever's land is under the mouse (or empty land), as a click would.</summary>
+    private void GroundAttack(int tile)
+    {
+        if (tile < 0 || !_map.IsLand(tile) || _game.Phase != GamePhase.Running || !_me.HasSpawned || !_me.IsAlive)
+            return;
+        ushort target = _game.Owner[tile];
+        if (target != _me.Id && !_me.Allies.Contains(target) && _game.CanReachByLand(_me, tile))
+            _game.Submit(new AttackIntent(_me.Id, target, _hud.AttackRatioPercent));
+    }
+
+    /// <summary>
+    /// Shift+R, OpenFront's retaliate: hit back at whoever attacked you most recently (not a
+    /// tribe), with as many troops as they sent, up to your attack ratio's worth.
+    /// </summary>
+    private void Retaliate()
+    {
+        if (_game.Phase != GamePhase.Running || !_me.IsAlive)
+            return;
+        Attack? latest = null;
+        foreach (var a in _game.Attacks)
+            if (a.TargetId == _me.Id && !a.Attacker.IsBot)
+                latest = a; // attacks are kept in the order they started
+        if (latest is null)
+            return;
+        long troops = Math.Min(latest.Troops, _me.Troops * _hud.AttackRatioPercent / 100);
+        if (troops > 0)
+            _game.Submit(new AttackIntent(_me.Id, latest.Attacker.Id, _hud.AttackRatioPercent, troops));
+    }
+
+    /// <summary>F / R: the radial menu (with its emoji and chat fans) at the mouse, as a right click opens it.</summary>
+    private void OpenRadialMenuAtMouse()
+    {
+        if (_mainControl is null)
+            return;
+        var screen = GetViewport().GetMousePosition();
+        _mainControl.Call("show_radial_menu", screen);
+        OnRightClick(GetCanvasTransform().AffineInverse() * screen);
+    }
+
+    /// <summary>This tick's gold income: pop-ups on the map and the "+gold" pip by your gold.</summary>
+    private void ShowGoldGains()
+    {
+        foreach (var e in _game.Events)
+        {
+            if (e.Kind != GameEventKind.GoldEarned || e.A != _me.Id)
+                continue;
+            if (e.Tile >= 0)
+                _overlay.AddIncomePopup(new Vector2(e.Tile % _map.Width + 0.5f, e.Tile / _map.Width + 0.5f), e.Detail);
+            else if (_labels.TryGetAnchor(e.B, out var under)) // conquest: under the beaten player's name
+                _overlay.AddConquestPopup(under + new Vector2(0, 8 * (float)_game.Rules.Linear), e.Detail);
+            _bar.ShowGoldGain(e.Detail);
         }
     }
 
@@ -497,11 +679,11 @@ public partial class World : Node2D
                 StopPlacing();
                 return;
             }
-            int aim = _view.TileAt(GetGlobalMousePosition());
+            int aim = _aimAt ?? _view.TileAt(GetGlobalMousePosition());
             if (aim < 0)
                 _overlay.ClearNukeGhost();
             else
-                _overlay.SetNukeGhost(nukeType, aim, _game.CanLaunch(_me, nukeType, aim));
+                _overlay.SetNukeGhost(nukeType, aim, _game.CanLaunch(_me, nukeType, aim), _rocketUp);
             return;
         }
         if (_placing is not { } type2)
@@ -609,7 +791,7 @@ public partial class World : Node2D
         {
             if (_game.CanLaunch(_me, nuke, tile))
             {
-                _game.Submit(new NukeIntent(_me.Id, nuke, tile));
+                _game.Submit(new NukeIntent(_me.Id, nuke, tile, _rocketUp));
                 if (!Input.IsKeyPressed(Key.Shift)) // hold Shift to keep firing
                     StopPlacing();
             }
@@ -726,6 +908,8 @@ public partial class World : Node2D
             _game.Step();
         if (_args.Showcase)
             Showcase();
+        if (_args.Aim is { } aimArg && Enum.TryParse<NukeType>(aimArg, true, out var aimType))
+            AimForScreenshot(aimType);
 
         if (_args.AllyRequests > 0)
             AskForAlliances(_args.AllyRequests);
@@ -951,7 +1135,7 @@ public partial class World : Node2D
 
     private record struct Args(string? Map, ulong? Seed, int? Bots, int? Nations, Difficulty? Difficulty, bool NoCheats, double? Bench, string? Dev, bool Autoplay, int Ticks,
         float Zoom, Vector2? Focus, string? Screenshot, bool Perf, Vector2? Hover, bool HoverLeader, bool Showcase, string? ShowcaseFocus,
-        string? Start = null, int AllyRequests = 0, string? RightClick = null);
+        string? Start = null, int AllyRequests = 0, string? RightClick = null, string? Aim = null);
 
     private static Args ParseArgs()
     {
@@ -983,6 +1167,7 @@ public partial class World : Node2D
                 case "perf": args.Perf = true; break;
                 case "start": args.Start = value; break;             // now / mid / ask
                 case "ally-requests": args.AllyRequests = int.Parse(value, inv); break;
+                case "aim": args.Aim = value; break; // (testing) "moab"/"fatman": aim at the biggest other nation, screen centred on the arc
                 case "right-click": args.RightClick = value; break; // "requester": right-click whoever asked us to ally (screenshots)
                 case "showcase": args.Showcase = true; args.ShowcaseFocus = value; break;
                 case "hover" when value == "leader": args.HoverLeader = true; break;

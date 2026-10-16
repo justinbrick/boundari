@@ -8,6 +8,9 @@ namespace Boundari.Sim;
 /// there, unless a SAM shoots it down on the way. A Tsar Bomba (MIRV) doesn't explode
 /// itself: high above the map it splits into a swarm of warheads aimed at the target's land.
 /// </summary>
+/// <summary>The aiming preview for a bomb (see Game.PreviewNuke).</summary>
+public sealed record NukePreview(int SiloTile, float[] X, float[] Y, bool[] Targetable, int InterceptIndex, bool BetraysAlly);
+
 public sealed class Nuke
 {
     public readonly int Id;
@@ -123,9 +126,9 @@ public static class NukeRules
     /// The arc a bomb flies (OpenFront's parabola): a cubic curve bulging "up" the map by a
     /// third of the distance (at least 50 tiles), walked <paramref name="step"/> tiles at a time.
     /// </summary>
-    public static (float[] X, float[] Y) Arc(int fromX, int fromY, int toX, int toY, int mapHeight, double step, double minHeight = 50, bool clampToMap = true)
+    public static (float[] X, float[] Y) Arc(int fromX, int fromY, int toX, int toY, int mapHeight, double step, double minHeight = 50, bool clampToMap = true, bool up = true)
     {
-        var (p1, p2) = ControlPoints(fromX, fromY, toX, toY, mapHeight, clampToMap, minHeight);
+        var (p1, p2) = ControlPoints(fromX, fromY, toX, toY, mapHeight, clampToMap, minHeight, up);
         double length = ArcLength(fromX, fromY, p1, p2, toX, toY, out var samples);
         var xs = new List<float>();
         var ys = new List<float>();
@@ -152,10 +155,11 @@ public static class NukeRules
         return ArcLength(fromX, fromY, p1, p2, toX, toY, out _);
     }
 
-    private static ((double X, double Y), (double X, double Y)) ControlPoints(int fx, int fy, int tx, int ty, int mapHeight, bool clamp, double minHeight)
+    /// <summary>The arc's middle control points; it bows up the map (OpenFront's default) or, with <paramref name="up"/> false, down.</summary>
+    private static ((double X, double Y), (double X, double Y)) ControlPoints(int fx, int fy, int tx, int ty, int mapHeight, bool clamp, double minHeight, bool up = true)
     {
         double dx = tx - fx, dy = ty - fy;
-        double height = Math.Max(Math.Sqrt(dx * dx + dy * dy) / 3, minHeight);
+        double height = Math.Max(Math.Sqrt(dx * dx + dy * dy) / 3, minHeight) * (up ? 1 : -1);
         double p1y = fy + dy / 4 - height, p2y = fy + dy * 3 / 4 - height;
         if (clamp)
         {
@@ -186,4 +190,4 @@ public static class NukeRules
 }
 
 /// <summary>Launch a bomb at a tile (from your nearest ready silo).</summary>
-public sealed record NukeIntent(ushort PlayerId, NukeType Type, int Tile) : Intent(PlayerId);
+public sealed record NukeIntent(ushort PlayerId, NukeType Type, int Tile, bool DirectionUp = true) : Intent(PlayerId);

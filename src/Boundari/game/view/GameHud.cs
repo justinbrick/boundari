@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using Boundari.Sim;
@@ -67,6 +68,26 @@ public sealed class GameHud
     /// <summary>Shown in place of the usual status line while set (e.g. fast-forward progress).</summary>
     public string? Status { get; set; }
 
+    // A short message in the status line (attack ratio, pause, game speed...), for a moment.
+    private string? _flash;
+    private ulong _flashUntil;
+
+    public void Flash(string text, double seconds = 1.5)
+    {
+        _flash = text;
+        _flashUntil = Time.GetTicksMsec() + (ulong)(seconds * 1000);
+    }
+
+    /// <summary>Changes the share of troops sent (the hidden slider holds it), like OpenFront's T/Y keys.</summary>
+    public void AdjustRatio(int byPercent)
+    {
+        if (_ratioTicks is not null)
+            _ratioTicks.Value += byPercent;
+        else if (_ratio is not null)
+            _ratio.Value = Math.Clamp(_ratio.Value + byPercent, 1, 100);
+        Flash($"Attack ratio {AttackRatioPercent}%");
+    }
+
     public void Update(Game game, Player me)
     {
         Set(_troops, FormatCount(me.Troops));
@@ -77,7 +98,7 @@ public sealed class GameHud
         Set(_cashRate, "+" + goldPerSecond.ToString("N0", CultureInfo.InvariantCulture) + "/s");
         Set(_attackTroops, FormatCount(me.Troops * AttackRatioPercent / 100));
 
-        _status.Text = Status ?? game.Phase switch
+        _status.Text = Status ?? (_flash is not null && Time.GetTicksMsec() < _flashUntil ? _flash : null) ?? game.Phase switch
         {
             _ when !me.HasSpawned && me.LateSpawn => "Mid-game: click on land to drop in (you take that land)",
             GamePhase.Spawning when !me.HasSpawned => $"Click on land to choose where you start  ·  {game.SecondsUntilStart}s",

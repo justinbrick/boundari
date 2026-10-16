@@ -34,6 +34,33 @@ public class NukeTests
         return (game, a, b, land);
     }
 
+    [Fact]
+    public void AimingPreview_ShowsWhereEnemyFlakWouldStopTheBomb()
+    {
+        var (game, a, b, _) = Setup();
+        Build(game, a, BuildingType.Silo, t => game.Owner[t] == a.Id);
+        int target = DeepInside(game, b);
+        var clear = game.PreviewNuke(a, NukeType.Moab, target);
+        Assert.NotNull(clear);
+        Assert.Equal(-1, clear!.InterceptIndex);
+        Assert.False(clear.BetraysAlly);
+
+        // B puts Flak right where the bomb comes down: the preview now marks a point near the end.
+        Build(game, b, BuildingType.Sam, t => game.Owner[t] == b.Id && Math.Abs(t % game.Map.Width - target % game.Map.Width) + Math.Abs(t / game.Map.Width - target / game.Map.Width) < 12);
+        var blocked = game.PreviewNuke(a, NukeType.Moab, target)!;
+        Assert.InRange(blocked.InterceptIndex, 0, blocked.X.Length - 1);
+        Assert.True(blocked.Targetable[blocked.InterceptIndex]);
+    }
+
+    [Fact]
+    public void FlippedArc_BowsTheOtherWay()
+    {
+        var (up, _) = NukeRules.Arc(10, 100, 200, 100, 250, 3);
+        var (down, downY) = NukeRules.Arc(10, 100, 200, 100, 250, 3, up: false);
+        Assert.Equal(up.Length, down.Length);
+        Assert.True(downY[downY.Length / 2] > 100); // below the straight line (y grows down the map)
+    }
+
     private static void Wait(Game game, int ticks)
     {
         for (int t = 0; t < ticks; t++)
