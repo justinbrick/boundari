@@ -278,6 +278,9 @@ int owner_id_at(ivec2 c) {
 // runner-up: 0 on a border, 1 deep inside a territory.
 void territory_at(vec2 tile, out int best_id, out float edge) {
 	// Most pixels are deep inside one territory: check a sparse ring and skip the rest.
+	// Every tile checked must also have finished fading in: a freshly captured tile already
+	// has its new owner but still looks like the old one, and treating it as settled made
+	// expanding fronts snap to hard tile steps with no border.
 	ivec2 centre = ivec2(floor(tile));
 	int id0;
 	int prev0;
@@ -286,8 +289,21 @@ void territory_at(vec2 tile, out int best_id, out float edge) {
 	bool settled = f0 >= 1.0;
 	for (int j = -1; j <= 1 && settled; j++) {
 		for (int i = -1; i <= 1 && settled; i++) {
-			settled = owner_id_at(centre + ivec2(i, j) * 2) == id0;
+			int id;
+			int prev;
+			float f;
+			owner_at(centre + ivec2(i, j) * 2, id, prev, f);
+			settled = id == id0 && f >= 1.0;
 		}
+	}
+	// The ring skips the tiles right next to this one, which are the likeliest to be mid-fade.
+	for (int k = 0; k < 4 && settled; k++) {
+		ivec2 step = k == 0 ? ivec2(1, 0) : k == 1 ? ivec2(-1, 0) : k == 2 ? ivec2(0, 1) : ivec2(0, -1);
+		int id;
+		int prev;
+		float f;
+		owner_at(centre + step, id, prev, f);
+		settled = id == id0 && f >= 1.0;
 	}
 	best_id = id0;
 	edge = 1.0;
