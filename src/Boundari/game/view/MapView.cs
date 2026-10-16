@@ -57,13 +57,6 @@ public partial class MapView : Sprite2D
         set => _material.SetShaderParameter("show_territory", value);
     }
 
-    /// <summary>Soft shading that makes hills and mountains stand out.</summary>
-    public bool ShowHillshade
-    {
-        get => (bool)_material.GetShaderParameter("show_hillshade");
-        set => _material.SetShaderParameter("show_hillshade", value);
-    }
-
     public override void _Ready()
     {
         Centered = false;

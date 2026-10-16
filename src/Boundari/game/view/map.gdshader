@@ -32,7 +32,6 @@ uniform sampler2D palette_tex : filter_nearest, repeat_disable;
 uniform vec2 map_size = vec2(2000.0, 1250.0);
 
 group_uniforms topography;
-uniform bool show_hillshade = true;
 uniform float relief_strength : hint_range(0.0, 1.0) = 0.5;
 
 group_uniforms water;
@@ -435,10 +434,8 @@ void fragment() {
 	vec3 ground = ground_color(tile, elev, tiles_per_px, cover_water);
 	vec3 flat_ground = ground;
 
-	if (show_hillshade) {
-		// Soft hill shading, lit from the north-west (precomputed per tile).
-		ground *= mix(1.0, t.b, relief_strength);
-	}
+	// Soft hill shading, lit from the north-west (precomputed per tile). Always on.
+	ground *= mix(1.0, t.b, relief_strength);
 
 	if (contour_interval > 0.0) {
 		// Contour lines (a dev-tool option): thin brown lines at every contour_interval metres.

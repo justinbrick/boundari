@@ -17,7 +17,7 @@ public partial class MapOverlay : Node2D
     //   up to FullSizeZoom: shrinking with the map, from full size down;
     //   up to GrowZoom: a fixed BuildingPixels on screen;
     //   further in: growing with the map, as if drawn on it.
-    private const float BuildingPixels = 90;
+    private const float BuildingPixels = 64;
     private const float DotsZoom = 1.8f;
     private const float DotScale = 0.3f;
     private const float FullSizeZoom = 4.5f;
@@ -57,9 +57,88 @@ public partial class MapOverlay : Node2D
     public override void _Ready()
     {
         _font = ThemeDB.FallbackFont;
-        TextureFilter = TextureFilterEnum.LinearWithMipmaps; // icons stay smooth when drawn small
         foreach (var (type, path) in IconFiles)
             _icons[type] = ResourceLoader.Exists(path) ? GD.Load<Texture2D>(path) : null;
+
+        // Layers drawn behind this node's own drawing, in this order: rails and placement
+        // ranges, then the building icons (crisp, from a shader). Badges, construction rings,
+        // ships and bombs are drawn by this node, on top.
+        _under = new OverlayLayer { Name = "RailsAndRanges", ShowBehindParent = true, Paint = PaintUnder };
+        AddChild(_under);
+        _iconLayer = new StructureIcons { Name = "StructureIcons", ShowBehindParent = true, Paint = PaintIcons };
+        AddChild(_iconLayer);
+        _iconLayer.Setup(type => _icons.GetValueOrDefault(type));
+    }
+
+    private OverlayLayer _under = null!;
+    private StructureIcons _iconLayer = null!;
+
+    /// <summary>Whether there's a game to draw; waits for a running tick if needed.</summary>
+    private bool ReadyToPaint(CanvasItem layer)
+    {
+        if (_game is null)
+            return false;
+        if (Frozen)
+            WaitForSim?.Invoke();
+        _zoom = GetViewport().GetCamera2D()?.Zoom.X ?? 1;
+        _visible = layer.GetCanvasTransform().AffineInverse() * layer.GetViewportRect();
+        return true;
+    }
+
+    /// <summary>Under the icons: railroads and trains, and the placement preview's ranges.</summary>
+    private void PaintUnder(OverlayLayer c)
+    {
+        if (!ReadyToPaint(c))
+            return;
+        float zoom = _zoom;
+        int w = _game!.Map.Width;
+        long part = FrameProfiler.Start();
+        DrawRails(c, zoom, w);
+        FrameProfiler.Stop("  overlay rails+trains", part);
+        if (_ghostType is { } ghost && _ghostTile >= 0)
+        {
+            var at = TileCentre(_ghostTile, w);
+            var tint = _ghostValid ? new Color(0.45f, 0.95f, 0.5f) : new Color(1f, 0.35f, 0.3f);
+            if (!_ghostStacks)
+            {
+                c.DrawCircle(at, Balance.MinBuildingSpacing, new Color(tint, 0.12f));
+                c.DrawArc(at, Balance.MinBuildingSpacing, 0, Mathf.Tau, 48, new Color(tint, 0.6f), 1.5f / zoom);
+            }
+            float reach = ghost switch
+            {
+                BuildingType.Defense => Balance.DefensePostRange,
+                BuildingType.Sam => Balance.SamRange(_ghostLevel),
+                BuildingType.Factory => RailRules.StationMaxRange,
+                _ => 0,
+            };
+            if (reach > 0)
+                c.DrawArc(at, reach, 0, Mathf.Tau, 96, new Color(1, 1, 1, 0.55f), 1.5f / zoom, true);
+        }
+    }
+
+    /// <summary>The building icons (and the placement preview's), crisp at any zoom.</summary>
+    private void PaintIcons(StructureIcons c)
+    {
+        if (!ReadyToPaint(c))
+            return;
+        long part = FrameProfiler.Start();
+        float zoom = _zoom;
+        int w = _game!.Map.Width;
+        float size = BuildingIconPixels(zoom) / zoom;
+        var mode = zoom <= DotsZoom ? StructureIcons.Mode.ShapeOnly : StructureIcons.Mode.WithGlyph;
+        foreach (var b in _game.Buildings)
+        {
+            var at = TileCentre(b.Tile, w);
+            if (OnScreen(at, size))
+                c.DrawIcon(b.Type, at, size, ColorOf(b.Owner), b.IsReady(_game.Tick) ? 1f : 0.55f, mode);
+        }
+        if (_ghostType is { } ghost && ghost != BuildingType.Warship && _ghostTile >= 0)
+        {
+            var preview = _ghostValid ? StructureIcons.Mode.PreviewValid : StructureIcons.Mode.PreviewInvalid;
+            var tint = _ghostValid ? new Color(0.45f, 0.95f, 0.5f) : new Color(1f, 0.35f, 0.3f);
+            c.DrawIcon(ghost, TileCentre(_ghostTile, w), size, _me is null ? tint : ColorOf(_me.Id), 0.75f, preview);
+        }
+        FrameProfiler.Stop("  overlay buildings", part);
     }
 
     public void SetPalette(Color[] palette) => _palette = palette;
@@ -99,8 +178,11 @@ public partial class MapOverlay : Node2D
 
     public override void _Process(double delta)
     {
-        if (!Frozen)
-            QueueRedraw();
+        if (Frozen)
+            return;
+        QueueRedraw();
+        _under.QueueRedraw();
+        _iconLayer.QueueRedraw();
     }
 
     public override void _Draw()
@@ -124,13 +206,8 @@ public partial class MapOverlay : Node2D
         // What's on screen (in map units): anything outside isn't drawn at all.
         _visible = GetCanvasTransform().AffineInverse() * GetViewportRect();
 
-        // --- Railroads and trains (under the buildings) ---
+        // --- On top of the building icons: construction rings and level badges ---
         long part = FrameProfiler.Start();
-        DrawRails(zoom, w);
-        FrameProfiler.Stop("  overlay rails+trains", part);
-        part = FrameProfiler.Start();
-
-        // --- Buildings ---
         float size = BuildingIconPixels(zoom) / zoom;
         bool dots = zoom <= DotsZoom;
         foreach (var b in _game.Buildings)
@@ -138,9 +215,7 @@ public partial class MapOverlay : Node2D
             var at = TileCentre(b.Tile, w);
             if (!OnScreen(at, size))
                 continue;
-            bool ready = b.IsReady(_game.Tick);
-            DrawBuilding(b.Type, at, size, ColorOf(b.Owner), ready ? 1f : 0.55f, glyph: !dots);
-            if (!ready) // construction progress ring
+            if (!b.IsReady(_game.Tick)) // construction progress ring
             {
                 float done = Math.Clamp((float)(_game.Tick - b.StartTick) / Math.Max(1, b.ReadyTick - b.StartTick), 0, 1);
                 DrawArc(at, size * 0.62f, -Mathf.Pi / 2, -Mathf.Pi / 2 + Mathf.Tau * done, 32, Colors.White, size * 0.08f, true);
@@ -148,32 +223,14 @@ public partial class MapOverlay : Node2D
             if (b.Level > 1 && !dots)
                 DrawLevel(at + new Vector2(size * 0.42f, -size * 0.42f), b.Level, size, zoom);
         }
-
-        // --- Placement preview, with the no-build radius and what the building reaches ---
         if (_ghostType is { } ghost && _ghostTile >= 0)
         {
             var at = TileCentre(_ghostTile, w);
             var tint = _ghostValid ? new Color(0.45f, 0.95f, 0.5f) : new Color(1f, 0.35f, 0.3f);
-            if (!_ghostStacks)
-            {
-                DrawCircle(at, Balance.MinBuildingSpacing, new Color(tint, 0.12f));
-                DrawArc(at, Balance.MinBuildingSpacing, 0, Mathf.Tau, 48, new Color(tint, 0.6f), 1.5f / zoom);
-            }
-            float reach = ghost switch
-            {
-                BuildingType.Defense => Balance.DefensePostRange,
-                BuildingType.Sam => Balance.SamRange(_ghostLevel),
-                BuildingType.Factory => RailRules.StationMaxRange,
-                _ => 0,
-            };
-            if (reach > 0)
-                DrawArc(at, reach, 0, Mathf.Tau, 96, new Color(1, 1, 1, 0.55f), 1.5f / zoom, true);
-            if (_ghostStacks && zoom > DotsZoom)
+            if (_ghostStacks && !dots)
                 DrawLevel(at + new Vector2(size * 0.42f, -size * 0.42f), _ghostLevel, size, zoom, plus: true);
             if (ghost == BuildingType.Warship)
                 DrawWarship(at, 0, IconPixels(zoom, WarshipPixels, WarshipPixels, 1) / zoom, _me is null ? tint : ColorOf(_me.Id), 1f, tint);
-            else
-                DrawBuilding(ghost, at, size, _me is null ? tint : ColorOf(_me.Id), 0.75f, tint);
         }
 
         FrameProfiler.Stop("  overlay buildings", part);
@@ -243,45 +300,6 @@ public partial class MapOverlay : Node2D
         DrawSetTransform(Vector2.Zero, 0, Vector2.One);
     }
 
-    private void DrawBuilding(BuildingType type, Vector2 at, float size, Color owner, float alpha, Color? outlineOverride = null, bool glyph = true)
-    {
-        var points = Shape(type, at, size / 2);
-        var fill = owner.Lerp(Colors.White, 0.35f);
-        var outline = outlineOverride ?? owner.Darkened(0.45f);
-        FillShape(points, new Color(fill, alpha));
-        var closed = new Vector2[points.Length + 1];
-        points.CopyTo(closed, 0);
-        closed[^1] = points[0];
-        DrawPolyline(closed, new Color(outline, alpha), size * 0.09f, true);
-        if (glyph && _icons.GetValueOrDefault(type) is { } icon)
-        {
-            float s = size * 0.55f;
-            DrawTextureRect(icon, new Rect2(at - new Vector2(s, s) / 2, new Vector2(s, s)), false, new Color(owner.Darkened(0.6f), alpha));
-        }
-    }
-
-    /// <summary>Shapes from the design notes: port pentagon, city square, factory hexagon,
-    /// defense circle, silo triangle, SAM octagon.</summary>
-    private static Vector2[] Shape(BuildingType type, Vector2 at, float r)
-    {
-        (int sides, float rotation, float scale) = type switch
-        {
-            BuildingType.Port => (5, -Mathf.Pi / 2, 1.05f),
-            BuildingType.City => (4, Mathf.Pi / 4, 1.2f),
-            BuildingType.Factory => (6, 0, 1.05f),
-            BuildingType.Defense => (32, 0, 0.95f),
-            BuildingType.Silo => (3, -Mathf.Pi / 2, 1.25f),
-            _ => (8, Mathf.Pi / 8, 1.0f),
-        };
-        var points = new Vector2[sides];
-        for (int i = 0; i < sides; i++)
-        {
-            float a = rotation + i * Mathf.Tau / sides;
-            points[i] = at + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * r * scale;
-        }
-        return points;
-    }
-
     /// <summary>A small level badge in the corner of a building ("+3" while previewing a stack).</summary>
     private void DrawLevel(Vector2 at, int level, float size, float zoom, bool plus = false)
     {
@@ -295,7 +313,7 @@ public partial class MapOverlay : Node2D
     }
 
     /// <summary>Railroads as thin dark lines, trains as short strings of cars along them.</summary>
-    private void DrawRails(float zoom, int w)
+    private void DrawRails(CanvasItem layer, float zoom, int w)
     {
         var railColour = new Color(0.18f, 0.16f, 0.14f, 0.75f);
         float railWidth = Math.Max(1.2f / zoom, 0.25f);
@@ -303,7 +321,7 @@ public partial class MapOverlay : Node2D
         {
             var shape = _railShapes.GetValue(rail, r => new RailShape(r, w));
             if (shape.Corners.Length >= 2 && _visible.Grow(2).Intersects(shape.Bounds, includeBorders: true))
-                DrawPolyline(shape.Corners, railColour, railWidth, true);
+                layer.DrawPolyline(shape.Corners, railColour, railWidth, true);
         }
 
         float car = Math.Max(3f / zoom, 0.6f);
@@ -321,7 +339,7 @@ public partial class MapOverlay : Node2D
                     break; // the whole train is off screen
                 int j = Math.Min(i + 1, train.Tiles.Length - 1);
                 var pos = TileCentre(train.Tiles[i], w).Lerp(TileCentre(train.Tiles[j], w), along - (int)along);
-                DrawRect(new Rect2(pos - new Vector2(car, car) / 2, new Vector2(car, car)), c == 0 ? colour.Darkened(0.4f) : colour);
+                layer.DrawRect(new Rect2(pos - new Vector2(car, car) / 2, new Vector2(car, car)), c == 0 ? colour.Darkened(0.4f) : colour);
             }
         }
     }

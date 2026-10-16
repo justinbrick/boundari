@@ -188,7 +188,6 @@ public partial class World : Node2D
         _args = ParseArgs();
         if (_args.Dev is { } dev)
             _devTools.Override(dev);
-        _view.ShowHillshade = !_args.NoHillshade;
         string mapId = _args.Seed is not null ? "random" : _args.Map ?? StartMap;
         if (mapId is "" or "random" || !LoadMap(mapId))
             Generate(_args.Seed ?? (Seed != 0 ? Seed : RandomSeed()));
@@ -409,9 +408,6 @@ public partial class World : Node2D
             case Key.R:
                 Generate(RandomSeed());
                 FrameCamera(1, null);
-                break;
-            case Key.H:
-                _view.ShowHillshade = !_view.ShowHillshade;
                 break;
             case Key.B:
                 SendBoat(_view.TileAt(GetGlobalMousePosition()));
@@ -703,6 +699,7 @@ public partial class World : Node2D
         _overlay.SetPalette(PlayerColors.Solid(_palette));
         _ = _game.Waterways; // prepare sea routes now, not on the first boat
         _labels.SetGame(_game);
+        _labels.SetPalette(_palette);
         _labels.MouseOverride = _args.Hover is { } fake ? new Vector2(fake.X * _map.Width, fake.Y * _map.Height) : null;
         _overlay.SetGame(_game, _me);
         _placing = null;
@@ -937,13 +934,13 @@ public partial class World : Node2D
     }
 
     private record struct Args(string? Map, ulong? Seed, int? Bots, int? Nations, Difficulty? Difficulty, bool NoCheats, double? Bench, string? Dev, bool Autoplay, int Ticks,
-        bool NoHillshade, float Zoom, Vector2? Focus, string? Screenshot, bool Perf, Vector2? Hover, bool HoverLeader, bool Showcase, string? ShowcaseFocus,
+        float Zoom, Vector2? Focus, string? Screenshot, bool Perf, Vector2? Hover, bool HoverLeader, bool Showcase, string? ShowcaseFocus,
         string? Start = null, int AllyRequests = 0, string? RightClick = null);
 
     private static Args ParseArgs()
     {
         var inv = System.Globalization.CultureInfo.InvariantCulture;
-        var args = new Args(null, null, null, null, null, false, null, null, false, 0, false, 1, null, null, false, null, false, false, null);
+        var args = new Args(null, null, null, null, null, false, null, null, false, 0, 1, null, null, false, null, false, false, null);
         foreach (string arg in OS.GetCmdlineUserArgs())
         {
             string[] kv = arg.TrimStart('-').Split('=', 2);
@@ -961,7 +958,6 @@ public partial class World : Node2D
                 case "difficulty": args.Difficulty = Enum.Parse<Difficulty>(value, ignoreCase: true); break;
                 case "autoplay": args.Autoplay = true; break;
                 case "ticks": args.Ticks = int.Parse(value, inv); break;
-                case "no-hillshade": args.NoHillshade = true; break;
                 case "zoom": args.Zoom = float.Parse(value, inv); break;
                 case "focus":
                     string[] xy = value.Split(',');

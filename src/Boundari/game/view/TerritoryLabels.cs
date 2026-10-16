@@ -20,19 +20,32 @@ public partial class TerritoryLabels : Node2D
     private const float GlideRate = 10f;                // OpenFront's name lerp speed
     private const float MinScreenCapPixels = 5.5f;      // names with capitals smaller than this aren't drawn
     private const float HoveredCapPixels = 10f;         // the hovered player's name is never smaller
-    // Our font (Exo 2) is wider than OpenFront's and its "ascent" is a full em, so OpenFront's
-    // sizes are scaled down and everything is measured from the capitals' height instead.
+    // Sizes follow OpenFront's formula, scaled down for our wider lettering and measured
+    // by the capitals' height. The look follows the user's mockups (TNameMockup and
+    // TTroopMockup in boundari.tscn): the default font (Open Sans SemiBold) emboldened and
+    // squashed to 95% height, letter-spaced, dark grey with a light outline and a faint
+    // shadow down and to the right; name in capitals at 32, troops at 20, flag on the left.
     private const float SizeFactor = 0.65f;
-    private const float CapHeight = 0.7f;               // Exo 2's capitals, as a share of the font size
-    private const float FlagCapShare = 1.05f;           // flag height, as a share of the capitals' height
-    private const float TroopLineOffset = 0.9f;         // troop line's middle below the name's, in font sizes
+    private const float CapHeight = 0.68f;              // the capitals, as a share of the font size
+    private const float FlagCapShare = 1.2f;            // flag height, as a share of the capitals' height (mockup: 26 / 21.7)
+    private const float FlagAspect = 4f / 3f;           // mockup flag: 34.7 x 26
+    private const float FlagGap = 9.3f / 32;            // gap between flag and name, in font sizes
+    private const float TroopLineOffset = 0.91f;        // troop line's middle below the name's, in font sizes
+    private const float TroopScale = 20f / 32;
     private const float HoverFadeAlpha = 0.5f;          // OpenFront's see-through name plate under the mouse
     private const int NearShoreWater = 10;              // water this close to land counts as room
-    private const float FlagAspect = 128f / 85f;        // OpenFront's flag cells (3:2)
-    private const float TroopScale = 0.6f;
+    // Mockup values at their font sizes (name 32, troops 20), as shares of the font size.
+    private const float NameSpacing = 8f / 32, TroopSpacing = 4f / 20;
+    private const float NameOutline = 4f / 32, TroopOutline = 3f / 20;
+    private const float NameShadow = 4f / 32, TroopShadow = 3f / 20;
+    private const float OutlineLighten = 0.68f;         // outline = the territory's colour, mostly whitened
 
-    private static readonly Color TextColor = new(0.16f, 0.16f, 0.16f, 0.92f);
-    private static readonly Color OutlineColor = new(1, 1, 1, 0.28f);
+    private static readonly Color TextColor = new(0.117f, 0.117f, 0.117f, 1f);
+    private static readonly Color ShadowColor = new(0, 0, 0, 0.157f);
+    private Color[] _palette = Array.Empty<Color>();
+
+    /// <summary>Territory colours by owner id (the outline is a light version of each).</summary>
+    public void SetPalette(Color[] palette) => _palette = palette;
 
     /// <summary>A name's spot and OpenFront "size" (the font size that fits its rectangle).</summary>
     private readonly record struct Placement(Vector2 Centre, float Size);
@@ -68,6 +81,7 @@ public partial class TerritoryLabels : Node2D
     private Game? _game;
     private double _sinceRefresh = RefreshSeconds;
     private Font _font = null!;
+    private Font _troopFont = null!;
     private Vector2 _mouse;     // in map tiles, for fading the name plate under it
 
     // Placement scratch (background thread only).
@@ -78,13 +92,20 @@ public partial class TerritoryLabels : Node2D
 
     public override void _Ready()
     {
-        // A distance-field copy of the font stays sharp at any zoom level.
-        var file = (FontFile)GD.Load<FontFile>("res://fonts/Exo2-VariableFont_wght.ttf").Duplicate();
+        // The default font, as a distance-field copy so it stays sharp at any zoom (with
+        // enough range for the outlines), styled like the mockups.
+        var file = (FontFile)((FontFile)ThemeDB.FallbackFont).Duplicate();
         file.MultichannelSignedDistanceField = true;
-        _font = new FontVariation
+        file.MsdfPixelRange = 32;
+        _font = Styled(file, NameSpacing);
+        _troopFont = Styled(file, TroopSpacing);
+
+        static FontVariation Styled(Font baseFont, float spacing) => new()
         {
-            BaseFont = file,
-            VariationOpentype = new Godot.Collections.Dictionary { { "wght", 700 } },
+            BaseFont = baseFont,
+            VariationEmbolden = 1.0f,
+            VariationTransform = new Transform2D(new Vector2(1, 0), new Vector2(0, 0.95f), Vector2.Zero),
+            SpacingGlyph = (int)MathF.Round(spacing * RefSize),
         };
     }
 
@@ -364,7 +385,7 @@ public partial class TerritoryLabels : Node2D
         if (cap * zoom < MinScreenCapPixels)
             return;
         float scale = em / RefSize;
-        var name = NameLine(id, player.Name);
+        var name = NameLine(id, player.Name.ToUpperInvariant());
         float nameWidth = name.GetSize().X * scale;
         var pos = label.Position;
         if (!view.Grow(nameWidth + em * 4).HasPoint(pos))
@@ -374,6 +395,7 @@ public partial class TerritoryLabels : Node2D
         // the troop count, smaller, goes underneath.
         var flag = FlagTexture(player.Flag);
         float flagHeight = cap * FlagCapShare, flagWidth = flag is null ? 0 : flagHeight * FlagAspect;
+        float flagGap = flag is null ? 0 : em * FlagGap;
         var troops = TroopLine(id, GameHud.FormatCount(player.Troops));
         float troopScale = scale * TroopScale;
         float troopWidth = troops.GetSize().X * troopScale;
@@ -381,40 +403,51 @@ public partial class TerritoryLabels : Node2D
         float troopMiddle = pos.Y + em * TroopLineOffset;
 
         // Like OpenFront, a name plate under the mouse turns see-through, so you can see what's beneath.
-        var plate = new Rect2(pos.X - nameWidth / 2 - flagWidth, pos.Y - Math.Max(cap, flagHeight) / 2,
-            nameWidth + flagWidth, troopMiddle + troopCap - (pos.Y - Math.Max(cap, flagHeight) / 2));
+        var plate = new Rect2(pos.X - nameWidth / 2 - flagWidth - flagGap, pos.Y - Math.Max(cap, flagHeight) / 2,
+            nameWidth + flagWidth + flagGap, troopMiddle + troopCap - (pos.Y - Math.Max(cap, flagHeight) / 2));
         plate = plate.Merge(new Rect2(pos.X - troopWidth / 2, plate.Position.Y, troopWidth, plate.Size.Y));
         float alpha = plate.Grow(cap * 0.15f).HasPoint(_mouse) ? HoverFadeAlpha : 1f;
         var text = TextColor with { A = TextColor.A * alpha };
-        var outline = OutlineColor with { A = OutlineColor.A * alpha };
+        var shadow = ShadowColor with { A = ShadowColor.A * alpha };
+        var fillColour = id < _palette.Length ? _palette[id] : Colors.White;
+        var outline = new Color(fillColour.Lerp(Colors.White, OutlineLighten), alpha);
 
         if (flag is not null)
-            DrawTextureRect(flag, new Rect2(pos.X - nameWidth / 2 - flagWidth, pos.Y - flagHeight / 2, flagWidth, flagHeight), false, new Color(1, 1, 1, alpha));
-        // TextLine draws from the top of its line; the baseline is one ascent (= one em) down.
-        DrawSetTransform(new Vector2(pos.X - nameWidth / 2, pos.Y + cap / 2 - em), 0, new Vector2(scale, scale));
-        name.DrawOutline(canvas, Vector2.Zero, RefOutline, outline);
-        name.Draw(canvas, Vector2.Zero, text);
-        DrawSetTransform(new Vector2(pos.X - troopWidth / 2, troopMiddle + troopCap / 2 - em * TroopScale), 0, new Vector2(troopScale, troopScale));
-        troops.DrawOutline(canvas, Vector2.Zero, RefOutline, outline);
-        troops.Draw(canvas, Vector2.Zero, text);
+            DrawTextureRect(flag, new Rect2(pos.X - nameWidth / 2 - flagGap - flagWidth, pos.Y - flagHeight / 2, flagWidth, flagHeight), false, new Color(1, 1, 1, alpha));
+        // TextLine draws from the top of its line; the baseline is one ascent down.
+        float nameAscent = name.GetLineAscent() * scale;
+        DrawText(name, new Vector2(pos.X - nameWidth / 2, pos.Y + cap / 2 - nameAscent), scale,
+            NameShadow * RefSize, NameOutline * RefSize, text, outline, shadow, canvas);
+        float troopAscent = troops.GetLineAscent() * troopScale;
+        DrawText(troops, new Vector2(pos.X - troopWidth / 2, troopMiddle + troopCap / 2 - troopAscent), troopScale,
+            TroopShadow * RefSize, TroopOutline * RefSize, text, outline, shadow, canvas);
         DrawSetTransform(Vector2.Zero, 0, Vector2.One);
+    }
+
+    /// <summary>One line in the mockup style: a faint shadow down-right, then a light outline, then the dark text (sizes in layout units).</summary>
+    private void DrawText(TextLine line, Vector2 topLeft, float scale, float shadowOffset, float outlineSize,
+        Color text, Color outline, Color shadow, Rid canvas)
+    {
+        DrawSetTransform(topLeft, 0, new Vector2(scale, scale));
+        line.Draw(canvas, new Vector2(shadowOffset, shadowOffset), shadow);
+        line.DrawOutline(canvas, Vector2.Zero, (int)MathF.Round(outlineSize), outline);
+        line.Draw(canvas, Vector2.Zero, text);
     }
 
     // Labels are laid out at this font size, then scaled to fit.
     private const int RefSize = 64;
-    private const int RefOutline = 6;
     private readonly Dictionary<ushort, (string Text, TextLine Line)> _names = new();
     private readonly Dictionary<ushort, (string Text, TextLine Line)> _troops = new();
 
-    private TextLine NameLine(ushort id, string text) => Cached(_names, id, text);
-    private TextLine TroopLine(ushort id, string text) => Cached(_troops, id, text);
+    private TextLine NameLine(ushort id, string text) => Cached(_names, id, text, _font);
+    private TextLine TroopLine(ushort id, string text) => Cached(_troops, id, text, _troopFont);
 
-    private TextLine Cached(Dictionary<ushort, (string Text, TextLine Line)> cache, ushort id, string text)
+    private TextLine Cached(Dictionary<ushort, (string Text, TextLine Line)> cache, ushort id, string text, Font font)
     {
         if (cache.TryGetValue(id, out var entry) && entry.Text == text)
             return entry.Line;
         var line = new TextLine();
-        line.AddString(text, _font, RefSize);
+        line.AddString(text, font, RefSize);
         cache[id] = (text, line);
         return line;
     }
