@@ -120,6 +120,7 @@ public sealed partial class Game
         RefreshToConquer(attack);
         if (CancelAgainstIncoming(attack))
             return;
+        bool reinforcing = false;
         for (int i = _attacks.Count - 1; i >= 0; i--)
         {
             var other = _attacks[i];
@@ -127,6 +128,7 @@ public sealed partial class Game
             {
                 attack.TroopsExact += other.TroopsExact;
                 _attacks.RemoveAt(i);
+                reinforcing = true;
             }
         }
         if (attack.ToConquer.Count == 0)
@@ -135,7 +137,11 @@ public sealed partial class Game
             return;
         }
         if (targetId != Nobody)
+        {
             OnAttacked(attacker, _players[targetId]);
+            if (!reinforcing)
+                Report(GameEventKind.AttackStarted, attacker, _players[targetId]);
+        }
         _attacks.Add(attack);
     }
 

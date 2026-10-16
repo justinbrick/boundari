@@ -81,6 +81,8 @@ public sealed partial class Game
         if (lastDeparture > Tick)
             wait = lastDeparture - Tick;
         silo.Reloads.Enqueue(Tick);
+        if (GetPlayer(Owner[tile]) is { } aimedAt && aimedAt != player)
+            Report(GameEventKind.NukeLaunched, player, aimedAt, (int)type);
 
         if (type == NukeType.TsarBomba && GetPlayer(Owner[tile]) is { } victim)
             OnTsarBombaLaunched(player, victim);

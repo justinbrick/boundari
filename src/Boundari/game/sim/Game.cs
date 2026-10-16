@@ -666,6 +666,8 @@ public sealed partial class Game
         player.Troops -= troops;
         player.AttacksSent++;
         _boats.Add(new Boat(player, troops, landing, path));
+        if (GetPlayer(targetOwner) is { } heading)
+            Report(GameEventKind.BoatLaunched, player, heading);
     }
 
     private void SailBoats()
@@ -1693,6 +1695,8 @@ public sealed partial class Game
             if (!progressed)
                 break;
         }
+        if (loser.TileCount == 0)
+            Report(GameEventKind.Conquered, winner, loser);
     }
 
     // ------------------------------------------------------------------

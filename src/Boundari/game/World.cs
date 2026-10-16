@@ -112,6 +112,7 @@ public partial class World : Node2D
     private GameHud _hud = null!;
     private PlayerPanels _panels = null!;
     private PlayerBar _bar = null!;
+    private NotificationBar _notifications = null!;
     private TerritoryLabels _labels = null!;
     private GameMap _map = null!;
     private string _mapId = "";
@@ -134,6 +135,7 @@ public partial class World : Node2D
         _hud = new GameHud(this);
         _panels = new PlayerPanels(this);
         _bar = new PlayerBar(this);
+        _notifications = new NotificationBar(this);
         _grid = new CoordinateGrid { Name = "CoordinateGrid", Visible = false };
         AddChild(_grid);
         MoveChild(_grid, _view.GetIndex() + 1); // on the map, under buildings and labels
@@ -243,6 +245,7 @@ public partial class World : Node2D
         long recordStart = FrameProfiler.Start();
         _view.RecordTick(_game.Owner, _game.Fallout, _game.ChangedTiles, _simTick);
         _game.ChangedTiles.Clear();
+        _notifications.TakeEvents(_game, _me);
         FrameProfiler.Stop("territory record", recordStart);
         _shownTick = _game.Tick;
     }
@@ -313,6 +316,7 @@ public partial class World : Node2D
         FrameProfiler.EndFrame();
         if (_args.Bench is { } bench)
             RunBench(delta, bench);
+        _notifications.Update(delta);
         if (busy)
             return; // the worker has the game: the HUD and panels wait for the next frame
 
@@ -690,6 +694,7 @@ public partial class World : Node2D
         SyncSim();
         _game = new Game(_map, RandomSeed(), difficulty: _args.Difficulty ?? Difficulty);
         _me = _game.AddPlayer("You");
+        _game.EventsFor = _me.Id; // notifications
         if (DevCheats && !_args.NoCheats)
             _game.SetCheats(_me, infiniteGold: true, instantBuild: true);
         if (_args.Nations is null && MapNations.For(_mapId) is { } mapNations)

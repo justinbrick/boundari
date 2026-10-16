@@ -106,6 +106,7 @@ public sealed partial class Game
         }
         _allianceRequests.Add(new AllianceRequest(from, to, Tick));
         _lastRequestTick[(from.Id, to.Id)] = Tick;
+        Report(GameEventKind.AllianceRequested, from, to);
     }
 
     private void AcceptAlliance(AllianceRequest request)
@@ -115,6 +116,7 @@ public sealed partial class Game
         if (a.IsAlliedWith(b))
             return;
         _alliances.Add(new Alliance(a, b, Tick));
+        Report(GameEventKind.AllianceAccepted, a, b);
         a.Allies.Add(b.Id);
         b.Allies.Add(a.Id);
         UpdateRelation(a, b, AllianceRules.RelationMax);
@@ -123,7 +125,12 @@ public sealed partial class Game
         // Fighting stops: attacks between them pull back (see AdvanceAttacks) and boats turn home on landing.
     }
 
-    private void RejectAlliance(AllianceRequest request) => _allianceRequests.Remove(request);
+    /// <summary>Turns a request down (<paramref name="quietly"/>: it's simply withdrawn, nobody is told).</summary>
+    private void RejectAlliance(AllianceRequest request, bool quietly = false)
+    {
+        if (_allianceRequests.Remove(request) && !quietly)
+            Report(GameEventKind.AllianceRejected, request.From, request.To);
+    }
 
     /// <summary>Ends an alliance on purpose: the breaker becomes a traitor (unless the other already was) and is disliked for it.</summary>
     private void BreakAlliance(Player breaker, Player other)
@@ -132,6 +139,7 @@ public sealed partial class Game
         if (alliance is null)
             return;
         EndAlliance(alliance);
+        Report(GameEventKind.AllianceBroken, breaker, other);
         if (!IsTraitor(other))
             breaker.TraitorUntilTick = Tick + AllianceRules.TraitorTicks;
         UpdateRelation(other, breaker, -AllianceRules.RelationMax);
@@ -154,7 +162,11 @@ public sealed partial class Game
         {
             var r = _allianceRequests[i];
             if (Tick - r.CreatedTick > AllianceRules.RequestTicks || !r.From.IsAlive || !r.To.IsAlive)
+            {
                 _allianceRequests.RemoveAt(i);
+                if (r.From.IsAlive && r.To.IsAlive)
+                    Report(GameEventKind.AllianceRequestExpired, r.From, r.To);
+            }
             else if (r.To.IsBot)
                 AcceptAlliance(r); // OpenFront's tribes accept every request
         }
@@ -162,7 +174,11 @@ public sealed partial class Game
         {
             var a = _alliances[i];
             if (Tick >= a.ExpiresTick || !a.A.IsAlive || !a.B.IsAlive)
+            {
                 EndAlliance(a);
+                if (a.A.IsAlive && a.B.IsAlive)
+                    Report(GameEventKind.AllianceExpired, a.A, a.B);
+            }
         }
         foreach (var p in _withRelations)
         {
@@ -266,7 +282,7 @@ public sealed partial class Game
                 continue;
             if (PendingRequest(launcher, victim) is { } mine)
             {
-                RejectAlliance(mine);
+                RejectAlliance(mine, quietly: true); // bombing them withdraws our own request
                 continue;
             }
             if (launcher.IsAlliedWith(victim))

@@ -56,6 +56,27 @@ public class AllianceTests
     }
 
     [Fact]
+    public void Events_AreRecordedOnlyForTheWatchedPlayer()
+    {
+        var (game, a, b) = Setup();
+        game.Submit(new AllianceIntent(b.Id, a.Id));
+        Wait(game, 1);
+        Assert.Empty(game.Events); // nobody watched yet
+
+        game.EventsFor = a.Id;
+        game.Submit(new AllianceIntent(a.Id, b.Id)); // accepts b's request
+        Wait(game, 1);
+        Assert.Equal(new[] { new GameEvent(GameEventKind.AllianceAccepted, b.Id, a.Id) }, game.Events);
+
+        game.Events.Clear();
+        game.Submit(new BreakAllianceIntent(b.Id, a.Id));
+        game.Submit(new AttackIntent(b.Id, a.Id, 50));
+        Wait(game, 1);
+        Assert.Equal(new[] { GameEventKind.AllianceBroken, GameEventKind.AttackStarted }, game.Events.Select(e => e.Kind));
+        Assert.All(game.Events, e => Assert.Equal((b.Id, a.Id), (e.A, e.B)));
+    }
+
+    [Fact]
     public void Request_LapsesAfter20Seconds_AndCantBeRepeatedFor30()
     {
         var (game, a, b) = Setup();
