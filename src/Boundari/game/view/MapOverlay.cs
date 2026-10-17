@@ -36,7 +36,7 @@ public partial class MapOverlay : Node2D
         [BuildingType.Factory] = "res://ui/structures32x/depot32x.svg",
         [BuildingType.Defense] = "res://ui/structures32x/defense32x.svg",
         [BuildingType.Silo] = "res://ui/structures32x/silo32x.svg",
-        [BuildingType.Sam] = "res://ui/small_icons_new/sam.svg", // no new flak icon yet
+        [BuildingType.Sam] = "res://ui/structures32x/flak32x.svg",
     };
 
     private readonly Dictionary<BuildingType, Texture2D?> _icons = new();
