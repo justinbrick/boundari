@@ -2,13 +2,28 @@ using System.Collections.Generic;
 
 namespace Boundari.Sim;
 
-/// <summary>The emojis players can send (the user's four, one per feeling).</summary>
+/// <summary>
+/// The emojis (the user's sixteen). The first four are the radial menu's feelings, in
+/// order (the quick-chat phrases are numbered by them); the rest are for nations to use.
+/// </summary>
 public enum Emoji : byte
 {
     Grin,         // happy
     Heart,        // love
     Crying,       // sad
     MiddleFinger, // hate
+    Anchor,
+    City,
+    Factory,
+    Shield,
+    Question,
+    Sos,
+    MoneyBag,
+    ThumbsDown,
+    Handshake,
+    Clown,
+    Laughing,
+    Angry,
 }
 
 /// <summary>Emojis and quick-chat phrases, and OpenFront's limits on sending them.</summary>
@@ -18,15 +33,6 @@ public static class ChatRules
     public const int EmojiWindowTicks = 5 * 10;  // a person may send...
     public const int EmojiLimit = 5;             // ...this many to the same recipient per window (AI: 1)
     public const int QuickChatCooldownTicks = 3 * 10;
-
-    /// <summary>What each emoji looks like.</summary>
-    public static string Glyph(Emoji e) => e switch
-    {
-        Emoji.Grin => "😁",
-        Emoji.Heart => "❤️",
-        Emoji.Crying => "😭",
-        _ => "🖕",
-    };
 
     /// <summary>The quick-chat phrases, four per feeling (Phrases[(int)feeling * 4 + k]); see the radial menu.</summary>
     public static readonly string[] Phrases =

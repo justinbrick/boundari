@@ -28,14 +28,6 @@ public sealed class RadialChat
     private const int PhraseFontSize = 15;
     private static readonly float[] PullIn = { 0, 8, 28 }; // outer buttons sit nearer the menu, so the fan curves
 
-    private static Font? _emojiFont;
-
-    /// <summary>A font that draws colour emoji (the system's emoji font).</summary>
-    public static Font EmojiFont => _emojiFont ??= new SystemFont
-    {
-        FontNames = new[] { "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji" },
-    };
-
     private readonly Control _menu;
     private readonly Vector2 _centre;
     private Control? _fan;
@@ -72,7 +64,12 @@ public sealed class RadialChat
         {
             if (k == 2)
             {
-                buttons[k] = MakeButton(ChatRules.Glyph(fan.Feeling), EmojiFont, 30, canEmoji);
+                buttons[k] = MakeButton("", null, PhraseFontSize, canEmoji);
+                buttons[k].Icon = EmojiIcons.Texture(fan.Feeling);
+                buttons[k].ExpandIcon = true;
+                buttons[k].IconAlignment = HorizontalAlignment.Center;
+                buttons[k].AddThemeConstantOverride("icon_max_width", (int)(EmojiSize * 0.8f));
+                buttons[k].AddThemeColorOverride("icon_disabled_color", new Color(1, 1, 1, 0.35f));
                 buttons[k].CustomMinimumSize = new Vector2(EmojiSize, EmojiSize);
                 buttons[k].Pressed += () => sendEmoji(fan.Feeling);
             }

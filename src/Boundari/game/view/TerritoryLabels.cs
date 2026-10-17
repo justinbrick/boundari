@@ -554,7 +554,7 @@ public partial class TerritoryLabels : Node2D
         }
         // An emoji they sent you (or everyone) floats above it all for a few seconds, like OpenFront's.
         if (game.ShownEmoji(player, Me) is { } emoji)
-            DrawEmoji(ChatRules.Glyph(emoji), new Vector2(bottomCentre.X, bottomCentre.Y - (_tags.Count > 0 ? height * 1.3f : 0)), height * 3f, zoom, alpha);
+            DrawEmoji(emoji, new Vector2(bottomCentre.X, bottomCentre.Y - (_tags.Count > 0 ? height * 1.3f : 0)), height * 2f, zoom, alpha);
         if (_tags.Count == 0)
             return;
 
@@ -625,14 +625,12 @@ public partial class TerritoryLabels : Node2D
     }
 
     /// <summary>An emoji this tall, its bottom middle at the given point.</summary>
-    private void DrawEmoji(string glyph, Vector2 bottomCentre, float height, float zoom, float alpha)
+    private void DrawEmoji(Emoji emoji, Vector2 bottomCentre, float height, float zoom, float alpha)
     {
-        int px = Bucket(height * zoom);
-        float s = height / px;
-        var font = RadialChat.EmojiFont;
-        float width = font.GetStringSize(glyph, HorizontalAlignment.Left, -1, px).X;
-        DrawSetTransform(bottomCentre - new Vector2(width * s / 2, 0), 0, new Vector2(s, s));
-        DrawString(font, new Vector2(0, -font.GetDescent(px)), glyph, HorizontalAlignment.Left, -1, px, new Color(1, 1, 1, alpha));
+        if (EmojiIcons.Texture(emoji) is not { } texture)
+            return;
+        DrawSetTransform(Vector2.Zero, 0, Vector2.One);
+        DrawTextureRect(texture, new Rect2(bottomCentre - new Vector2(height / 2, height), new Vector2(height, height)), false, new Color(1, 1, 1, alpha));
     }
 
     /// <summary>One line in the mockup style: a faint shadow down-right, then a light outline, then the dark text (sizes in layout units).</summary>
