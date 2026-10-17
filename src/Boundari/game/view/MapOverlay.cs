@@ -23,6 +23,14 @@ public partial class MapOverlay : Node2D
     private const float FullSizeZoom = 4.5f;
     private const float GrowZoom = 10.5f;
     private const float BoatPixels = 18;
+
+    // Where your own boats are headed: the destination crosshair, red and a little see-through,
+    // turning slowly in place, a fixed size on screen.
+    private const string DestinationIconFile = "res://ui/misc64x/destination64x.svg";
+    private const float DestinationPixels = 40;
+    private const float DestinationSecondsPerTurn = 8;
+    private static readonly Color DestinationColour = new(1f, 0.15f, 0.15f, 0.7f);
+    private Texture2D? _destinationIcon;
     private const float WarshipPixels = 40;
 
     // Zoomed out past this (pixels per tile), icons stop holding their minimum size and
@@ -59,6 +67,7 @@ public partial class MapOverlay : Node2D
         _font = ThemeDB.FallbackFont;
         foreach (var (type, path) in IconFiles)
             _icons[type] = ResourceLoader.Exists(path) ? GD.Load<Texture2D>(path) : null;
+        _destinationIcon = ResourceLoader.Exists(DestinationIconFile) ? GD.Load<Texture2D>(DestinationIconFile) : null;
 
         // Layers drawn behind this node's own drawing, in this order: roads (in a group, so
         // they fade with zoom as one picture), trains and placement ranges, then the building
@@ -615,7 +624,18 @@ public partial class MapOverlay : Node2D
         float r = 1.6f / zoom;
         for (int i = from + step; i < boat.Path.Length; i += step)
             DrawCircle(TileCentre(boat.Path[i], w), r, colour);
-        DrawCircle(TileCentre(boat.LandingTile, w), r * 2.5f, colour);
+        // A recalled boat heads back to the shore it left from.
+        var destination = TileCentre(boat.Retreating ? boat.SourceTile : boat.LandingTile, w);
+        if (_destinationIcon is null)
+        {
+            DrawCircle(destination, r * 2.5f, colour);
+            return;
+        }
+        float size = DestinationPixels / zoom;
+        float angle = (float)(Time.GetTicksMsec() / 1000.0 / DestinationSecondsPerTurn % 1.0 * Mathf.Tau);
+        DrawSetTransform(destination, angle, Vector2.One);
+        DrawTextureRect(_destinationIcon, new Rect2(-size / 2, -size / 2, size, size), false, DestinationColour);
+        DrawSetTransform(Vector2.Zero, 0, Vector2.One);
     }
 
     private static (Vector2 Position, float Heading) AlongPath(int[] path, long progress, int w)

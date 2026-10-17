@@ -47,6 +47,7 @@ namespace Boundari;
 ///   --bench=SECONDS    run flat out (no vsync), print where frame time goes every 2 s, then quit
 ///   --showcase         (testing) after --autoplay: build one of everything and launch a boat;
 ///                      --showcase=nukes[:N] also fires a MOAB, Fat Man and Tsar Bomba, then runs N ticks
+///                      --showcase=boat frames where your boat is headed
 ///   --tags             (testing) every name shows every icon above it (alliance one part drained)
 ///   --hover=X,Y        pretend the mouse is over this map point (0..1 fractions), for screenshots;
 ///                      --hover=leader hovers the biggest player
@@ -1046,6 +1047,8 @@ public partial class World : Node2D
         }
         if (_args.ShowcaseFocus == "rails" && _showcaseRailFocus >= 0)
             at = new Vector2(_showcaseRailFocus % _map.Width, _showcaseRailFocus / _map.Width);
+        else if (_args.ShowcaseFocus == "boat" && _game.Boats.FirstOrDefault(b => b.Owner == _me) is { } boat)
+            at = new Vector2(boat.LandingTile % _map.Width, boat.LandingTile / _map.Width);
         else if (_game.Warships.Count > 0)
             at = new Vector2(_game.Warships[0].Tile % _map.Width, _game.Warships[0].Tile / _map.Width);
         _showcaseFocus = at / new Vector2(_map.Width, _map.Height);
