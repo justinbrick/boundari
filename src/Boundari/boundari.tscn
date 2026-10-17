@@ -59,9 +59,12 @@
 [ext_resource type="Texture2D" uid="uid://dynk6c1sa6e0w" path="res://ui/settings_small/keybinds.svg" id="64_cjpii"]
 [ext_resource type="Script" uid="uid://d3j272gifyut" path="res://video_main.gd" id="64_wahd8"]
 [ext_resource type="Texture2D" uid="uid://csndycipu40f2" path="res://ui/settings_small/power.svg" id="65_d773e"]
+[ext_resource type="Texture2D" uid="uid://d0xg8qp2b5dwc" path="res://ui/tags128x/bombing128x.svg" id="66_exfoo"]
 [ext_resource type="StyleBox" uid="uid://bl8vsrn0gng3p" path="res://apply_button.tres" id="66_y52gj"]
 [ext_resource type="Theme" uid="uid://rury42jurrbq" path="res://optionsbutton.tres" id="67_g4pvr"]
+[ext_resource type="Texture2D" uid="uid://m4md0dy0kye7" path="res://ui/tags128x/embargo128x.svg" id="67_l6ikw"]
 [ext_resource type="Texture2D" uid="uid://sjvfkq16caan" path="res://ui/misc/arrow.svg" id="68_1u143"]
+[ext_resource type="Texture2D" uid="uid://dgs8ydg8q7whh" path="res://ui/tags128x/request128x.svg" id="68_8yhk8"]
 [ext_resource type="Script" uid="uid://dxnd7b4onrclb" path="res://gameplay_panel.gd" id="69_1u143"]
 [ext_resource type="Script" uid="uid://divxtioscd01k" path="res://game/view/MapView.cs" id="bw_mapview"]
 [ext_resource type="Script" uid="uid://b17hmp882uwcy" path="res://game/World.cs" id="bw_world"]
@@ -92,10 +95,6 @@ shader_parameter/tint = 1.0
 shader_parameter/noise_strength = 0.01600000076
 shader_parameter/grain_scale = 150.0
 shader_parameter/noise_speed = 0.0
-
-[sub_resource type="FontVariation" id="FontVariation_ok40o"]
-variation_transform = Transform2D(1, 0.165, 0, 1.28, 0, 0)
-spacing_glyph = 1
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_rblt2"]
 bg_color = Color(0, 0, 0, 0.43137255)
@@ -458,14 +457,14 @@ shadow_size = 20
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_62siw"]
 shader = ExtResource("4_enfkb")
-shader_parameter/blur_amount = 2.6000001235
-shader_parameter/darken_amount = 1.0
-shader_parameter/noise_strength = 0.01600000076
+shader_parameter/blur_amount = 3.50000016625
+shader_parameter/darken_amount = 0.810000038475
+shader_parameter/noise_strength = 0.0250000011875
 shader_parameter/grain_scale = 150.0
 shader_parameter/noise_speed = 0.0
 shader_parameter/corner_radius_px = 12.00000057
 shader_parameter/corner_smooth_px = 1.0000000475
-shader_parameter/rect_size = Vector2(200, 260)
+shader_parameter/rect_size = Vector2(362, 140)
 shader_parameter/panel_alpha = 1.0
 
 [sub_resource type="FontVariation" id="FontVariation_ogqqv"]
@@ -874,6 +873,237 @@ shader_parameter/corner_smooth_px = 0.50000002375
 shader_parameter/rect_size = Vector2(230, 30)
 shader_parameter/panel_alpha = 1.0
 
+[sub_resource type="Shader" id="Shader_5hybd"]
+code = "shader_type canvas_item;
+
+uniform sampler2D SCREEN_TEXTURE : hint_screen_texture, filter_linear_mipmap;
+
+// Blur
+uniform float blur_amount : hint_range(0.0, 5.0) = 1.5;
+
+// Darken the blurred background a bit
+uniform float darken_amount : hint_range(0.0, 1.0) = 0.75;
+
+// Grain settings
+uniform float noise_strength : hint_range(0.0, 1.0) = 0.07; // how strong the grain is
+uniform float grain_scale    : hint_range(10.0, 400.0) = 150.0; // how big the grain is
+uniform float noise_speed    : hint_range(0.0, 3.0) = 0.5; // 0 = static, >0 = shimmery
+
+// Rounded corners IN PIXELS
+uniform float corner_radius_px : hint_range(0.0, 200.0) = 24.0;
+uniform float corner_smooth_px : hint_range(0.0, 40.0) = 6.0;
+
+// Size of this ColorRect in pixels (set this to the bar's actual size)
+uniform vec2 rect_size = vec2(400.0, 80.0);
+
+// Overall opacity of this panel
+uniform float panel_alpha : hint_range(0.0, 1.0) = 1.0;
+
+
+// Pseudo-random function
+float rand(vec2 co) {
+    return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453123);
+}
+
+// Simple multi-octave noise for nicer randomness
+float grain_noise(vec2 uv) {
+    float n  = rand(uv * grain_scale);
+    n       += 0.5 * rand(uv * grain_scale * 2.0);
+    n       += 0.25 * rand(uv * grain_scale * 4.0);
+    return n / (1.0 + 0.5 + 0.25); // normalize back to 0..1
+}
+
+// Proper rounded-rectangle mask in *pixel* space
+float rounded_rect_mask(vec2 uv, vec2 size, float radius, float smoothness) {
+    // Clamp radius so it never exceeds half the smallest dimension
+    float max_r = 0.5 * min(size.x, size.y) - smoothness;
+    radius = clamp(radius, 0.0, max_r);
+
+    // Convert UV (0..1) to pixel coords centered at origin
+    vec2 p = uv * size - size * 0.5;
+    // Inner box half-size (minus radius)
+    vec2 b = size * 0.5 - vec2(radius);
+
+    vec2 d = abs(p) - b;
+    float dist = length(max(d, vec2(0.0))) - radius;
+
+    // 1.0 inside, 0.0 outside, smooth edge around dist = 0
+    return 1.0 - smoothstep(-smoothness, smoothness, dist);
+}
+
+void fragment() {
+    // --- Blur the background ---
+    vec3 col = textureLod(SCREEN_TEXTURE, SCREEN_UV, blur_amount).rgb;
+
+    // --- Darken it ---
+    col *= darken_amount;
+
+    // --- Grain ---
+    vec2 uv = SCREEN_UV + vec2(TIME * noise_speed, TIME * 0.37 * noise_speed);
+    float g = grain_noise(uv);          // 0..1
+    float g2 = g * 2.0 - 1.0;           // -1..1
+    col += vec3(g2) * noise_strength;
+
+    col = clamp(col, 0.0, 1.0);
+
+    // --- Rounded corners in pixel space ---
+    float mask = rounded_rect_mask(UV, rect_size, corner_radius_px, corner_smooth_px);
+
+    COLOR.rgb = col;
+    COLOR.a   = panel_alpha * mask;
+}"
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_wd5ij"]
+shader = SubResource("Shader_5hybd")
+shader_parameter/blur_amount = 3.50000016625
+shader_parameter/darken_amount = 0.90000004275
+shader_parameter/noise_strength = 0.0250000011875
+shader_parameter/grain_scale = 150.0
+shader_parameter/noise_speed = 0.0
+shader_parameter/corner_radius_px = 13.0000006175
+shader_parameter/corner_smooth_px = 0.0
+shader_parameter/rect_size = Vector2(762, 64)
+shader_parameter/panel_alpha = 1.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_j4h4s"]
+bg_color = Color(0, 0, 0, 0.29411766)
+border_color = Color(2.051, 2.051, 2.051, 0.055)
+border_blend = true
+corner_radius_top_left = 13
+corner_radius_top_right = 13
+corner_radius_bottom_right = 13
+corner_radius_bottom_left = 13
+
+[sub_resource type="FontVariation" id="FontVariation_2iyt7"]
+base_font = ExtResource("49_5khtq")
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_5hybd"]
+bg_color = Color(0, 0, 0, 0.29411766)
+draw_center = false
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.72130203, 0.72130215, 0.72130203, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_jqbn1"]
+bg_color = Color(0, 0, 0, 0.29411766)
+draw_center = false
+border_color = Color(0.8, 0.8, 0.8, 0)
+shadow_color = Color(0, 0, 0, 0.39215687)
+shadow_size = 30
+shadow_offset = Vector2(0, 40)
+
+[sub_resource type="Shader" id="Shader_j4h4s"]
+code = "shader_type canvas_item;
+
+uniform sampler2D SCREEN_TEXTURE : hint_screen_texture, filter_linear_mipmap;
+
+// Blur
+uniform float blur_amount : hint_range(0.0, 5.0) = 1.5;
+
+// Darken the blurred background a bit
+uniform float darken_amount : hint_range(0.0, 1.0) = 0.75;
+
+// Grain settings
+uniform float noise_strength : hint_range(0.0, 1.0) = 0.07; // how strong the grain is
+uniform float grain_scale    : hint_range(10.0, 400.0) = 150.0; // how big the grain is
+uniform float noise_speed    : hint_range(0.0, 3.0) = 0.5; // 0 = static, >0 = shimmery
+
+// Rounded corners IN PIXELS
+uniform float corner_radius_px : hint_range(0.0, 200.0) = 24.0;
+uniform float corner_smooth_px : hint_range(0.0, 40.0) = 6.0;
+
+// Size of this ColorRect in pixels (set this to the bar's actual size)
+uniform vec2 rect_size = vec2(400.0, 80.0);
+
+// Overall opacity of this panel
+uniform float panel_alpha : hint_range(0.0, 1.0) = 1.0;
+
+
+// Pseudo-random function
+float rand(vec2 co) {
+    return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453123);
+}
+
+// Simple multi-octave noise for nicer randomness
+float grain_noise(vec2 uv) {
+    float n  = rand(uv * grain_scale);
+    n       += 0.5 * rand(uv * grain_scale * 2.0);
+    n       += 0.25 * rand(uv * grain_scale * 4.0);
+    return n / (1.0 + 0.5 + 0.25); // normalize back to 0..1
+}
+
+// Proper rounded-rectangle mask in *pixel* space
+float rounded_rect_mask(vec2 uv, vec2 size, float radius, float smoothness) {
+    // Clamp radius so it never exceeds half the smallest dimension
+    float max_r = 0.5 * min(size.x, size.y) - smoothness;
+    radius = clamp(radius, 0.0, max_r);
+
+    // Convert UV (0..1) to pixel coords centered at origin
+    vec2 p = uv * size - size * 0.5;
+    // Inner box half-size (minus radius)
+    vec2 b = size * 0.5 - vec2(radius);
+
+    vec2 d = abs(p) - b;
+    float dist = length(max(d, vec2(0.0))) - radius;
+
+    // 1.0 inside, 0.0 outside, smooth edge around dist = 0
+    return 1.0 - smoothstep(-smoothness, smoothness, dist);
+}
+
+void fragment() {
+    // --- Blur the background ---
+    vec3 col = textureLod(SCREEN_TEXTURE, SCREEN_UV, blur_amount).rgb;
+
+    // --- Darken it ---
+    col *= darken_amount;
+
+    // --- Grain ---
+    vec2 uv = SCREEN_UV + vec2(TIME * noise_speed, TIME * 0.37 * noise_speed);
+    float g = grain_noise(uv);          // 0..1
+    float g2 = g * 2.0 - 1.0;           // -1..1
+    col += vec3(g2) * noise_strength;
+
+    col = clamp(col, 0.0, 1.0);
+
+    // --- Rounded corners in pixel space ---
+    float mask = rounded_rect_mask(UV, rect_size, corner_radius_px, corner_smooth_px);
+
+    COLOR.rgb = col;
+    COLOR.a   = panel_alpha * mask;
+}"
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_qxvjs"]
+shader = SubResource("Shader_j4h4s")
+shader_parameter/blur_amount = 3.50000016625
+shader_parameter/darken_amount = 0.58400002774
+shader_parameter/noise_strength = 0.0150000007125
+shader_parameter/grain_scale = 150.0
+shader_parameter/noise_speed = 0.0
+shader_parameter/corner_radius_px = 20.00000095
+shader_parameter/corner_smooth_px = 0.0
+shader_parameter/rect_size = Vector2(64, 64)
+shader_parameter/panel_alpha = 1.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bxyxm"]
+bg_color = Color(0, 0, 0, 0.4117647)
+draw_center = false
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 2
+border_color = Color(0, 0, 0, 0.24313726)
+border_blend = true
+corner_radius_top_left = 18
+corner_radius_top_right = 18
+corner_radius_bottom_right = 18
+corner_radius_bottom_left = 18
+
 [node name="Node2D" type="Node2D" unique_id=1680915766]
 script = ExtResource("bw_world")
 
@@ -947,6 +1177,7 @@ max_zoom = 100.0
 [node name="Main_Layer" type="CanvasLayer" parent="." unique_id=1596231632]
 
 [node name="Main_Control" type="Control" parent="Main_Layer" unique_id=208004004]
+visible = false
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -956,7 +1187,6 @@ grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("4_pdu2b")
 popup_offset_y = 18.0
-metadata/_edit_lock_ = true
 
 [node name="HBox_AHudTEST" type="HBoxContainer" parent="Main_Layer/Main_Control" unique_id=2051517190]
 layout_mode = 0
@@ -981,156 +1211,6 @@ offset_top = 2.0
 offset_right = -2.0
 grow_horizontal = 2
 grow_vertical = 2
-
-[node name="HBox_Names" type="HBoxContainer" parent="Main_Layer/Main_Control/HBox_AHudTEST/In_Panel" unique_id=1219262895]
-visible = false
-layout_mode = 1
-anchors_preset = -1
-anchor_top = 0.04708333
-anchor_right = 1.0
-anchor_bottom = 0.32333332
-offset_bottom = -0.8125
-metadata/_edit_use_anchors_ = true
-
-[node name="MarginContainer8" type="MarginContainer" parent="Main_Layer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names" unique_id=355255775]
-custom_minimum_size = Vector2(25, 0)
-layout_mode = 2
-
-[node name="Port" type="Label" parent="Main_Layer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names" unique_id=787637667]
-custom_minimum_size = Vector2(50, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
-theme_override_fonts/font = SubResource("FontVariation_ok40o")
-theme_override_font_sizes/font_size = 9
-text = "Harbor"
-horizontal_alignment = 1
-metadata/_edit_use_anchors_ = true
-
-[node name="MarginContainer2" type="MarginContainer" parent="Main_Layer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names" unique_id=1074193810]
-custom_minimum_size = Vector2(6, 0)
-layout_mode = 2
-
-[node name="Barracks" type="Label" parent="Main_Layer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names" unique_id=1105101427]
-custom_minimum_size = Vector2(50, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
-theme_override_fonts/font = SubResource("FontVariation_ok40o")
-theme_override_font_sizes/font_size = 9
-text = "Barracks"
-horizontal_alignment = 1
-metadata/_edit_use_anchors_ = true
-
-[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names" unique_id=644128942]
-custom_minimum_size = Vector2(6, 0)
-layout_mode = 2
-
-[node name="Factory" type="Label" parent="Main_Layer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names" unique_id=1642012126]
-custom_minimum_size = Vector2(50, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
-theme_override_fonts/font = SubResource("FontVariation_ok40o")
-theme_override_font_sizes/font_size = 9
-text = "Depot"
-horizontal_alignment = 1
-metadata/_edit_use_anchors_ = true
-
-[node name="MarginContainer3" type="MarginContainer" parent="Main_Layer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names" unique_id=965889684]
-custom_minimum_size = Vector2(6, 0)
-layout_mode = 2
-
-[node name="Defense" type="Label" parent="Main_Layer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names" unique_id=269572080]
-custom_minimum_size = Vector2(50, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
-theme_override_fonts/font = SubResource("FontVariation_ok40o")
-theme_override_font_sizes/font_size = 9
-text = "Defense"
-horizontal_alignment = 1
-metadata/_edit_use_anchors_ = true
-
-[node name="MarginContainer9" type="MarginContainer" parent="Main_Layer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names" unique_id=555776227]
-custom_minimum_size = Vector2(38, 0)
-layout_mode = 2
-
-[node name="Silo" type="Label" parent="Main_Layer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names" unique_id=1545017176]
-custom_minimum_size = Vector2(50, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
-theme_override_fonts/font = SubResource("FontVariation_ok40o")
-theme_override_font_sizes/font_size = 9
-text = "Silo"
-horizontal_alignment = 1
-metadata/_edit_use_anchors_ = true
-
-[node name="MarginContainer4" type="MarginContainer" parent="Main_Layer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names" unique_id=1110412003]
-custom_minimum_size = Vector2(6, 0)
-layout_mode = 2
-
-[node name="Sam" type="Label" parent="Main_Layer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names" unique_id=1364991012]
-custom_minimum_size = Vector2(50, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
-theme_override_fonts/font = SubResource("FontVariation_ok40o")
-theme_override_font_sizes/font_size = 9
-text = "Flak"
-horizontal_alignment = 1
-metadata/_edit_use_anchors_ = true
-
-[node name="MarginContainer10" type="MarginContainer" parent="Main_Layer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names" unique_id=1181796577]
-custom_minimum_size = Vector2(40, 0)
-layout_mode = 2
-
-[node name="Warship" type="Label" parent="Main_Layer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names" unique_id=1340498492]
-custom_minimum_size = Vector2(50, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
-theme_override_fonts/font = SubResource("FontVariation_ok40o")
-theme_override_font_sizes/font_size = 9
-text = "Warship"
-horizontal_alignment = 1
-metadata/_edit_use_anchors_ = true
-
-[node name="MarginContainer5" type="MarginContainer" parent="Main_Layer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names" unique_id=2059645024]
-custom_minimum_size = Vector2(6, 0)
-layout_mode = 2
-
-[node name="MOAB" type="Label" parent="Main_Layer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names" unique_id=394682613]
-custom_minimum_size = Vector2(50, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
-theme_override_fonts/font = SubResource("FontVariation_ok40o")
-theme_override_font_sizes/font_size = 9
-text = "Mortar"
-horizontal_alignment = 1
-metadata/_edit_use_anchors_ = true
-
-[node name="MarginContainer6" type="MarginContainer" parent="Main_Layer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names" unique_id=754671719]
-custom_minimum_size = Vector2(6, 0)
-layout_mode = 2
-
-[node name="Fat Man" type="Label" parent="Main_Layer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names" unique_id=811688281]
-custom_minimum_size = Vector2(50, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
-theme_override_fonts/font = SubResource("FontVariation_ok40o")
-theme_override_font_sizes/font_size = 9
-text = "Missile"
-horizontal_alignment = 1
-metadata/_edit_use_anchors_ = true
-
-[node name="MarginContainer7" type="MarginContainer" parent="Main_Layer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names" unique_id=752625021]
-custom_minimum_size = Vector2(6, 0)
-layout_mode = 2
-
-[node name="Tsar Bomba" type="Label" parent="Main_Layer/Main_Control/HBox_AHudTEST/In_Panel/HBox_Names" unique_id=1857406442]
-custom_minimum_size = Vector2(50, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 1)
-theme_override_fonts/font = SubResource("FontVariation_ok40o")
-theme_override_font_sizes/font_size = 9
-text = "Atomic"
-horizontal_alignment = 1
-metadata/_edit_use_anchors_ = true
 
 [node name="Struct_Titles_Panel" type="Panel" parent="Main_Layer/Main_Control/HBox_AHudTEST/In_Panel" unique_id=2134713497]
 layout_mode = 1
@@ -1194,6 +1274,7 @@ anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 2.0
+offset_top = 2.0
 offset_right = -2.0
 grow_horizontal = 2
 grow_vertical = 2
@@ -3374,6 +3455,7 @@ custom_minimum_size = Vector2(4, 0)
 layout_mode = 2
 
 [node name="Options_Layer" type="CanvasLayer" parent="Main_Layer/Main_Control" unique_id=221439176]
+visible = false
 script = ExtResource("59_812tb")
 
 [node name="OptionsMenu" type="Control" parent="Main_Layer/Main_Control/Options_Layer" unique_id=350834214]
@@ -5589,3 +5671,3604 @@ vertical_alignment = 1
 [node name="Button_Retreat" type="Button" parent="Main_Layer/Main_Control/Control_Outgoing/VBoxContainer/HBoxContainer/Rec_Outgoing3/HBoxContainer" unique_id=1273825650]
 layout_mode = 2
 text = "X"
+
+[node name="Main_ControlTEST" type="Control" parent="Main_Layer" unique_id=1509435707]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("4_pdu2b")
+popup_offset_y = 18.0
+
+[node name="ColorRect" type="ColorRect" parent="Main_Layer/Main_ControlTEST" unique_id=932344134]
+material = SubResource("ShaderMaterial_wd5ij")
+clip_contents = true
+layout_mode = 0
+offset_left = 579.0
+offset_top = 1004.0
+offset_right = 1341.0
+offset_bottom = 1068.0
+
+[node name="Panel" type="Panel" parent="Main_Layer/Main_ControlTEST/ColorRect" unique_id=326473201]
+clip_contents = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_j4h4s")
+
+[node name="ButtonsRow" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/ColorRect/Panel" unique_id=381389054]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = 18.0
+grow_horizontal = 2
+grow_vertical = 2
+alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="Control2" type="Control" parent="Main_Layer/Main_ControlTEST/ColorRect/Panel/ButtonsRow" unique_id=1576641506]
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+
+[node name="Port_Button" type="Button" parent="Main_Layer/Main_ControlTEST/ColorRect/Panel/ButtonsRow/Control2" unique_id=1182022283]
+layout_mode = 0
+offset_top = -19.0
+offset_right = 60.0
+offset_bottom = 90.0
+size_flags_horizontal = 4
+theme_override_styles/normal = SubResource("StyleBoxEmpty_ddwe0")
+theme_override_styles/pressed = SubResource("StyleBoxEmpty_enfkb")
+theme_override_styles/hover = SubResource("StyleBoxEmpty_xc0m3")
+theme_override_styles/disabled = SubResource("StyleBoxEmpty_04lhv")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_ewirb")
+icon_alignment = 1
+script = ExtResource("4_xc0m3")
+line1 = "Harbor [1]"
+line2 = "Trade ships generate cash"
+line3 = "300K"
+
+[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_ControlTEST/ColorRect/Panel/ButtonsRow/Control2/Port_Button" unique_id=469549392]
+material = SubResource("ShaderMaterial_ewirb")
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -30.0
+offset_top = -90.0
+offset_right = 30.0
+grow_horizontal = 2
+grow_vertical = 0
+texture = ExtResource("6_xc0m3")
+expand_mode = 1
+
+[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/ColorRect/Panel/ButtonsRow/Control2/Port_Button/TextureRect" unique_id=599332087]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -24.0
+offset_right = 20.0
+offset_bottom = 11.5
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.21568628)
+theme_override_fonts/font = SubResource("FontVariation_2iyt7")
+text = "0"
+horizontal_alignment = 1
+
+[node name="Control3" type="Control" parent="Main_Layer/Main_ControlTEST/ColorRect/Panel/ButtonsRow" unique_id=1668082136]
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+
+[node name="Barracks_Button" type="Button" parent="Main_Layer/Main_ControlTEST/ColorRect/Panel/ButtonsRow/Control3" unique_id=428087855]
+layout_mode = 0
+offset_top = -19.0
+offset_right = 60.0
+offset_bottom = 90.0
+size_flags_horizontal = 4
+theme_override_styles/normal = SubResource("StyleBoxEmpty_di8wi")
+theme_override_styles/pressed = SubResource("StyleBoxEmpty_tepi4")
+theme_override_styles/hover = SubResource("StyleBoxEmpty_b2en8")
+theme_override_styles/disabled = SubResource("StyleBoxEmpty_lwvql")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_kthhr")
+icon_alignment = 1
+script = ExtResource("4_xc0m3")
+line1 = "Barracks [2]"
+line2 = "Increases max population"
+line3 = "300K"
+
+[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_ControlTEST/ColorRect/Panel/ButtonsRow/Control3/Barracks_Button" unique_id=1256083341]
+material = SubResource("ShaderMaterial_enfkb")
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -30.0
+offset_top = -90.0
+offset_right = 30.0
+grow_horizontal = 2
+grow_vertical = 0
+texture = ExtResource("7_04lhv")
+expand_mode = 1
+
+[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/ColorRect/Panel/ButtonsRow/Control3/Barracks_Button/TextureRect" unique_id=1469825662]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -24.0
+offset_right = 20.0
+offset_bottom = 11.5
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.21568628)
+theme_override_fonts/font = SubResource("FontVariation_2iyt7")
+text = "0"
+horizontal_alignment = 1
+
+[node name="Control4" type="Control" parent="Main_Layer/Main_ControlTEST/ColorRect/Panel/ButtonsRow" unique_id=1961794780]
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+
+[node name="Fac_Button" type="Button" parent="Main_Layer/Main_ControlTEST/ColorRect/Panel/ButtonsRow/Control4" unique_id=1448301806]
+layout_mode = 0
+offset_top = -19.0
+offset_right = 60.0
+offset_bottom = 90.0
+size_flags_horizontal = 4
+theme_override_styles/normal = SubResource("StyleBoxEmpty_ddwe0")
+theme_override_styles/pressed = SubResource("StyleBoxEmpty_enfkb")
+theme_override_styles/hover = SubResource("StyleBoxEmpty_xc0m3")
+theme_override_styles/disabled = SubResource("StyleBoxEmpty_04lhv")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_ewirb")
+icon_alignment = 1
+script = ExtResource("4_xc0m3")
+line1 = "Depot [3]"
+line2 = "Railroads generate cash"
+line3 = "300K"
+
+[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_ControlTEST/ColorRect/Panel/ButtonsRow/Control4/Fac_Button" unique_id=748544272]
+material = SubResource("ShaderMaterial_di8wi")
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -30.0
+offset_top = -90.0
+offset_right = 30.0
+grow_horizontal = 2
+grow_vertical = 0
+texture = ExtResource("7_ewirb")
+expand_mode = 1
+
+[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/ColorRect/Panel/ButtonsRow/Control4/Fac_Button/TextureRect" unique_id=761017571]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -24.0
+offset_right = 20.0
+offset_bottom = 11.5
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.21568628)
+theme_override_fonts/font = SubResource("FontVariation_2iyt7")
+text = "0"
+horizontal_alignment = 1
+
+[node name="Control5" type="Control" parent="Main_Layer/Main_ControlTEST/ColorRect/Panel/ButtonsRow" unique_id=920606113]
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+
+[node name="Def_Button" type="Button" parent="Main_Layer/Main_ControlTEST/ColorRect/Panel/ButtonsRow/Control5" unique_id=1158555542]
+layout_mode = 0
+offset_top = -19.0
+offset_right = 60.0
+offset_bottom = 90.0
+size_flags_horizontal = 4
+theme_override_styles/normal = SubResource("StyleBoxEmpty_ddwe0")
+theme_override_styles/pressed = SubResource("StyleBoxEmpty_enfkb")
+theme_override_styles/hover = SubResource("StyleBoxEmpty_xc0m3")
+theme_override_styles/disabled = SubResource("StyleBoxEmpty_04lhv")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_ewirb")
+icon_alignment = 1
+script = ExtResource("4_xc0m3")
+line1 = "Defense [4]"
+line2 = "Strengthens a small radius"
+line3 = "100K"
+
+[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_ControlTEST/ColorRect/Panel/ButtonsRow/Control5/Def_Button" unique_id=193429049]
+material = SubResource("ShaderMaterial_tepi4")
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -30.0
+offset_top = -90.0
+offset_right = 30.0
+grow_horizontal = 2
+grow_vertical = 0
+texture = ExtResource("8_tepi4")
+expand_mode = 1
+
+[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/ColorRect/Panel/ButtonsRow/Control5/Def_Button/TextureRect" unique_id=1454238543]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -24.0
+offset_right = 20.0
+offset_bottom = 11.5
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.21568628)
+theme_override_fonts/font = SubResource("FontVariation_2iyt7")
+text = "0"
+horizontal_alignment = 1
+
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/ColorRect/Panel/ButtonsRow" unique_id=1259111177]
+custom_minimum_size = Vector2(30, 0)
+layout_mode = 2
+
+[node name="Control6" type="Control" parent="Main_Layer/Main_ControlTEST/ColorRect/Panel/ButtonsRow" unique_id=523340]
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+
+[node name="Silo_Button" type="Button" parent="Main_Layer/Main_ControlTEST/ColorRect/Panel/ButtonsRow/Control6" unique_id=503436462]
+layout_mode = 0
+offset_top = -19.0
+offset_right = 60.0
+offset_bottom = 90.0
+size_flags_horizontal = 4
+theme_override_styles/normal = SubResource("StyleBoxEmpty_ddwe0")
+theme_override_styles/pressed = SubResource("StyleBoxEmpty_enfkb")
+theme_override_styles/hover = SubResource("StyleBoxEmpty_xc0m3")
+theme_override_styles/disabled = SubResource("StyleBoxEmpty_04lhv")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_ewirb")
+icon_alignment = 1
+script = ExtResource("4_xc0m3")
+line1 = "Silo [5]"
+line2 = "Increases max missiles"
+line3 = "2M"
+
+[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_ControlTEST/ColorRect/Panel/ButtonsRow/Control6/Silo_Button" unique_id=972514744]
+material = SubResource("ShaderMaterial_b2en8")
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -30.0
+offset_top = -90.0
+offset_right = 30.0
+grow_horizontal = 2
+grow_vertical = 0
+texture = ExtResource("9_ewirb")
+expand_mode = 1
+
+[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/ColorRect/Panel/ButtonsRow/Control6/Silo_Button/TextureRect" unique_id=1024988049]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -24.0
+offset_right = 20.0
+offset_bottom = 11.5
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.21568628)
+theme_override_fonts/font = SubResource("FontVariation_2iyt7")
+text = "0"
+horizontal_alignment = 1
+
+[node name="Control7" type="Control" parent="Main_Layer/Main_ControlTEST/ColorRect/Panel/ButtonsRow" unique_id=61298826]
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+
+[node name="Sam_Button" type="Button" parent="Main_Layer/Main_ControlTEST/ColorRect/Panel/ButtonsRow/Control7" unique_id=1158723130]
+layout_mode = 0
+offset_top = -19.0
+offset_right = 60.0
+offset_bottom = 90.0
+size_flags_horizontal = 4
+theme_override_styles/normal = SubResource("StyleBoxEmpty_ddwe0")
+theme_override_styles/pressed = SubResource("StyleBoxEmpty_enfkb")
+theme_override_styles/hover = SubResource("StyleBoxEmpty_xc0m3")
+theme_override_styles/disabled = SubResource("StyleBoxEmpty_04lhv")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_ewirb")
+icon_alignment = 1
+script = ExtResource("4_xc0m3")
+line1 = "Flak [6]"
+line2 = "Defends against missiles"
+line3 = "3M"
+
+[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_ControlTEST/ColorRect/Panel/ButtonsRow/Control7/Sam_Button" unique_id=1856781756]
+material = SubResource("ShaderMaterial_lwvql")
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -30.0
+offset_top = -90.0
+offset_right = 30.0
+grow_horizontal = 2
+grow_vertical = 0
+texture = ExtResource("11_ok40o")
+expand_mode = 1
+
+[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/ColorRect/Panel/ButtonsRow/Control7/Sam_Button/TextureRect" unique_id=1131316998]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -24.0
+offset_right = 20.0
+offset_bottom = 11.5
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.21568628)
+theme_override_fonts/font = SubResource("FontVariation_2iyt7")
+text = "0"
+horizontal_alignment = 1
+
+[node name="MarginContainer2" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/ColorRect/Panel/ButtonsRow" unique_id=395051397]
+custom_minimum_size = Vector2(30, 0)
+layout_mode = 2
+
+[node name="Control8" type="Control" parent="Main_Layer/Main_ControlTEST/ColorRect/Panel/ButtonsRow" unique_id=1757166423]
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+
+[node name="Ship_Button" type="Button" parent="Main_Layer/Main_ControlTEST/ColorRect/Panel/ButtonsRow/Control8" unique_id=1217677732]
+layout_mode = 0
+offset_top = -19.0
+offset_right = 60.0
+offset_bottom = 90.0
+size_flags_horizontal = 4
+theme_override_styles/normal = SubResource("StyleBoxEmpty_ddwe0")
+theme_override_styles/pressed = SubResource("StyleBoxEmpty_enfkb")
+theme_override_styles/hover = SubResource("StyleBoxEmpty_xc0m3")
+theme_override_styles/disabled = SubResource("StyleBoxEmpty_04lhv")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_ewirb")
+icon_alignment = 1
+script = ExtResource("4_xc0m3")
+line1 = "Warship [7]"
+line2 = "Captures trade ships"
+line3 = "500K"
+
+[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_ControlTEST/ColorRect/Panel/ButtonsRow/Control8/Ship_Button" unique_id=1861400280]
+material = SubResource("ShaderMaterial_kthhr")
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -30.0
+offset_top = -90.0
+offset_right = 30.0
+grow_horizontal = 2
+grow_vertical = 0
+texture = ExtResource("10_di8wi")
+expand_mode = 1
+
+[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/ColorRect/Panel/ButtonsRow/Control8/Ship_Button/TextureRect" unique_id=26055901]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -24.0
+offset_right = 20.0
+offset_bottom = 11.5
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.21568628)
+theme_override_fonts/font = SubResource("FontVariation_2iyt7")
+text = "0"
+horizontal_alignment = 1
+
+[node name="Control9" type="Control" parent="Main_Layer/Main_ControlTEST/ColorRect/Panel/ButtonsRow" unique_id=1041961137]
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+
+[node name="Viper_Button" type="Button" parent="Main_Layer/Main_ControlTEST/ColorRect/Panel/ButtonsRow/Control9" unique_id=480871207]
+layout_mode = 0
+offset_top = -19.0
+offset_right = 60.0
+offset_bottom = 90.0
+size_flags_horizontal = 4
+theme_override_styles/normal = SubResource("StyleBoxEmpty_ddwe0")
+theme_override_styles/pressed = SubResource("StyleBoxEmpty_enfkb")
+theme_override_styles/hover = SubResource("StyleBoxEmpty_xc0m3")
+theme_override_styles/disabled = SubResource("StyleBoxEmpty_04lhv")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_ewirb")
+icon_alignment = 1
+script = ExtResource("4_xc0m3")
+line1 = "Mortar [8]"
+line2 = "Bomb with a small radius"
+line3 = "1.5M"
+
+[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_ControlTEST/ColorRect/Panel/ButtonsRow/Control9/Viper_Button" unique_id=1303818576]
+material = SubResource("ShaderMaterial_ok40o")
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -30.0
+offset_top = -90.0
+offset_right = 30.0
+grow_horizontal = 2
+grow_vertical = 0
+texture = ExtResource("11_tepi4")
+expand_mode = 1
+
+[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/ColorRect/Panel/ButtonsRow/Control9/Viper_Button/TextureRect" unique_id=1300874173]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -24.0
+offset_right = 20.0
+offset_bottom = 11.5
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.21568628)
+theme_override_fonts/font = SubResource("FontVariation_2iyt7")
+text = "0"
+horizontal_alignment = 1
+
+[node name="Control10" type="Control" parent="Main_Layer/Main_ControlTEST/ColorRect/Panel/ButtonsRow" unique_id=1470251990]
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+
+[node name="Falcon_Button" type="Button" parent="Main_Layer/Main_ControlTEST/ColorRect/Panel/ButtonsRow/Control10" unique_id=1817143735]
+layout_mode = 0
+offset_top = -19.0
+offset_right = 60.0
+offset_bottom = 90.0
+size_flags_horizontal = 4
+theme_override_styles/normal = SubResource("StyleBoxEmpty_ddwe0")
+theme_override_styles/pressed = SubResource("StyleBoxEmpty_enfkb")
+theme_override_styles/hover = SubResource("StyleBoxEmpty_xc0m3")
+theme_override_styles/disabled = SubResource("StyleBoxEmpty_04lhv")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_ewirb")
+icon_alignment = 1
+script = ExtResource("4_xc0m3")
+line1 = "Missile [9]"
+line2 = "Bomb with a large radius"
+line3 = "10M"
+
+[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_ControlTEST/ColorRect/Panel/ButtonsRow/Control10/Falcon_Button" unique_id=901450919]
+material = SubResource("ShaderMaterial_rblt2")
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -30.0
+offset_top = -90.0
+offset_right = 30.0
+grow_horizontal = 2
+grow_vertical = 0
+texture = ExtResource("12_b2en8")
+expand_mode = 1
+
+[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/ColorRect/Panel/ButtonsRow/Control10/Falcon_Button/TextureRect" unique_id=273303709]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -24.0
+offset_right = 20.0
+offset_bottom = 11.5
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.21568628)
+theme_override_fonts/font = SubResource("FontVariation_2iyt7")
+text = "0"
+horizontal_alignment = 1
+
+[node name="Control11" type="Control" parent="Main_Layer/Main_ControlTEST/ColorRect/Panel/ButtonsRow" unique_id=1934108596]
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+
+[node name="Raptor_Button" type="Button" parent="Main_Layer/Main_ControlTEST/ColorRect/Panel/ButtonsRow/Control11" unique_id=787383224]
+layout_mode = 0
+offset_top = -19.0
+offset_right = 60.0
+offset_bottom = 90.0
+size_flags_horizontal = 4
+theme_override_styles/normal = SubResource("StyleBoxEmpty_ddwe0")
+theme_override_styles/pressed = SubResource("StyleBoxEmpty_enfkb")
+theme_override_styles/hover = SubResource("StyleBoxEmpty_xc0m3")
+theme_override_styles/disabled = SubResource("StyleBoxEmpty_04lhv")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_ewirb")
+icon_alignment = 1
+script = ExtResource("4_xc0m3")
+line1 = "Atomic Bomb [0]"
+line2 = "Indefensible nuclear warhead"
+line3 = "70M"
+
+[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_ControlTEST/ColorRect/Panel/ButtonsRow/Control11/Raptor_Button" unique_id=985960268]
+material = SubResource("ShaderMaterial_o10ms")
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -30.0
+offset_top = -90.0
+offset_right = 30.0
+grow_horizontal = 2
+grow_vertical = 0
+texture = ExtResource("13_lwvql")
+expand_mode = 1
+
+[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/ColorRect/Panel/ButtonsRow/Control11/Raptor_Button/TextureRect" unique_id=899665551]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -24.0
+offset_right = 20.0
+offset_bottom = 11.5
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.21568628)
+theme_override_fonts/font = SubResource("FontVariation_2iyt7")
+text = "0"
+horizontal_alignment = 1
+
+[node name="PanelStroke" type="Panel" parent="Main_Layer/Main_ControlTEST/ColorRect" unique_id=1282844041]
+clip_contents = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_5hybd")
+
+[node name="Shadow" type="Panel" parent="Main_Layer/Main_ControlTEST/ColorRect" unique_id=2012449929]
+clip_contents = true
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.038057745
+anchor_top = 0.359375
+anchor_right = 0.96194226
+anchor_bottom = 1.1875
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_jqbn1")
+metadata/_edit_use_anchors_ = true
+
+[node name="Control" type="Control" parent="Main_Layer/Main_ControlTEST" unique_id=1758611887]
+visible = false
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -80.0
+offset_top = -40.0
+offset_bottom = 32.0
+grow_horizontal = 0
+grow_vertical = 0
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Main_Layer/Main_ControlTEST/Control" unique_id=1588722205]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -32.0
+offset_top = -280.0
+offset_right = 32.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_constants/separation = 8
+alignment = 2
+
+[node name="Button" type="Button" parent="Main_Layer/Main_ControlTEST/Control/VBoxContainer" unique_id=1151513488]
+material = SubResource("ShaderMaterial_qxvjs")
+custom_minimum_size = Vector2(64, 64)
+layout_mode = 2
+
+[node name="PanelStroke" type="Panel" parent="Main_Layer/Main_ControlTEST/Control/VBoxContainer/Button" unique_id=660730022]
+clip_contents = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_bxyxm")
+
+[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_ControlTEST/Control/VBoxContainer/Button/PanelStroke" unique_id=2023530348]
+modulate = Color(1, 0.33745927, 0.22558424, 1)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("66_exfoo")
+expand_mode = 1
+
+[node name="Button2" type="Button" parent="Main_Layer/Main_ControlTEST/Control/VBoxContainer" unique_id=1954988766]
+material = SubResource("ShaderMaterial_qxvjs")
+custom_minimum_size = Vector2(64, 64)
+layout_mode = 2
+
+[node name="PanelStroke" type="Panel" parent="Main_Layer/Main_ControlTEST/Control/VBoxContainer/Button2" unique_id=452527596]
+clip_contents = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_bxyxm")
+
+[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_ControlTEST/Control/VBoxContainer/Button2/PanelStroke" unique_id=531835696]
+modulate = Color(0.76862746, 0.60784316, 0, 1)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("67_l6ikw")
+expand_mode = 1
+
+[node name="Button3" type="Button" parent="Main_Layer/Main_ControlTEST/Control/VBoxContainer" unique_id=1651174643]
+material = SubResource("ShaderMaterial_qxvjs")
+custom_minimum_size = Vector2(64, 64)
+layout_mode = 2
+
+[node name="PanelStroke" type="Panel" parent="Main_Layer/Main_ControlTEST/Control/VBoxContainer/Button3" unique_id=1619688818]
+clip_contents = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_bxyxm")
+
+[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_ControlTEST/Control/VBoxContainer/Button3/PanelStroke" unique_id=1033669391]
+modulate = Color(1, 1, 1, 0.44313726)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("68_8yhk8")
+expand_mode = 1
+
+[node name="Button4" type="Button" parent="Main_Layer/Main_ControlTEST/Control/VBoxContainer" unique_id=272193873]
+material = SubResource("ShaderMaterial_qxvjs")
+custom_minimum_size = Vector2(64, 64)
+layout_mode = 2
+
+[node name="PanelStroke" type="Panel" parent="Main_Layer/Main_ControlTEST/Control/VBoxContainer/Button4" unique_id=1969835042]
+clip_contents = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_bxyxm")
+
+[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_ControlTEST/Control/VBoxContainer/Button4/PanelStroke" unique_id=584038883]
+modulate = Color(1, 1, 1, 0.44313726)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("68_8yhk8")
+expand_mode = 1
+
+[node name="Large_Rect" type="ColorRect" parent="Main_Layer/Main_ControlTEST" unique_id=273604861]
+visible = false
+material = SubResource("ShaderMaterial_n3xjr")
+layout_mode = 1
+anchors_preset = -1
+anchor_top = 0.9444444
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+metadata/_edit_use_anchors_ = true
+
+[node name="Large_HBox" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect" unique_id=1700630793]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+alignment = 1
+
+[node name="MarginContainer7" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox" unique_id=571933459]
+custom_minimum_size = Vector2(230, 0)
+layout_mode = 2
+
+[node name="Left_HBox" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox" unique_id=553831896]
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="HBox_Player" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox/Left_HBox" unique_id=555029466]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox/Left_HBox/HBox_Player" unique_id=1125709858]
+layout_mode = 2
+theme_override_constants/separation = 0
+alignment = 1
+
+[node name="TroopMeter" type="Panel" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox/Left_HBox/HBox_Player" unique_id=1609987339]
+custom_minimum_size = Vector2(400, 40)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("StyleBoxFlat_7iv60")
+
+[node name="HBoxContainer" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox/Left_HBox/HBox_Player/TroopMeter" unique_id=1120897192]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+alignment = 1
+
+[node name="MarginContainer2" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox/Left_HBox/HBox_Player/TroopMeter/HBoxContainer" unique_id=1598935345]
+custom_minimum_size = Vector2(8, 0)
+layout_mode = 2
+
+[node name="Current_Troops" type="Label" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox/Left_HBox/HBox_Player/TroopMeter/HBoxContainer" unique_id=627690393]
+layout_mode = 2
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.09803922)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_fonts/font = SubResource("FontVariation_y52gj")
+theme_override_font_sizes/font_size = 18
+text = "140K"
+vertical_alignment = 1
+
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox/Left_HBox/HBox_Player/TroopMeter/HBoxContainer" unique_id=1911461321]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Max_Troops" type="Label" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox/Left_HBox/HBox_Player/TroopMeter/HBoxContainer" unique_id=97728053]
+layout_mode = 2
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.09803922)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_fonts/font = SubResource("FontVariation_y52gj")
+theme_override_font_sizes/font_size = 18
+text = "241K"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="MarginContainer3" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox/Left_HBox/HBox_Player/TroopMeter/HBoxContainer" unique_id=2108307517]
+custom_minimum_size = Vector2(8, 0)
+layout_mode = 2
+
+[node name="MarginContainer2" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox" unique_id=2083146912]
+custom_minimum_size = Vector2(16, 0)
+layout_mode = 2
+
+[node name="Panel_Notif" type="Button" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox" unique_id=1892659056]
+custom_minimum_size = Vector2(350, 45)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_styles/normal = ExtResource("10_tqtv8")
+theme_override_styles/pressed = ExtResource("26_jqbn1")
+theme_override_styles/hover = ExtResource("27_exfoo")
+theme_override_styles/focus = ExtResource("28_l6ikw")
+
+[node name="Label_No_Notif" type="Label" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox/Panel_Notif" unique_id=407091751]
+modulate = Color(18.892157, 18.892157, 18.892157, 0.19607843)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -46.0
+offset_top = -9.0
+offset_right = 46.0
+offset_bottom = 9.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 14
+text = "Notifications..."
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Label_Notif_Example" type="Label" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox/Panel_Notif" unique_id=93854270]
+visible = false
+modulate = Color(18.892157, 18.892157, 18.892157, 0.7058824)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -109.5
+offset_top = -10.0
+offset_right = 109.5
+offset_bottom = 10.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 14
+text = "Alliance request sent to Czechia."
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ColorRect" type="Panel" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox/Panel_Notif" unique_id=380986449]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.88285714
+anchor_top = 0.1
+anchor_right = 0.98285717
+anchor_bottom = 0.87777776
+grow_horizontal = 0
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_exfoo")
+metadata/_edit_use_anchors_ = true
+
+[node name="Label_Notif_Queue" type="Label" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox/Panel_Notif/ColorRect" unique_id=2139261706]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -4.5
+offset_top = -13.0
+offset_right = 4.5
+offset_bottom = 11.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
+theme_override_fonts/font = SubResource("FontVariation_j4h4s")
+theme_override_font_sizes/font_size = 15
+text = "4"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="MarginContainer5" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox" unique_id=1747600179]
+custom_minimum_size = Vector2(16, 0)
+layout_mode = 2
+
+[node name="Right_HBox" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox" unique_id=1486227518]
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="Panel_Cash" type="Panel" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox/Right_HBox" unique_id=815139338]
+custom_minimum_size = Vector2(120, 40)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("StyleBoxFlat_ud2h5")
+
+[node name="Label_Cash" type="Label" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox/Right_HBox/Panel_Cash" unique_id=1072187715]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -35.0
+offset_top = -14.0
+offset_right = 35.0
+offset_bottom = 14.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.09803922)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_fonts/font = SubResource("FontVariation_y52gj")
+theme_override_font_sizes/font_size = 18
+text = "$3.87M"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="MarginContainer8" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox/Right_HBox" unique_id=775641598]
+custom_minimum_size = Vector2(16, 0)
+layout_mode = 2
+
+[node name="Structures" type="Panel" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox/Right_HBox" unique_id=1169582827]
+custom_minimum_size = Vector2(400, 40)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("StyleBoxFlat_j54ir")
+
+[node name="HBoxContainer2" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox/Right_HBox/Structures" unique_id=1904810887]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 5
+alignment = 1
+
+[node name="MarginContainer6" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2" unique_id=2012358974]
+custom_minimum_size = Vector2(24, 0)
+layout_mode = 2
+
+[node name="HBox_Harbour" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2" unique_id=1137159487]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2/HBox_Harbour" unique_id=532325308]
+modulate = Color(1, 1, 1, 0.3137255)
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+texture = ExtResource("23_fruhh")
+expand_mode = 1
+
+[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2/HBox_Harbour" unique_id=86107918]
+modulate = Color(1, 1, 1, 0.27450982)
+custom_minimum_size = Vector2(28, 0)
+layout_mode = 2
+theme_override_fonts/font = SubResource("FontVariation_ri5to")
+text = "0"
+
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2" unique_id=1654163201]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="HBox_Barracks" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2" unique_id=718356553]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2/HBox_Barracks" unique_id=1473296973]
+modulate = Color(1, 1, 1, 0.3137255)
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+texture = ExtResource("24_wahd8")
+expand_mode = 1
+
+[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2/HBox_Barracks" unique_id=1563080969]
+modulate = Color(1, 1, 1, 0.27450982)
+custom_minimum_size = Vector2(28, 0)
+layout_mode = 2
+text = "0"
+
+[node name="MarginContainer2" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2" unique_id=835542075]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="HBox_Depot" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2" unique_id=718689483]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2/HBox_Depot" unique_id=935283527]
+modulate = Color(1, 1, 1, 0.3137255)
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+texture = ExtResource("25_ri5to")
+expand_mode = 1
+
+[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2/HBox_Depot" unique_id=1691162754]
+modulate = Color(1, 1, 1, 0.27450982)
+custom_minimum_size = Vector2(28, 0)
+layout_mode = 2
+text = "0"
+
+[node name="MarginContainer3" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2" unique_id=197752039]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="HBox_Silo" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2" unique_id=492590422]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2/HBox_Silo" unique_id=204006127]
+modulate = Color(1, 1, 1, 0.3137255)
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+texture = ExtResource("26_y52gj")
+expand_mode = 1
+
+[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2/HBox_Silo" unique_id=406483438]
+modulate = Color(1, 1, 1, 0.27450982)
+custom_minimum_size = Vector2(28, 0)
+layout_mode = 2
+text = "0"
+
+[node name="MarginContainer4" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2" unique_id=921168958]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="HBox_Sam" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2" unique_id=752728545]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2/HBox_Sam" unique_id=1253555446]
+modulate = Color(1, 1, 1, 0.3137255)
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+texture = ExtResource("38_jqbn1")
+expand_mode = 1
+
+[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2/HBox_Sam" unique_id=1533578382]
+modulate = Color(1, 1, 1, 0.27450982)
+custom_minimum_size = Vector2(28, 0)
+layout_mode = 2
+text = "0"
+
+[node name="MarginContainer5" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2" unique_id=848518643]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="HBox_Warship" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2" unique_id=101720643]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2/HBox_Warship" unique_id=1755089738]
+modulate = Color(1, 1, 1, 0.3137255)
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+texture = ExtResource("39_exfoo")
+expand_mode = 1
+
+[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2/HBox_Warship" unique_id=182409826]
+modulate = Color(1, 1, 1, 0.27450982)
+custom_minimum_size = Vector2(28, 0)
+layout_mode = 2
+text = "0"
+
+[node name="MarginContainer7" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2" unique_id=450607093]
+custom_minimum_size = Vector2(8, 0)
+layout_mode = 2
+
+[node name="MarginContainer6" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/Large_HBox" unique_id=1697999211]
+custom_minimum_size = Vector2(16, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Display_Rec" type="ColorRect" parent="Main_Layer/Main_ControlTEST" unique_id=1216405663]
+material = SubResource("ShaderMaterial_62siw")
+layout_mode = 0
+offset_left = 1545.0
+offset_top = 926.0
+offset_right = 1907.0
+offset_bottom = 1066.0
+mouse_filter = 2
+
+[node name="Panel" type="Panel" parent="Main_Layer/Main_ControlTEST/Display_Rec" unique_id=1687670091]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = ExtResource("10_tqtv8")
+
+[node name="HBoxContainer" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel" unique_id=1943384636]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer" unique_id=598399648]
+layout_mode = 2
+theme_override_constants/margin_left = 5
+
+[node name="VBoxContainer2" type="VBoxContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer" unique_id=417472787]
+layout_mode = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2" unique_id=531837845]
+layout_mode = 2
+theme_override_constants/margin_top = 5
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2" unique_id=1331856881]
+custom_minimum_size = Vector2(144, 0)
+layout_mode = 2
+
+[node name="HBoxContainer" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/VBoxContainer" unique_id=1330976294]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Flag" type="TextureRect" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/VBoxContainer/HBoxContainer" unique_id=1061987732]
+modulate = Color(1, 1, 1, 0.80784315)
+custom_minimum_size = Vector2(26, 26)
+layout_mode = 2
+texture = ExtResource("48_exfoo")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Name" type="Label" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/VBoxContainer/HBoxContainer" unique_id=1330011841]
+custom_minimum_size = Vector2(75, 0)
+layout_mode = 2
+theme_override_fonts/font = SubResource("FontVariation_ogqqv")
+theme_override_font_sizes/font_size = 20
+text = "brunette"
+vertical_alignment = 1
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="Place" type="Label" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/VBoxContainer/HBoxContainer" unique_id=1958321245]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 1
+theme_override_colors/font_color = Color(1, 1, 1, 0.6509804)
+theme_override_fonts/font = SubResource("FontVariation_jcive")
+theme_override_font_sizes/font_size = 14
+text = "3rd"
+vertical_alignment = 1
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="HBoxContainer3" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/VBoxContainer" unique_id=575989968]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="HBoxContainer2" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/VBoxContainer/HBoxContainer3" unique_id=601700634]
+layout_mode = 2
+size_flags_horizontal = 0
+theme_override_constants/separation = 4
+
+[node name="Name" type="Label" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/VBoxContainer/HBoxContainer3/HBoxContainer2" unique_id=1961991604]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.9372549)
+theme_override_fonts/font = SubResource("FontVariation_ogqqv")
+theme_override_font_sizes/font_size = 14
+text = "Trade"
+vertical_alignment = 1
+
+[node name="Name2" type="Label" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/VBoxContainer/HBoxContainer3/HBoxContainer2" unique_id=759688952]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.47226435, 0.9999996, 0.43983585, 1)
+theme_override_fonts/font = SubResource("FontVariation_bxyxm")
+theme_override_font_sizes/font_size = 14
+text = "Active"
+vertical_alignment = 1
+
+[node name="HBoxContainer3" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/VBoxContainer/HBoxContainer3" unique_id=689392111]
+layout_mode = 2
+size_flags_horizontal = 0
+theme_override_constants/separation = 4
+
+[node name="Name" type="Label" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/VBoxContainer/HBoxContainer3/HBoxContainer3" unique_id=1164129652]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.9372549)
+theme_override_fonts/font = SubResource("FontVariation_ogqqv")
+theme_override_font_sizes/font_size = 14
+text = "Relation"
+vertical_alignment = 1
+
+[node name="Relation_Answer" type="Label" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/VBoxContainer/HBoxContainer3/HBoxContainer3" unique_id=296634736]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.47226435, 0.9999996, 0.43983585, 1)
+theme_override_fonts/font = SubResource("FontVariation_bxyxm")
+theme_override_font_sizes/font_size = 14
+text = "Allies"
+vertical_alignment = 1
+
+[node name="HBoxContainer4" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/VBoxContainer/HBoxContainer3" unique_id=605416678]
+layout_mode = 2
+size_flags_horizontal = 0
+theme_override_constants/separation = 4
+
+[node name="Name" type="Label" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/VBoxContainer/HBoxContainer3/HBoxContainer4" unique_id=632862383]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.9372549)
+theme_override_fonts/font = SubResource("FontVariation_ogqqv")
+theme_override_font_sizes/font_size = 14
+text = "Type"
+vertical_alignment = 1
+
+[node name="Name2" type="Label" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/VBoxContainer/HBoxContainer3/HBoxContainer4" unique_id=1902948793]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.72130203, 0.72130215, 0.721302, 1)
+theme_override_fonts/font = SubResource("FontVariation_bxyxm")
+theme_override_font_sizes/font_size = 14
+text = "Nation"
+vertical_alignment = 1
+
+[node name="Panel_Land" type="Panel" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/VBoxContainer" unique_id=684731513]
+visible = false
+custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_styles/panel = ExtResource("49_exfoo")
+
+[node name="HBoxContainer" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/VBoxContainer/Panel_Land" unique_id=1237143844]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+
+[node name="HBoxContainer" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/VBoxContainer/Panel_Land/HBoxContainer" unique_id=219837170]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 0
+
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/VBoxContainer/Panel_Land/HBoxContainer/HBoxContainer" unique_id=6908294]
+custom_minimum_size = Vector2(7, 0)
+layout_mode = 2
+
+[node name="Land" type="Label" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/VBoxContainer/Panel_Land/HBoxContainer/HBoxContainer" unique_id=1952391170]
+layout_mode = 2
+theme_override_colors/font_color = Color(18.892, 18.892, 18.892, 0.373)
+theme_override_fonts/font = SubResource("FontVariation_wffjv")
+theme_override_font_sizes/font_size = 14
+text = "Land"
+vertical_alignment = 1
+
+[node name="HBoxContainer2" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/VBoxContainer/Panel_Land/HBoxContainer" unique_id=1115960501]
+layout_mode = 2
+theme_override_constants/separation = 0
+alignment = 2
+
+[node name="Land_Amount" type="Label" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/VBoxContainer/Panel_Land/HBoxContainer/HBoxContainer2" unique_id=1711631194]
+layout_mode = 2
+theme_override_fonts/font = SubResource("FontVariation_jucne")
+theme_override_font_sizes/font_size = 16
+text = "8.2"
+vertical_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="Land_Sign" type="Label" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/VBoxContainer/Panel_Land/HBoxContainer/HBoxContainer2" unique_id=2061626450]
+layout_mode = 2
+theme_override_fonts/font = ExtResource("49_5khtq")
+theme_override_font_sizes/font_size = 16
+text = "%"
+vertical_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="MarginContainer3" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/VBoxContainer/Panel_Land/HBoxContainer/HBoxContainer2" unique_id=1520550191]
+custom_minimum_size = Vector2(10, 0)
+layout_mode = 2
+
+[node name="HBoxContainer" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2" unique_id=1219145947]
+layout_mode = 2
+
+[node name="Structures" type="Panel" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer" unique_id=1152898093]
+custom_minimum_size = Vector2(200, 70)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("StyleBoxFlat_j54ir")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/Structures" unique_id=354694480]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 10
+alignment = 1
+metadata/_edit_lock_ = true
+
+[node name="MarginContainer2" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/Structures/VBoxContainer" unique_id=714405054]
+custom_minimum_size = Vector2(0, 7)
+layout_mode = 2
+
+[node name="HBoxContainer2" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/Structures/VBoxContainer" unique_id=2136231635]
+layout_mode = 2
+theme_override_constants/separation = 0
+alignment = 1
+
+[node name="MarginContainer6" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/Structures/VBoxContainer/HBoxContainer2" unique_id=13762661]
+custom_minimum_size = Vector2(8, 0)
+layout_mode = 2
+
+[node name="HBox_Harbour" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/Structures/VBoxContainer/HBoxContainer2" unique_id=368533633]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/Structures/VBoxContainer/HBoxContainer2/HBox_Harbour" unique_id=2067642676]
+modulate = Color(1, 1, 1, 0.3137255)
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+texture = ExtResource("23_fruhh")
+expand_mode = 1
+
+[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/Structures/VBoxContainer/HBoxContainer2/HBox_Harbour" unique_id=935845087]
+modulate = Color(1, 1, 1, 0.27450982)
+custom_minimum_size = Vector2(19, 0)
+layout_mode = 2
+theme_override_fonts/font = SubResource("FontVariation_ri5to")
+text = "0"
+
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/Structures/VBoxContainer/HBoxContainer2" unique_id=1770497871]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="HBox_Barracks" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/Structures/VBoxContainer/HBoxContainer2" unique_id=1772773481]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/Structures/VBoxContainer/HBoxContainer2/HBox_Barracks" unique_id=628744046]
+modulate = Color(1, 1, 1, 0.3137255)
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+texture = ExtResource("24_wahd8")
+expand_mode = 1
+
+[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/Structures/VBoxContainer/HBoxContainer2/HBox_Barracks" unique_id=2039019780]
+modulate = Color(1, 1, 1, 0.27450982)
+custom_minimum_size = Vector2(19, 0)
+layout_mode = 2
+text = "0"
+
+[node name="MarginContainer2" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/Structures/VBoxContainer/HBoxContainer2" unique_id=488000272]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="HBox_Depot" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/Structures/VBoxContainer/HBoxContainer2" unique_id=1880262359]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/Structures/VBoxContainer/HBoxContainer2/HBox_Depot" unique_id=701823829]
+modulate = Color(1, 1, 1, 0.3137255)
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+texture = ExtResource("25_ri5to")
+expand_mode = 1
+
+[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/Structures/VBoxContainer/HBoxContainer2/HBox_Depot" unique_id=1559229818]
+modulate = Color(1, 1, 1, 0.27450982)
+custom_minimum_size = Vector2(19, 0)
+layout_mode = 2
+text = "0"
+
+[node name="MarginContainer7" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/Structures/VBoxContainer/HBoxContainer2" unique_id=1125106596]
+custom_minimum_size = Vector2(8, 0)
+layout_mode = 2
+
+[node name="HBoxContainer3" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/Structures/VBoxContainer" unique_id=411494367]
+layout_mode = 2
+theme_override_constants/separation = 0
+alignment = 1
+
+[node name="MarginContainer6" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/Structures/VBoxContainer/HBoxContainer3" unique_id=943675196]
+custom_minimum_size = Vector2(8, 0)
+layout_mode = 2
+
+[node name="HBox_Harbour" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/Structures/VBoxContainer/HBoxContainer3" unique_id=510563839]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/Structures/VBoxContainer/HBoxContainer3/HBox_Harbour" unique_id=589611166]
+modulate = Color(1, 1, 1, 0.3137255)
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+texture = ExtResource("26_y52gj")
+expand_mode = 1
+
+[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/Structures/VBoxContainer/HBoxContainer3/HBox_Harbour" unique_id=113300664]
+modulate = Color(1, 1, 1, 0.27450982)
+custom_minimum_size = Vector2(19, 0)
+layout_mode = 2
+theme_override_fonts/font = SubResource("FontVariation_ri5to")
+text = "0"
+
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/Structures/VBoxContainer/HBoxContainer3" unique_id=685489205]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="HBox_Barracks" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/Structures/VBoxContainer/HBoxContainer3" unique_id=1194583076]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/Structures/VBoxContainer/HBoxContainer3/HBox_Barracks" unique_id=1554143171]
+modulate = Color(1, 1, 1, 0.3137255)
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+texture = ExtResource("38_jqbn1")
+expand_mode = 1
+
+[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/Structures/VBoxContainer/HBoxContainer3/HBox_Barracks" unique_id=1156090479]
+modulate = Color(1, 1, 1, 0.27450982)
+custom_minimum_size = Vector2(19, 0)
+layout_mode = 2
+text = "0"
+
+[node name="MarginContainer2" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/Structures/VBoxContainer/HBoxContainer3" unique_id=1159552027]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="HBox_Depot" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/Structures/VBoxContainer/HBoxContainer3" unique_id=474173840]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/Structures/VBoxContainer/HBoxContainer3/HBox_Depot" unique_id=172845505]
+modulate = Color(1, 1, 1, 0.3137255)
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+texture = ExtResource("39_exfoo")
+expand_mode = 1
+
+[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/Structures/VBoxContainer/HBoxContainer3/HBox_Depot" unique_id=417222889]
+modulate = Color(1, 1, 1, 0.27450982)
+custom_minimum_size = Vector2(19, 0)
+layout_mode = 2
+text = "0"
+
+[node name="MarginContainer7" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/Structures/VBoxContainer/HBoxContainer3" unique_id=878967276]
+custom_minimum_size = Vector2(8, 0)
+layout_mode = 2
+
+[node name="MarginContainer3" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/Structures/VBoxContainer" unique_id=1925688588]
+custom_minimum_size = Vector2(0, 5)
+layout_mode = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer" unique_id=1373317046]
+layout_mode = 2
+alignment = 1
+
+[node name="Display_Meter" type="Panel" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/VBoxContainer" unique_id=1726990245]
+custom_minimum_size = Vector2(140, 30)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("StyleBoxFlat_ud2h5")
+
+[node name="HBoxContainer" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/VBoxContainer/Display_Meter" unique_id=1073715633]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MarginContainer2" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/VBoxContainer/Display_Meter/HBoxContainer" unique_id=1591362341]
+custom_minimum_size = Vector2(4, 0)
+layout_mode = 2
+
+[node name="Current_Troops" type="Label" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/VBoxContainer/Display_Meter/HBoxContainer" unique_id=1630449151]
+layout_mode = 2
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.09803922)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_fonts/font = SubResource("FontVariation_y52gj")
+theme_override_font_sizes/font_size = 15
+text = "$3.87M"
+vertical_alignment = 1
+
+[node name="Display_Gold" type="Panel" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/VBoxContainer" unique_id=89266161]
+custom_minimum_size = Vector2(140, 30)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("StyleBoxFlat_7iv60")
+
+[node name="HBoxContainer" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/VBoxContainer/Display_Gold" unique_id=900133960]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+alignment = 1
+
+[node name="MarginContainer2" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/VBoxContainer/Display_Gold/HBoxContainer" unique_id=43160935]
+custom_minimum_size = Vector2(4, 0)
+layout_mode = 2
+
+[node name="Current_Troops" type="Label" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/VBoxContainer/Display_Gold/HBoxContainer" unique_id=361526867]
+layout_mode = 2
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.09803922)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_fonts/font = SubResource("FontVariation_y52gj")
+theme_override_font_sizes/font_size = 15
+text = "140K"
+vertical_alignment = 1
+
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/VBoxContainer/Display_Gold/HBoxContainer" unique_id=767058260]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Max_Troops" type="Label" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/VBoxContainer/Display_Gold/HBoxContainer" unique_id=1326343408]
+layout_mode = 2
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.09803922)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_fonts/font = SubResource("FontVariation_y52gj")
+theme_override_font_sizes/font_size = 15
+text = "241K"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="MarginContainer3" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/VBoxContainer/Display_Gold/HBoxContainer" unique_id=681593032]
+custom_minimum_size = Vector2(4, 0)
+layout_mode = 2
+
+[node name="Options_Layer" type="CanvasLayer" parent="Main_Layer/Main_ControlTEST" unique_id=1440232937]
+visible = false
+script = ExtResource("59_812tb")
+
+[node name="OptionsMenu" type="Control" parent="Main_Layer/Main_ControlTEST/Options_Layer" unique_id=388131307]
+layout_mode = 3
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 101.0
+grow_horizontal = 2
+mouse_filter = 1
+script = ExtResource("60_xiaxg")
+
+[node name="Profile_Main" type="Panel" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu" unique_id=1123100168]
+visible = false
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.3984375
+anchor_top = 0.5049505
+anchor_right = 0.6015625
+anchor_bottom = 4.811881
+offset_bottom = -27.0
+grow_horizontal = 2
+mouse_filter = 1
+theme_override_styles/panel = SubResource("StyleBoxFlat_812tb")
+
+[node name="Profile_Panel" type="Panel" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Profile_Main" unique_id=83855998]
+material = SubResource("ShaderMaterial_285xx")
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Profile_Main/Profile_Panel" unique_id=532065697]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 20.0
+offset_right = -20.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Profile_Main/Profile_Panel/VBoxContainer" unique_id=1880589259]
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+
+[node name="Label2" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Profile_Main/Profile_Panel/VBoxContainer" unique_id=742588802]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = SubResource("FontVariation_o5262")
+theme_override_font_sizes/font_size = 20
+text = "Profile"
+
+[node name="MarginContainer2" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Profile_Main/Profile_Panel/VBoxContainer" unique_id=1732010726]
+custom_minimum_size = Vector2(0, 18)
+layout_mode = 2
+
+[node name="HBox_Name" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Profile_Main/Profile_Panel/VBoxContainer" unique_id=1252098837]
+custom_minimum_size = Vector2(0, 37)
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Name_Line2" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Profile_Main/Profile_Panel/VBoxContainer/HBox_Name" unique_id=2065843145]
+layout_mode = 2
+size_flags_horizontal = 0
+theme_override_colors/font_color = Color(1, 1, 1, 0.3529412)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 24
+theme_override_styles/normal = SubResource("StyleBoxFlat_g4pvr")
+theme_override_styles/focus = SubResource("StyleBoxFlat_3vkhs")
+text = "Name"
+
+[node name="Name_Line" type="LineEdit" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Profile_Main/Profile_Panel/VBoxContainer/HBox_Name" unique_id=1107198598]
+custom_minimum_size = Vector2(180, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
+theme_override_colors/font_placeholder_color = Color(1, 1, 1, 0.13725491)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 24
+theme_override_styles/normal = SubResource("StyleBoxFlat_g4pvr")
+theme_override_styles/focus = SubResource("StyleBoxFlat_3vkhs")
+text = "brunette"
+placeholder_text = "Name"
+context_menu_enabled = false
+emoji_menu_enabled = false
+
+[node name="MarginContainer4" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Profile_Main/Profile_Panel/VBoxContainer" unique_id=1906904290]
+custom_minimum_size = Vector2(0, 4)
+layout_mode = 2
+
+[node name="HBox_Clan" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Profile_Main/Profile_Panel/VBoxContainer" unique_id=453914253]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Clan_Line2" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Profile_Main/Profile_Panel/VBoxContainer/HBox_Clan" unique_id=138625464]
+layout_mode = 2
+size_flags_horizontal = 0
+theme_override_colors/font_color = Color(1, 1, 1, 0.3529412)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 24
+theme_override_styles/normal = SubResource("StyleBoxFlat_g4pvr")
+theme_override_styles/focus = SubResource("StyleBoxFlat_3vkhs")
+text = "Clan"
+
+[node name="Clan_Line" type="LineEdit" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Profile_Main/Profile_Panel/VBoxContainer/HBox_Clan" unique_id=308214239]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
+theme_override_colors/font_placeholder_color = Color(1, 1, 1, 0.13725491)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 24
+theme_override_styles/normal = SubResource("StyleBoxFlat_g4pvr")
+theme_override_styles/focus = SubResource("StyleBoxFlat_3vkhs")
+placeholder_text = "n/a"
+max_length = 5
+context_menu_enabled = false
+emoji_menu_enabled = false
+caret_blink = true
+
+[node name="MarginContainer3" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Profile_Main/Profile_Panel/VBoxContainer" unique_id=933581736]
+custom_minimum_size = Vector2(0, 12)
+layout_mode = 2
+
+[node name="Flag_Button" type="Button" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Profile_Main/Profile_Panel/VBoxContainer" unique_id=2144760558]
+custom_minimum_size = Vector2(85, 60)
+layout_mode = 2
+size_flags_horizontal = 0
+theme_override_styles/normal = SubResource("StyleBoxFlat_p8m4n")
+theme_override_styles/hover = ExtResource("60_aow1b")
+theme_override_styles/focus = SubResource("StyleBoxFlat_sioyj")
+
+[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Profile_Main/Profile_Panel/VBoxContainer/Flag_Button" unique_id=1402232456]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -30.0
+offset_top = -22.5
+offset_right = 30.0
+offset_bottom = 22.5
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 0
+texture = ExtResource("60_fruhh")
+expand_mode = 1
+
+[node name="Video_Main" type="Panel" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu" unique_id=1112749393]
+visible = false
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.3984375
+anchor_top = 0.5049505
+anchor_right = 0.6015625
+anchor_bottom = 4.811881
+offset_bottom = -27.0
+grow_horizontal = 2
+mouse_filter = 1
+theme_override_styles/panel = SubResource("StyleBoxFlat_812tb")
+script = ExtResource("64_wahd8")
+
+[node name="Video_Panel" type="Panel" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Video_Main" unique_id=1722823760]
+material = SubResource("ShaderMaterial_285xx")
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Video_Main/Video_Panel" unique_id=1353398058]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 20.0
+offset_right = -20.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Video_Main/Video_Panel/VBoxContainer" unique_id=763643857]
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+
+[node name="HBoxContainer" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Video_Main/Video_Panel/VBoxContainer" unique_id=802695541]
+layout_mode = 2
+
+[node name="Label2" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Video_Main/Video_Panel/VBoxContainer/HBoxContainer" unique_id=121213831]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = SubResource("FontVariation_o5262")
+theme_override_font_sizes/font_size = 20
+text = "Video"
+
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Video_Main/Video_Panel/VBoxContainer/HBoxContainer" unique_id=892867135]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Apply_Button" type="Button" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Video_Main/Video_Panel/VBoxContainer/HBoxContainer" unique_id=1523029934]
+custom_minimum_size = Vector2(70, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = ExtResource("60_o5262")
+theme_override_font_sizes/font_size = 20
+theme_override_styles/normal = ExtResource("66_y52gj")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_o5262")
+theme_override_styles/hover = SubResource("StyleBoxFlat_ycpxl")
+theme_override_styles/focus = SubResource("StyleBoxFlat_5pae0")
+text = "APPLY"
+
+[node name="MarginContainer2" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Video_Main/Video_Panel/VBoxContainer" unique_id=490394697]
+custom_minimum_size = Vector2(0, 12)
+layout_mode = 2
+
+[node name="Display_HBox" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Video_Main/Video_Panel/VBoxContainer" unique_id=1084358152]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Video_Main/Video_Panel/VBoxContainer/Display_HBox" unique_id=81632401]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "Display"
+
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Video_Main/Video_Panel/VBoxContainer/Display_HBox" unique_id=960511825]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Display_Menu" type="OptionButton" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Video_Main/Video_Panel/VBoxContainer/Display_HBox" unique_id=1108697637]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+size_flags_vertical = 4
+theme = ExtResource("67_g4pvr")
+theme_override_fonts/font = ExtResource("60_o5262")
+theme_override_font_sizes/font_size = 18
+theme_override_styles/focus = SubResource("StyleBoxFlat_ejxhg")
+theme_override_icons/arrow = ExtResource("68_1u143")
+fit_to_longest_item = false
+
+[node name="Mode_HBox" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Video_Main/Video_Panel/VBoxContainer" unique_id=666293871]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Video_Main/Video_Panel/VBoxContainer/Mode_HBox" unique_id=2140370555]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "Display Mode"
+
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Video_Main/Video_Panel/VBoxContainer/Mode_HBox" unique_id=289368151]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Mode_Menu" type="OptionButton" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Video_Main/Video_Panel/VBoxContainer/Mode_HBox" unique_id=1820750701]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+size_flags_vertical = 4
+theme = ExtResource("67_g4pvr")
+theme_override_fonts/font = ExtResource("60_o5262")
+theme_override_font_sizes/font_size = 18
+theme_override_icons/arrow = ExtResource("68_1u143")
+fit_to_longest_item = false
+
+[node name="Ratio_HBox" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Video_Main/Video_Panel/VBoxContainer" unique_id=654523922]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Video_Main/Video_Panel/VBoxContainer/Ratio_HBox" unique_id=494038271]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "Aspect Ratio"
+
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Video_Main/Video_Panel/VBoxContainer/Ratio_HBox" unique_id=1181647329]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Ratio_Menu" type="OptionButton" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Video_Main/Video_Panel/VBoxContainer/Ratio_HBox" unique_id=1242179442]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+size_flags_vertical = 4
+theme = ExtResource("67_g4pvr")
+theme_override_fonts/font = ExtResource("60_o5262")
+theme_override_font_sizes/font_size = 18
+theme_override_icons/arrow = ExtResource("68_1u143")
+fit_to_longest_item = false
+
+[node name="Res_HBox" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Video_Main/Video_Panel/VBoxContainer" unique_id=701119078]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Video_Main/Video_Panel/VBoxContainer/Res_HBox" unique_id=695727259]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "Resolution"
+
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Video_Main/Video_Panel/VBoxContainer/Res_HBox" unique_id=1961756250]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Res_Menu" type="OptionButton" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Video_Main/Video_Panel/VBoxContainer/Res_HBox" unique_id=2101492327]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+size_flags_vertical = 4
+theme = ExtResource("67_g4pvr")
+theme_override_fonts/font = ExtResource("60_o5262")
+theme_override_font_sizes/font_size = 18
+theme_override_icons/arrow = ExtResource("68_1u143")
+fit_to_longest_item = false
+
+[node name="Refresh_HBox" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Video_Main/Video_Panel/VBoxContainer" unique_id=1413072394]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Video_Main/Video_Panel/VBoxContainer/Refresh_HBox" unique_id=1467056680]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "Refresh Rate"
+
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Video_Main/Video_Panel/VBoxContainer/Refresh_HBox" unique_id=1176610256]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Refresh_Menu" type="OptionButton" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Video_Main/Video_Panel/VBoxContainer/Refresh_HBox" unique_id=378841179]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+size_flags_vertical = 4
+theme = ExtResource("67_g4pvr")
+theme_override_fonts/font = ExtResource("60_o5262")
+theme_override_font_sizes/font_size = 18
+theme_override_icons/arrow = ExtResource("68_1u143")
+fit_to_longest_item = false
+
+[node name="Bright_HBox" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Video_Main/Video_Panel/VBoxContainer" unique_id=1631701537]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Video_Main/Video_Panel/VBoxContainer/Bright_HBox" unique_id=1702652171]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "Brightness"
+
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Video_Main/Video_Panel/VBoxContainer/Bright_HBox" unique_id=958333166]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="HBox" type="VBoxContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Video_Main/Video_Panel/VBoxContainer/Bright_HBox" unique_id=1893984626]
+layout_mode = 2
+alignment = 1
+
+[node name="HSlider" type="HSlider" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Video_Main/Video_Panel/VBoxContainer/Bright_HBox/HBox" unique_id=1938353345]
+custom_minimum_size = Vector2(180, 0)
+layout_mode = 2
+size_flags_horizontal = 4
+focus_mode = 3
+theme_override_constants/center_grabber = 1
+theme_override_constants/grabber_offset = -12
+theme_override_constants/tick_offset = -3
+theme_override_icons/grabber = ExtResource("31_l6ikw")
+theme_override_icons/grabber_highlight = ExtResource("31_l6ikw")
+theme_override_styles/slider = SubResource("StyleBoxFlat_l6ikw")
+theme_override_styles/grabber_area = SubResource("StyleBoxFlat_8yhk8")
+theme_override_styles/grabber_area_highlight = SubResource("StyleBoxFlat_fpsoq")
+max_value = 200.0
+value = 100.0
+scrollable = false
+metadata/_edit_use_anchors_ = true
+
+[node name="Audio_Main" type="Panel" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu" unique_id=1675488831]
+visible = false
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.3984375
+anchor_top = 0.5049505
+anchor_right = 0.6015625
+anchor_bottom = 4.811881
+offset_bottom = -27.0
+grow_horizontal = 2
+mouse_filter = 1
+theme_override_styles/panel = SubResource("StyleBoxFlat_812tb")
+
+[node name="Audio_Panel" type="Panel" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main" unique_id=888431073]
+material = SubResource("ShaderMaterial_285xx")
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel" unique_id=1845974736]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 20.0
+offset_right = -20.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel/VBoxContainer" unique_id=1333340056]
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+
+[node name="Audio_Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel/VBoxContainer" unique_id=1874831061]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = SubResource("FontVariation_o5262")
+theme_override_font_sizes/font_size = 20
+text = "Audio"
+
+[node name="MarginContainer2" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel/VBoxContainer" unique_id=193956908]
+custom_minimum_size = Vector2(0, 12)
+layout_mode = 2
+
+[node name="HBoxContainer7" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel/VBoxContainer" unique_id=1467849590]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel/VBoxContainer/HBoxContainer7" unique_id=1321602167]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "Audio Device"
+
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel/VBoxContainer/HBoxContainer7" unique_id=1300492131]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="MenuButton" type="OptionButton" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel/VBoxContainer/HBoxContainer7" unique_id=259111971]
+layout_mode = 2
+theme = ExtResource("67_g4pvr")
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = ExtResource("60_o5262")
+theme_override_font_sizes/font_size = 18
+theme_override_icons/arrow = ExtResource("68_1u143")
+selected = 0
+item_count = 1
+popup/item_0/text = "REALTEK USB AUDIO"
+popup/item_0/id = 0
+
+[node name="HBoxContainer5" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel/VBoxContainer" unique_id=645106416]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel/VBoxContainer/HBoxContainer5" unique_id=953568473]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "Master"
+
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel/VBoxContainer/HBoxContainer5" unique_id=939417496]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Amount_HBox" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel/VBoxContainer/HBoxContainer5" unique_id=483371144]
+layout_mode = 2
+theme_override_constants/separation = 0
+metadata/_edit_use_anchors_ = true
+
+[node name="Percentage" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel/VBoxContainer/HBoxContainer5/Amount_HBox" unique_id=1257862778]
+modulate = Color(1, 1, 1, 0.74509805)
+layout_mode = 2
+theme_override_fonts/font = SubResource("FontVariation_l6ikw")
+theme_override_font_sizes/font_size = 16
+text = "100"
+vertical_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="Sign" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel/VBoxContainer/HBoxContainer5/Amount_HBox" unique_id=1418792815]
+modulate = Color(1, 1, 1, 0.74509805)
+layout_mode = 2
+theme_override_fonts/font = SubResource("FontVariation_7iv60")
+theme_override_font_sizes/font_size = 16
+text = "%"
+vertical_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="MarginContainer2" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel/VBoxContainer/HBoxContainer5" unique_id=489159147]
+custom_minimum_size = Vector2(5, 0)
+layout_mode = 2
+
+[node name="VBox" type="VBoxContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel/VBoxContainer/HBoxContainer5" unique_id=1528802064]
+layout_mode = 2
+alignment = 1
+
+[node name="HSlider" type="HSlider" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel/VBoxContainer/HBoxContainer5/VBox" unique_id=1610316110]
+custom_minimum_size = Vector2(180, 0)
+layout_mode = 2
+size_flags_horizontal = 4
+focus_mode = 3
+theme_override_constants/center_grabber = 1
+theme_override_constants/grabber_offset = -12
+theme_override_constants/tick_offset = -3
+theme_override_icons/grabber = ExtResource("31_l6ikw")
+theme_override_icons/grabber_highlight = ExtResource("31_l6ikw")
+theme_override_styles/slider = SubResource("StyleBoxFlat_l6ikw")
+theme_override_styles/grabber_area = SubResource("StyleBoxFlat_8yhk8")
+theme_override_styles/grabber_area_highlight = SubResource("StyleBoxFlat_fpsoq")
+value = 100.0
+scrollable = false
+metadata/_edit_use_anchors_ = true
+
+[node name="HBoxContainer3" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel/VBoxContainer" unique_id=1925040484]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel/VBoxContainer/HBoxContainer3" unique_id=1223470701]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "Music"
+
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel/VBoxContainer/HBoxContainer3" unique_id=1157010372]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Amount_HBox" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel/VBoxContainer/HBoxContainer3" unique_id=922563910]
+layout_mode = 2
+theme_override_constants/separation = 0
+metadata/_edit_use_anchors_ = true
+
+[node name="Percentage" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel/VBoxContainer/HBoxContainer3/Amount_HBox" unique_id=2097579515]
+modulate = Color(1, 1, 1, 0.74509805)
+layout_mode = 2
+theme_override_fonts/font = SubResource("FontVariation_l6ikw")
+theme_override_font_sizes/font_size = 16
+text = "100"
+vertical_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="Sign" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel/VBoxContainer/HBoxContainer3/Amount_HBox" unique_id=1927709152]
+modulate = Color(1, 1, 1, 0.74509805)
+layout_mode = 2
+theme_override_fonts/font = SubResource("FontVariation_7iv60")
+theme_override_font_sizes/font_size = 16
+text = "%"
+vertical_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="MarginContainer2" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel/VBoxContainer/HBoxContainer3" unique_id=408890160]
+custom_minimum_size = Vector2(5, 0)
+layout_mode = 2
+
+[node name="VBox" type="VBoxContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel/VBoxContainer/HBoxContainer3" unique_id=1791534841]
+layout_mode = 2
+alignment = 1
+
+[node name="HSlider" type="HSlider" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel/VBoxContainer/HBoxContainer3/VBox" unique_id=912780709]
+custom_minimum_size = Vector2(180, 0)
+layout_mode = 2
+size_flags_horizontal = 4
+focus_mode = 3
+theme_override_constants/center_grabber = 1
+theme_override_constants/grabber_offset = -12
+theme_override_constants/tick_offset = -3
+theme_override_icons/grabber = ExtResource("31_l6ikw")
+theme_override_icons/grabber_highlight = ExtResource("31_l6ikw")
+theme_override_styles/slider = SubResource("StyleBoxFlat_l6ikw")
+theme_override_styles/grabber_area = SubResource("StyleBoxFlat_8yhk8")
+theme_override_styles/grabber_area_highlight = SubResource("StyleBoxFlat_fpsoq")
+value = 100.0
+scrollable = false
+metadata/_edit_use_anchors_ = true
+
+[node name="HBoxContainer2" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel/VBoxContainer" unique_id=363419466]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel/VBoxContainer/HBoxContainer2" unique_id=1458266220]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "Effects"
+
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel/VBoxContainer/HBoxContainer2" unique_id=429350461]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Amount_HBox" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel/VBoxContainer/HBoxContainer2" unique_id=749115430]
+layout_mode = 2
+theme_override_constants/separation = 0
+metadata/_edit_use_anchors_ = true
+
+[node name="Percentage" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel/VBoxContainer/HBoxContainer2/Amount_HBox" unique_id=602983664]
+modulate = Color(1, 1, 1, 0.74509805)
+layout_mode = 2
+theme_override_fonts/font = SubResource("FontVariation_l6ikw")
+theme_override_font_sizes/font_size = 16
+text = "100"
+vertical_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="Sign" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel/VBoxContainer/HBoxContainer2/Amount_HBox" unique_id=1048355457]
+modulate = Color(1, 1, 1, 0.74509805)
+layout_mode = 2
+theme_override_fonts/font = SubResource("FontVariation_7iv60")
+theme_override_font_sizes/font_size = 16
+text = "%"
+vertical_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="MarginContainer2" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel/VBoxContainer/HBoxContainer2" unique_id=1792249333]
+custom_minimum_size = Vector2(5, 0)
+layout_mode = 2
+
+[node name="VBox" type="VBoxContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel/VBoxContainer/HBoxContainer2" unique_id=1749412498]
+layout_mode = 2
+alignment = 1
+
+[node name="HSlider" type="HSlider" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel/VBoxContainer/HBoxContainer2/VBox" unique_id=246991817]
+custom_minimum_size = Vector2(180, 0)
+layout_mode = 2
+size_flags_horizontal = 4
+focus_mode = 3
+theme_override_constants/center_grabber = 1
+theme_override_constants/grabber_offset = -12
+theme_override_constants/tick_offset = -3
+theme_override_icons/grabber = ExtResource("31_l6ikw")
+theme_override_icons/grabber_highlight = ExtResource("31_l6ikw")
+theme_override_styles/slider = SubResource("StyleBoxFlat_l6ikw")
+theme_override_styles/grabber_area = SubResource("StyleBoxFlat_8yhk8")
+theme_override_styles/grabber_area_highlight = SubResource("StyleBoxFlat_fpsoq")
+value = 100.0
+scrollable = false
+metadata/_edit_use_anchors_ = true
+
+[node name="HBoxContainer" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel/VBoxContainer" unique_id=1964441134]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel/VBoxContainer/HBoxContainer" unique_id=739633976]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "Ambience"
+
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel/VBoxContainer/HBoxContainer" unique_id=2061545374]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Amount_HBox" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel/VBoxContainer/HBoxContainer" unique_id=654273353]
+layout_mode = 2
+theme_override_constants/separation = 0
+metadata/_edit_use_anchors_ = true
+
+[node name="Percentage" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel/VBoxContainer/HBoxContainer/Amount_HBox" unique_id=764188360]
+modulate = Color(1, 1, 1, 0.74509805)
+layout_mode = 2
+theme_override_fonts/font = SubResource("FontVariation_l6ikw")
+theme_override_font_sizes/font_size = 16
+text = "100"
+vertical_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="Sign" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel/VBoxContainer/HBoxContainer/Amount_HBox" unique_id=245138016]
+modulate = Color(1, 1, 1, 0.74509805)
+layout_mode = 2
+theme_override_fonts/font = SubResource("FontVariation_7iv60")
+theme_override_font_sizes/font_size = 16
+text = "%"
+vertical_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="MarginContainer2" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel/VBoxContainer/HBoxContainer" unique_id=1308694402]
+custom_minimum_size = Vector2(5, 0)
+layout_mode = 2
+
+[node name="VBox" type="VBoxContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel/VBoxContainer/HBoxContainer" unique_id=2091641794]
+layout_mode = 2
+alignment = 1
+
+[node name="HSlider" type="HSlider" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel/VBoxContainer/HBoxContainer/VBox" unique_id=429176552]
+custom_minimum_size = Vector2(180, 0)
+layout_mode = 2
+size_flags_horizontal = 4
+focus_mode = 3
+theme_override_constants/center_grabber = 1
+theme_override_constants/grabber_offset = -12
+theme_override_constants/tick_offset = -3
+theme_override_icons/grabber = ExtResource("31_l6ikw")
+theme_override_icons/grabber_highlight = ExtResource("31_l6ikw")
+theme_override_styles/slider = SubResource("StyleBoxFlat_l6ikw")
+theme_override_styles/grabber_area = SubResource("StyleBoxFlat_8yhk8")
+theme_override_styles/grabber_area_highlight = SubResource("StyleBoxFlat_fpsoq")
+value = 100.0
+scrollable = false
+metadata/_edit_use_anchors_ = true
+
+[node name="HBoxContainer6" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel/VBoxContainer" unique_id=1036062036]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel/VBoxContainer/HBoxContainer6" unique_id=525719559]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "Play Audio In Background"
+
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel/VBoxContainer/HBoxContainer6" unique_id=1391888471]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="MenuButton" type="OptionButton" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Audio_Main/Audio_Panel/VBoxContainer/HBoxContainer6" unique_id=304081626]
+layout_mode = 2
+theme = ExtResource("67_g4pvr")
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = ExtResource("60_o5262")
+theme_override_font_sizes/font_size = 18
+theme_override_icons/arrow = ExtResource("68_1u143")
+selected = 0
+item_count = 2
+popup/item_0/text = "YES"
+popup/item_0/id = 0
+popup/item_1/text = "NO"
+popup/item_1/id = 1
+
+[node name="Gameplay_Main" type="Panel" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu" unique_id=1384352012]
+visible = false
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.3984375
+anchor_top = 0.5049505
+anchor_right = 0.6015625
+anchor_bottom = 4.544554
+offset_bottom = 3.0517578e-05
+grow_horizontal = 2
+mouse_filter = 1
+theme_override_styles/panel = SubResource("StyleBoxFlat_812tb")
+metadata/_edit_use_anchors_ = true
+
+[node name="Gameplay_Panel" type="Panel" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main" unique_id=552418749]
+material = SubResource("ShaderMaterial_285xx")
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+script = ExtResource("69_1u143")
+
+[node name="VBoxContainer2" type="VBoxContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel" unique_id=713368155]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_right = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2" unique_id=372675959]
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+
+[node name="Gameplay_HBox" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2" unique_id=1280981652]
+layout_mode = 2
+
+[node name="MarginContainer3" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Gameplay_HBox" unique_id=1098346971]
+custom_minimum_size = Vector2(6, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="Label2" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Gameplay_HBox" unique_id=995222810]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = SubResource("FontVariation_o5262")
+theme_override_font_sizes/font_size = 20
+text = "Gameplay"
+
+[node name="MarginContainer2" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2" unique_id=252488306]
+custom_minimum_size = Vector2(0, 12)
+layout_mode = 2
+
+[node name="Skins_Button" type="Button" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2" unique_id=759200712]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_vme23")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_ohe71")
+theme_override_styles/hover = SubResource("StyleBoxFlat_i7dux")
+theme_override_styles/focus = SubResource("StyleBoxFlat_fmgpq")
+
+[node name="HBoxContainer5" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Skins_Button" unique_id=1879761761]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MarginContainer3" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Skins_Button/HBoxContainer5" unique_id=1975232238]
+custom_minimum_size = Vector2(6, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Skins_Button/HBoxContainer5" unique_id=1765320333]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "Display Skins"
+
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Skins_Button/HBoxContainer5" unique_id=723720162]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="On_Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Skins_Button/HBoxContainer5" unique_id=1049858867]
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "On"
+
+[node name="Off_Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Skins_Button/HBoxContainer5" unique_id=504476349]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.19607843)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "Off"
+
+[node name="MarginContainer5" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Skins_Button/HBoxContainer5" unique_id=743602124]
+custom_minimum_size = Vector2(2, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="Button_Circle" type="Button" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Skins_Button/HBoxContainer5" unique_id=57547149]
+custom_minimum_size = Vector2(28, 28)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+theme_override_styles/normal = ExtResource("63_aow1b")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_gdhf0")
+theme_override_styles/hover = SubResource("StyleBoxFlat_ibjfx")
+theme_override_styles/focus = SubResource("StyleBoxFlat_104rv")
+toggle_mode = true
+action_mode = 0
+
+[node name="MarginContainer4" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Skins_Button/HBoxContainer5" unique_id=1748588295]
+custom_minimum_size = Vector2(6, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="Names_Button" type="Button" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2" unique_id=802153220]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_vme23")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_ohe71")
+theme_override_styles/hover = SubResource("StyleBoxFlat_i7dux")
+theme_override_styles/focus = SubResource("StyleBoxFlat_fmgpq")
+
+[node name="HBoxContainer5" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Names_Button" unique_id=1711219803]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MarginContainer3" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Names_Button/HBoxContainer5" unique_id=1625147373]
+custom_minimum_size = Vector2(6, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Names_Button/HBoxContainer5" unique_id=1555364301]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "Hide Names"
+
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Names_Button/HBoxContainer5" unique_id=1947781356]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="On_Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Names_Button/HBoxContainer5" unique_id=1801939618]
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "On"
+
+[node name="Off_Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Names_Button/HBoxContainer5" unique_id=425122218]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.19607843)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "Off"
+
+[node name="MarginContainer5" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Names_Button/HBoxContainer5" unique_id=1332936198]
+custom_minimum_size = Vector2(2, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="Button_Circle" type="Button" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Names_Button/HBoxContainer5" unique_id=1481467052]
+custom_minimum_size = Vector2(28, 28)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+theme_override_styles/normal = ExtResource("63_aow1b")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_gdhf0")
+theme_override_styles/hover = SubResource("StyleBoxFlat_ibjfx")
+theme_override_styles/focus = SubResource("StyleBoxFlat_104rv")
+toggle_mode = true
+action_mode = 0
+
+[node name="MarginContainer4" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Names_Button/HBoxContainer5" unique_id=949769822]
+custom_minimum_size = Vector2(6, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="Lobby_Button" type="Button" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2" unique_id=426639967]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_vme23")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_ohe71")
+theme_override_styles/hover = SubResource("StyleBoxFlat_i7dux")
+theme_override_styles/focus = SubResource("StyleBoxFlat_fmgpq")
+
+[node name="HBoxContainer5" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Lobby_Button" unique_id=1667235886]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MarginContainer3" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Lobby_Button/HBoxContainer5" unique_id=787659194]
+custom_minimum_size = Vector2(6, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Lobby_Button/HBoxContainer5" unique_id=172689577]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "Hide Lobby ID's"
+
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Lobby_Button/HBoxContainer5" unique_id=880360226]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="On_Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Lobby_Button/HBoxContainer5" unique_id=1667617977]
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "On"
+
+[node name="Off_Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Lobby_Button/HBoxContainer5" unique_id=1901700177]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.19607843)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "Off"
+
+[node name="MarginContainer5" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Lobby_Button/HBoxContainer5" unique_id=163935449]
+custom_minimum_size = Vector2(2, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="Button_Circle" type="Button" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Lobby_Button/HBoxContainer5" unique_id=848053119]
+custom_minimum_size = Vector2(28, 28)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+theme_override_styles/normal = ExtResource("63_aow1b")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_gdhf0")
+theme_override_styles/hover = SubResource("StyleBoxFlat_ibjfx")
+theme_override_styles/focus = SubResource("StyleBoxFlat_104rv")
+toggle_mode = true
+action_mode = 0
+
+[node name="MarginContainer4" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Lobby_Button/HBoxContainer5" unique_id=1507025938]
+custom_minimum_size = Vector2(6, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="Pro_Button" type="Button" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2" unique_id=1096880468]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_vme23")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_ohe71")
+theme_override_styles/hover = SubResource("StyleBoxFlat_i7dux")
+theme_override_styles/focus = SubResource("StyleBoxFlat_fmgpq")
+
+[node name="HBoxContainer5" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Pro_Button" unique_id=801348207]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MarginContainer3" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Pro_Button/HBoxContainer5" unique_id=1372368051]
+custom_minimum_size = Vector2(6, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Pro_Button/HBoxContainer5" unique_id=107392590]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "Hide Profanity"
+
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Pro_Button/HBoxContainer5" unique_id=1899742795]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="On_Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Pro_Button/HBoxContainer5" unique_id=1374026029]
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "On"
+
+[node name="Off_Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Pro_Button/HBoxContainer5" unique_id=659907594]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.19607843)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "Off"
+
+[node name="MarginContainer5" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Pro_Button/HBoxContainer5" unique_id=379169742]
+custom_minimum_size = Vector2(2, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="Button_Circle" type="Button" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Pro_Button/HBoxContainer5" unique_id=1480299681]
+custom_minimum_size = Vector2(28, 28)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+theme_override_styles/normal = ExtResource("63_aow1b")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_gdhf0")
+theme_override_styles/hover = SubResource("StyleBoxFlat_ibjfx")
+theme_override_styles/focus = SubResource("StyleBoxFlat_104rv")
+toggle_mode = true
+action_mode = 0
+
+[node name="MarginContainer4" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Pro_Button/HBoxContainer5" unique_id=1927566439]
+custom_minimum_size = Vector2(6, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="Hints_Button" type="Button" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2" unique_id=496575090]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_vme23")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_ohe71")
+theme_override_styles/hover = SubResource("StyleBoxFlat_i7dux")
+theme_override_styles/focus = SubResource("StyleBoxFlat_fmgpq")
+
+[node name="HBoxContainer5" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Hints_Button" unique_id=1063549223]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MarginContainer3" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Hints_Button/HBoxContainer5" unique_id=1555215689]
+custom_minimum_size = Vector2(6, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Hints_Button/HBoxContainer5" unique_id=404202644]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "Disable Info Hints"
+
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Hints_Button/HBoxContainer5" unique_id=1230850553]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="On_Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Hints_Button/HBoxContainer5" unique_id=1821074386]
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "On"
+
+[node name="Off_Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Hints_Button/HBoxContainer5" unique_id=1488735836]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.19607843)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "Off"
+
+[node name="MarginContainer5" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Hints_Button/HBoxContainer5" unique_id=923135769]
+custom_minimum_size = Vector2(2, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="Button_Circle" type="Button" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Hints_Button/HBoxContainer5" unique_id=1671056157]
+custom_minimum_size = Vector2(28, 28)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+theme_override_styles/normal = ExtResource("63_aow1b")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_gdhf0")
+theme_override_styles/hover = SubResource("StyleBoxFlat_ibjfx")
+theme_override_styles/focus = SubResource("StyleBoxFlat_104rv")
+toggle_mode = true
+action_mode = 0
+
+[node name="MarginContainer4" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Hints_Button/HBoxContainer5" unique_id=2011012659]
+custom_minimum_size = Vector2(6, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="Perform_Button" type="Button" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2" unique_id=914315350]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_vme23")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_ohe71")
+theme_override_styles/hover = SubResource("StyleBoxFlat_i7dux")
+theme_override_styles/focus = SubResource("StyleBoxFlat_fmgpq")
+
+[node name="HBoxContainer5" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Perform_Button" unique_id=1117761544]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MarginContainer3" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Perform_Button/HBoxContainer5" unique_id=726581304]
+custom_minimum_size = Vector2(6, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Perform_Button/HBoxContainer5" unique_id=1627005539]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "Performance Overlay"
+
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Perform_Button/HBoxContainer5" unique_id=555357846]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="On_Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Perform_Button/HBoxContainer5" unique_id=1582266588]
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "On"
+
+[node name="Off_Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Perform_Button/HBoxContainer5" unique_id=1898285903]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.19607843)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "Off"
+
+[node name="MarginContainer5" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Perform_Button/HBoxContainer5" unique_id=1109656724]
+custom_minimum_size = Vector2(2, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="Button_Circle" type="Button" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Perform_Button/HBoxContainer5" unique_id=869439494]
+custom_minimum_size = Vector2(28, 28)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+theme_override_styles/normal = ExtResource("63_aow1b")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_gdhf0")
+theme_override_styles/hover = SubResource("StyleBoxFlat_ibjfx")
+theme_override_styles/focus = SubResource("StyleBoxFlat_104rv")
+toggle_mode = true
+action_mode = 0
+
+[node name="MarginContainer4" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Gameplay_Main/Gameplay_Panel/VBoxContainer2/Perform_Button/HBoxContainer5" unique_id=1130532800]
+custom_minimum_size = Vector2(6, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="Keybinds_Main" type="Panel" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu" unique_id=1777531586]
+visible = false
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.3984375
+anchor_top = 0.5049505
+anchor_right = 0.6015625
+anchor_bottom = 4.811881
+offset_bottom = -27.0
+grow_horizontal = 2
+mouse_filter = 1
+theme_override_styles/panel = SubResource("StyleBoxFlat_812tb")
+
+[node name="Video_Panel" type="Panel" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main" unique_id=1363867445]
+material = SubResource("ShaderMaterial_285xx")
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+
+[node name="VBoxContainer2" type="VBoxContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel" unique_id=541624543]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_right = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2" unique_id=1501608350]
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+
+[node name="HBoxContainer" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2" unique_id=1432805806]
+layout_mode = 2
+
+[node name="MarginContainer3" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/HBoxContainer" unique_id=1486488055]
+custom_minimum_size = Vector2(6, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="Label2" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/HBoxContainer" unique_id=40506495]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = SubResource("FontVariation_o5262")
+theme_override_font_sizes/font_size = 20
+text = "Gameplay"
+
+[node name="MarginContainer2" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2" unique_id=169776161]
+custom_minimum_size = Vector2(0, 12)
+layout_mode = 2
+
+[node name="Button" type="Button" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2" unique_id=1642126639]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_vme23")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_ohe71")
+theme_override_styles/hover = SubResource("StyleBoxFlat_i7dux")
+theme_override_styles/focus = SubResource("StyleBoxFlat_fmgpq")
+
+[node name="HBoxContainer5" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button" unique_id=746214266]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MarginContainer3" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button/HBoxContainer5" unique_id=1992707846]
+custom_minimum_size = Vector2(6, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button/HBoxContainer5" unique_id=1627469513]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "Display Skins"
+
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button/HBoxContainer5" unique_id=148374050]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="On_Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button/HBoxContainer5" unique_id=1841812718]
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "On"
+
+[node name="Off_Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button/HBoxContainer5" unique_id=1748763828]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.19607843)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "Off"
+
+[node name="MarginContainer5" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button/HBoxContainer5" unique_id=798952032]
+custom_minimum_size = Vector2(2, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="Button_Circle" type="Button" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button/HBoxContainer5" unique_id=1600111618]
+custom_minimum_size = Vector2(28, 28)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 1
+theme_override_styles/normal = ExtResource("63_aow1b")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_gdhf0")
+theme_override_styles/hover = SubResource("StyleBoxFlat_ibjfx")
+theme_override_styles/focus = SubResource("StyleBoxFlat_104rv")
+toggle_mode = true
+action_mode = 0
+
+[node name="MarginContainer4" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button/HBoxContainer5" unique_id=985415465]
+custom_minimum_size = Vector2(6, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="Button2" type="Button" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2" unique_id=239218824]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_vme23")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_ohe71")
+theme_override_styles/hover = SubResource("StyleBoxFlat_i7dux")
+theme_override_styles/focus = SubResource("StyleBoxFlat_fmgpq")
+
+[node name="HBoxContainer5" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button2" unique_id=254492733]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MarginContainer3" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button2/HBoxContainer5" unique_id=1140585535]
+custom_minimum_size = Vector2(6, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button2/HBoxContainer5" unique_id=1757971426]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "Hide Names"
+
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button2/HBoxContainer5" unique_id=668715230]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="On_Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button2/HBoxContainer5" unique_id=1086084135]
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "On"
+
+[node name="Off_Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button2/HBoxContainer5" unique_id=1405959583]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.19607843)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "Off"
+
+[node name="MarginContainer5" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button2/HBoxContainer5" unique_id=699563442]
+custom_minimum_size = Vector2(2, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="Button_Circle" type="Button" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button2/HBoxContainer5" unique_id=1855941577]
+custom_minimum_size = Vector2(28, 28)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 1
+theme_override_styles/normal = ExtResource("63_aow1b")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_gdhf0")
+theme_override_styles/hover = SubResource("StyleBoxFlat_ibjfx")
+theme_override_styles/focus = SubResource("StyleBoxFlat_104rv")
+toggle_mode = true
+action_mode = 0
+
+[node name="MarginContainer4" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button2/HBoxContainer5" unique_id=1451324237]
+custom_minimum_size = Vector2(6, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="Button3" type="Button" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2" unique_id=1714032678]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_vme23")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_ohe71")
+theme_override_styles/hover = SubResource("StyleBoxFlat_i7dux")
+theme_override_styles/focus = SubResource("StyleBoxFlat_fmgpq")
+
+[node name="HBoxContainer5" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button3" unique_id=1085264269]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MarginContainer3" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button3/HBoxContainer5" unique_id=1429320359]
+custom_minimum_size = Vector2(6, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button3/HBoxContainer5" unique_id=1453848843]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "Hide Lobby ID's"
+
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button3/HBoxContainer5" unique_id=1853353421]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="On_Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button3/HBoxContainer5" unique_id=1768987311]
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "On"
+
+[node name="Off_Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button3/HBoxContainer5" unique_id=56801803]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.19607843)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "Off"
+
+[node name="MarginContainer5" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button3/HBoxContainer5" unique_id=1722181644]
+custom_minimum_size = Vector2(2, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="Button_Circle" type="Button" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button3/HBoxContainer5" unique_id=231385003]
+custom_minimum_size = Vector2(28, 28)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 1
+theme_override_styles/normal = ExtResource("63_aow1b")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_gdhf0")
+theme_override_styles/hover = SubResource("StyleBoxFlat_ibjfx")
+theme_override_styles/focus = SubResource("StyleBoxFlat_104rv")
+toggle_mode = true
+action_mode = 0
+
+[node name="MarginContainer4" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button3/HBoxContainer5" unique_id=1195661773]
+custom_minimum_size = Vector2(6, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="Button6" type="Button" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2" unique_id=2081456958]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_vme23")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_ohe71")
+theme_override_styles/hover = SubResource("StyleBoxFlat_i7dux")
+theme_override_styles/focus = SubResource("StyleBoxFlat_fmgpq")
+
+[node name="HBoxContainer5" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button6" unique_id=1866075782]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MarginContainer3" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button6/HBoxContainer5" unique_id=18602474]
+custom_minimum_size = Vector2(6, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button6/HBoxContainer5" unique_id=1013138958]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "Hide Profanity"
+
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button6/HBoxContainer5" unique_id=474974399]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="On_Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button6/HBoxContainer5" unique_id=123631610]
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "On"
+
+[node name="Off_Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button6/HBoxContainer5" unique_id=882320708]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.19607843)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "Off"
+
+[node name="MarginContainer5" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button6/HBoxContainer5" unique_id=1592911518]
+custom_minimum_size = Vector2(2, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="Button_Circle" type="Button" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button6/HBoxContainer5" unique_id=1165269855]
+custom_minimum_size = Vector2(28, 28)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 1
+theme_override_styles/normal = ExtResource("63_aow1b")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_gdhf0")
+theme_override_styles/hover = SubResource("StyleBoxFlat_ibjfx")
+theme_override_styles/focus = SubResource("StyleBoxFlat_104rv")
+toggle_mode = true
+action_mode = 0
+
+[node name="MarginContainer4" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button6/HBoxContainer5" unique_id=474796181]
+custom_minimum_size = Vector2(6, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="Button5" type="Button" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2" unique_id=368623788]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_vme23")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_ohe71")
+theme_override_styles/hover = SubResource("StyleBoxFlat_i7dux")
+theme_override_styles/focus = SubResource("StyleBoxFlat_fmgpq")
+
+[node name="HBoxContainer5" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button5" unique_id=819771347]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MarginContainer3" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button5/HBoxContainer5" unique_id=1750617268]
+custom_minimum_size = Vector2(6, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button5/HBoxContainer5" unique_id=1265714340]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "Disable Info Hints"
+
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button5/HBoxContainer5" unique_id=546641774]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="On_Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button5/HBoxContainer5" unique_id=1351309196]
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "On"
+
+[node name="Off_Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button5/HBoxContainer5" unique_id=1638201421]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.19607843)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "Off"
+
+[node name="MarginContainer5" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button5/HBoxContainer5" unique_id=1400181698]
+custom_minimum_size = Vector2(2, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="Button_Circle" type="Button" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button5/HBoxContainer5" unique_id=651829902]
+custom_minimum_size = Vector2(28, 28)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 1
+theme_override_styles/normal = ExtResource("63_aow1b")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_gdhf0")
+theme_override_styles/hover = SubResource("StyleBoxFlat_ibjfx")
+theme_override_styles/focus = SubResource("StyleBoxFlat_104rv")
+toggle_mode = true
+action_mode = 0
+
+[node name="MarginContainer4" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button5/HBoxContainer5" unique_id=1363343252]
+custom_minimum_size = Vector2(6, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="Button4" type="Button" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2" unique_id=991119757]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_vme23")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_ohe71")
+theme_override_styles/hover = SubResource("StyleBoxFlat_i7dux")
+theme_override_styles/focus = SubResource("StyleBoxFlat_fmgpq")
+
+[node name="HBoxContainer5" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button4" unique_id=1363099766]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MarginContainer3" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button4/HBoxContainer5" unique_id=1257554129]
+custom_minimum_size = Vector2(6, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button4/HBoxContainer5" unique_id=111291125]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "Performance Overlay"
+
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button4/HBoxContainer5" unique_id=1635785155]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="On_Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button4/HBoxContainer5" unique_id=1730993976]
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "On"
+
+[node name="Off_Label" type="Label" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button4/HBoxContainer5" unique_id=878911242]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.19607843)
+theme_override_fonts/font = ExtResource("25_285xx")
+theme_override_font_sizes/font_size = 20
+text = "Off"
+
+[node name="MarginContainer5" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button4/HBoxContainer5" unique_id=545641872]
+custom_minimum_size = Vector2(2, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="Button_Circle" type="Button" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button4/HBoxContainer5" unique_id=639840842]
+custom_minimum_size = Vector2(28, 28)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 1
+theme_override_styles/normal = ExtResource("63_aow1b")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_gdhf0")
+theme_override_styles/hover = SubResource("StyleBoxFlat_ibjfx")
+theme_override_styles/focus = SubResource("StyleBoxFlat_104rv")
+toggle_mode = true
+action_mode = 0
+
+[node name="MarginContainer4" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Keybinds_Main/Video_Panel/VBoxContainer2/Button4/HBoxContainer5" unique_id=1415229573]
+custom_minimum_size = Vector2(6, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="Options_Shadow" type="Panel" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu" unique_id=1401801685]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -195.0
+offset_top = -30.0
+offset_right = 195.0
+offset_bottom = 30.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+theme_override_styles/panel = SubResource("StyleBoxFlat_812tb")
+
+[node name="Options_Panel" type="Panel" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu" unique_id=200136058]
+material = SubResource("ShaderMaterial_xiaxg")
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -195.0
+offset_top = -30.0
+offset_right = 195.0
+offset_bottom = 30.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+
+[node name="HBoxContainer" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Options_Panel" unique_id=1940288549]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 16
+alignment = 1
+
+[node name="Profile" type="Button" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Options_Panel/HBoxContainer" unique_id=1670639829]
+custom_minimum_size = Vector2(50, 50)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_styles/normal = SubResource("StyleBoxFlat_xiaxg")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_ri5to")
+theme_override_styles/hover = ExtResource("59_fpsoq")
+theme_override_styles/focus = SubResource("StyleBoxFlat_y52gj")
+script = ExtResource("60_285xx")
+fade_duration = 0.095
+
+[node name="Control" type="Control" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Options_Panel/HBoxContainer/Profile" unique_id=1637970410]
+custom_minimum_size = Vector2(30, 30)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -15.0
+offset_top = -15.0
+offset_right = 15.0
+offset_bottom = 15.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Options_Panel/HBoxContainer/Profile/Control" unique_id=1018550807]
+modulate = Color(1, 1, 1, 0.8627451)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("59_8yhk8")
+expand_mode = 2
+
+[node name="Video" type="Button" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Options_Panel/HBoxContainer" unique_id=850321609]
+custom_minimum_size = Vector2(50, 50)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_styles/normal = SubResource("StyleBoxFlat_xiaxg")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_ri5to")
+theme_override_styles/hover = ExtResource("59_fpsoq")
+theme_override_styles/focus = SubResource("StyleBoxFlat_y52gj")
+script = ExtResource("60_285xx")
+fade_duration = 0.095
+
+[node name="Control" type="Control" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Options_Panel/HBoxContainer/Video" unique_id=1470298459]
+custom_minimum_size = Vector2(30, 30)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -15.0
+offset_top = -15.0
+offset_right = 15.0
+offset_bottom = 15.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Options_Panel/HBoxContainer/Video/Control" unique_id=789541289]
+modulate = Color(1, 1, 1, 0.8627451)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("61_bxyxm")
+expand_mode = 2
+
+[node name="Audio" type="Button" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Options_Panel/HBoxContainer" unique_id=1546322473]
+custom_minimum_size = Vector2(50, 50)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_styles/normal = SubResource("StyleBoxFlat_xiaxg")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_ri5to")
+theme_override_styles/hover = ExtResource("59_fpsoq")
+theme_override_styles/focus = SubResource("StyleBoxFlat_y52gj")
+script = ExtResource("60_285xx")
+fade_duration = 0.095
+
+[node name="Control" type="Control" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Options_Panel/HBoxContainer/Audio" unique_id=319778629]
+custom_minimum_size = Vector2(30, 30)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -15.0
+offset_top = -15.0
+offset_right = 15.0
+offset_bottom = 15.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Options_Panel/HBoxContainer/Audio/Control" unique_id=413015618]
+modulate = Color(1, 1, 1, 0.8627451)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("63_2q8dx")
+expand_mode = 2
+
+[node name="Gameplay" type="Button" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Options_Panel/HBoxContainer" unique_id=724923348]
+custom_minimum_size = Vector2(50, 50)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_styles/normal = SubResource("StyleBoxFlat_xiaxg")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_ri5to")
+theme_override_styles/hover = ExtResource("59_fpsoq")
+theme_override_styles/focus = SubResource("StyleBoxFlat_y52gj")
+script = ExtResource("60_285xx")
+fade_duration = 0.095
+
+[node name="Control" type="Control" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Options_Panel/HBoxContainer/Gameplay" unique_id=312064237]
+custom_minimum_size = Vector2(30, 30)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -15.0
+offset_top = -15.0
+offset_right = 15.0
+offset_bottom = 15.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Options_Panel/HBoxContainer/Gameplay/Control" unique_id=1809208726]
+modulate = Color(1, 1, 1, 0.8627451)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("62_p0wbd")
+expand_mode = 2
+
+[node name="Keybinds" type="Button" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Options_Panel/HBoxContainer" unique_id=1665208108]
+custom_minimum_size = Vector2(50, 50)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_styles/normal = SubResource("StyleBoxFlat_xiaxg")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_ri5to")
+theme_override_styles/hover = ExtResource("59_fpsoq")
+theme_override_styles/focus = SubResource("StyleBoxFlat_y52gj")
+script = ExtResource("60_285xx")
+fade_duration = 0.095
+
+[node name="Control" type="Control" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Options_Panel/HBoxContainer/Keybinds" unique_id=872702080]
+custom_minimum_size = Vector2(30, 30)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -15.0
+offset_top = -15.0
+offset_right = 15.0
+offset_bottom = 15.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Options_Panel/HBoxContainer/Keybinds/Control" unique_id=1379737401]
+modulate = Color(1, 1, 1, 0.8627451)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("64_cjpii")
+expand_mode = 2
+
+[node name="Exit" type="Button" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Options_Panel/HBoxContainer" unique_id=587414146]
+custom_minimum_size = Vector2(50, 50)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_styles/normal = SubResource("StyleBoxFlat_xiaxg")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_ri5to")
+theme_override_styles/hover = ExtResource("59_fpsoq")
+theme_override_styles/focus = SubResource("StyleBoxFlat_y52gj")
+script = ExtResource("60_285xx")
+fade_duration = 0.095
+
+[node name="Control" type="Control" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Options_Panel/HBoxContainer/Exit" unique_id=452378091]
+custom_minimum_size = Vector2(30, 30)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -15.0
+offset_top = -15.0
+offset_right = 15.0
+offset_bottom = 15.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_ControlTEST/Options_Layer/OptionsMenu/Options_Panel/HBoxContainer/Exit/Control" unique_id=1612712341]
+modulate = Color(1, 1, 1, 0.8627451)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("65_d773e")
+expand_mode = 2
