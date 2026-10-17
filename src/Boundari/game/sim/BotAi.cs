@@ -11,10 +11,11 @@ internal interface IPlayerAi
 }
 
 /// <summary>
-/// A bot: OpenFront's weak filler player (its "tribes"). Every few seconds it either grabs
-/// empty land, hits back at whoever attacks it hardest, or picks a random neighbour, sparing
-/// people and nations half the time. It never builds, and tears down anything it captures.
-/// Same behaviour and numbers as OpenFront's tribes, in our own code.
+/// A bot: OpenFront's weak filler player (its "tribes"). Every few seconds it either goes
+/// after a nearby traitor (a third of the time), grabs empty land, hits back at whoever
+/// attacks it hardest, or picks a random neighbour, sparing people and nations half the
+/// time. Neighbours just across a river are reached by boat. It never builds, and tears
+/// down anything it captures. Same behaviour and numbers as OpenFront's tribes, in our own code.
 /// </summary>
 internal sealed class BotAi : IPlayerAi
 {
@@ -64,9 +65,13 @@ internal sealed class BotAi : IPlayerAi
 
         DemolishCaptured();
 
+        // A traitor nearby: a third of the time, make them pay.
+        if (NeighbourTraitor() is { } traitor && Chance(3) && SendAttack(traitor))
+            return;
+
         if (_emptyLandNearby)
         {
-            if (BordersEmptyLand() || _player.Coast.Count > 0)
+            if (AiTiles.Nearby(_game, _player).EmptyLand)
             {
                 if (SendAttack(null))
                     return;
@@ -75,6 +80,15 @@ internal sealed class BotAi : IPlayerAi
                 _emptyLandNearby = false;
         }
         AttackRandomTarget();
+    }
+
+    private bool Chance(int n) => _rng.RangeInt(0, n - 1) == 0;
+
+    /// <summary>A random non-allied traitor nearby, if any.</summary>
+    private Player? NeighbourTraitor()
+    {
+        var traitors = Neighbours().FindAll(n => !_player.IsAlliedWith(n) && _game.IsTraitor(n));
+        return traitors.Count == 0 ? null : traitors[_rng.RangeInt(0, traitors.Count - 1)];
     }
 
     /// <summary>Bots don't keep buildings: they tear down what they capture, one at a time.</summary>
@@ -103,6 +117,10 @@ internal sealed class BotAi : IPlayerAi
         if (biggest is not null && SendAttack(biggest.Attacker))
             return;
 
+        // Another traitor check (OpenFront asks twice).
+        if (NeighbourTraitor() is { } traitor && Chance(3) && SendAttack(traitor))
+            return;
+
         // Otherwise a random neighbour. People and nations are spared half the time.
         var neighbours = Neighbours();
         for (int i = neighbours.Count - 1; i > 0; i--) // shuffle
@@ -112,6 +130,8 @@ internal sealed class BotAi : IPlayerAi
         }
         foreach (var n in neighbours)
         {
+            if (_player.IsAlliedWith(n))
+                continue;
             if (!n.IsBot && _rng.RangeInt(0, 1) == 0)
                 continue;
             if (SendAttack(n))
@@ -125,12 +145,12 @@ internal sealed class BotAi : IPlayerAi
     /// </summary>
     private bool SendAttack(Player? target)
     {
-        if (target is null && !BordersEmptyLand())
+        if (target is null && !AiTiles.Nearby(_game, _player).BorderAnyEmptyLand)
             return BoatToEmptyLand();
-        if (target is not null && !Borders(target))
-            return false; // only reachable by sea: bots don't sail at players
         if (target is not null && _player.IsAlliedWith(target))
             return false;
+        if (target is not null && !AiTiles.Nearby(_game, _player).Land.Contains(target.Id))
+            return BoatAt(target); // just across a river
 
         // Against empty land, or a bot holding buildings, keep only the small expand reserve.
         bool expand = target is null || (target.IsBot && _game.BuildingsOf(target).Count > 0);
@@ -139,6 +159,31 @@ internal sealed class BotAi : IPlayerAi
         if (troops < 1)
             return false;
         _game.Submit(new AttackIntent(_player.Id, target?.Id ?? Game.Nobody, 0, troops));
+        return true;
+    }
+
+    /// <summary>A player we don't border by land: a boat with a fifth of our troops at their nearest coast.</summary>
+    private bool BoatAt(Player target)
+    {
+        if (_game.BoatsAtSea(_player) >= Balance.MaxBoatsPerPlayer || _player.Troops / 5 < 1
+            || _player.Coast.Count == 0 || target.Coast.Count == 0)
+            return false;
+        var ours = new List<int>(_player.Coast);
+        var theirs = new List<int>(target.Coast);
+        ours.Sort();
+        theirs.Sort(); // HashSet order isn't guaranteed; keep every machine identical
+        int ourStep = Math.Max(1, ours.Count / 50), theirStep = Math.Max(1, theirs.Count / 50);
+        int landing = -1, best = int.MaxValue;
+        for (int i = 0; i < theirs.Count; i += theirStep)
+            for (int j = 0; j < ours.Count; j += ourStep)
+            {
+                int d = AiTiles.Manhattan(_game, theirs[i], ours[j]);
+                if (d < best)
+                    (landing, best) = (theirs[i], d);
+            }
+        if (landing < 0 || _game.PlanBoat(_player, landing, _game.Rules.A(300)) is null)
+            return false;
+        _game.Submit(new BoatIntent(_player.Id, landing, BoatTroopsPercent));
         return true;
     }
 
@@ -172,52 +217,8 @@ internal sealed class BotAi : IPlayerAi
         return false;
     }
 
-    private bool BordersEmptyLand()
-    {
-        Span<int> nb = stackalloc int[4];
-        foreach (int t in _player.Border)
-        {
-            int count = _game.LandNeighbours(t, nb);
-            for (int k = 0; k < count; k++)
-                if (_game.Owner[nb[k]] == Game.Nobody)
-                    return true;
-        }
-        return false;
-    }
-
-    private bool Borders(Player other)
-    {
-        Span<int> nb = stackalloc int[4];
-        foreach (int t in _player.Border)
-        {
-            int count = _game.LandNeighbours(t, nb);
-            for (int k = 0; k < count; k++)
-                if (_game.Owner[nb[k]] == other.Id)
-                    return true;
-        }
-        return false;
-    }
-
-    /// <summary>Players touching our land, in id order.</summary>
-    private List<Player> Neighbours()
-    {
-        var ids = new SortedSet<ushort>();
-        Span<int> nb = stackalloc int[4];
-        foreach (int t in _player.Border)
-        {
-            int count = _game.LandNeighbours(t, nb);
-            for (int k = 0; k < count; k++)
-            {
-                ushort o = _game.Owner[nb[k]];
-                if (o != Game.Nobody && o != _player.Id)
-                    ids.Add(o);
-            }
-        }
-        var list = new List<Player>(ids.Count);
-        foreach (ushort id in ids)
-            list.Add(_game.GetPlayer(id)!);
-        return list;
-    }
+    /// <summary>Players next to our land or just across a river, in id order.</summary>
+    private List<Player> Neighbours() => new(AiTiles.Nearby(_game, _player).Players);
 }
 
 /// <summary>Made-up bot names, like OpenFront's: a people or dynasty plus a kind of state.</summary>

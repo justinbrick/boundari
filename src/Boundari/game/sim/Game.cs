@@ -41,8 +41,8 @@ public sealed partial class Game
     public readonly long[] Profile = new long[5];
 
     /// <summary>Slowest single tick of each part of the world update, in Stopwatch ticks (see <see cref="StepParts"/>). For profiling only.</summary>
-    public readonly long[] StepWorst = new long[7];
-    public static readonly string[] StepParts = { "ports", "trade ships", "construction+rails", "trains", "warships", "nukes", "enclaves" };
+    public readonly long[] StepWorst = new long[9];
+    public static readonly string[] StepParts = { "ports", "trade ships", "construction+rails", "trains", "warships", "nukes", "enclaves", "orders", "ai" };
 
     private readonly List<Player> _players = new() { null! }; // index = id; 0 is "nobody"
     private readonly List<Attack> _attacks = new();
@@ -63,6 +63,14 @@ public sealed partial class Game
     private Waterways.RouteJob? _routeJob;           // trade route being planned
     private (int From, int To) _routeJobPorts;
     private const int RoutePlanningBudget = 15_000;  // tile expansions per tick (~3 ms)
+
+    // The AI's troop boats plan their sea route in the background, on the trade-route planner
+    // (a long voyage can take tens of ms to plan, too much for one tick): boarding, first come
+    // first served, ahead of trade routes. People's boats still leave at once.
+    private readonly Queue<(Player Player, BoatPlan Plan, long Troops, ushort Target)> _boarding = new();
+    private (Player Player, BoatPlan Plan, long Troops, ushort Target) _boardingNow;
+    private Waterways.RouteJob? _boatJob;
+    private const int BoatPlanningBudget = 30_000;   // tile expansions per tick (~6 ms)
     private Waterways? _waterways;
     private readonly bool[]? _coastal;
     private readonly List<Intent> _pending = new();
@@ -230,9 +238,11 @@ public sealed partial class Game
     /// <summary>Advances the game by one tick.</summary>
     public void Step()
     {
+        long applyStart = Stopwatch.GetTimestamp();
         foreach (var intent in _pending)
             Apply(intent);
         _pending.Clear();
+        StepWorst[7] = Math.Max(StepWorst[7], Stopwatch.GetTimestamp() - applyStart);
 
         if (Phase == GamePhase.Spawning)
         {
@@ -244,9 +254,11 @@ public sealed partial class Game
         long t0 = Stopwatch.GetTimestamp();
         foreach (var ai in _ais)
             ai.Think();
+        StepWorst[8] = Math.Max(StepWorst[8], Stopwatch.GetTimestamp() - t0);
         RunAlliances();
         long t1 = Stopwatch.GetTimestamp();
         GrowEconomies();
+        PlanBoardingBoats();
         SailBoats();
         long t2 = Stopwatch.GetTimestamp();
         long q = t2;
@@ -333,7 +345,12 @@ public sealed partial class Game
                 StartDemolition(player, demolish.Tile);
                 break;
             case BoatIntent boat when Phase == GamePhase.Running:
-                LaunchBoat(player, boat.Tile, boat.RatioPercent);
+                LaunchBoat(player, boat.Tile, boat.RatioPercent, boat.Troops);
+                break;
+            case MoveWarshipIntent move when _warships.Find(w => w.Id == move.WarshipId && w.Owner == player) is { } ship
+                && move.Tile >= 0 && move.Tile < Map.TileCount && Waterways.Body[move.Tile] == Waterways.Body[ship.Tile]:
+                ship.PatrolTile = move.Tile;
+                ship.Path = null; // heads for the new patrol area at once
                 break;
             case BuildIntent { Type: BuildingType.Warship } ship when Phase == GamePhase.Running && CanBuild(player, ship.Type, ship.Tile):
                 player.Spend(BuildingCost(player, BuildingType.Warship));
@@ -586,12 +603,18 @@ public sealed partial class Game
         return false;
     }
 
+    /// <summary>The player's troop boats at sea (and still boarding).</summary>
     public int BoatsAtSea(Player player)
     {
         int n = 0;
         foreach (var b in _boats)
             if (b.Owner == player)
                 n++;
+        foreach (var b in _boarding)
+            if (b.Player == player)
+                n++;
+        if (_boatJob is not null && _boardingNow.Player == player)
+            n++;
         return n;
     }
 
@@ -599,32 +622,122 @@ public sealed partial class Game
     /// Sends troops by sea: picks the shore nearest the clicked tile that the player can
     /// reach by water, the player's own shore closest to it, and sails between them.
     /// </summary>
-    private void LaunchBoat(Player player, int tile, int ratioPercent)
+    private void LaunchBoat(Player player, int tile, int ratioPercent, long exactTroops = 0)
     {
-        if (tile < 0 || tile >= Map.TileCount || !Map.IsLand(tile) || Owner[tile] == player.Id)
-            return;
-        if (player.Allies.Contains(Owner[tile]))
-            return; // no landings on allies
         if (BoatsAtSea(player) >= Balance.MaxBoatsPerPlayer)
             return;
-        long troops = player.Troops * Math.Clamp(ratioPercent, 1, 100) / 100;
+        long troops = exactTroops > 0
+            ? Math.Min(exactTroops, player.Troops)
+            : player.Troops * Math.Clamp(ratioPercent, 1, 100) / 100;
         if (troops <= 0)
             return;
-
-        // Which water bodies does the player have a shore on?
-        var ways = Waterways;
-        var myBodies = new HashSet<int>();
-        var myShores = new List<int>(player.Coast);
-        myShores.Sort(); // HashSet order isn't guaranteed; keep every machine identical
-        Span<int> bodies = stackalloc int[4];
-        foreach (int t in myShores)
+        if (PlanBoat(player, tile) is not { } plan)
+            return;
+        if (player.Kind != PlayerKind.Human)
         {
-            int n = ways.TouchingBodies(t, bodies);
-            for (int k = 0; k < n; k++)
-                myBodies.Add(bodies[k]);
+            player.Troops -= troops; // aboard, waiting for the route
+            _boarding.Enqueue((player, plan, troops, Owner[tile]));
+            return;
         }
+        int[]? path = Waterways.FindPath(plan.LaunchWater, plan.LandingWater);
+        if (path is null)
+            return;
+        player.Troops -= troops;
+        SetSail(player, plan, troops, Owner[tile], path);
+    }
+
+    private void SetSail(Player player, BoatPlan plan, long troops, ushort target, int[] path)
+    {
+        player.AttacksSent++;
+        _boats.Add(new Boat(player, troops, plan.Landing, plan.Source, path) { Id = _nextUnitId++ });
+        if (GetPlayer(target) is { } heading)
+            Report(GameEventKind.BoatLaunched, player, heading);
+    }
+
+    /// <summary>Plans the routes of boarding AI boats on the background planner, and sends them off once planned.</summary>
+    private void PlanBoardingBoats()
+    {
+        int budget = BoatPlanningBudget;
+        while (budget > 0)
+        {
+            if (_boatJob is null)
+            {
+                if (_boarding.Count == 0)
+                    return;
+                var next = _boarding.Peek();
+                if (Waterways.StartBackground(next.Plan.LaunchWater, next.Plan.LandingWater) is not { } job)
+                    return; // a trade route is being planned: wait for it
+                _boarding.Dequeue();
+                _boardingNow = next;
+                _boatJob = job;
+                if (!job.Done)
+                    Waterways.StepBackground(budget); // the rough route over the coarse grid
+                budget /= 2;
+                continue;
+            }
+            if (!_boatJob.Done)
+            {
+                Waterways.StepBackground(budget);
+                budget = 0;
+            }
+            if (!_boatJob.Done)
+                return;
+            var (player, plan, troops, target) = _boardingNow;
+            var path = _boatJob.Result;
+            _boatJob = null;
+            _boardingNow = default;
+            if (!player.IsAlive)
+                continue;
+            if (path is null)
+                player.Troops += troops; // no way there after all: back ashore
+            else
+                SetSail(player, plan, troops, target, path);
+        }
+    }
+
+    private Player? _boatPlanFor;
+    private int _boatPlanTick = -1, _boatPlanCoast;
+    private readonly List<int> _boatPlanShores = new();
+    private readonly HashSet<int> _boatPlanBodies = new();
+
+    /// <summary>A boat the player could send at this tile: our shore it leaves from, the shore it lands on, and the water tiles beside each.</summary>
+    public readonly record struct BoatPlan(int Source, int Landing, int LaunchWater, int LandingWater);
+
+    /// <summary>
+    /// Where a boat sent at this tile would set off and land (OpenFront's canBuildTransportShip),
+    /// without planning the route at sea. Null if there's no way to get there by boat.
+    /// </summary>
+    public BoatPlan? PlanBoat(Player player, int tile, int maxSearch = int.MaxValue)
+    {
+        if (tile < 0 || tile >= Map.TileCount || !Map.IsLand(tile) || Owner[tile] == player.Id)
+            return null;
+        if (player.Allies.Contains(Owner[tile]))
+            return null; // no landings on allies
+
+        // Which water bodies does the player have a shore on? (Kept for the rest of the tick:
+        // the AI plans many boats at once.)
+        var ways = Waterways;
+        Span<int> bodies = stackalloc int[4];
+        if (_boatPlanFor != player || _boatPlanTick != Tick || _boatPlanCoast != player.Coast.Count)
+        {
+            _boatPlanFor = player;
+            _boatPlanTick = Tick;
+            _boatPlanCoast = player.Coast.Count;
+            _boatPlanShores.Clear();
+            _boatPlanShores.AddRange(player.Coast);
+            _boatPlanShores.Sort(); // HashSet order isn't guaranteed; keep every machine identical
+            _boatPlanBodies.Clear();
+            foreach (int t in _boatPlanShores)
+            {
+                int n = ways.TouchingBodies(t, bodies);
+                for (int k = 0; k < n; k++)
+                    _boatPlanBodies.Add(bodies[k]);
+            }
+        }
+        var myShores = _boatPlanShores;
+        var myBodies = _boatPlanBodies;
         if (myShores.Count == 0)
-            return; // no water access
+            return null; // no water access
 
         // Landing: the clicked owner's own coast nearest the click (like OpenFront), searched
         // only through that owner's land (or unclaimed land) and not too far from the click.
@@ -637,7 +750,8 @@ public sealed partial class Game
         var seen = new HashSet<int> { tile };
         queue.Enqueue(tile);
         Span<int> nb = stackalloc int[4];
-        while (queue.Count > 0 && seen.Count < Rules.BoatLandingSearchTiles)
+        int searchLimit = maxSearch == int.MaxValue ? Rules.BoatLandingSearchTiles : Math.Min(maxSearch + 1, Rules.BoatLandingSearchTiles);
+        while (queue.Count > 0 && seen.Count < searchLimit)
         {
             int t = queue.Dequeue();
             int touching = ways.TouchingBodies(t, bodies);
@@ -659,7 +773,7 @@ public sealed partial class Game
             }
         }
         if (landing < 0)
-            return;
+            return null;
 
         // Launch from the player's shore on that water closest to the landing.
         int lx = landing % Map.Width, ly = landing / Map.Width;
@@ -677,16 +791,8 @@ public sealed partial class Game
             }
         }
         if (source < 0)
-            return;
-
-        int[]? path = ways.FindPath(ways.ShoreWater(source, landingBody), ways.ShoreWater(landing, landingBody));
-        if (path is null)
-            return;
-        player.Troops -= troops;
-        player.AttacksSent++;
-        _boats.Add(new Boat(player, troops, landing, source, path) { Id = _nextUnitId++ });
-        if (GetPlayer(targetOwner) is { } heading)
-            Report(GameEventKind.BoatLaunched, player, heading);
+            return null;
+        return new BoatPlan(source, landing, ways.ShoreWater(source, landingBody), ways.ShoreWater(landing, landingBody));
     }
 
     private void SailBoats()
@@ -1568,6 +1674,7 @@ public sealed partial class Game
             {
                 case Boat boat when !boat.Sunk && _boats.Contains(boat):
                     boat.Sunk = true; // one hit sinks a troop boat; its troops are lost
+                    boat.SunkBy = shell.Shooter.Owner;
                     break;
                 case Warship enemy when enemy.Alive:
                     enemy.Health -= shell.Damage;

@@ -257,7 +257,7 @@ public sealed partial class Game
             : Relation.Friendly;
     }
 
-    private void UpdateRelation(Player of, Player toward, int delta)
+    internal void UpdateRelation(Player of, Player toward, int delta)
     {
         if (of == toward)
             return;

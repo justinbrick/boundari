@@ -30,7 +30,8 @@ public class SimBenchmark
         using (var file = File.OpenRead(Path.Combine(dir, "src", "Boundari", "maps", "europe.bmap")))
             map = MapFile.Read(file);
 
-        var game = new Game(map, 42, spawnPhaseTicks: 1);
+        var difficulty = Enum.TryParse<Difficulty>(Environment.GetEnvironmentVariable("BOUNDARI_DIFFICULTY"), true, out var d) ? d : Difficulty.Medium;
+        var game = new Game(map, 42, spawnPhaseTicks: 1, difficulty: difficulty);
         if (int.TryParse(Environment.GetEnvironmentVariable("BOUNDARI_NATIONS"), out int nations))
             game.AddNations(nations);
         else

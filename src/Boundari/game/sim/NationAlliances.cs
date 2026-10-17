@@ -15,13 +15,15 @@ internal sealed class NationAlliances
     private readonly Game _game;
     private readonly Player _player;
     private readonly Rng _rng;
+    private readonly NationEmojis _emojis;
     private Difficulty D => _game.Difficulty;
 
-    public NationAlliances(Game game, Player player, Rng rng)
+    public NationAlliances(Game game, Player player, Rng rng, NationEmojis emojis)
     {
         _game = game;
         _player = player;
         _rng = rng;
+        _emojis = emojis;
     }
 
     /// <summary>OpenFront's chance(n): true one time in n.</summary>
@@ -91,23 +93,46 @@ internal sealed class NationAlliances
     }
 
     /// <summary>
-    /// Breaks the alliance with this ally if it's worth it (OpenFront's rules, minus the
-    /// Hard/Impossible "juiciest ally" one): far weaker than us, a weak traitor, or our only
-    /// neighbour and much weaker. Returns true if it did.
+    /// Breaks the alliance with this ally if it's worth it (OpenFront): Hard and up betray
+    /// their juiciest ally when everyone around is weak; Easy and Medium betray an ally ten
+    /// times weaker (Easy spares people); and from Medium up, a weak traitor, or our only
+    /// neighbour when it's three times weaker. Returns true if it did.
     /// </summary>
-    public bool MaybeBetray(Player ally, int borderingPlayers)
+    public bool MaybeBetray(Player ally, Player? juiciestAlly, List<Player> friends, List<Player> enemies)
     {
         if (!_player.IsAlliedWith(ally))
             return false;
         bool betray =
-            ((D == Difficulty.Easy || D == Difficulty.Medium)
+            (D >= Difficulty.Hard && juiciestAlly == ally && IsSafeToBetray(ally, friends, enemies))
+            || ((D == Difficulty.Easy || D == Difficulty.Medium)
                 && !(D == Difficulty.Easy && ally.Kind == PlayerKind.Human)
                 && _player.Troops >= ally.Troops * 10)
             || (D != Difficulty.Easy && _game.IsTraitor(ally) && ally.Troops * 10 < _player.Troops * 12)
-            || (D != Difficulty.Easy && borderingPlayers == 1 && ally.Troops * 3 < _player.Troops);
+            || (D != Difficulty.Easy && friends.Count + enemies.Count == 1 && ally.Troops * 3 < _player.Troops);
         if (betray)
             _game.Submit(new BreakAllianceIntent(_player.Id, ally.Id));
         return betray;
+    }
+
+    /// <summary>The juiciest of our bordering allies, however strong (<see cref="IsSafeToBetray"/> rules out the too strong).</summary>
+    public Player? FindJuiciestAlly(List<Player> friends) =>
+        AiTiles.Juiciest(_game, friends.FindAll(f => _player.IsAlliedWith(f)));
+
+    /// <summary>
+    /// Safe if the ally, our non-allied neighbours and (unless the ally is a traitor already,
+    /// as betraying them wouldn't make us one) our other allies, troops out attacking
+    /// included, add up to under a third of our troops.
+    /// </summary>
+    private bool IsSafeToBetray(Player target, List<Player> friends, List<Player> enemies)
+    {
+        var threats = new List<Player> { target };
+        threats.AddRange(enemies);
+        if (!_game.IsTraitor(target))
+            threats.AddRange(friends.FindAll(f => f != target && _player.IsAlliedWith(f)));
+        long troops = 0;
+        foreach (var t in threats)
+            troops += t.Troops + _game.TroopsAttacking(t);
+        return troops < _player.Troops * 0.33;
     }
 
     /// <summary>Whether to ally with this player (accepting their request, or asking them).</summary>
@@ -118,16 +143,35 @@ internal sealed class NationAlliances
             return Chance(2);
         // Nearly always turn down traitors.
         if (_game.IsTraitor(other) && NextInt(0, 100) >= 10)
+        {
+            if (isResponse && Chance(3))
+                _emojis.Send(other.Id, NationMoods.Confused);
             return false;
-        if (HasTooManyAlliances(other) || IsRunawayLeader(other))
+        }
+        // Hard and up: leave enough players unallied to stop the leader. Medium and up: don't help a runaway leader.
+        if (HasTooManyAlliances(other) || AiTiles.RunawayLeader(_game) == other)
             return false;
         // Better a friend than an enemy: a threat gets a yes.
         if (IsThreat(other))
+        {
+            if (!isResponse && Chance(6))
+                _emojis.Send(other.Id, NationMoods.ScaredOfThreat);
+            if (isResponse && Chance(6))
+                _emojis.Send(other.Id, NationMoods.Love);
             return true;
+        }
         if (_game.RelationOf(_player, other) < Relation.Neutral)
+        {
+            if (isResponse && Chance(3))
+                _emojis.Send(other.Id, NationMoods.Confused);
             return false;
+        }
         if (IsFriendly(other))
+        {
+            if (Chance(3))
+                _emojis.Send(other.Id, NationMoods.Handshake);
             return true;
+        }
         if (HaveEnoughAlliances(other))
             return false;
         if (IsEarlyGame())
@@ -154,28 +198,6 @@ internal sealed class NationAlliances
         return D == Difficulty.Hard
             ? other.AllianceCount * 2 >= people
             : other.AllianceCount * 4 >= people;
-    }
-
-    /// <summary>The non-tribe player with the most land, if it has this many times the runner-up's (Medium 3x, Hard 2x, Impossible 1.5x).</summary>
-    private bool IsRunawayLeader(Player other)
-    {
-        int factorTenths = D switch { Difficulty.Medium => 30, Difficulty.Hard => 20, Difficulty.Impossible => 15, _ => 0 };
-        if (factorTenths == 0)
-            return false;
-        Player? leader = null, runnerUp = null;
-        foreach (var p in _game.Players)
-        {
-            if (p.IsBot || !p.IsAlive)
-                continue;
-            if (leader is null || p.TileCount > leader.TileCount)
-            {
-                runnerUp = leader;
-                leader = p;
-            }
-            else if (runnerUp is null || p.TileCount > runnerUp.TileCount)
-                runnerUp = p;
-        }
-        return leader == other && runnerUp is not null && leader.TileCount * 10L >= runnerUp.TileCount * (long)factorTenths;
     }
 
     private bool IsThreat(Player other) => D switch

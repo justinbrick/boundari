@@ -46,10 +46,16 @@ public sealed class Boat
 
     /// <summary>Sunk by a warship (troops lost).</summary>
     public bool Sunk { get; internal set; }
+
+    /// <summary>Whose warship or bomb sank it (if it was sunk).</summary>
+    public Player? SunkBy { get; internal set; }
 }
 
-/// <summary>Send a share of troops by boat to land as close as possible to a tile.</summary>
-public sealed record BoatIntent(ushort PlayerId, int Tile, int RatioPercent) : Intent(PlayerId);
+/// <summary>Send a share of troops (or exactly <paramref name="Troops"/>, if set) by boat to land as close as possible to a tile.</summary>
+public sealed record BoatIntent(ushort PlayerId, int Tile, int RatioPercent, long Troops = 0) : Intent(PlayerId);
+
+/// <summary>Send one of your warships to patrol somewhere else (water tile).</summary>
+public sealed record MoveWarshipIntent(ushort PlayerId, int WarshipId, int Tile) : Intent(PlayerId);
 
 /// <summary>Call one of your boats back (it sails home; a quarter of its troops are lost, as in OpenFront).</summary>
 public sealed record BoatRetreatIntent(ushort PlayerId, int BoatId) : Intent(PlayerId);
@@ -466,13 +472,90 @@ public sealed class Waterways
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     private bool MarkCorridor(Workspace ws, int from, int to, int search, int radius)
     {
+        if (!CoarseSearch(ws, from, to, search, out int start, out int goal))
+            return false;
+        int cw = _cellsWide, ch = _cellsHigh;
+        var cameFrom = ws.CellFrom;
+        var corridor = ws.Corridor;
+        for (int c = goal; ; c = cameFrom[c])
+        {
+            int cx = c % cw, cy = c / cw;
+            for (int dy = -radius; dy <= radius; dy++)
+                for (int dx = -radius; dx <= radius; dx++)
+                {
+                    int nx = cx + dx, ny = cy + dy;
+                    if (nx >= 0 && ny >= 0 && nx < cw && ny < ch)
+                        corridor[ny * cw + nx] = search;
+                }
+            if (c == start)
+                break;
+        }
+        return true;
+    }
+
+    private readonly Dictionary<(int Start, int Goal, int Body), int[]?> _roughRoutes = new();
+    private const int MaxRoughRoutes = 8192;
+    private const int RoughBlockCells = 4;          // rough routes are remembered per 4x4 cells (32x32 tiles) at each end
+    private const int RoughHeuristicPercent = 200;  // and found greedily: they only need to be roughly right
+
+    /// <summary>
+    /// A rough sea route between two water tiles: one tile per coarse cell along the way, the
+    /// ends exact. Far cheaper than <see cref="FindPath"/> (and remembered), for the AI to see
+    /// whether warships lie along a voyage and roughly how long it is. Null if there's none
+    /// shorter than about <paramref name="maxTiles"/>.
+    /// </summary>
+    public int[]? RoughRoute(int from, int to, int maxTiles)
+    {
+        if (Body[from] == NoBody || Body[from] != Body[to])
+            return null;
+        int w = _map.Width, cw = _cellsWide;
+        int bw = (cw + RoughBlockCells - 1) / RoughBlockCells, b = Cell * RoughBlockCells;
+        var key = ((from / w / b) * bw + (from % w) / b, (to / w / b) * bw + (to % w) / b, Body[from] * 64 + Math.Min(63, maxTiles / 64));
+        if (!_roughRoutes.TryGetValue(key, out var cells))
+        {
+            if (_roughRoutes.Count >= MaxRoughRoutes)
+                _roughRoutes.Clear();
+            var ws = _instant;
+            cells = null;
+            // A step costs 10 per cell (8 tiles), more near coasts: allow double that.
+            int maxCost = maxTiles >= int.MaxValue / 4 ? int.MaxValue : maxTiles / Cell * 20;
+            if (CoarseSearch(ws, from, to, ++ws.Search, out int start, out int goal, RoughHeuristicPercent, maxCost))
+            {
+                var list = new List<int>();
+                for (int c = goal; ; c = ws.CellFrom[c])
+                {
+                    list.Add(c);
+                    if (c == start)
+                        break;
+                }
+                list.Reverse();
+                cells = list.ToArray();
+            }
+            _roughRoutes[key] = cells;
+        }
+        if (cells is null)
+            return null;
+        var route = new int[cells.Length + 1];
+        route[0] = from;
+        for (int i = 1; i < cells.Length; i++)
+        {
+            int cx = cells[i] % cw, cy = cells[i] / cw;
+            route[i] = Math.Min(cy * Cell + Cell / 2, _map.Height - 1) * w + Math.Min(cx * Cell + Cell / 2, w - 1);
+        }
+        route[^1] = to;
+        return route;
+    }
+
+    /// <summary>A* over the coarse cells from one water tile's cell to another's (results in the workspace's cell arrays).</summary>
+    private bool CoarseSearch(Workspace ws, int from, int to, int search, out int start, out int goal, int heuristicPercent = 100, int maxCost = int.MaxValue)
+    {
         int w = _map.Width, cw = _cellsWide, ch = _cellsHigh, body = Body[from];
         var cost = ws.CellCost;
         var cameFrom = ws.CellFrom;
         var mark = ws.CellMark;
         int seen = 2 * search, closed = 2 * search + 1;
-        int start = (from / w / Cell) * cw + (from % w) / Cell;
-        int goal = (to / w / Cell) * cw + (to % w) / Cell;
+        start = (from / w / Cell) * cw + (from % w) / Cell;
+        goal = (to / w / Cell) * cw + (to % w) / Cell;
         int gx = goal % cw, gy = goal / cw;
 
         cost[start] = 0;
@@ -492,6 +575,8 @@ public sealed class Waterways
                 break;
             }
             int cx = c % cw, cy = c / cw, g = cost[c];
+            if (g > maxCost)
+                continue; // further than the caller cares about
             for (int d = 0; d < 8; d++)
             {
                 if ((_cellLinks[c] & (1 << d)) == 0)
@@ -509,26 +594,9 @@ public sealed class Waterways
                 cost[n] = ng;
                 cameFrom[n] = c;
                 int hx = Math.Abs(nx - gx), hy = Math.Abs(ny - gy);
-                open.Enqueue(n, ng + 10 * Math.Max(hx, hy) + 4 * Math.Min(hx, hy));
+                open.Enqueue(n, ng + (10 * Math.Max(hx, hy) + 4 * Math.Min(hx, hy)) * heuristicPercent / 100);
             }
         }
-        if (!found)
-            return false;
-
-        var corridor = ws.Corridor;
-        for (int c = goal; ; c = cameFrom[c])
-        {
-            int cx = c % cw, cy = c / cw;
-            for (int dy = -radius; dy <= radius; dy++)
-                for (int dx = -radius; dx <= radius; dx++)
-                {
-                    int nx = cx + dx, ny = cy + dy;
-                    if (nx >= 0 && ny >= 0 && nx < cw && ny < ch)
-                        corridor[ny * cw + nx] = search;
-                }
-            if (c == start)
-                break;
-        }
-        return true;
+        return found;
     }
 }

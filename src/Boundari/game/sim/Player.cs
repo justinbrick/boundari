@@ -132,6 +132,12 @@ public sealed class Player
     /// <summary>How this player feels about each other player (by id), in hundredths: -10000..10000. Null until it matters.</summary>
     internal int[]? Relations;
 
+    /// <summary>What the AI saw around this player this tick (see AiTiles.Nearby), and when.</summary>
+    internal AiTiles.NearbyInfo? AiNearby;
+    internal int AiNearbyTick = -1;
+    internal (int MinX, int MinY, int MaxX, int MaxY) AiBox;
+    internal int AiBoxTick = -1;
+
     internal Player(ushort id, string name, PlayerKind kind, Difficulty difficulty, string flag)
     {
         Id = id;

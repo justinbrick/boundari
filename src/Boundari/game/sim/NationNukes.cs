@@ -35,14 +35,23 @@ internal sealed class NationNukes
     private const int MirvCooldownTicks = 300;
     private const int MirvCoverageSamples = 40;
 
-    public NationNukes(Game game, Player player, Rng rng)
+    private readonly NationEmojis _emojis;
+
+    // Hard and up: bombs sent to soften a neighbour up, followed by a land attack the moment they land.
+    private readonly List<(Player Target, int Tile, int Tick, Nuke? Bomb)> _strikes = new();
+    private const int StrikeSpawnTicks = 10; // how long to look for the bomb after ordering it
+
+    public NationNukes(Game game, Player player, Rng rng, NationEmojis emojis)
     {
         _game = game;
         _player = player;
         _rng = rng;
+        _emojis = emojis;
         _difficulty = game.Difficulty;
         StrikeBorderMargin = game.Rules.D(10);
     }
+
+    private bool Chance(int n) => _rng.RangeInt(0, n - 1) == 0;
 
     private static double MinCoverage(NukeType type) => type == NukeType.Moab ? 0.25 : 0.4;
 
@@ -79,7 +88,9 @@ internal sealed class NationNukes
             int tile = BestTile(type, target, candidates, silos, structures, strike);
             if (tile >= 0)
             {
-                Send(type, tile);
+                Send(type, tile, target);
+                if (strike && _difficulty >= Difficulty.Hard)
+                    _strikes.Add((target, tile, _game.Tick, null));
                 return;
             }
         }
@@ -375,7 +386,34 @@ internal sealed class NationNukes
         return false;
     }
 
-    private void Send(NukeType type, int tile)
+    /// <summary>Every tick (Hard and up): attacks a strike's target the moment its bomb lands (not if it was shot down).</summary>
+    public void FollowUpStrikes(NationAttacks attacks)
+    {
+        for (int i = 0; i < _strikes.Count; i++)
+        {
+            var (target, tile, tick, bomb) = _strikes[i];
+            if (bomb is null)
+            {
+                foreach (var n in _game.Nukes)
+                    if (n.Owner == _player && n.To == tile && !n.Gone)
+                        bomb = n;
+                if (bomb is null)
+                {
+                    if (_game.Tick - tick > StrikeSpawnTicks)
+                        _strikes.RemoveAt(i--);
+                    continue;
+                }
+                _strikes[i] = (target, tile, tick, bomb);
+            }
+            if (!bomb.Gone)
+                continue;
+            _strikes.RemoveAt(i--);
+            if (!bomb.TargetedBySam) // intercepted bombs leave the target's troops alone
+                attacks.Strike(target);
+        }
+    }
+
+    private void Send(NukeType type, int tile, Player target)
     {
         _recent.Add((_game.Tick, tile, type));
         long felt = FeltCost(type);
@@ -384,6 +422,7 @@ internal sealed class NationNukes
         else
             _fatManFeltCost = felt * 125 / 100;
         _game.Submit(new NukeIntent(_player.Id, type, tile));
+        _emojis.MaybeSend(target, NationMoods.Nuke);
     }
 
     /// <summary>The price a nation acts on: the real one, or an inflated one while a Tsar Bomba is worth saving for.</summary>
@@ -569,10 +608,15 @@ internal sealed class NationNukes
     private void SendTsarBomba(Player target)
     {
         int center = TerritoryCenter(target);
+        _emojis.MaybeSendAttackEmoji(target);
         if (center < 0 || !_game.CanLaunch(_player, NukeType.TsarBomba, center))
             return;
         _game.Submit(new NukeIntent(_player.Id, NukeType.TsarBomba, center));
         _game.NationMirvTargets[target.Id] = _game.Tick;
+        _emojis.Send(Game.Nobody, NationMoods.Nuke);
+        // OpenFront: a nation on the receiving end sometimes cries for help to everyone.
+        if (target.IsNation && Chance(8) && _game.CanSendEmoji(target, Game.Nobody))
+            _game.Submit(new EmojiIntent(target.Id, Game.Nobody, NationMoods.Overwhelmed[_rng.RangeInt(0, NationMoods.Overwhelmed.Length - 1)]));
     }
 
     /// <summary>The middle of their territory's bounding box, or their nearest border tile if they don't own it.</summary>
@@ -667,7 +711,7 @@ internal sealed class NationNukes
 }
 
 /// <summary>Small map helpers shared by the AIs.</summary>
-internal static class AiTiles
+internal static partial class AiTiles
 {
     public static long DistSq(Game game, int a, int b)
     {

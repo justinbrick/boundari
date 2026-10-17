@@ -360,20 +360,37 @@ public sealed partial class Game
             return (loss, 0, cost / (borderSize * 2.0) / linear);
         }
 
+        double attackerLoss = AttackerTileLoss(attacker, defender, mag, attackTroops, out double defenderLoss, out double ratio);
+        double largeDefender = AttackRules.LargeTerritoryBonus(defender.TileCount, AttackRules.LargeDefenderDepth, Rules.LargeTerritoryMidpoint);
+        double traitorCost = IsTraitor(defender) ? AllianceRules.TraitorTravelPercent / 100.0 : 1;
+        double speedCost = Math.Clamp(ratio, 0.82, 7.5) * Math.Clamp(ratio / 20, 1, 50) / AttackRules.SpeedCostDivisor;
+        double largeAttackerSpeed = AttackRules.LargeTerritoryBonus(attacker.TileCount, AttackRules.LargeAttackerSpeedDepth, Rules.LargeTerritoryMidpoint);
+        return (attackerLoss, defenderLoss, speedCost * tileCost * largeAttackerSpeed * largeDefender * traitorCost / borderSize / linear);
+    }
+
+    /// <summary>Troops an attack of this size loses per tile of the defender's land with this terrain cost (OpenFront's attackerTroopLoss).</summary>
+    private double AttackerTileLoss(Player attacker, Player defender, double mag, double attackTroops, out double defenderLoss, out double ratio)
+    {
         if (!attacker.IsBot && defender.IsBot)
             mag *= AttackRules.BotDefenderLossMult;
         double largeAttacker = AttackRules.LargeTerritoryBonus(attacker.TileCount, AttackRules.LargeAttackerDepth, Rules.LargeTerritoryMidpoint);
         double largeDefender = AttackRules.LargeTerritoryBonus(defender.TileCount, AttackRules.LargeDefenderDepth, Rules.LargeTerritoryMidpoint);
-        bool traitor = IsTraitor(defender);
-        double traitorLoss = traitor ? AllianceRules.TraitorTroopLossPercent / 100.0 : 1;
-        double traitorCost = traitor ? AllianceRules.TraitorTravelPercent / 100.0 : 1;
+        double traitorLoss = IsTraitor(defender) ? AllianceRules.TraitorTroopLossPercent / 100.0 : 1;
+        defenderLoss = (double)defender.Troops / Math.Max(1, defender.TileCount);
+        ratio = defender.Troops / attackTroops;
+        return mag * traitorLoss * Math.Clamp(ratio, AttackRules.CheapestTroopRatio, 2)
+            * (AttackRules.AttackerLossBase * largeAttacker * largeDefender / Rules.Area + AttackRules.AttackerLossPerDensity * defenderLoss);
+    }
 
-        double defenderLoss = (double)defender.Troops / Math.Max(1, defender.TileCount);
-        double ratio = defender.Troops / attackTroops;
-        double attackerLoss = mag * traitorLoss * Math.Clamp(ratio, AttackRules.CheapestTroopRatio, 2)
-            * (AttackRules.AttackerLossBase * largeAttacker * largeDefender / area + AttackRules.AttackerLossPerDensity * defenderLoss);
-        double speedCost = Math.Clamp(ratio, 0.82, 7.5) * Math.Clamp(ratio / 20, 1, 50) / AttackRules.SpeedCostDivisor;
-        double largeAttackerSpeed = AttackRules.LargeTerritoryBonus(attacker.TileCount, AttackRules.LargeAttackerSpeedDepth, Rules.LargeTerritoryMidpoint);
-        return (attackerLoss, defenderLoss, speedCost * tileCost * largeAttackerSpeed * largeDefender * traitorCost / borderSize / linear);
+    /// <summary>
+    /// For the AI: troops an attack of this size would lose taking one tile of the defender's
+    /// land on this terrain (with this land cover), no defense post or fallout (OpenFront's
+    /// estimate for sizing attacks on bots).
+    /// </summary>
+    internal double EstimateTileLoss(Player attacker, Player defender, TerrainType terrain, int coverTenths, double attackTroops)
+    {
+        var (mag, _) = AttackRules.Terrain(terrain);
+        mag *= 1 + (coverTenths / 10.0 - 1) * AttackRules.CoverTroopCostPercent / 100;
+        return AttackerTileLoss(attacker, defender, mag, attackTroops, out _, out _);
     }
 }

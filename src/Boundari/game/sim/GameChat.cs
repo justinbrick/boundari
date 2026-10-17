@@ -52,8 +52,8 @@ public sealed record QuickChatIntent(ushort PlayerId, ushort RecipientId, int Ph
 
 // Emojis and quick chat, as in OpenFront: an emoji shows over the sender's name for 5 s to
 // whoever it was sent to (or everyone); a phrase goes to one player's messages. Nations
-// answer a middle finger in kind (and turn hostile) and a heart with a heart, if they
-// don't mind you.
+// answer a middle finger in kind (and turn hostile), a clown with puzzlement (and like you
+// a little less), and a heart with love if they don't mind you (puzzlement otherwise).
 public sealed partial class Game
 {
     public bool CanSendEmoji(Player from, ushort to)
@@ -98,16 +98,22 @@ public sealed partial class Game
         if (emoji == Emoji.MiddleFinger)
         {
             UpdateRelation(nation, from, -AllianceRules.RelationMax);
-            SendEmoji(nation, from.Id, _rng.RangeInt(0, 1) == 0 ? Emoji.MiddleFinger : Emoji.Crying); // insulted
+            SendEmoji(nation, from.Id, Pick(NationMoods.GotInsulted));
+        }
+        else if (emoji == Emoji.Clown)
+        {
+            UpdateRelation(nation, from, -1_000);
+            SendEmoji(nation, from.Id, Pick(NationMoods.Confused));
         }
         else if (emoji == Emoji.Heart)
         {
             if (Difficulty == Difficulty.Easy)
                 UpdateRelation(nation, from, 1_500);
-            if (RelationOf(from, nation) >= Relation.Neutral) // (OpenFront otherwise answers puzzled: no such emoji here)
-                SendEmoji(nation, from.Id, Emoji.Heart);
+            SendEmoji(nation, from.Id, Pick(RelationOf(from, nation) >= Relation.Neutral ? NationMoods.Love : NationMoods.Confused));
         }
     }
+
+    private Emoji Pick(Emoji[] mood) => mood[_rng.RangeInt(0, mood.Length - 1)];
 
     private void SendQuickChat(Player from, Player to, int phrase)
     {

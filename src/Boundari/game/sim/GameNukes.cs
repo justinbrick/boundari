@@ -480,7 +480,10 @@ public sealed partial class Game
         _tradeShips.RemoveAll(s => DistSq(s.Tile, n.To) < outer2);
         foreach (var b in _boats)
             if (DistSq(b.Tile, n.To) < outer2)
+            {
                 b.Sunk = true;
+                b.SunkBy = n.Owner;
+            }
         _trains.RemoveAll(tr => DistSq(tr.Tiles[(int)Math.Min(tr.Progress / 1000, tr.Tiles.Length - 1)], n.To) < outer2);
 
         _explosions.Add(new Explosion(n.To, n.Type, Tick));

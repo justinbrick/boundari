@@ -1,151 +1,99 @@
-using System;
-using System.Collections.Generic;
 using Boundari.Core;
 
 namespace Boundari.Sim;
 
 /// <summary>
-/// A nation: a proper AI opponent, much stronger than a bot. Every couple of seconds it:
-///   1. Waits until it has a decent share of its troop capacity.
-///   2. If empty land touches its border, expands into it.
-///   3. Otherwise now and then asks neighbours to ally, considers betraying an ally, and
-///      attacks the weakest neighbour that isn't an ally, if clearly stronger than them.
-/// Once a cycle it answers alliance requests (see <see cref="NationAlliances"/>).
-/// Between attacks it builds (see <see cref="NationStructures"/>): three building decisions
-/// per attack cycle, as OpenFront's nations do, and once a cycle it considers bombing
-/// someone (see <see cref="NationNukes"/>). Nations only submit intents, like a human
-/// would, and use their own seeded RNG, so they behave identically on every machine.
+/// A nation: a proper AI opponent, much stronger than a tribe, run like OpenFront's
+/// NationExecution. Right after the spawn phase it pours half its troops into empty land.
+/// Then once per attack cycle (a rhythm rolled per nation, faster on harder difficulties)
+/// it, in OpenFront's order: sends casual emojis, answers alliance requests and renewals,
+/// considers an Atomic Bomb, builds, maybe launches a warship, sets embargoes, attacks
+/// (see <see cref="NationAttacks"/>), counters warship swarms and considers bombing someone.
+/// It also builds a third and two thirds of the way through the cycle, and every tick
+/// follows up its boat landings and bomb strikes and hits back at whoever sinks its ships.
+/// Nations only submit intents, like a human would, and use their own seeded RNG, so they
+/// behave identically on every machine.
 /// </summary>
 internal sealed class NationAi : IPlayerAi
 {
-    private const int MinThinkTicks = 15;
-    private const int MaxThinkTicks = 35;
-
-    // Act once troops reach this share of capacity (percent).
-    private const int ReadyPercent = 30;
-    private const int ExpandRatioPercent = 40;
-    private const int AttackRatioPercent = 50;
-
-    // Attack a neighbour only if our troops per tile beat theirs by this much (percent).
-    private const int AttackAdvantagePercent = 130;
-
     private readonly Game _game;
     private readonly Player _player;
-    private readonly Rng _rng;
     private readonly NationStructures _structures;
     private readonly NationNukes _nukes;
     private readonly NationAlliances _alliances;
-    private int _nextNukeCheck;
-    private int _nextDiplomacy;
-    private readonly int _cycle;
-    private int _nextThink;
-    private int _nextBuild;
-    private readonly int _buildEvery;
+    private readonly NationEmojis _emojis;
+    private readonly NationWarships _warships;
+    private readonly NationAttacks _attacks;
+    private readonly int _attackRate, _attackTick;
+    private bool _started;
 
     public NationAi(Game game, Player player, Rng rng)
     {
         _game = game;
         _player = player;
-        _rng = rng;
-        _structures = new NationStructures(game, player, new Rng(rng.Fork()));
-        _nukes = new NationNukes(game, player, new Rng(rng.Fork()));
-        _alliances = new NationAlliances(game, player, new Rng(rng.Fork()));
-        _nextThink = _rng.RangeInt(0, MaxThinkTicks); // stagger nations so they don't all act at once
 
-        // OpenFront's nation rhythm (an attack cycle, by difficulty), with building decisions
-        // a third of the way through it.
-        int cycle = game.Difficulty switch
+        // Each nation's nerve, rolled once (OpenFront): attack players once troops reach the
+        // trigger share of the cap, never send below the reserve, and keep only the expand
+        // reserve home when grabbing empty land or tribes.
+        double trigger = rng.RangeInt(50, 59) / 100.0;
+        double reserve = rng.RangeInt(30, 39) / 100.0;
+        double expand = rng.RangeInt(10, 19) / 100.0;
+
+        // OpenFront's attack rhythm by difficulty, in ticks.
+        _attackRate = game.Difficulty switch
         {
-            Difficulty.Easy => _rng.RangeInt(65, 99),
-            Difficulty.Medium => _rng.RangeInt(55, 69),
-            Difficulty.Hard => _rng.RangeInt(45, 59),
-            _ => _rng.RangeInt(30, 49),
+            Difficulty.Easy => rng.RangeInt(65, 99),
+            Difficulty.Medium => rng.RangeInt(55, 69),
+            Difficulty.Hard => rng.RangeInt(45, 59),
+            _ => rng.RangeInt(30, 49),
         };
-        _cycle = cycle;
-        _buildEvery = Math.Max(1, cycle / 3);
-        _nextBuild = _rng.RangeInt(0, _buildEvery);
-        _nextNukeCheck = _rng.RangeInt(0, cycle);
-        _nextDiplomacy = _rng.RangeInt(0, cycle);
+        _attackTick = rng.RangeInt(0, _attackRate - 1);
+
+        _emojis = new NationEmojis(game, player, new Rng(rng.Fork()));
+        _structures = new NationStructures(game, player, new Rng(rng.Fork()));
+        _nukes = new NationNukes(game, player, new Rng(rng.Fork()), _emojis);
+        _alliances = new NationAlliances(game, player, new Rng(rng.Fork()), _emojis);
+        _warships = new NationWarships(game, player, new Rng(rng.Fork()), _emojis);
+        _attacks = new NationAttacks(game, player, new Rng(rng.Fork()), trigger, reserve, expand, _alliances, _emojis, _warships);
     }
 
     public void Think()
     {
         if (!_player.HasSpawned || !_player.IsAlive || _game.Phase != GamePhase.Running)
             return;
-        if (_game.Tick >= _nextNukeCheck) // once per attack cycle, like OpenFront's nations
+        if (!_started)
         {
-            _nextNukeCheck = _game.Tick + _cycle;
-            _nukes.ConsiderTsarBomba();
-            _nukes.MaybeSendNuke();
-        }
-        if (_game.Tick >= _nextDiplomacy) // once per attack cycle, like OpenFront's nations
-        {
-            _nextDiplomacy = _game.Tick + _cycle;
-            _alliances.HandleRequests();
-            _alliances.HandleRenewals();
-            _alliances.HandleEmbargoes();
-        }
-        if (_game.Tick >= _nextBuild)
-        {
-            _nextBuild = _game.Tick + _buildEvery;
-            _structures.Handle();
-        }
-        if (_game.Tick >= _nextThink)
-        {
-            _nextThink = _game.Tick + _rng.RangeInt(MinThinkTicks, MaxThinkTicks);
-            Attack();
-        }
-    }
-
-    private void Attack()
-    {
-        if (_player.Troops * 100 < _player.MaxTroops * ReadyPercent)
-            return;
-
-        // Look along the border: is there empty land, and who are the neighbours?
-        bool emptyLandNearby = false;
-        Span<int> nb = stackalloc int[4];
-        foreach (int tile in _player.Border)
-        {
-            int count = _game.LandNeighbours(tile, nb);
-            for (int k = 0; k < count && !emptyLandNearby; k++)
-                emptyLandNearby = _game.Owner[nb[k]] == Game.Nobody;
-            if (emptyLandNearby)
-                break;
-        }
-        if (emptyLandNearby)
-        {
-            _game.Submit(new AttackIntent(_player.Id, Game.Nobody, ExpandRatioPercent));
+            _started = true;
+            _attacks.FirstExpansion();
             return;
         }
 
-        // Neighbours: allies (maybe betrayed) and everyone else (maybe asked to ally, or attacked).
-        var bordering = _game.BorderingPlayers(_player);
-        var enemies = new List<Player>();
-        foreach (var other in bordering)
-        {
-            if (_player.IsAlliedWith(other))
-                _alliances.MaybeBetray(other, bordering.Count);
-            else
-                enemies.Add(other);
-        }
-        if (enemies.Count > 0)
-            _alliances.MaybeSendRequests(enemies);
+        // Every tick.
+        if (_game.Difficulty != Difficulty.Easy && _player.Constructed[(int)BuildingType.Port] > 0)
+            _warships.TrackShipsAndRetaliate();
+        _attacks.FollowUpLandings();
+        _nukes.FollowUpStrikes(_attacks);
 
-        ushort weakest = Game.Nobody;
-        long weakestDensity = long.MaxValue;
-        foreach (var other in enemies)
+        int offset = _game.Tick % _attackRate;
+        if (offset != _attackTick)
         {
-            long density = other.Troops / Math.Max(1, other.TileCount);
-            if (density < weakestDensity)
-            {
-                weakestDensity = density;
-                weakest = other.Id;
-            }
+            // Build twice more between attack cycles (a third and two thirds through), or
+            // the nation earns more gold than it can spend.
+            if (offset == (_attackTick + _attackRate / 3) % _attackRate
+                || offset == (_attackTick + _attackRate * 2 / 3) % _attackRate)
+                _structures.Handle();
+            return;
         }
 
-        long myDensity = _player.Troops / Math.Max(1, _player.TileCount);
-        if (weakest != Game.Nobody && myDensity * 100 >= weakestDensity * AttackAdvantagePercent)
-            _game.Submit(new AttackIntent(_player.Id, weakest, AttackRatioPercent));
+        _emojis.MaybeSendCasualEmoji();
+        _alliances.HandleRequests();
+        _alliances.HandleRenewals();
+        _nukes.ConsiderTsarBomba();
+        _structures.Handle();
+        _warships.MaybeSpawnWarship();
+        _alliances.HandleEmbargoes();
+        _attacks.MaybeAttack();
+        _warships.CounterWarshipInfestation();
+        _nukes.MaybeSendNuke();
     }
 }
