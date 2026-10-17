@@ -98,6 +98,7 @@ public partial class TerritoryLabels : Node2D
         // where letter strokes overlap. To stay crisp at any zoom, text is laid out at the
         // nearest of a set of fixed sizes instead (see Bucket).
         _baseFont = ThemeDB.FallbackFont;
+        TextureFilter = TextureFilterEnum.LinearWithMipmaps; // the icons above names shrink a long way
     }
 
     public void SetGame(Game game)
@@ -420,26 +421,68 @@ public partial class TerritoryLabels : Node2D
     }
 
     // ------------------------------------------------------------------
-    //  Tags above names (placeholders for OpenFront's icons)
+    //  Icons above names (the user's ui/tags128x; OpenFront's status icons)
     // ------------------------------------------------------------------
 
-    private const float TagHeight = 0.75f;  // as a share of the name's capitals
-    private const float TagGap = 0.3f;      // between the tags and the name, likewise
-    private static readonly Color LeaderTag = new(0.85f, 0.66f, 0.12f);
-    private static readonly Color AllyTag = new(0.24f, 0.62f, 0.3f);
-    private static readonly Color RequestTag = new(0.36f, 0.56f, 0.36f);
-    private static readonly Color TraitorTag = new(0.78f, 0.18f, 0.16f);
-    private static readonly Color BombTag = new(0.3f, 0.3f, 0.32f);
-    private static readonly Color EmbargoTag = new(0.55f, 0.36f, 0.12f);
-    private static readonly Color TargetTag = new(0.86f, 0.24f, 0.2f);
-    private static readonly Color BombAtMeTag = new(0.85f, 0.2f, 0.15f);
+    private const float TagHeight = 1.2f;    // as a share of the name's capitals (as tall as the flag)
+    private const float TagGap = 0.3f;       // between the icons and the name, likewise
+    private const float TagSpacing = 0.15f;  // between icons, as a share of an icon (OpenFront)
+    private const float TagOutline = 0.035f; // dark outline around each icon, as a share of it
+    private const float AllyFaded = 0.3f;    // the drained part of the alliance icon
+    private static readonly Color BombTag = new(0.9f, 0.16f, 0.12f);     // bombs in the air: always red
+    private static readonly Color TraitorTag = new(0.78f, 0.18f, 0.16f); // text stand-in until there's an icon
+    private static readonly Color TagOutlineColour = new(0, 0, 0, 0.3f);
+
+    /// <summary>The icons, left to right in OpenFront's order. Each is ui/tags128x/FILE128x.svg.</summary>
+    private enum Tag { Leader, Traitor, Ally, Request, Target, Embargo, Bombs }
+    private static readonly string[] TagFiles = { "crown", "traitor", "alliance", "request", "target", "embargo", "bombing" };
+
+    /// <summary>One icon in the row: tint, how full it is (alliance drain; 1 = full), how visible (flashing).</summary>
+    private readonly record struct TagItem(Tag Tag, Color Tint, float Fill, float Alpha);
+
+    /// <summary>Screenshot aid (--tags): every name shows every icon, the alliance one part drained.</summary>
+    public bool PreviewAllTags { get; set; }
 
     private ushort _leader;
-    private readonly Dictionary<ushort, bool> _bombers = new(); // player with bombs in the air: aimed at me?
-    private readonly List<(string Text, Color Colour)> _tags = new();
+    private readonly HashSet<ushort> _bombers = new(); // players with bombs in the air
+    private readonly List<TagItem> _tags = new();
     private readonly StyleBoxFlat _tagBox = new() { AntiAliasing = true };
+    private readonly (Texture2D? Texture, float Top, float Bottom)[] _tagIcons = new (Texture2D?, float, float)[TagFiles.Length];
+    private bool _tagIconsLoaded;
 
-    /// <summary>Once per draw: who leads, and who has bombs in the air (and whether any are coming at me).</summary>
+    /// <summary>Loads the icons that exist (a missing one shows as a text tag), and where each one's picture starts and ends.</summary>
+    private void LoadTagIcons()
+    {
+        _tagIconsLoaded = true;
+        for (int i = 0; i < TagFiles.Length; i++)
+        {
+            string path = $"res://ui/tags128x/{TagFiles[i]}128x.svg";
+            var texture = ResourceLoader.Exists(path) ? GD.Load<Texture2D>(path) : null;
+            float top = 0, bottom = 1;
+            if (texture?.GetImage() is { } image && !image.IsCompressed())
+            {
+                // The alliance icon drains from the top of its picture to the bottom, so find them.
+                int h = image.GetHeight(), w = image.GetWidth(), first = -1, last = -1;
+                for (int y = 0; y < h; y++)
+                    for (int x = 0; x < w; x++)
+                        if (image.GetPixel(x, y).A > 0.1f)
+                        {
+                            if (first < 0)
+                                first = y;
+                            last = y;
+                            break;
+                        }
+                if (first >= 0)
+                {
+                    top = first / (float)h;
+                    bottom = (last + 1) / (float)h;
+                }
+            }
+            _tagIcons[i] = (texture, top, bottom);
+        }
+    }
+
+    /// <summary>Once per draw: who leads, and who has bombs in the air.</summary>
     private void GatherTagFacts()
     {
         _leader = 0;
@@ -452,66 +495,133 @@ public partial class TerritoryLabels : Node2D
             }
         _bombers.Clear();
         foreach (var nuke in _game.Nukes)
-        {
-            if (nuke.Gone)
-                continue;
-            bool atMe = Me is not null && _game.Owner[nuke.To] == Me.Id;
-            _bombers[nuke.Owner.Id] = atMe || _bombers.GetValueOrDefault(nuke.Owner.Id);
-        }
+            if (!nuke.Gone)
+                _bombers.Add(nuke.Owner.Id);
     }
 
-    /// <summary>Small coloured tags in a row, centred above the name: leader, ally, wants to ally, traitor, embargo, target, bombs.</summary>
+    /// <summary>OpenFront's warning flash: 30-100% visible, pulsing faster (2 to 5 times a second) as the time runs out.</summary>
+    private static float Flash(float secondsLeft, float window, float ramp)
+    {
+        if (secondsLeft <= 0 || secondsLeft > window)
+            return 1;
+        float elapsed = window - secondsLeft;
+        double phase = Time.GetTicksMsec() / 1000.0 * 2 + elapsed * elapsed * ramp;
+        return 0.3f + 0.7f * (0.5f + 0.5f * MathF.Cos((float)(phase * Math.Tau)));
+    }
+
+    /// <summary>
+    /// A row of icons centred above the name (OpenFront's): leader, traitor, ally (drains as
+    /// the alliance runs out and flashes in its last 30 s), wants to ally, target, embargo
+    /// (either way), bombs in the air.
+    /// </summary>
     private void DrawTags(Player player, Vector2 bottomCentre, float height, float zoom, float alpha)
     {
+        if (!_tagIconsLoaded)
+            LoadTagIcons();
         _tags.Clear();
-        if (player.Id == _leader)
-            _tags.Add(("LEADER", LeaderTag));
-        if (Me is not null && player != Me)
+        var white = Colors.White;
+        var game = _game!;
+        float tps = Balance.TicksPerSecond;
+        if (PreviewAllTags)
         {
-            if (Me.IsAlliedWith(player))
-                _tags.Add(("ALLY", AllyTag));
-            else if (_game!.PendingRequest(player, Me) is not null)
-                _tags.Add(("WANTS ALLIANCE", RequestTag));
+            foreach (Tag t in Enum.GetValues<Tag>())
+                _tags.Add(new TagItem(t, t == Tag.Bombs ? BombTag : white, t == Tag.Ally ? 0.45f : 1, 1));
         }
-        if (_game!.IsTraitor(player))
-            _tags.Add(("TRAITOR", TraitorTag));
-        if (Me is not null && player != Me)
+        else
         {
-            if (_game.HasEmbargo(Me, player))
-                _tags.Add(("EMBARGOED", EmbargoTag));
-            else if (_game.HasEmbargo(player, Me))
-                _tags.Add(("EMBARGOES YOU", EmbargoTag));
-            if (_game.IsMarkedFor(Me, player))
-                _tags.Add(("TARGET", TargetTag));
+            if (player.Id == _leader)
+                _tags.Add(new TagItem(Tag.Leader, white, 1, 1));
+            if (game.IsTraitor(player))
+                _tags.Add(new TagItem(Tag.Traitor, white, 1, Flash((player.TraitorUntilTick - game.Tick) / tps, 15, 0.1f)));
+            if (Me is not null && player != Me)
+            {
+                if (game.AllianceBetween(Me, player) is { } alliance)
+                {
+                    int left = alliance.ExpiresTick - game.Tick;
+                    float window = AllianceRules.RenewWindowTicks / tps;
+                    _tags.Add(new TagItem(Tag.Ally, white, Math.Clamp(left / (float)AllianceRules.DurationTicks, 0, 1),
+                        Flash(left / tps, window, 1.5f / window)));
+                }
+                else if (game.PendingRequest(player, Me) is not null)
+                    _tags.Add(new TagItem(Tag.Request, white, 1, 1));
+                if (game.IsMarkedFor(Me, player))
+                    _tags.Add(new TagItem(Tag.Target, white, 1, 1));
+                if (game.HasEmbargo(Me, player) || game.HasEmbargo(player, Me))
+                    _tags.Add(new TagItem(Tag.Embargo, white, 1, 1));
+            }
+            if (player != Me && _bombers.Contains(player.Id))
+                _tags.Add(new TagItem(Tag.Bombs, BombTag, 1, 1));
         }
-        if (player != Me && _bombers.TryGetValue(player.Id, out bool atMe))
-            _tags.Add((atMe ? "BOMBING YOU" : "BOMBS", atMe ? BombAtMeTag : BombTag));
         // An emoji they sent you (or everyone) floats above it all for a few seconds, like OpenFront's.
-        if (_game.ShownEmoji(player, Me) is { } emoji)
+        if (game.ShownEmoji(player, Me) is { } emoji)
             DrawEmoji(ChatRules.Glyph(emoji), new Vector2(bottomCentre.X, bottomCentre.Y - (_tags.Count > 0 ? height * 1.3f : 0)), height * 3f, zoom, alpha);
         if (_tags.Count == 0)
             return;
 
-        // Laid out at a whole font size near its size on screen, then scaled, like the names.
+        // Icons are squares; one without a picture yet (traitor) is a text tag, laid out at a
+        // whole font size near its size on screen, then scaled, like the names.
         float textHeight = height * 0.62f;
         int px = Bucket(textHeight * zoom);
         float s = textHeight / px;
         var font = ThemeDB.FallbackFont;
-        float pad = px * 0.45f, gap = px * 0.35f, boxHeight = height / s;
-        float total = -gap;
-        foreach (var (t, _) in _tags)
-            total += font.GetStringSize(t, HorizontalAlignment.Left, -1, px).X + pad * 2 + gap;
-        DrawSetTransform(new Vector2(bottomCentre.X - total * s / 2, bottomCentre.Y - height), 0, new Vector2(s, s));
-        float x = 0;
-        _tagBox.SetCornerRadiusAll((int)(boxHeight * 0.3f));
-        foreach (var (t, colour) in _tags)
+        float pad = px * 0.45f * s;
+        float gap = height * TagSpacing, total = -gap;
+        foreach (var tag in _tags)
+            total += TagWidth(tag.Tag, height, font, px, s, pad) + gap;
+        float x = bottomCentre.X - total / 2, y = bottomCentre.Y - height;
+        DrawSetTransform(Vector2.Zero, 0, Vector2.One); // (the name and emoji leave theirs set)
+        foreach (var tag in _tags)
         {
-            float w = font.GetStringSize(t, HorizontalAlignment.Left, -1, px).X + pad * 2;
-            _tagBox.BgColor = new Color(colour, 0.9f * alpha);
-            DrawStyleBox(_tagBox, new Rect2(x, 0, w, boxHeight));
-            DrawString(font, new Vector2(x + pad, boxHeight / 2 + px * 0.36f), t, HorizontalAlignment.Left, -1, px, new Color(1, 1, 1, alpha));
+            float w = TagWidth(tag.Tag, height, font, px, s, pad);
+            float a = alpha * tag.Alpha;
+            var (texture, top, bottom) = _tagIcons[(int)tag.Tag];
+            if (texture is null)
+            {
+                DrawSetTransform(new Vector2(x, y), 0, new Vector2(s, s));
+                _tagBox.SetCornerRadiusAll((int)(height / s * 0.3f));
+                _tagBox.BgColor = new Color(TraitorTag, 0.9f * a);
+                DrawStyleBox(_tagBox, new Rect2(0, 0, w / s, height / s));
+                DrawString(font, new Vector2(pad / s, height / s / 2 + px * 0.36f), TagFiles[(int)tag.Tag].ToUpperInvariant(),
+                    HorizontalAlignment.Left, -1, px, new Color(1, 1, 1, a));
+                DrawSetTransform(Vector2.Zero, 0, Vector2.One);
+            }
+            else
+                DrawTagIcon(texture, new Rect2(x, y, height, height), tag.Tint, a, tag.Fill, top, bottom);
             x += w + gap;
         }
+    }
+
+    private float TagWidth(Tag tag, float height, Font font, int px, float s, float pad) =>
+        _tagIcons[(int)tag].Texture is null
+            ? font.GetStringSize(TagFiles[(int)tag].ToUpperInvariant(), HorizontalAlignment.Left, -1, px).X * s + pad * 2
+            : height;
+
+    /// <summary>
+    /// One icon with a thin dark outline so it reads on any colour. Below the fill line it's
+    /// solid, above it faded (OpenFront's alliance drain: it empties from the top down).
+    /// </summary>
+    private void DrawTagIcon(Texture2D texture, Rect2 at, Color tint, float alpha, float fill, float top, float bottom)
+    {
+        float o = at.Size.Y * TagOutline;
+        var outline = new Color(TagOutlineColour, TagOutlineColour.A * alpha);
+        for (int i = 0; i < 8; i++)
+        {
+            float angle = i * MathF.PI / 4;
+            DrawTextureRect(texture, new Rect2(at.Position + new Vector2(MathF.Cos(angle), MathF.Sin(angle)) * o, at.Size), false, outline);
+        }
+        var solid = new Color(tint, tint.A * alpha);
+        if (fill >= 1)
+        {
+            DrawTextureRect(texture, at, false, solid);
+            return;
+        }
+        float cut = top + (1 - fill) * (bottom - top); // share of the icon's height that has drained
+        var size = texture.GetSize();
+        float cutY = at.Size.Y * cut;
+        DrawTextureRectRegion(texture, new Rect2(at.Position, new Vector2(at.Size.X, cutY)),
+            new Rect2(0, 0, size.X, size.Y * cut), new Color(tint, tint.A * alpha * AllyFaded));
+        DrawTextureRectRegion(texture, new Rect2(at.Position + new Vector2(0, cutY), new Vector2(at.Size.X, at.Size.Y - cutY)),
+            new Rect2(0, size.Y * cut, size.X, size.Y * (1 - cut)), solid);
     }
 
     /// <summary>An emoji this tall, its bottom middle at the given point.</summary>

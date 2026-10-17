@@ -47,6 +47,7 @@ namespace Boundari;
 ///   --bench=SECONDS    run flat out (no vsync), print where frame time goes every 2 s, then quit
 ///   --showcase         (testing) after --autoplay: build one of everything and launch a boat;
 ///                      --showcase=nukes[:N] also fires a MOAB, Fat Man and Tsar Bomba, then runs N ticks
+///   --tags             (testing) every name shows every icon above it (alliance one part drained)
 ///   --hover=X,Y        pretend the mouse is over this map point (0..1 fractions), for screenshots;
 ///                      --hover=leader hovers the biggest player
 /// </summary>
@@ -921,6 +922,7 @@ public partial class World : Node2D
 
         if (_args.AllyRequests > 0)
             AskForAlliances(_args.AllyRequests);
+        _labels.PreviewAllTags = _args.Tags;
 
         _view.SetOwners(_game.Owner, _game.Fallout);
         _shownTick = _game.Tick;
@@ -1143,7 +1145,7 @@ public partial class World : Node2D
 
     private record struct Args(string? Map, ulong? Seed, int? Bots, int? Nations, Difficulty? Difficulty, bool NoCheats, double? Bench, string? Dev, bool Autoplay, int Ticks,
         float Zoom, Vector2? Focus, string? Screenshot, bool Perf, Vector2? Hover, bool HoverLeader, bool Showcase, string? ShowcaseFocus,
-        string? Start = null, int AllyRequests = 0, string? RightClick = null, string? Aim = null, bool Incoming = false);
+        string? Start = null, int AllyRequests = 0, string? RightClick = null, string? Aim = null, bool Incoming = false, bool Tags = false);
 
     private static Args ParseArgs()
     {
@@ -1175,6 +1177,7 @@ public partial class World : Node2D
                 case "perf": args.Perf = true; break;
                 case "start": args.Start = value; break;             // now / mid / ask
                 case "ally-requests": args.AllyRequests = int.Parse(value, inv); break;
+                case "tags": args.Tags = true; break; // (testing) every name shows every icon above it
                 case "incoming": args.Incoming = true; break; // (testing) a neighbour attacks you, to show the incoming tabs
                 case "aim": args.Aim = value; break; // (testing) "moab"/"fatman": aim at the biggest other nation, screen centred on the arc
                 case "right-click": args.RightClick = value; break; // "requester": right-click whoever asked us to ally (screenshots)
