@@ -36,12 +36,11 @@
 [ext_resource type="FontFile" uid="uid://dd2fj5b2vxjq3" path="res://fonts/Exo2-VariableFont_wght.ttf" id="26_o5262"]
 [ext_resource type="Texture2D" uid="uid://c1vpn4q1hgmy" path="res://ui/structures32x/silo32x.svg" id="26_y52gj"]
 [ext_resource type="StyleBox" uid="uid://87tv1ew5gomp" path="res://uibox_hover.tres" id="27_exfoo"]
-[ext_resource type="Texture2D" uid="uid://be58xx6c0v8vm" path="res://ui/small_icons_new/sam.svg" id="27_g4pvr"]
-[ext_resource type="Texture2D" uid="uid://d4je46sfrcpyh" path="res://ui/small_icons_new/sam2.svg" id="28_3vkhs"]
 [ext_resource type="StyleBox" uid="uid://clujkxr4o5sio" path="res://uibox_focus.tres" id="28_l6ikw"]
 [ext_resource type="Texture2D" uid="uid://igcvuy07uq6w" path="res://ui/slider_tri.svg" id="31_l6ikw"]
 [ext_resource type="FontFile" uid="uid://ci8nr7avpib2x" path="res://fonts/TangoSans.ttf" id="32_8yhk8"]
-[ext_resource type="Texture2D" uid="uid://betmlapqklvky" path="res://ui/structures32x/defense32x.svg" id="42_jqbn1"]
+[ext_resource type="Texture2D" uid="uid://6v3qwq6bi1wv" path="res://ui/structures32x/flak32x.svg" id="38_jqbn1"]
+[ext_resource type="Texture2D" uid="uid://6il3gvjn418q" path="res://ui/structures32x/warship32x.svg" id="39_exfoo"]
 [ext_resource type="Texture2D" uid="uid://bh3mr7hdor5yr" path="res://ui/flags - small/us.png" id="48_exfoo"]
 [ext_resource type="FontFile" uid="uid://clvp4a332psib" path="res://fonts/OldSansBlack.ttf" id="49_5khtq"]
 [ext_resource type="StyleBox" uid="uid://dn15gdf8pbc1k" path="res://info_box.tres" id="49_exfoo"]
@@ -409,19 +408,6 @@ corner_radius_bottom_left = 6
 base_font = ExtResource("49_5khtq")
 spacing_glyph = 1
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ud2h5"]
-bg_color = Color(0, 0, 0, 0.17254902)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(2.051, 2.051, 2.051, 0.055)
-border_blend = true
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
-
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_exfoo"]
 bg_color = Color(0, 0, 0, 0.16470589)
 border_width_left = 2
@@ -436,6 +422,19 @@ corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
 
 [sub_resource type="FontVariation" id="FontVariation_j4h4s"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ud2h5"]
+bg_color = Color(0, 0, 0, 0.17254902)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(2.051, 2.051, 2.051, 0.055)
+border_blend = true
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_j54ir"]
 bg_color = Color(0, 0, 0, 0.17254902)
@@ -882,7 +881,6 @@ script = ExtResource("bw_world")
 visible = false
 position = Vector2(957, 539)
 texture = ExtResource("2_mwd57")
-metadata/_edit_lock_ = true
 
 [node name="TNameMockup" type="Label" parent="TestImage" unique_id=1976942347]
 offset_left = 137.0
@@ -2515,7 +2513,7 @@ grow_horizontal = 2
 grow_vertical = 2
 metadata/_edit_use_anchors_ = true
 
-[node name="HBoxContainer2" type="HBoxContainer" parent="Main_Layer/Main_Control/Large_Rect" unique_id=2143835183]
+[node name="Large_HBox" type="HBoxContainer" parent="Main_Layer/Main_Control/Large_Rect" unique_id=2143835183]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -2525,27 +2523,31 @@ grow_vertical = 2
 theme_override_constants/separation = 0
 alignment = 1
 
-[node name="MarginContainer7" type="MarginContainer" parent="Main_Layer/Main_Control/Large_Rect/HBoxContainer2" unique_id=1983938450]
+[node name="MarginContainer7" type="MarginContainer" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox" unique_id=1983938450]
 custom_minimum_size = Vector2(230, 0)
 layout_mode = 2
 
-[node name="HBox_Player" type="HBoxContainer" parent="Main_Layer/Main_Control/Large_Rect/HBoxContainer2" unique_id=196481694]
+[node name="Left_HBox" type="HBoxContainer" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox" unique_id=479187542]
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="HBox_Player" type="HBoxContainer" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox/Left_HBox" unique_id=196481694]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="VBoxContainer" type="VBoxContainer" parent="Main_Layer/Main_Control/Large_Rect/HBoxContainer2/HBox_Player" unique_id=338285954]
+[node name="VBoxContainer" type="VBoxContainer" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox/Left_HBox/HBox_Player" unique_id=338285954]
 layout_mode = 2
 theme_override_constants/separation = 0
 alignment = 1
 
-[node name="TroopMeter" type="Panel" parent="Main_Layer/Main_Control/Large_Rect/HBoxContainer2/HBox_Player" unique_id=627797902]
+[node name="TroopMeter" type="Panel" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox/Left_HBox/HBox_Player" unique_id=627797902]
 custom_minimum_size = Vector2(400, 40)
 layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 4
 theme_override_styles/panel = SubResource("StyleBoxFlat_7iv60")
 
-[node name="HBoxContainer" type="HBoxContainer" parent="Main_Layer/Main_Control/Large_Rect/HBoxContainer2/HBox_Player/TroopMeter" unique_id=523836060]
+[node name="HBoxContainer" type="HBoxContainer" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox/Left_HBox/HBox_Player/TroopMeter" unique_id=523836060]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -2554,11 +2556,11 @@ grow_horizontal = 2
 grow_vertical = 2
 alignment = 1
 
-[node name="MarginContainer2" type="MarginContainer" parent="Main_Layer/Main_Control/Large_Rect/HBoxContainer2/HBox_Player/TroopMeter/HBoxContainer" unique_id=351144396]
+[node name="MarginContainer2" type="MarginContainer" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox/Left_HBox/HBox_Player/TroopMeter/HBoxContainer" unique_id=351144396]
 custom_minimum_size = Vector2(8, 0)
 layout_mode = 2
 
-[node name="Current_Troops" type="Label" parent="Main_Layer/Main_Control/Large_Rect/HBoxContainer2/HBox_Player/TroopMeter/HBoxContainer" unique_id=1005116810]
+[node name="Current_Troops" type="Label" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox/Left_HBox/HBox_Player/TroopMeter/HBoxContainer" unique_id=1005116810]
 layout_mode = 2
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.09803922)
 theme_override_constants/shadow_offset_x = 2
@@ -2568,11 +2570,11 @@ theme_override_font_sizes/font_size = 18
 text = "140K"
 vertical_alignment = 1
 
-[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_Control/Large_Rect/HBoxContainer2/HBox_Player/TroopMeter/HBoxContainer" unique_id=1324746132]
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox/Left_HBox/HBox_Player/TroopMeter/HBoxContainer" unique_id=1324746132]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="Max_Troops" type="Label" parent="Main_Layer/Main_Control/Large_Rect/HBoxContainer2/HBox_Player/TroopMeter/HBoxContainer" unique_id=1217688286]
+[node name="Max_Troops" type="Label" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox/Left_HBox/HBox_Player/TroopMeter/HBoxContainer" unique_id=1217688286]
 layout_mode = 2
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.09803922)
 theme_override_constants/shadow_offset_x = 2
@@ -2583,18 +2585,110 @@ text = "241K"
 horizontal_alignment = 2
 vertical_alignment = 1
 
-[node name="MarginContainer3" type="MarginContainer" parent="Main_Layer/Main_Control/Large_Rect/HBoxContainer2/HBox_Player/TroopMeter/HBoxContainer" unique_id=464346674]
+[node name="MarginContainer3" type="MarginContainer" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox/Left_HBox/HBox_Player/TroopMeter/HBoxContainer" unique_id=464346674]
 custom_minimum_size = Vector2(8, 0)
 layout_mode = 2
 
-[node name="Panel_Cash" type="Panel" parent="Main_Layer/Main_Control/Large_Rect/HBoxContainer2/HBox_Player" unique_id=1519200726]
+[node name="MarginContainer2" type="MarginContainer" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox" unique_id=1068248841]
+custom_minimum_size = Vector2(16, 0)
+layout_mode = 2
+
+[node name="Panel_Notif" type="Button" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox" unique_id=1393839105]
+custom_minimum_size = Vector2(350, 45)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_styles/normal = ExtResource("10_tqtv8")
+theme_override_styles/pressed = ExtResource("26_jqbn1")
+theme_override_styles/hover = ExtResource("27_exfoo")
+theme_override_styles/focus = ExtResource("28_l6ikw")
+
+[node name="Label_No_Notif" type="Label" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox/Panel_Notif" unique_id=1445542100]
+modulate = Color(18.892157, 18.892157, 18.892157, 0.19607843)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -46.0
+offset_top = -9.0
+offset_right = 46.0
+offset_bottom = 9.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 14
+text = "Notifications..."
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Label_Notif_Example" type="Label" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox/Panel_Notif" unique_id=1465012151]
+visible = false
+modulate = Color(18.892157, 18.892157, 18.892157, 0.7058824)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -109.5
+offset_top = -10.0
+offset_right = 109.5
+offset_bottom = 10.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 14
+text = "Alliance request sent to Czechia."
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ColorRect" type="Panel" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox/Panel_Notif" unique_id=1533184266]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.88285714
+anchor_top = 0.1
+anchor_right = 0.98285717
+anchor_bottom = 0.87777776
+grow_horizontal = 0
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_exfoo")
+metadata/_edit_use_anchors_ = true
+
+[node name="Label_Notif_Queue" type="Label" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox/Panel_Notif/ColorRect" unique_id=1736950011]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -4.5
+offset_top = -13.0
+offset_right = 4.5
+offset_bottom = 11.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
+theme_override_fonts/font = SubResource("FontVariation_j4h4s")
+theme_override_font_sizes/font_size = 15
+text = "4"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="MarginContainer5" type="MarginContainer" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox" unique_id=137043134]
+custom_minimum_size = Vector2(16, 0)
+layout_mode = 2
+
+[node name="Right_HBox" type="HBoxContainer" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox" unique_id=1522015996]
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="Panel_Cash" type="Panel" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox/Right_HBox" unique_id=1519200726]
 custom_minimum_size = Vector2(120, 40)
 layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 4
 theme_override_styles/panel = SubResource("StyleBoxFlat_ud2h5")
 
-[node name="Label_Cash" type="Label" parent="Main_Layer/Main_Control/Large_Rect/HBoxContainer2/HBox_Player/Panel_Cash" unique_id=577514735]
+[node name="Label_Cash" type="Label" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox/Right_HBox/Panel_Cash" unique_id=577514735]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -2616,102 +2710,18 @@ text = "$3.87M"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="MarginContainer2" type="MarginContainer" parent="Main_Layer/Main_Control/Large_Rect/HBoxContainer2" unique_id=1068248841]
+[node name="MarginContainer8" type="MarginContainer" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox/Right_HBox" unique_id=401006008]
 custom_minimum_size = Vector2(16, 0)
 layout_mode = 2
 
-[node name="Panel_Notif" type="Button" parent="Main_Layer/Main_Control/Large_Rect/HBoxContainer2" unique_id=1393839105]
-custom_minimum_size = Vector2(350, 45)
-layout_mode = 2
-size_flags_vertical = 4
-theme_override_styles/normal = ExtResource("10_tqtv8")
-theme_override_styles/pressed = ExtResource("26_jqbn1")
-theme_override_styles/hover = ExtResource("27_exfoo")
-theme_override_styles/focus = ExtResource("28_l6ikw")
-
-[node name="Label_No_Notif" type="Label" parent="Main_Layer/Main_Control/Large_Rect/HBoxContainer2/Panel_Notif" unique_id=1445542100]
-modulate = Color(18.892157, 18.892157, 18.892157, 0.19607843)
-layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -46.0
-offset_top = -9.0
-offset_right = 46.0
-offset_bottom = 9.0
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_font_sizes/font_size = 14
-text = "Notifications..."
-horizontal_alignment = 1
-vertical_alignment = 1
-
-[node name="Label_Notif_Example" type="Label" parent="Main_Layer/Main_Control/Large_Rect/HBoxContainer2/Panel_Notif" unique_id=1465012151]
-visible = false
-modulate = Color(18.892157, 18.892157, 18.892157, 0.7058824)
-layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -109.5
-offset_top = -10.0
-offset_right = 109.5
-offset_bottom = 10.0
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_font_sizes/font_size = 14
-text = "Alliance request sent to Czechia."
-horizontal_alignment = 1
-vertical_alignment = 1
-
-[node name="ColorRect" type="Panel" parent="Main_Layer/Main_Control/Large_Rect/HBoxContainer2/Panel_Notif" unique_id=1533184266]
-layout_mode = 1
-anchors_preset = -1
-anchor_left = 0.88285714
-anchor_top = 0.1
-anchor_right = 0.98285717
-anchor_bottom = 0.87777776
-grow_horizontal = 0
-grow_vertical = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_exfoo")
-metadata/_edit_use_anchors_ = true
-
-[node name="Label_Notif_Queue" type="Label" parent="Main_Layer/Main_Control/Large_Rect/HBoxContainer2/Panel_Notif/ColorRect" unique_id=1736950011]
-layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -4.5
-offset_top = -13.0
-offset_right = 4.5
-offset_bottom = 11.0
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
-theme_override_fonts/font = SubResource("FontVariation_j4h4s")
-theme_override_font_sizes/font_size = 15
-text = "4"
-horizontal_alignment = 1
-vertical_alignment = 1
-
-[node name="MarginContainer5" type="MarginContainer" parent="Main_Layer/Main_Control/Large_Rect/HBoxContainer2" unique_id=137043134]
-custom_minimum_size = Vector2(16, 0)
-layout_mode = 2
-
-[node name="Structures" type="Panel" parent="Main_Layer/Main_Control/Large_Rect/HBoxContainer2" unique_id=1397475867]
+[node name="Structures" type="Panel" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox/Right_HBox" unique_id=1397475867]
 custom_minimum_size = Vector2(400, 40)
 layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 4
 theme_override_styles/panel = SubResource("StyleBoxFlat_j54ir")
 
-[node name="HBoxContainer2" type="HBoxContainer" parent="Main_Layer/Main_Control/Large_Rect/HBoxContainer2/Structures" unique_id=502056775]
+[node name="HBoxContainer2" type="HBoxContainer" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox/Right_HBox/Structures" unique_id=502056775]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -2721,15 +2731,15 @@ grow_vertical = 2
 theme_override_constants/separation = 5
 alignment = 1
 
-[node name="MarginContainer6" type="MarginContainer" parent="Main_Layer/Main_Control/Large_Rect/HBoxContainer2/Structures/HBoxContainer2" unique_id=1751698020]
+[node name="MarginContainer6" type="MarginContainer" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2" unique_id=1751698020]
 custom_minimum_size = Vector2(24, 0)
 layout_mode = 2
 
-[node name="HBox_Harbour" type="HBoxContainer" parent="Main_Layer/Main_Control/Large_Rect/HBoxContainer2/Structures/HBoxContainer2" unique_id=1451971565]
+[node name="HBox_Harbour" type="HBoxContainer" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2" unique_id=1451971565]
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_Control/Large_Rect/HBoxContainer2/Structures/HBoxContainer2/HBox_Harbour" unique_id=1232444700]
+[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2/HBox_Harbour" unique_id=1232444700]
 modulate = Color(1, 1, 1, 0.3137255)
 custom_minimum_size = Vector2(20, 20)
 layout_mode = 2
@@ -2738,22 +2748,22 @@ size_flags_vertical = 4
 texture = ExtResource("23_fruhh")
 expand_mode = 1
 
-[node name="Label" type="Label" parent="Main_Layer/Main_Control/Large_Rect/HBoxContainer2/Structures/HBoxContainer2/HBox_Harbour" unique_id=704689997]
+[node name="Label" type="Label" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2/HBox_Harbour" unique_id=704689997]
 modulate = Color(1, 1, 1, 0.27450982)
 custom_minimum_size = Vector2(28, 0)
 layout_mode = 2
 theme_override_fonts/font = SubResource("FontVariation_ri5to")
 text = "0"
 
-[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_Control/Large_Rect/HBoxContainer2/Structures/HBoxContainer2" unique_id=1962919130]
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2" unique_id=1962919130]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="HBox_Barracks" type="HBoxContainer" parent="Main_Layer/Main_Control/Large_Rect/HBoxContainer2/Structures/HBoxContainer2" unique_id=1020160779]
+[node name="HBox_Barracks" type="HBoxContainer" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2" unique_id=1020160779]
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_Control/Large_Rect/HBoxContainer2/Structures/HBoxContainer2/HBox_Barracks" unique_id=1928538492]
+[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2/HBox_Barracks" unique_id=1928538492]
 modulate = Color(1, 1, 1, 0.3137255)
 custom_minimum_size = Vector2(20, 20)
 layout_mode = 2
@@ -2762,21 +2772,21 @@ size_flags_vertical = 4
 texture = ExtResource("24_wahd8")
 expand_mode = 1
 
-[node name="Label" type="Label" parent="Main_Layer/Main_Control/Large_Rect/HBoxContainer2/Structures/HBoxContainer2/HBox_Barracks" unique_id=117980465]
+[node name="Label" type="Label" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2/HBox_Barracks" unique_id=117980465]
 modulate = Color(1, 1, 1, 0.27450982)
 custom_minimum_size = Vector2(28, 0)
 layout_mode = 2
 text = "0"
 
-[node name="MarginContainer2" type="MarginContainer" parent="Main_Layer/Main_Control/Large_Rect/HBoxContainer2/Structures/HBoxContainer2" unique_id=857216252]
+[node name="MarginContainer2" type="MarginContainer" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2" unique_id=857216252]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="HBox_Depot" type="HBoxContainer" parent="Main_Layer/Main_Control/Large_Rect/HBoxContainer2/Structures/HBoxContainer2" unique_id=1398126694]
+[node name="HBox_Depot" type="HBoxContainer" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2" unique_id=1398126694]
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_Control/Large_Rect/HBoxContainer2/Structures/HBoxContainer2/HBox_Depot" unique_id=408638169]
+[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2/HBox_Depot" unique_id=408638169]
 modulate = Color(1, 1, 1, 0.3137255)
 custom_minimum_size = Vector2(20, 20)
 layout_mode = 2
@@ -2785,21 +2795,21 @@ size_flags_vertical = 4
 texture = ExtResource("25_ri5to")
 expand_mode = 1
 
-[node name="Label" type="Label" parent="Main_Layer/Main_Control/Large_Rect/HBoxContainer2/Structures/HBoxContainer2/HBox_Depot" unique_id=1681375862]
+[node name="Label" type="Label" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2/HBox_Depot" unique_id=1681375862]
 modulate = Color(1, 1, 1, 0.27450982)
 custom_minimum_size = Vector2(28, 0)
 layout_mode = 2
 text = "0"
 
-[node name="MarginContainer3" type="MarginContainer" parent="Main_Layer/Main_Control/Large_Rect/HBoxContainer2/Structures/HBoxContainer2" unique_id=2080238446]
+[node name="MarginContainer3" type="MarginContainer" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2" unique_id=2080238446]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="HBox_Silo" type="HBoxContainer" parent="Main_Layer/Main_Control/Large_Rect/HBoxContainer2/Structures/HBoxContainer2" unique_id=599262126]
+[node name="HBox_Silo" type="HBoxContainer" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2" unique_id=599262126]
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_Control/Large_Rect/HBoxContainer2/Structures/HBoxContainer2/HBox_Silo" unique_id=1269791151]
+[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2/HBox_Silo" unique_id=1269791151]
 modulate = Color(1, 1, 1, 0.3137255)
 custom_minimum_size = Vector2(20, 20)
 layout_mode = 2
@@ -2808,63 +2818,63 @@ size_flags_vertical = 4
 texture = ExtResource("26_y52gj")
 expand_mode = 1
 
-[node name="Label" type="Label" parent="Main_Layer/Main_Control/Large_Rect/HBoxContainer2/Structures/HBoxContainer2/HBox_Silo" unique_id=542802427]
+[node name="Label" type="Label" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2/HBox_Silo" unique_id=542802427]
 modulate = Color(1, 1, 1, 0.27450982)
 custom_minimum_size = Vector2(28, 0)
 layout_mode = 2
 text = "0"
 
-[node name="MarginContainer4" type="MarginContainer" parent="Main_Layer/Main_Control/Large_Rect/HBoxContainer2/Structures/HBoxContainer2" unique_id=1242498996]
+[node name="MarginContainer4" type="MarginContainer" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2" unique_id=1242498996]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="HBox_Sam" type="HBoxContainer" parent="Main_Layer/Main_Control/Large_Rect/HBoxContainer2/Structures/HBoxContainer2" unique_id=604004048]
+[node name="HBox_Sam" type="HBoxContainer" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2" unique_id=604004048]
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_Control/Large_Rect/HBoxContainer2/Structures/HBoxContainer2/HBox_Sam" unique_id=1242670689]
+[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2/HBox_Sam" unique_id=1242670689]
 modulate = Color(1, 1, 1, 0.3137255)
 custom_minimum_size = Vector2(20, 20)
 layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 4
-texture = ExtResource("27_g4pvr")
+texture = ExtResource("38_jqbn1")
 expand_mode = 1
 
-[node name="Label" type="Label" parent="Main_Layer/Main_Control/Large_Rect/HBoxContainer2/Structures/HBoxContainer2/HBox_Sam" unique_id=727034134]
+[node name="Label" type="Label" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2/HBox_Sam" unique_id=727034134]
 modulate = Color(1, 1, 1, 0.27450982)
 custom_minimum_size = Vector2(28, 0)
 layout_mode = 2
 text = "0"
 
-[node name="MarginContainer5" type="MarginContainer" parent="Main_Layer/Main_Control/Large_Rect/HBoxContainer2/Structures/HBoxContainer2" unique_id=1688004900]
+[node name="MarginContainer5" type="MarginContainer" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2" unique_id=1688004900]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="HBox_Warship" type="HBoxContainer" parent="Main_Layer/Main_Control/Large_Rect/HBoxContainer2/Structures/HBoxContainer2" unique_id=424255507]
+[node name="HBox_Warship" type="HBoxContainer" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2" unique_id=424255507]
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_Control/Large_Rect/HBoxContainer2/Structures/HBoxContainer2/HBox_Warship" unique_id=1127442347]
+[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2/HBox_Warship" unique_id=1127442347]
 modulate = Color(1, 1, 1, 0.3137255)
 custom_minimum_size = Vector2(20, 20)
 layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 4
-texture = ExtResource("28_3vkhs")
+texture = ExtResource("39_exfoo")
 expand_mode = 1
 
-[node name="Label" type="Label" parent="Main_Layer/Main_Control/Large_Rect/HBoxContainer2/Structures/HBoxContainer2/HBox_Warship" unique_id=923605356]
+[node name="Label" type="Label" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2/HBox_Warship" unique_id=923605356]
 modulate = Color(1, 1, 1, 0.27450982)
 custom_minimum_size = Vector2(28, 0)
 layout_mode = 2
 text = "0"
 
-[node name="MarginContainer7" type="MarginContainer" parent="Main_Layer/Main_Control/Large_Rect/HBoxContainer2/Structures/HBoxContainer2" unique_id=1444826452]
+[node name="MarginContainer7" type="MarginContainer" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox/Right_HBox/Structures/HBoxContainer2" unique_id=1444826452]
 custom_minimum_size = Vector2(8, 0)
 layout_mode = 2
 
-[node name="MarginContainer6" type="MarginContainer" parent="Main_Layer/Main_Control/Large_Rect/HBoxContainer2" unique_id=665388903]
+[node name="MarginContainer6" type="MarginContainer" parent="Main_Layer/Main_Control/Large_Rect/Large_HBox" unique_id=665388903]
 custom_minimum_size = Vector2(16, 0)
 layout_mode = 2
 size_flags_horizontal = 3
@@ -2895,7 +2905,7 @@ metadata/_edit_lock_ = true
 [node name="Display_Rec" type="ColorRect" parent="Main_Layer/Main_Control" unique_id=1854827380]
 material = SubResource("ShaderMaterial_62siw")
 layout_mode = 0
-offset_left = 1489.0
+offset_left = 1550.0
 offset_top = 871.0
 offset_right = 1912.0
 offset_bottom = 1011.0
@@ -3241,7 +3251,7 @@ custom_minimum_size = Vector2(20, 20)
 layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 4
-texture = ExtResource("28_3vkhs")
+texture = ExtResource("38_jqbn1")
 expand_mode = 1
 
 [node name="Label" type="Label" parent="Main_Layer/Main_Control/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/Structures/VBoxContainer/HBoxContainer3/HBox_Barracks" unique_id=336484207]
@@ -3264,7 +3274,7 @@ custom_minimum_size = Vector2(20, 20)
 layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 4
-texture = ExtResource("42_jqbn1")
+texture = ExtResource("39_exfoo")
 expand_mode = 1
 
 [node name="Label" type="Label" parent="Main_Layer/Main_Control/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/Structures/VBoxContainer/HBoxContainer3/HBox_Depot" unique_id=590958456]
@@ -3286,7 +3296,7 @@ layout_mode = 2
 alignment = 1
 
 [node name="Display_Meter" type="Panel" parent="Main_Layer/Main_Control/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/VBoxContainer" unique_id=1304048707]
-custom_minimum_size = Vector2(200, 30)
+custom_minimum_size = Vector2(140, 30)
 layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 4
@@ -3315,7 +3325,7 @@ text = "$3.87M"
 vertical_alignment = 1
 
 [node name="Display_Gold" type="Panel" parent="Main_Layer/Main_Control/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/VBoxContainer" unique_id=2016974160]
-custom_minimum_size = Vector2(200, 30)
+custom_minimum_size = Vector2(140, 30)
 layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 4

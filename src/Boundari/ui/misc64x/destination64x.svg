@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+
+<svg
+   width="800"
+   height="800"
+   viewBox="0 0 48 48"
+   version="1.1"
+   id="svg4"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1">
+    <style
+       id="style1">.a{fill:none;stroke:#000000;stroke-linecap:round;stroke-linejoin:round;}</style>
+  </defs>
+  <polygon
+     class="a"
+     points="42.5,39.475 28.526,25.5 25.5,25.5 25.5,28.524 39.475,42.5 "
+     id="polygon1"
+     style="fill:#ffffff;fill-opacity:1;stroke:#ffffff;stroke-opacity:1" />
+  <polygon
+     class="a"
+     points="8.525,42.5 22.5,28.526 22.5,25.5 19.476,25.5 5.5,39.475 "
+     id="polygon2"
+     style="fill:#ffffff;fill-opacity:1;stroke:#ffffff;stroke-opacity:1" />
+  <polygon
+     class="a"
+     points="5.5,8.525 19.474,22.5 22.5,22.5 22.5,19.476 8.525,5.5 "
+     id="polygon3"
+     style="fill:#ffffff;fill-opacity:1;stroke:#ffffff;stroke-opacity:1" />
+  <polygon
+     class="a"
+     points="39.475,5.5 25.5,19.474 25.5,22.5 28.524,22.5 42.5,8.525 "
+     id="polygon4"
+     style="fill:#ffffff;fill-opacity:1;stroke:#ffffff;stroke-opacity:1" />
+</svg>
