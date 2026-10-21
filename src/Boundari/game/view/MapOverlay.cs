@@ -346,11 +346,24 @@ public partial class MapOverlay : Node2D
         DrawString(font, at + new Vector2(-extent.X / 2, fontSize * 0.36f), text, HorizontalAlignment.Left, -1, fontSize, Colors.White);
     }
 
-    // Roads (the depots' railroads): a whole number of screen pixels wide, at least this many,
-    // or this many tiles once zoomed in; coloured by whose land each stretch crosses.
+    // Roads (the depots' railroads), like OpenFront's: one reference tile wide (its
+    // railThickness 1) in whole screen pixels, at least RoadMinPixels. Your own roads are
+    // white (OpenFront's focusedBorderColor #e6e6e6; black on very light land), others' are
+    // the land owner's border colour, unowned land and bridges light grey, bridges with
+    // OpenFront's red sides. Once wide enough, a dashed line runs down the middle in the
+    // land's colour, darker.
     private const float RoadMinPixels = 2;
-    private const float RoadTiles = 0.3f;
-    private static readonly Color BridgeColour = new(0.24f, 0.22f, 0.2f);
+    private const float RoadTiles = 1;               // reference tiles
+    private const int MarkingsFromPixels = 6;        // narrower roads have no centre line
+    private const float MarkingWidth = 0.2f;         // of the road's width
+    private const float DashTiles = 1;               // reference tiles of line, then as much gap
+    private const float BridgeWidth = 2;             // the red sides span twice the road's width
+    private const float BorderDarken = 0.35f;        // map.gdshader's border_darken
+    private static readonly Color OwnRoadColour = new(0.902f, 0.902f, 0.902f);
+    private static readonly Color NeutralRoadColour = new(0.75f, 0.75f, 0.75f);
+    private static readonly Color BridgeColour = new(0.773f, 0.271f, 0.282f);
+
+    private enum RoadPass { Bridges, Roads, Markings }
 
     // Roads fade in with zoom like OpenFront's railroads (its railMinZoom 3 and railFadeRange 2,
     // x1.5 for our screen pixels): invisible at or below RoadHiddenZoom, fully shown from
@@ -361,18 +374,34 @@ public partial class MapOverlay : Node2D
     private float RoadFade(float zoom) =>
         Math.Clamp((ReferenceZoom(zoom) - RoadHiddenZoom) / (RoadShownZoom - RoadHiddenZoom), 0, 1);
 
+    private readonly List<Railroad> _roadsOnScreen = new();
+
     private void DrawRoads(CanvasItem layer, float zoom, int w)
     {
-        int widthPixels = Math.Max((int)RoadMinPixels, (int)MathF.Round(RoadTiles * zoom));
-        float half = widthPixels / zoom / 2;
+        float linear = (float)_game!.Rules.Linear;
+        int widthPixels = Math.Max((int)RoadMinPixels, (int)MathF.Round(RoadTiles * linear * zoom));
+        // The centre line: same odd/even pixel count as the road, so it sits exactly in the middle.
+        int markPixels = Math.Max(1, (int)MathF.Round(widthPixels * MarkingWidth));
+        if ((widthPixels - markPixels) % 2 != 0)
+            markPixels++;
         var toScreen = layer.GetCanvasTransform();
         var toMap = toScreen.AffineInverse();
-        foreach (var rail in _game!.Railroads)
+        _roadsOnScreen.Clear();
+        foreach (var rail in _game.Railroads)
         {
             var shape = _railShapes.GetValue(rail, r => new RailShape(r, w));
-            if (shape.Corners.Length >= 2 && _visible.Grow(2).Intersects(shape.Bounds, includeBorders: true))
-                DrawRoad(layer, rail, w, half, toScreen, toMap);
+            if (shape.Corners.Length >= 2 && _visible.Grow(2 * widthPixels / zoom).Intersects(shape.Bounds, includeBorders: true))
+                _roadsOnScreen.Add(rail);
         }
+        // Bridges under every road, then the roads, then the centre lines on top of them all.
+        float half = widthPixels / zoom / 2;
+        foreach (var rail in _roadsOnScreen)
+            DrawRoad(layer, rail, w, RoadPass.Bridges, half * BridgeWidth, 0, toScreen, toMap);
+        foreach (var rail in _roadsOnScreen)
+            DrawRoad(layer, rail, w, RoadPass.Roads, half, 0, toScreen, toMap);
+        if (widthPixels >= MarkingsFromPixels)
+            foreach (var rail in _roadsOnScreen)
+                DrawRoad(layer, rail, w, RoadPass.Markings, markPixels / zoom / 2, DashTiles * linear, toScreen, toMap);
     }
 
     private void DrawTrains(CanvasItem layer, float zoom, int w)
@@ -408,34 +437,54 @@ public partial class MapOverlay : Node2D
     private readonly System.Runtime.CompilerServices.ConditionalWeakTable<Railroad, RailShape> _railShapes = new();
 
     /// <summary>
-    /// One road: straight runs between its right-angle turns, cut wherever it passes into
-    /// someone else's land. Each piece is a flat rectangle snapped to whole screen pixels,
-    /// so the road stays crisp; pieces overlap by half a width so corners join cleanly.
+    /// One layer of one road (its bridges, its surface or its centre line): straight runs
+    /// between its right-angle turns, cut wherever the colour changes (someone else's land,
+    /// a gap between dashes). Each piece is a flat rectangle snapped to whole screen pixels,
+    /// so the road stays crisp; pieces reach half a width past their ends so corners join.
     /// </summary>
-    private void DrawRoad(CanvasItem layer, Railroad rail, int w, float half, Transform2D toScreen, Transform2D toMap)
+    private void DrawRoad(CanvasItem layer, Railroad rail, int w, RoadPass pass, float half, float dash, Transform2D toScreen, Transform2D toMap)
     {
         var tiles = rail.Tiles;
-        // Half-tile steps: tile i's colour covers from halfway back to halfway forward.
         Vector2 runStart = TileCentre(tiles[0], w), runEnd = runStart;
-        Color runColour = RoadColour(tiles[0]);
+        Color? runColour = null;
         Vector2 runDirection = Vector2.Zero;
+        float along = 0; // tiles from the road's start, for the dashes
         for (int i = 1; i < tiles.Length; i++)
         {
+            // Half-tile steps: tile i's colour covers from halfway back to halfway forward.
             Vector2 a = TileCentre(tiles[i - 1], w), b = TileCentre(tiles[i], w), mid = (a + b) / 2;
             var direction = (b - a).Normalized();
-            var colour = RoadColour(tiles[i]);
-            // First half (still the previous tile's colour), then the second half (this tile's).
-            Extend(mid, direction, runColour);
-            Extend(b, direction, colour);
+            Step(a, direction, PassColour(pass, tiles[i - 1]));
+            Step(mid, direction, PassColour(pass, tiles[i]));
         }
         Flush();
 
-        void Extend(Vector2 to, Vector2 direction, Color colour)
+        void Step(Vector2 from, Vector2 direction, Color? colour)
+        {
+            float end = along + 0.5f;
+            if (pass != RoadPass.Markings || colour is null)
+                Extend(from, from + direction * 0.5f, direction, colour);
+            else
+            {
+                // Dashes: line while (distance along) mod (2 x dash) < dash, gap after.
+                for (float at = along; at < end - 1e-4f;)
+                {
+                    float phase = at % (2 * dash);
+                    bool line = phase < dash;
+                    float next = Math.Min(end, at - phase + (line ? dash : 2 * dash));
+                    Extend(from + direction * (at - along), from + direction * (next - along), direction, line ? colour : null);
+                    at = next;
+                }
+            }
+            along = end;
+        }
+
+        void Extend(Vector2 from, Vector2 to, Vector2 direction, Color? colour)
         {
             if (direction != runDirection && runDirection != Vector2.Zero || colour != runColour)
             {
                 Flush();
-                runStart = runEnd;
+                runStart = from;
             }
             runDirection = direction;
             runColour = colour;
@@ -444,6 +493,8 @@ public partial class MapOverlay : Node2D
 
         void Flush()
         {
+            if (runColour is not Color colour)
+                return;
             var min = new Vector2(Math.Min(runStart.X, runEnd.X), Math.Min(runStart.Y, runEnd.Y)) - new Vector2(half, half);
             var max = new Vector2(Math.Max(runStart.X, runEnd.X), Math.Max(runStart.Y, runEnd.Y)) + new Vector2(half, half);
             // Snap to whole screen pixels so edges are sharp and the width never wobbles.
@@ -453,16 +504,40 @@ public partial class MapOverlay : Node2D
             b = new Vector2(Math.Max(MathF.Round(b.X), a.X + 1), Math.Max(MathF.Round(b.Y), a.Y + 1));
             var from = toMap * a;
             var to = toMap * b;
-            layer.DrawRect(new Rect2(from, to - from), runColour);
+            layer.DrawRect(new Rect2(from, to - from), colour);
         }
     }
 
-    /// <summary>A road's colour on this tile: the owner's territory colour, darker (bridges and empty land: dark grey).</summary>
+    private Color? PassColour(RoadPass pass, int tile) => pass switch
+    {
+        RoadPass.Bridges => _game!.Map.IsLand(tile) ? null : BridgeColour,
+        RoadPass.Roads => RoadColour(tile),
+        _ => MarkingColour(tile),
+    };
+
+    /// <summary>A road's colour on this tile (OpenFront's railroad colours, see the constants).</summary>
     private Color RoadColour(int tile)
     {
         ushort owner = _game!.Owner[tile];
-        return owner == Game.Nobody || !_game.Map.IsLand(tile) ? BridgeColour : ColorOf(owner).Darkened(0.45f);
+        if (owner == Game.Nobody || !_game.Map.IsLand(tile))
+            return NeutralRoadColour;
+        var land = ColorOf(owner);
+        if (owner == _me?.Id)
+            return Brightness(land) > 0.8f ? Colors.Black : OwnRoadColour;
+        return land.Darkened(BorderDarken);
     }
+
+    /// <summary>The centre line's colour: the land's colour, darker (darker still on others' darker roads).</summary>
+    private Color MarkingColour(int tile)
+    {
+        ushort owner = _game!.Owner[tile];
+        if (owner == Game.Nobody || !_game.Map.IsLand(tile))
+            return NeutralRoadColour.Darkened(0.4f);
+        return ColorOf(owner).Darkened(owner == _me?.Id ? BorderDarken : 0.6f);
+    }
+
+    // Perceived brightness, 0-1 (colord's brightness(), which OpenFront uses for this).
+    private static float Brightness(Color c) => (c.R * 299 + c.G * 587 + c.B * 114) / 1000f;
 
     private sealed class RailShape
     {

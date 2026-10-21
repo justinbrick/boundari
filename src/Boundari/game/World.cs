@@ -1085,6 +1085,8 @@ public partial class World : Node2D
         GD.Print($"showcase: {_game.Railroads.Count} railroads, {_game.Trains.Count} trains, train gold {_me.TrainGold:N0}, " +
                  $"cities {_game.CountLevels(_me, BuildingType.City)} levels, max troops {_me.MaxTroops:N0}");
         _showcaseRailFocus = factorySite;
+        if (_showcaseRailFocus < 0 && _game.Railroads.MaxBy(r => r.Tiles.Length) is { } longest)
+            _showcaseRailFocus = longest.Tiles[longest.Tiles.Length / 2]; // no depot of ours: someone else's roads
 
         // Nearby land across water (often just over a river): try candidates until a boat can go.
         int home = _map.LandmassId[mine[0]], hx = mine[0] % _map.Width, hy = mine[0] / _map.Width;
