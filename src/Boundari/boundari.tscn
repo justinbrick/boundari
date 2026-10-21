@@ -85,6 +85,8 @@ variation_embolden = 1.0
 variation_transform = Transform2D(1, 0, 0, 0.95, 0, 0)
 spacing_glyph = 4
 
+[sub_resource type="FontVariation" id="FontVariation_wrnm3"]
+
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_d773e"]
 bg_color = Color(0, 0, 0, 0.29411766)
 border_width_left = 2
@@ -142,6 +144,7 @@ corner_detail = 6
 
 [sub_resource type="FontVariation" id="FontVariation_8yhk8"]
 base_font = ExtResource("49_5khtq")
+variation_embolden = -0.5
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_ddwe0"]
 
@@ -165,6 +168,7 @@ shader_parameter/pressed_amount = 0.0
 shader_parameter/tint_color = Vector3(1, 1, 1)
 shader_parameter/tint_strength = 0.0
 shader_parameter/panel_alpha = 1.0
+shader_parameter/dim_amount = 0.0
 
 [sub_resource type="FontVariation" id="FontVariation_2iyt7"]
 base_font = ExtResource("49_5khtq")
@@ -191,6 +195,7 @@ shader_parameter/pressed_amount = 0.0
 shader_parameter/tint_color = Vector3(1, 1, 1)
 shader_parameter/tint_strength = 0.0
 shader_parameter/panel_alpha = 1.0
+shader_parameter/dim_amount = 0.0
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_di8wi"]
 shader = ExtResource("8_di8wi")
@@ -204,6 +209,7 @@ shader_parameter/pressed_amount = 0.0
 shader_parameter/tint_color = Vector3(1, 1, 1)
 shader_parameter/tint_strength = 0.0
 shader_parameter/panel_alpha = 1.0
+shader_parameter/dim_amount = 0.0
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_tepi4"]
 shader = ExtResource("8_di8wi")
@@ -217,6 +223,7 @@ shader_parameter/pressed_amount = 0.0
 shader_parameter/tint_color = Vector3(1, 1, 1)
 shader_parameter/tint_strength = 0.0
 shader_parameter/panel_alpha = 1.0
+shader_parameter/dim_amount = 0.0
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_b2en8"]
 shader = ExtResource("8_di8wi")
@@ -230,6 +237,7 @@ shader_parameter/pressed_amount = 0.0
 shader_parameter/tint_color = Vector3(1, 1, 1)
 shader_parameter/tint_strength = 0.0
 shader_parameter/panel_alpha = 1.0
+shader_parameter/dim_amount = 0.0
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_lwvql"]
 shader = ExtResource("8_di8wi")
@@ -243,6 +251,7 @@ shader_parameter/pressed_amount = 0.0
 shader_parameter/tint_color = Vector3(1, 1, 1)
 shader_parameter/tint_strength = 0.0
 shader_parameter/panel_alpha = 1.0
+shader_parameter/dim_amount = 0.0
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_kthhr"]
 shader = ExtResource("8_di8wi")
@@ -256,6 +265,7 @@ shader_parameter/pressed_amount = 0.0
 shader_parameter/tint_color = Vector3(1, 1, 1)
 shader_parameter/tint_strength = 0.0
 shader_parameter/panel_alpha = 1.0
+shader_parameter/dim_amount = 0.0
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_ok40o"]
 shader = ExtResource("8_di8wi")
@@ -269,6 +279,7 @@ shader_parameter/pressed_amount = 0.0
 shader_parameter/tint_color = Vector3(1, 1, 1)
 shader_parameter/tint_strength = 0.0
 shader_parameter/panel_alpha = 1.0
+shader_parameter/dim_amount = 0.0
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_rblt2"]
 shader = ExtResource("8_di8wi")
@@ -282,6 +293,7 @@ shader_parameter/pressed_amount = 0.0
 shader_parameter/tint_color = Vector3(1, 1, 1)
 shader_parameter/tint_strength = 0.0
 shader_parameter/panel_alpha = 1.0
+shader_parameter/dim_amount = 0.0
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_o10ms"]
 shader = ExtResource("8_di8wi")
@@ -295,6 +307,7 @@ shader_parameter/pressed_amount = 0.0
 shader_parameter/tint_color = Vector3(1, 1, 1)
 shader_parameter/tint_strength = 0.0
 shader_parameter/panel_alpha = 1.0
+shader_parameter/dim_amount = 0.0
 
 [sub_resource type="Shader" id="Shader_2q8dx"]
 code = "shader_type canvas_item;
@@ -434,6 +447,10 @@ variation_transform = Transform2D(1, 0.075, 0, 1, 0, 0)
 [sub_resource type="FontVariation" id="FontVariation_bxyxm"]
 base_font = ExtResource("14_tepi4")
 
+[sub_resource type="FontVariation" id="FontVariation_2q8dx"]
+base_font = ExtResource("49_5khtq")
+variation_embolden = -0.4
+
 [sub_resource type="FontVariation" id="FontVariation_wffjv"]
 variation_embolden = 0.4
 variation_transform = Transform2D(1.005, 0.31, 0, 1.385, 0, 0)
@@ -478,11 +495,11 @@ spacing_glyph = 1
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_7iv60"]
 bg_color = Color(0, 0, 0, 0.24705882)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(2.0507386, 2.0507386, 2.0507386, 0.05490196)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0, 0, 0, 0.19607843)
 corner_radius_top_left = 6
 corner_radius_top_right = 6
 corner_radius_bottom_right = 6
@@ -535,6 +552,14 @@ shader = ExtResource("68_o5262")
 shader_parameter/corner_radius_px = 48.00000228
 shader_parameter/edge_softness_px = 2.000000095
 shader_parameter/panel_alpha = 0.800000038
+
+[sub_resource type="StyleBoxLine" id="StyleBoxLine_2q8dx"]
+content_margin_left = 0.0
+content_margin_top = 4.0
+content_margin_right = 0.0
+content_margin_bottom = 4.0
+color = Color(1, 1, 1, 0.27450982)
+vertical = true
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_kthhr"]
 draw_center = false
@@ -948,6 +973,40 @@ offset_right = 127.66667
 offset_bottom = 1.0
 texture = ExtResource("3_aow1b")
 expand_mode = 1
+
+[node name="Startup_VBox" type="VBoxContainer" parent="TestImage" unique_id=1748609815]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -977.0
+offset_top = -559.0
+offset_right = -937.0
+offset_bottom = -519.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+
+[node name="MapName" type="Label" parent="TestImage/Startup_VBox" unique_id=156809837]
+layout_mode = 2
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.7176471)
+theme_override_constants/shadow_offset_x = 12
+theme_override_constants/shadow_offset_y = 12
+theme_override_fonts/font = SubResource("FontVariation_wrnm3")
+theme_override_font_sizes/font_size = 250
+text = "Europe"
+horizontal_alignment = 1
+
+[node name="AlphaText" type="Label" parent="TestImage/Startup_VBox" unique_id=649436143]
+layout_mode = 2
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.4392157)
+theme_override_constants/shadow_offset_x = 6
+theme_override_constants/shadow_offset_y = 6
+theme_override_fonts/font = SubResource("FontVariation_wrnm3")
+theme_override_font_sizes/font_size = 60
+text = "Boundari Alpha 1.0"
+horizontal_alignment = 1
 
 [node name="MapDisplay" type="Sprite2D" parent="." unique_id=1126381259]
 script = ExtResource("bw_mapview")
@@ -2699,6 +2758,14 @@ theme_override_font_sizes/font_size = 14
 text = "Allies"
 vertical_alignment = 1
 
+[node name="Alliance_Time" type="Label" parent="Main_Layer/Main_Control/Display_Rec/Panel/HBoxContainer/VBoxContainer2/VBoxContainer/HBoxContainer3/HBoxContainer3" unique_id=38478435]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7554229, 0.99999994, 0.73195744, 1)
+theme_override_fonts/font = SubResource("FontVariation_2q8dx")
+theme_override_font_sizes/font_size = 12
+text = "1m 30s"
+vertical_alignment = 1
+
 [node name="HBoxContainer4" type="HBoxContainer" parent="Main_Layer/Main_Control/Display_Rec/Panel/HBoxContainer/VBoxContainer2/VBoxContainer/HBoxContainer3" unique_id=496521826]
 layout_mode = 2
 size_flags_horizontal = 0
@@ -3448,11 +3515,13 @@ metadata/_edit_lock_ = true
 [node name="HBoxContainer" type="HBoxContainer" parent="Main_Layer/Main_Control/Large_Rect/Notif_HBox" unique_id=719931569]
 layout_mode = 2
 alignment = 2
+metadata/_edit_lock_ = true
 
 [node name="VBoxContainer" type="VBoxContainer" parent="Main_Layer/Main_Control/Large_Rect/Notif_HBox/HBoxContainer" unique_id=1343322084]
 custom_minimum_size = Vector2(350, 0)
 layout_mode = 2
 alignment = 2
+metadata/_edit_lock_ = true
 
 [node name="Panel_Notif" type="Panel" parent="Main_Layer/Main_Control/Large_Rect/Notif_HBox/HBoxContainer/VBoxContainer" unique_id=1270654463]
 visible = false
@@ -3850,7 +3919,7 @@ metadata/_edit_lock_ = true
 custom_minimum_size = Vector2(10, 0)
 layout_mode = 2
 
-[node name="TextureButton" type="TextureButton" parent="Main_Layer/Main_Control/Large_Rect/Leader_HBox" unique_id=1478763571]
+[node name="1stPlace" type="TextureButton" parent="Main_Layer/Main_Control/Large_Rect/Leader_HBox" unique_id=1478763571]
 material = SubResource("ShaderMaterial_fruhh")
 custom_minimum_size = Vector2(50, 0)
 layout_mode = 2
@@ -3862,7 +3931,7 @@ stretch_mode = 0
 custom_minimum_size = Vector2(10, 0)
 layout_mode = 2
 
-[node name="TextureButton2" type="TextureButton" parent="Main_Layer/Main_Control/Large_Rect/Leader_HBox" unique_id=1341522722]
+[node name="2ndPlace" type="TextureButton" parent="Main_Layer/Main_Control/Large_Rect/Leader_HBox" unique_id=1341522722]
 material = SubResource("ShaderMaterial_fruhh")
 custom_minimum_size = Vector2(50, 0)
 layout_mode = 2
@@ -3874,7 +3943,7 @@ stretch_mode = 0
 custom_minimum_size = Vector2(10, 0)
 layout_mode = 2
 
-[node name="TextureButton3" type="TextureButton" parent="Main_Layer/Main_Control/Large_Rect/Leader_HBox" unique_id=121470525]
+[node name="3rdPlace" type="TextureButton" parent="Main_Layer/Main_Control/Large_Rect/Leader_HBox" unique_id=121470525]
 material = SubResource("ShaderMaterial_o5262")
 custom_minimum_size = Vector2(50, 0)
 layout_mode = 2
@@ -3886,7 +3955,7 @@ stretch_mode = 0
 custom_minimum_size = Vector2(10, 0)
 layout_mode = 2
 
-[node name="TextureButton4" type="TextureButton" parent="Main_Layer/Main_Control/Large_Rect/Leader_HBox" unique_id=1822813767]
+[node name="4thPlace" type="TextureButton" parent="Main_Layer/Main_Control/Large_Rect/Leader_HBox" unique_id=1822813767]
 material = SubResource("ShaderMaterial_fruhh")
 custom_minimum_size = Vector2(50, 0)
 layout_mode = 2
@@ -3898,7 +3967,7 @@ stretch_mode = 0
 custom_minimum_size = Vector2(10, 0)
 layout_mode = 2
 
-[node name="TextureButton5" type="TextureButton" parent="Main_Layer/Main_Control/Large_Rect/Leader_HBox" unique_id=1827799960]
+[node name="5thPlace" type="TextureButton" parent="Main_Layer/Main_Control/Large_Rect/Leader_HBox" unique_id=1827799960]
 material = SubResource("ShaderMaterial_fruhh")
 custom_minimum_size = Vector2(50, 0)
 layout_mode = 2
@@ -3910,7 +3979,7 @@ stretch_mode = 0
 custom_minimum_size = Vector2(10, 0)
 layout_mode = 2
 
-[node name="TextureButton6" type="TextureButton" parent="Main_Layer/Main_Control/Large_Rect/Leader_HBox" unique_id=891984827]
+[node name="6thPlace" type="TextureButton" parent="Main_Layer/Main_Control/Large_Rect/Leader_HBox" unique_id=891984827]
 material = SubResource("ShaderMaterial_fruhh")
 custom_minimum_size = Vector2(50, 0)
 layout_mode = 2
@@ -3918,11 +3987,12 @@ texture_normal = ExtResource("73_812tb")
 ignore_texture_size = true
 stretch_mode = 0
 
-[node name="MarginContainer7" type="MarginContainer" parent="Main_Layer/Main_Control/Large_Rect/Leader_HBox" unique_id=1780397994]
+[node name="VSeparator" type="VSeparator" parent="Main_Layer/Main_Control/Large_Rect/Leader_HBox" unique_id=299074514]
 custom_minimum_size = Vector2(10, 0)
 layout_mode = 2
+theme_override_styles/separator = SubResource("StyleBoxLine_2q8dx")
 
-[node name="TextureButton7" type="TextureButton" parent="Main_Layer/Main_Control/Large_Rect/Leader_HBox" unique_id=1310928031]
+[node name="User" type="TextureButton" parent="Main_Layer/Main_Control/Large_Rect/Leader_HBox" unique_id=1310928031]
 material = SubResource("ShaderMaterial_fruhh")
 custom_minimum_size = Vector2(50, 0)
 layout_mode = 2
@@ -5927,3 +5997,7 @@ grow_vertical = 2
 mouse_filter = 2
 texture = ExtResource("65_d773e")
 expand_mode = 2
+
+[node name="HSeparator" type="HSeparator" parent="." unique_id=2093450238]
+offset_right = 40.0
+offset_bottom = 4.0
