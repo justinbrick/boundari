@@ -14,7 +14,7 @@ namespace Boundari.View;
 public sealed class GameHud
 {
     private const string Info = "Main_Layer/Main_Control/HBox_Info/";
-    private const string Ratio = "Main_Layer/Main_Control/HBox_AHudTEST/In_Panel2/AttackRatio_Hbox";
+    private const string Hud = "Main_Layer/Main_Control";
 
     private readonly Label? _troops;
     private readonly Label? _maxTroops;
@@ -31,13 +31,14 @@ public sealed class GameHud
 
     public GameHud(Node root)
     {
+        LetMouseThrough(root.GetNodeOrNull(Hud));
         _troops = root.GetNodeOrNull<Label>(Info + "Panel_Pop/HBoxContainer/Pop1");
         _maxTroops = root.GetNodeOrNull<Label>(Info + "Panel_Pop/HBoxContainer/Pop2");
         _troopRate = root.GetNodeOrNull<Label>(Info + "Panel_Pop/HBoxContainer/Pop_Rate");
         _cash = root.GetNodeOrNull<Label>(Info + "Panel_Cur/HBoxContainer/Cur");
         _cashRate = root.GetNodeOrNull<Label>(Info + "Panel_Cur/HBoxContainer/Cur_Rate");
         // The attack ratio row: "20% (1.65K)" beside its slider, like OpenFront's control panel.
-        if (root.GetNodeOrNull<Control>(Ratio) is { } ratioRow)
+        if (FindInHud(root, "AttackRatio_Hbox") is { } ratioRow)
         {
             _ratio = ratioRow.GetNodeOrNull<HSlider>("HSlider");
             _ratioPercent = ratioRow.GetNodeOrNull<Label>("Percentage_Label") ?? ratioRow.GetNodeOrNull<Label>("Label");
@@ -74,6 +75,27 @@ public sealed class GameHud
         _status.AddThemeConstantOverride("outline_size", 8);
         var layer = root.GetNodeOrNull("Main_Layer") ?? root;
         layer.AddChild(_status);
+    }
+
+    /// <summary>A HUD node by name, wherever it sits under Main_Control (the layout keeps changing).</summary>
+    public static Control? FindInHud(Node root, string name) =>
+        root.GetNodeOrNull(Hud)?.FindChild(name, true, false) as Control;
+
+    /// <summary>
+    /// Plain Controls and layout boxes in the HUD only arrange things: they shouldn't catch the
+    /// mouse, or a full-screen one (a wrapper anchored to the whole screen) blocks every click
+    /// and scroll meant for the map. Buttons, panels, sliders, scroll lists and anything with
+    /// its own script keep their setting.
+    /// </summary>
+    private static void LetMouseThrough(Node? node)
+    {
+        if (node is null)
+            return;
+        if (node is Control control && control.GetScript().VariantType == Variant.Type.Nil
+            && (control.GetType() == typeof(Control) || (control is Container && control is not ScrollContainer)))
+            control.MouseFilter = Control.MouseFilterEnum.Ignore;
+        foreach (var child in node.GetChildren())
+            LetMouseThrough(child);
     }
 
     /// <summary>Share of troops to send when attacking, from the HUD slider (10..100).</summary>

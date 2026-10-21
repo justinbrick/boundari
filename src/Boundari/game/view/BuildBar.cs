@@ -15,7 +15,6 @@ namespace Boundari.View;
 public sealed class BuildBar
 {
     private const string Row = "Main_Layer/Main_Control/ButtonsRow";
-    private const string Panel = "Main_Layer/Main_Control/HBox_AHudTEST/In_Panel2/";
     private const float LiftPixels = 6;
     private const double LiftSeconds = 0.12;
 
@@ -50,8 +49,8 @@ public sealed class BuildBar
 
     public BuildBar(Node root)
     {
-        _ratioRow = root.GetNodeOrNull<Control>(Panel + "AttackRatio_Hbox");
-        _descriptionRow = root.GetNodeOrNull<Control>(Panel + "Description_HBox");
+        _ratioRow = GameHud.FindInHud(root, "AttackRatio_Hbox");
+        _descriptionRow = GameHud.FindInHud(root, "Description_HBox");
         _icon = _descriptionRow?.FindChild("StructureIcon", true, false) as TextureRect;
         _name = _descriptionRow?.FindChild("StructureName", true, false) as Label;
         _description = _descriptionRow?.FindChild("StructureDescription", true, false) as Label;
