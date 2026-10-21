@@ -82,6 +82,13 @@ public sealed class PlayerPanels
             _infoName = _infoFlag?.GetParent().GetNodeOrNull<Label>("Name");
             _infoPlace = _infoFlag?.GetParent().GetNodeOrNull<Label>("Placement") ?? _infoFlag?.GetParent().GetNodeOrNull<Label>("Place");
             _nameMinWidth = _infoName?.CustomMinimumSize.X ?? 0;
+            if (_infoPlace is not null)
+            {
+                // "3rd" is always short: as wide as its text, right after the name (a clipped
+                // label with no set width would shrink to nothing).
+                _infoPlace.ClipText = false;
+                _infoPlace.TextOverrunBehavior = TextServer.OverrunBehavior.NoTrimming;
+            }
             _infoLand = _info.FindChild("Land_Amount", true, false) as Label;
             _infoAllianceTime = _info.FindChild("Alliance_Time", true, false) as Label;
             foreach (var row in Descendants(_info))
