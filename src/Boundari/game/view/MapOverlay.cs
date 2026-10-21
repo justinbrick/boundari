@@ -466,13 +466,17 @@ public partial class MapOverlay : Node2D
                 Extend(from, from + direction * 0.5f, direction, colour);
             else
             {
-                // Dashes: line while (distance along) mod (2 x dash) < dash, gap after.
-                for (float at = along; at < end - 1e-4f;)
+                // Dashes: even-numbered stretches of `dash` tiles are line, odd ones gap. Each
+                // step moves to the next stretch's start (or the half-tile's end), always forward,
+                // so rounding can never stall it.
+                float at = along;
+                while (at < end - 1e-4f)
                 {
-                    float phase = at % (2 * dash);
-                    bool line = phase < dash;
-                    float next = Math.Min(end, at - phase + (line ? dash : 2 * dash));
-                    Extend(from + direction * (at - along), from + direction * (next - along), direction, line ? colour : null);
+                    long k = (long)Math.Floor(at / dash + 1e-4f);
+                    float next = Math.Min(end, (k + 1) * dash);
+                    if (next <= at)
+                        next = end;
+                    Extend(from + direction * (at - along), from + direction * (next - along), direction, k % 2 == 0 ? colour : null);
                     at = next;
                 }
             }
