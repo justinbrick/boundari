@@ -31,6 +31,13 @@ public sealed class NotificationBar
     private const string BlurShader = "res://blurroundcorn.gdshader";
     private static readonly Color UrgentColor = new(1f, 0.55f, 0.55f);
 
+    // A new message flashes a soft glow round the inside of the bar: quick in, slower out.
+    private const string GlowShader = "res://game/view/inner_glow.gdshader";
+    private const double FlashInSeconds = 0.12;
+    private const double FlashOutSeconds = 0.7;
+    private static readonly Color FlashColor = new(0.75f, 0.83f, 0.92f, 0.32f);       // pale steel
+    private static readonly Color UrgentFlashColor = new(0.86f, 0.36f, 0.33f, 0.4f);  // muted red
+
     private sealed record Message(string Text, bool Urgent);
 
     private readonly Label? _text, _idle, _count;
@@ -44,6 +51,8 @@ public sealed class NotificationBar
     private Message? _current;
     private double _shownFor, _clock, _fadingOut = -1;
     private bool _wasAlive;
+    private readonly ShaderMaterial? _flash;
+    private double _flashTime = -1;
 
     public NotificationBar(Node root)
     {
@@ -79,6 +88,9 @@ public sealed class NotificationBar
             button.Pressed += ToggleList;
             button.FocusMode = Control.FocusModeEnum.None; // so Space/Enter keep working in the game
         }
+
+        if (bar is not null)
+            _flash = AddFlash(bar);
 
         _panel = bar?.GetParent()?.GetNodeOrNull<Control>("Panel_Notif");
         if (_panel is null && hud?.FindChild("Panel_Notif", true, false) is Control found and not BaseButton)
@@ -120,6 +132,37 @@ public sealed class NotificationBar
         blur.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
         // The shader rounds its corners in pixels, so it needs the panel's size.
         blur.Resized += () => material.SetShaderParameter("rect_size", blur.Size);
+    }
+
+    /// <summary>
+    /// The flash: a see-through rectangle just inside the bar's border (so the glow never
+    /// covers the border), under the bar's text.
+    /// </summary>
+    private static ShaderMaterial? AddFlash(Control bar)
+    {
+        if (!ResourceLoader.Exists(GlowShader) || bar.GetNodeOrNull("Flash_Notif") is not null)
+            return null;
+        var box = bar.GetThemeStylebox("normal") as StyleBoxFlat;
+        var material = new ShaderMaterial { Shader = GD.Load<Shader>(GlowShader) };
+        material.SetShaderParameter("amount", 0f);
+        material.SetShaderParameter("width_px", 15f);
+        float border = box?.BorderWidthTop ?? 0;
+        material.SetShaderParameter("radius_px", Math.Max(0, (box?.CornerRadiusTopLeft ?? 0) - border));
+        var flash = new ColorRect
+        {
+            Name = "Flash_Notif",
+            Material = material,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+        };
+        bar.AddChild(flash);
+        bar.MoveChild(flash, 0);
+        flash.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+        flash.OffsetLeft = box?.BorderWidthLeft ?? 0;
+        flash.OffsetTop = border;
+        flash.OffsetRight = -(box?.BorderWidthRight ?? 0);
+        flash.OffsetBottom = -(box?.BorderWidthBottom ?? 0);
+        flash.Resized += () => material.SetShaderParameter("rect_size", flash.Size);
+        return material;
     }
 
     /// <summary>
@@ -351,6 +394,18 @@ public sealed class NotificationBar
         else if (_queue.Count > 0)
             ShowNext();
 
+        if (_flashTime >= 0 && _flash is not null)
+        {
+            _flashTime += delta;
+            double amount = _flashTime < FlashInSeconds
+                ? _flashTime / FlashInSeconds
+                : 1 - (_flashTime - FlashInSeconds) / FlashOutSeconds;
+            amount = Math.Clamp(amount, 0, 1);
+            _flash.SetShaderParameter("amount", (float)(amount * amount * (3 - 2 * amount))); // eased
+            if (_flashTime >= FlashInSeconds + FlashOutSeconds)
+                _flashTime = -1;
+        }
+
         GameHud.SetText(_count, _queue.Count.ToString(CultureInfo.InvariantCulture));
         if (_badge is not null && _badge.Visible != _queue.Count > 0)
             _badge.Visible = _queue.Count > 0;
@@ -373,7 +428,11 @@ public sealed class NotificationBar
         _current = message;
         _shownFor = 0;
         if (message is not null)
+        {
             _lastShown[message.Text] = _clock;
+            _flashTime = 0;
+            _flash?.SetShaderParameter("glow_color", message.Urgent ? UrgentFlashColor : FlashColor);
+        }
         if (_text is not null)
         {
             _text.Visible = message is not null;
