@@ -397,10 +397,22 @@ public partial class TerritoryLabels : Node2D
         float troopCap = cap * TroopScale;
         float troopMiddle = pos.Y + em * TroopLineOffset;
 
-        // Like OpenFront, a name plate under the mouse turns see-through, so you can see what's beneath.
+        // Like OpenFront, a name plate under the mouse turns see-through, so you can see what's
+        // beneath: the mouse anywhere on it counts, the icons and emoji above the name included.
         var plate = new Rect2(pos.X - nameWidth / 2 - flagWidth - flagGap, pos.Y - Math.Max(cap, flagHeight) / 2,
             nameWidth + flagWidth + flagGap, troopMiddle + troopCap - (pos.Y - Math.Max(cap, flagHeight) / 2));
         plate = plate.Merge(new Rect2(pos.X - troopWidth / 2, plate.Position.Y, troopWidth, plate.Size.Y));
+        var tagBottom = new Vector2(pos.X, pos.Y - Math.Max(cap, flagHeight) / 2 - cap * TagGap);
+        float tagHeight = cap * TagHeight;
+        CollectTags(player);
+        var emoji = _game.ShownEmoji(player, Me);
+        if (_tags.Count > 0)
+        {
+            float rowWidth = TagRowWidth(tagHeight, zoom);
+            plate = plate.Merge(new Rect2(tagBottom.X - rowWidth / 2, tagBottom.Y - tagHeight, rowWidth, tagHeight));
+        }
+        if (emoji is not null)
+            plate = plate.Merge(EmojiRect(tagBottom, tagHeight));
         float alpha = plate.Grow(cap * 0.15f).HasPoint(_mouse) ? HoverFadeAlpha : 1f;
         var text = TextColor with { A = TextColor.A * alpha };
         var shadow = ShadowColor with { A = ShadowColor.A * alpha };
@@ -416,7 +428,7 @@ public partial class TerritoryLabels : Node2D
         float troopAscent = troops.GetLineAscent() * troopScale;
         DrawText(troops, new Vector2(pos.X - troopWidth / 2, troopMiddle + troopCap / 2 - troopAscent), troopScale,
             TroopShadow * troopBucket, TroopOutline * troopBucket, text, outline, shadow, canvas);
-        DrawTags(player, new Vector2(pos.X, pos.Y - Math.Max(cap, flagHeight) / 2 - cap * TagGap), cap * TagHeight, zoom, alpha);
+        DrawTags(emoji, tagBottom, tagHeight, zoom, alpha);
         DrawSetTransform(Vector2.Zero, 0, Vector2.One);
     }
 
@@ -429,7 +441,6 @@ public partial class TerritoryLabels : Node2D
     private const float TagHeight = 2.4f;    // as a share of the name's capitals
     private const float TagGap = 0.3f;       // between the icons and the name, likewise
     private const float TagSpacing = 0.15f;  // between icons, as a share of an icon (OpenFront)
-    private const float TagOutline = 0.027f; // the alliance icon's black outline (OpenFront's 6 px on a 224 px icon)
 
     // OpenFront's icon colours (its status atlas).
     private static readonly Color LeaderTag = new("#feea4f");
@@ -591,7 +602,7 @@ public partial class TerritoryLabels : Node2D
     /// last 30 s), wants to ally (white), target (red), embargo either way (white), bombs in
     /// the air (red when any are coming at you, white otherwise).
     /// </summary>
-    private void DrawTags(Player player, Vector2 bottomCentre, float height, float zoom, float alpha)
+    private void CollectTags(Player player)
     {
         if (!_tagIconsLoaded)
             LoadTagIcons();
@@ -629,22 +640,50 @@ public partial class TerritoryLabels : Node2D
             if (player != Me && _bombers.TryGetValue(player.Id, out bool atMe))
                 _tags.Add(new TagItem(Tag.Bombs, atMe ? BombAtMeTag : white, 1, 1));
         }
-        // An emoji they sent you (or everyone) floats above it all for a few seconds, like OpenFront's.
-        if (game.ShownEmoji(player, Me) is { } emoji)
-            DrawEmoji(emoji, new Vector2(bottomCentre.X, bottomCentre.Y - (_tags.Count > 0 ? height * 1.3f : 0)), height * 2f, zoom, alpha);
-        if (_tags.Count == 0)
-            return;
+    }
 
-        // Icons are squares; one without a picture yet (traitor) is a text tag, laid out at a
-        // whole font size near its size on screen, then scaled, like the names.
+    /// <summary>
+    /// How the row is laid out: icons are squares; one without a picture yet (traitor) is a
+    /// text tag, at a whole font size near its size on screen, then scaled, like the names.
+    /// </summary>
+    private (Font Font, int Px, float Scale, float Pad, float Gap) TagLayout(float height, float zoom)
+    {
         float textHeight = height * 0.62f;
         int px = Bucket(textHeight * zoom);
         float s = textHeight / px;
-        var font = ThemeDB.FallbackFont;
-        float pad = px * 0.45f * s;
-        float gap = height * TagSpacing, total = -gap;
+        return (ThemeDB.FallbackFont, px, s, px * 0.45f * s, height * TagSpacing);
+    }
+
+    /// <summary>The width of the collected row of icons.</summary>
+    private float TagRowWidth(float height, float zoom)
+    {
+        var (font, px, s, pad, gap) = TagLayout(height, zoom);
+        float total = -gap;
         foreach (var tag in _tags)
             total += TagWidth(tag.Tag, height, font, px, s, pad) + gap;
+        return total;
+    }
+
+    /// <summary>Where an emoji they sent goes: above the icons (or where they'd be).</summary>
+    private Rect2 EmojiRect(Vector2 bottomCentre, float height)
+    {
+        float size = height * 2f, bottom = bottomCentre.Y - (_tags.Count > 0 ? height * 1.3f : 0);
+        return new Rect2(bottomCentre.X - size / 2, bottom - size, size, size);
+    }
+
+    /// <summary>The collected icons centred above the name, and any emoji floating over them.</summary>
+    private void DrawTags(Emoji? emoji, Vector2 bottomCentre, float height, float zoom, float alpha)
+    {
+        // An emoji they sent you (or everyone) floats above it all for a few seconds, like OpenFront's.
+        if (emoji is { } shown)
+        {
+            var at = EmojiRect(bottomCentre, height);
+            DrawEmoji(shown, new Vector2(at.GetCenter().X, at.End.Y), at.Size.Y, zoom, alpha);
+        }
+        if (_tags.Count == 0)
+            return;
+        var (font, px, s, pad, gap) = TagLayout(height, zoom);
+        float total = TagRowWidth(height, zoom);
         float x = bottomCentre.X - total / 2, y = bottomCentre.Y - height;
         DrawSetTransform(Vector2.Zero, 0, Vector2.One); // (the name and emoji leave theirs set)
         foreach (var tag in _tags)
@@ -683,23 +722,12 @@ public partial class TerritoryLabels : Node2D
             : height;
 
     /// <summary>
-    /// One icon in its colour. The alliance icon (the only one OpenFront outlines) gets a black
-    /// outline so it reads on green land, darker green lines, and a lighter green fill inside
-    /// them that drains from the top of the picture down as the alliance runs out (OpenFront's
-    /// drain line).
+    /// One icon in its colour. The alliance icon has darker green lines and a lighter green fill
+    /// inside them that drains from the top of the picture down as the alliance runs out
+    /// (OpenFront's drain line). No outline: OpenFront draws a black one, but the user didn't want it.
     /// </summary>
     private void DrawTagIcon(Texture2D texture, Rect2 at, Color tint, float alpha, bool ally, float fill, float top, float bottom)
     {
-        if (ally)
-        {
-            float o = at.Size.Y * TagOutline;
-            var outline = new Color(0, 0, 0, alpha);
-            for (int i = 0; i < 8; i++)
-            {
-                float angle = i * MathF.PI / 4;
-                DrawTextureRect(texture, new Rect2(at.Position + new Vector2(MathF.Cos(angle), MathF.Sin(angle)) * o, at.Size), false, outline);
-            }
-        }
         var solid = new Color(tint, tint.A * alpha);
         if (ally && _allyFill is not null && fill > 0)
         {
