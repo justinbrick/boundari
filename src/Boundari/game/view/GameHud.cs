@@ -52,8 +52,16 @@ public sealed class GameHud
         if (_ratio is not null)
         {
             _ratio.FocusMode = Control.FocusModeEnum.None; // so the arrow keys keep moving the map
-            _ratio.DragStarted += () => AdjustingRatio = true;
-            _ratio.DragEnded += _ => AdjustingRatio = false;
+            _ratio.DragStarted += () =>
+            {
+                AdjustingRatio = true;
+                HighlightSlider(_ratio, true);
+            };
+            _ratio.DragEnded += _ =>
+            {
+                AdjustingRatio = false;
+                HighlightSlider(_ratio, false);
+            };
         }
 
         // The old tick slider sat on top of the build bar's titles (Infrastructure / Action /
@@ -107,6 +115,34 @@ public sealed class GameHud
 
     /// <summary>True while the player holds the attack ratio slider: the map ignores the mouse until it's let go.</summary>
     public bool AdjustingRatio { get; private set; }
+
+    // The slider's own look before a drag (null = it had no override, it used the theme's).
+    private Texture2D? _grabberBefore;
+    private StyleBox? _grabberAreaBefore;
+
+    /// <summary>
+    /// Godot lights a slider only while the mouse is over it; while it's being dragged the
+    /// highlighted grabber and filled bar are swapped in, so it stays lit off the slider too.
+    /// </summary>
+    private void HighlightSlider(HSlider slider, bool on)
+    {
+        if (on)
+        {
+            _grabberBefore = slider.HasThemeIconOverride("grabber") ? slider.GetThemeIcon("grabber") : null;
+            _grabberAreaBefore = slider.HasThemeStyleboxOverride("grabber_area") ? slider.GetThemeStylebox("grabber_area") : null;
+            slider.AddThemeIconOverride("grabber", slider.GetThemeIcon("grabber_highlight"));
+            slider.AddThemeStyleboxOverride("grabber_area", slider.GetThemeStylebox("grabber_area_highlight"));
+            return;
+        }
+        if (_grabberBefore is not null)
+            slider.AddThemeIconOverride("grabber", _grabberBefore);
+        else
+            slider.RemoveThemeIconOverride("grabber");
+        if (_grabberAreaBefore is not null)
+            slider.AddThemeStyleboxOverride("grabber_area", _grabberAreaBefore);
+        else
+            slider.RemoveThemeStyleboxOverride("grabber_area");
+    }
 
     /// <summary>Shown in place of the usual status line while set (e.g. fast-forward progress).</summary>
     public string? Status { get; set; }
