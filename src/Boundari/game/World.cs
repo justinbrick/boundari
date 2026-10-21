@@ -101,6 +101,7 @@ public partial class World : Node2D
     private const int FastForwardBatch = 40;                           // ticks per frame while fast-forwarding
     private CanvasLayer _startPrompt = null!;
     private StartupSplash _splash = null!; // the map's name, faded in and out as the match starts
+    private AlertFrame _alerts = null!;     // the screen border that flashes on betrayals and big attacks
     private int _fastForwardLeft, _fastForwardTotal;
     private bool _fastForwarding;
     private BuildingType? _placing;
@@ -168,6 +169,7 @@ public partial class World : Node2D
         _splash = new StartupSplash();
         AddChild(_splash);
         _splash.Build(this);
+        _alerts = AlertFrame.Attach(this);
         _devTools = new DevTools
         {
             View = _view,
@@ -267,6 +269,7 @@ public partial class World : Node2D
         _view.RecordTick(_game.Owner, _game.Fallout, _game.ChangedTiles, _simTick);
         _game.ChangedTiles.Clear();
         ShowGoldGains();
+        _alerts.TakeEvents(_game, _me);
         _notifications.TakeEvents(_game, _me);
         FrameProfiler.Stop("territory record", recordStart);
         _shownTick = _game.Tick;
@@ -354,14 +357,15 @@ public partial class World : Node2D
         _buildBar.SetSelected(_placing, _aiming);
         _buildBar.BlockMouse(_hud.AdjustingRatio);
         _outgoing.Update(_game, _me);
+        _alerts.Update(_game, _me);
         _arcs.SetRequests(IncomingAllianceRequests());
         FrameProfiler.Stop("  hud", hudOnly);
-        var hovered = HoveredPlayer();
+        var hovered = HoveredPlayer(out bool wilderness);
         if (_args.Hover is null) // name plates stop fading under the mouse while the slider is held
             _labels.MouseOverride = _hud.AdjustingRatio ? new Vector2(float.MinValue, float.MinValue) : null;
         _view.HoverId = hovered?.Id ?? -1;
         _labels.Hovered = hovered?.Id ?? 0;
-        _panels.Update(_game, _me, hovered, delta);
+        _panels.Update(_game, _me, hovered, wilderness, delta);
         FrameProfiler.Stop("hud+panels", hudStart);
     }
 
@@ -805,17 +809,27 @@ public partial class World : Node2D
     }
 
     /// <summary>The player whose territory is under the mouse (ignoring the HUD), or null.</summary>
-    private Player? HoveredPlayer()
+    /// <summary>
+    /// The player whose land is under the mouse, or null (<paramref name="wilderness"/> says
+    /// whether it's unclaimed land). The HUD hides the map, except the hover panel itself: the
+    /// mouse looks through it, so the panel doesn't vanish and come back under the mouse.
+    /// </summary>
+    private Player? HoveredPlayer(out bool wilderness)
     {
+        wilderness = false;
         if (_hud.AdjustingRatio)
             return null;
-        if (_args.Hover is null && !_args.HoverLeader && GetViewport().GuiGetHoveredControl() is { MouseFilter: not Control.MouseFilterEnum.Ignore })
+        if (_args.Hover is null && !_args.HoverLeader && GetViewport().GuiGetHoveredControl() is { MouseFilter: not Control.MouseFilterEnum.Ignore } over
+            && !_panels.Contains(over))
             return null;
         if (_args.HoverLeader)
             return _game.Players.MaxBy(p => p.TileCount);
         var mouse = _args.Hover is { } h ? new Vector2(h.X * _map.Width, h.Y * _map.Height) : GetGlobalMousePosition();
         int tile = _view.TileAt(mouse);
-        return tile < 0 ? null : _game.GetPlayer(_game.Owner[tile]);
+        if (tile < 0)
+            return null;
+        wilderness = _game.Owner[tile] == Game.Nobody && _map.IsLand(tile);
+        return _game.GetPlayer(_game.Owner[tile]);
     }
 
     private bool _pressIsDouble;
@@ -954,6 +968,8 @@ public partial class World : Node2D
             GD.Print($"incoming: {_game.Attacks.Count(a => a.TargetId == _me.Id)} attacks on us");
         }
 
+        if (_args.Alert is { } alert)
+            _alerts.Test(betrayal: alert == "betrayal");
         if (_args.AllyRequests > 0)
             AskForAlliances(_args.AllyRequests);
         _labels.PreviewAllTags = _args.Tags;
@@ -1193,7 +1209,7 @@ public partial class World : Node2D
     private record struct Args(string? Map, ulong? Seed, int? Bots, int? Nations, Difficulty? Difficulty, bool NoCheats, double? Bench, string? Dev, bool Autoplay, int Ticks,
         float Zoom, Vector2? Focus, string? Screenshot, bool Perf, Vector2? Hover, bool HoverLeader, bool Showcase, string? ShowcaseFocus,
         string? Start = null, int AllyRequests = 0, string? RightClick = null, string? Aim = null, bool Incoming = false, bool Tags = false, bool Notifs = false,
-        bool Splash = false);
+        bool Splash = false, string? Alert = null);
 
     private static Args ParseArgs()
     {
@@ -1225,6 +1241,7 @@ public partial class World : Node2D
                 case "perf": args.Perf = true; break;
                 case "start": args.Start = value; break;             // now / mid / ask
                 case "ally-requests": args.AllyRequests = int.Parse(value, inv); break;
+                case "alert": args.Alert = value; break; // (testing) "betrayal" or "attack": flash the alert frame
                 case "splash": args.Splash = true; break; // (testing) the startup splash shows in screenshot runs too
                 case "notifs": args.Notifs = true; break; // (testing) sample messages in the notification list, opened
                 case "tags": args.Tags = true; break; // (testing) every name shows every icon above it
