@@ -322,7 +322,11 @@ public partial class World
         column.AddChild(buttons);
         var now = new Button { Text = "Start of game", CustomMinimumSize = new Vector2(170, 38) };
         var mid = new Button { Text = "Mid-game (10 min in)", CustomMinimumSize = new Vector2(170, 38) };
-        now.Pressed += () => layer.Visible = false;
+        now.Pressed += () =>
+        {
+            layer.Visible = false;
+            PlaySplash();
+        };
         mid.Pressed += () =>
         {
             layer.Visible = false;
@@ -356,5 +360,6 @@ public partial class World
         _fastForwarding = false;
         _hud.Status = null;
         _game.AllowLateSpawn(_me);
+        PlaySplash();
     }
 }

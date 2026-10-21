@@ -100,6 +100,7 @@ public partial class World : Node2D
     private const int MidGameTicks = 10 * 60 * Balance.TicksPerSecond; // ten minutes in
     private const int FastForwardBatch = 40;                           // ticks per frame while fast-forwarding
     private CanvasLayer _startPrompt = null!;
+    private StartupSplash _splash = null!; // the map's name, faded in and out as the match starts
     private int _fastForwardLeft, _fastForwardTotal;
     private bool _fastForwarding;
     private BuildingType? _placing;
@@ -164,6 +165,9 @@ public partial class World : Node2D
         MoveChild(_arcs, _labels.GetIndex() + 1);
         _mainControl = GetNodeOrNull<Control>("Main_Layer/Main_Control");
         _startPrompt = MakeStartPrompt();
+        _splash = new StartupSplash();
+        AddChild(_splash);
+        _splash.Build(this);
         _devTools = new DevTools
         {
             View = _view,
@@ -904,6 +908,7 @@ public partial class World : Node2D
         _view.ShowMap(_map);
         _grid.SetMap(_map.Width, _map.Height);
         _devTools.ApplyAll(); // a new map resets the map material's settings
+        _splash.SetMapName(_mapId == "random" ? "Random" : _map.Name);
         StartMatch();
 
         GD.Print($"{title}: {_map.Width}x{_map.Height}, {_map.LandmassSizes.Length} landmasses, " +
@@ -970,6 +975,15 @@ public partial class World : Node2D
         _startPrompt.Visible = start == "ask";
         if (start == "mid")
             BeginMidGame();
+        else if (start == "now")
+            PlaySplash();
+    }
+
+    /// <summary>The startup splash, except in scripted runs (screenshots, benchmarks) unless --splash asks for it.</summary>
+    private void PlaySplash()
+    {
+        if (_args.Splash || (_args.Screenshot is null && _args.Bench is null))
+            _splash.Play();
     }
 
     /// <summary>Testing aid: spawns the human player on a random big landmass.</summary>
@@ -1178,7 +1192,8 @@ public partial class World : Node2D
 
     private record struct Args(string? Map, ulong? Seed, int? Bots, int? Nations, Difficulty? Difficulty, bool NoCheats, double? Bench, string? Dev, bool Autoplay, int Ticks,
         float Zoom, Vector2? Focus, string? Screenshot, bool Perf, Vector2? Hover, bool HoverLeader, bool Showcase, string? ShowcaseFocus,
-        string? Start = null, int AllyRequests = 0, string? RightClick = null, string? Aim = null, bool Incoming = false, bool Tags = false, bool Notifs = false);
+        string? Start = null, int AllyRequests = 0, string? RightClick = null, string? Aim = null, bool Incoming = false, bool Tags = false, bool Notifs = false,
+        bool Splash = false);
 
     private static Args ParseArgs()
     {
@@ -1210,6 +1225,7 @@ public partial class World : Node2D
                 case "perf": args.Perf = true; break;
                 case "start": args.Start = value; break;             // now / mid / ask
                 case "ally-requests": args.AllyRequests = int.Parse(value, inv); break;
+                case "splash": args.Splash = true; break; // (testing) the startup splash shows in screenshot runs too
                 case "notifs": args.Notifs = true; break; // (testing) sample messages in the notification list, opened
                 case "tags": args.Tags = true; break; // (testing) every name shows every icon above it
                 case "incoming": args.Incoming = true; break; // (testing) a neighbour attacks you, to show the incoming tabs
