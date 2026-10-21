@@ -38,7 +38,7 @@ public partial class TerritoryLabels : Node2D
     private const float NameSpacing = 8f / 32, TroopSpacing = 4f / 20;
     private const float NameOutline = 4f / 32, TroopOutline = 3f / 20;
     private const float NameShadow = 4f / 32, TroopShadow = 3f / 20;
-    private const float OutlineLighten = 0.68f;         // outline = the territory's colour, mostly whitened
+    private const float OutlineLighten = 0.4f;          // outline = the territory's colour, lightened
 
     private static readonly Color TextColor = new(0.117f, 0.117f, 0.117f, 1f);
     private static readonly Color ShadowColor = new(0, 0, 0, 0.157f);
@@ -46,6 +46,9 @@ public partial class TerritoryLabels : Node2D
 
     /// <summary>Territory colours by owner id (the outline is a light version of each).</summary>
     public void SetPalette(Color[] palette) => _palette = palette;
+
+    /// <summary>Outlines in a light version of each territory's colour (dev toolbar NOL), else white.</summary>
+    public bool ColouredOutlines { get; set; } = true;
 
     /// <summary>A name's spot and OpenFront "size" (the font size that fits its rectangle).</summary>
     private readonly record struct Placement(Vector2 Centre, float Size);
@@ -417,7 +420,7 @@ public partial class TerritoryLabels : Node2D
         var text = TextColor with { A = TextColor.A * alpha };
         var shadow = ShadowColor with { A = ShadowColor.A * alpha };
         var fillColour = id < _palette.Length ? _palette[id] : Colors.White;
-        var outline = new Color(fillColour.Lerp(Colors.White, OutlineLighten), alpha);
+        var outline = new Color(ColouredOutlines ? fillColour.Lerp(Colors.White, OutlineLighten) : Colors.White, alpha);
 
         if (flag is not null)
             DrawTextureRect(flag, new Rect2(pos.X - nameWidth / 2 - flagGap - flagWidth, pos.Y - flagHeight / 2, flagWidth, flagHeight), false, new Color(1, 1, 1, alpha));
