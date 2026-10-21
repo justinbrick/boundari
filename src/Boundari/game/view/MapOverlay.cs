@@ -365,10 +365,9 @@ public partial class MapOverlay : Node2D
     }
 
     // Roads (the depots' railroads), like OpenFront's: one reference tile wide (its
-    // railThickness 1) in whole screen pixels, at least RoadMinPixels. Your own roads are
-    // white (OpenFront's focusedBorderColor #e6e6e6; black on very light land), others' are
-    // the land owner's border colour, unowned land and bridges light grey, bridges with
-    // OpenFront's red sides. Once wide enough, a dashed line runs down the middle in the
+    // railThickness 1) in whole screen pixels, at least RoadMinPixels. Every road is the land
+    // owner's border colour (yours too: the user preferred that to OpenFront's white), unowned
+    // land and bridges light grey, bridges with OpenFront's red sides. Once wide enough, a dashed line runs down the middle in the
     // land's colour, darker.
     private const float RoadMinPixels = 2;
     private const float RoadTiles = 1;               // reference tiles
@@ -377,7 +376,6 @@ public partial class MapOverlay : Node2D
     private const float DashTiles = 1;               // reference tiles of line, then as much gap
     private const float BridgeWidth = 2;             // the red sides span twice the road's width
     private const float BorderDarken = 0.35f;        // map.gdshader's border_darken
-    private static readonly Color OwnRoadColour = new(0.902f, 0.902f, 0.902f);
     private static readonly Color NeutralRoadColour = new(0.75f, 0.75f, 0.75f);
     private static readonly Color BridgeColour = new(0.773f, 0.271f, 0.282f);
 
@@ -543,23 +541,17 @@ public partial class MapOverlay : Node2D
         ushort owner = _game!.Owner[tile];
         if (owner == Game.Nobody || !_game.Map.IsLand(tile))
             return NeutralRoadColour;
-        var land = ColorOf(owner);
-        if (owner == _me?.Id)
-            return Brightness(land) > 0.8f ? Colors.Black : OwnRoadColour;
-        return land.Darkened(BorderDarken);
+        return ColorOf(owner).Darkened(BorderDarken);
     }
 
-    /// <summary>The centre line's colour: the land's colour, darker (darker still on others' darker roads).</summary>
+    /// <summary>The centre line's colour: the land's colour, darker than the road.</summary>
     private Color MarkingColour(int tile)
     {
         ushort owner = _game!.Owner[tile];
         if (owner == Game.Nobody || !_game.Map.IsLand(tile))
             return NeutralRoadColour.Darkened(0.4f);
-        return ColorOf(owner).Darkened(owner == _me?.Id ? BorderDarken : 0.6f);
+        return ColorOf(owner).Darkened(0.6f);
     }
-
-    // Perceived brightness, 0-1 (colord's brightness(), which OpenFront uses for this).
-    private static float Brightness(Color c) => (c.R * 299 + c.G * 587 + c.B * 114) / 1000f;
 
     private sealed class RailShape
     {
