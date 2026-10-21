@@ -97,6 +97,7 @@ public sealed class BuildBar
     private sealed class Lift
     {
         public readonly Info? Info;
+        public readonly Button Button;
         private readonly Control _picture;
         private readonly ShaderMaterial? _shader;
         private readonly float _top, _bottom;
@@ -106,10 +107,17 @@ public sealed class BuildBar
         public Lift(Button button, Control picture, Info? info)
         {
             Info = info;
+            Button = button;
             _picture = picture;
             // Offsets, not position: they are what the scene sets, so they stay right when the window resizes.
             _top = picture.OffsetTop;
             _bottom = picture.OffsetBottom;
+            // The scene's buttons reach above their pictures, so the mouse lifted them from
+            // empty space: the button now starts where its picture does (the picture is
+            // pinned to the button's bottom, so it stays put).
+            if (picture.AnchorTop == 1 && picture.AnchorBottom == 1 && button.AnchorTop == button.AnchorBottom
+                && button.OffsetBottom + picture.OffsetTop > button.OffsetTop)
+                button.OffsetTop = button.OffsetBottom + picture.OffsetTop;
             // Its own copy, so lighting one button never lights another that shares the material.
             if (picture.Material is ShaderMaterial shared && HasParam(shared, "hover_amount"))
                 picture.Material = _shader = (ShaderMaterial)shared.Duplicate();
@@ -127,6 +135,17 @@ public sealed class BuildBar
                 if (u.AsGodotDictionary()["name"].AsString() == name)
                     return true;
             return false;
+        }
+
+        private float _dim = -1;
+
+        public void Dim(float amount)
+        {
+            if (_dim == amount || _shader is null)
+                return;
+            _dim = amount;
+            if (HasParam(_shader, "dim_amount"))
+                _shader.SetShaderParameter("dim_amount", amount);
         }
 
         public bool Selected
@@ -150,6 +169,31 @@ public sealed class BuildBar
             if (_shader is not null)
                 _tween.TweenProperty(_shader, "shader_parameter/hover_amount", up ? 1f : 0f, LiftSeconds);
         }
+    }
+
+    private const float DimAmount = 0.5f; // how much darker a button you can't afford or use is drawn
+
+    /// <summary>Dims (or undims) a button's picture: its shader ignores the button's own tint.</summary>
+    public void SetUsable(Button button, bool usable)
+    {
+        foreach (var lift in _lifts)
+            if (lift.Button == button)
+                lift.Dim(usable ? 0 : DimAmount);
+    }
+
+    private bool _mouseBlocked;
+
+    /// <summary>
+    /// While the attack ratio slider is held the buttons ignore the mouse (no lifting, no
+    /// description); afterwards they listen again.
+    /// </summary>
+    public void BlockMouse(bool blocked)
+    {
+        if (_mouseBlocked == blocked)
+            return;
+        _mouseBlocked = blocked;
+        foreach (var lift in _lifts)
+            lift.Button.MouseFilter = blocked ? Control.MouseFilterEnum.Ignore : Control.MouseFilterEnum.Stop;
     }
 
     /// <summary>The structure being placed or the bomb being aimed keeps its button up.</summary>

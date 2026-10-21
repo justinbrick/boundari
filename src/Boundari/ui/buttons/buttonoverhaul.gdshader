@@ -22,6 +22,9 @@ uniform float tint_strength : hint_range(0.0, 1.0) = 0.0;
 // ---- Overall alpha of the button "glass" ----
 uniform float panel_alpha : hint_range(0.0, 1.0) = 1.0;
 
+// ---- Dimmed (set from code when you can't afford it): 0 = normal, 1 = black ----
+uniform float dim_amount : hint_range(0.0, 1.0) = 0.0;
+
 
 // -------- noise helpers --------
 
@@ -87,5 +90,5 @@ void fragment() {
     // Final alpha: only visible where SVG alpha exists, scaled by panel_alpha
     float final_alpha = panel_alpha * shape_alpha;
 
-    COLOR = vec4(final_rgb, final_alpha);
+    COLOR = vec4(final_rgb * (1.0 - dim_amount), final_alpha);
 }

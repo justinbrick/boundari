@@ -106,6 +106,7 @@ public partial class World : Node2D
     private NukeType? _aiming;
     private readonly System.Collections.Generic.List<(BuildingType Type, Button Button)> _buildButtons = new();
     private Color[] _palette = Array.Empty<Color>();
+    private ColorTheme _colorTheme;
     private Vector2? _showcaseFocus;
     private int _showcaseRailFocus = -1;
 
@@ -180,6 +181,12 @@ public partial class World : Node2D
                 _labels.Visible = show && _showPlayers;
             },
             ShowGrid = show => _grid.Visible = show,
+            SetColorTheme = theme =>
+            {
+                _colorTheme = theme;
+                if (_game is not null)
+                    ApplyPalette();
+            },
             ForceAllianceRequest = ForceAllianceRequest,
         };
         AddChild(_devTools);
@@ -341,6 +348,7 @@ public partial class World : Node2D
         _bar.Update(_game, _me, delta);
         _buildBar.Update(_game, _me, delta);
         _buildBar.SetSelected(_placing, _aiming);
+        _buildBar.BlockMouse(_hud.AdjustingRatio);
         _outgoing.Update(_game, _me);
         _arcs.SetRequests(IncomingAllianceRequests());
         FrameProfiler.Stop("  hud", hudOnly);
@@ -351,6 +359,16 @@ public partial class World : Node2D
         _labels.Hovered = hovered?.Id ?? 0;
         _panels.Update(_game, _me, hovered, delta);
         FrameProfiler.Stop("hud+panels", hudStart);
+    }
+
+    /// <summary>Gives every player their territory colour in the current theme (the same colours each time for this game).</summary>
+    private void ApplyPalette()
+    {
+        SyncSim();
+        _palette = PlayerColors.For(_game.Players, _game.Seed, _colorTheme);
+        _view.SetPalette(_palette);
+        _overlay.SetPalette(PlayerColors.Solid(_palette));
+        _labels.SetPalette(_palette);
     }
 
     private double _benchTime, _benchReport, _benchWorstFrame;
@@ -725,11 +743,15 @@ public partial class World : Node2D
         }
     }
 
+    // What you can't afford (or can't use yet) is dimmed: drawn darker.
+    private static readonly Color UnusableButton = new(0.4f, 0.4f, 0.4f);
+
     private void SetButton(Button button, bool usable, long cost)
     {
-        float alpha = usable ? 1f : 0.4f;
-        if (button.Modulate.A != alpha)
-            button.Modulate = new Color(1, 1, 1, alpha);
+        var tint = usable ? Colors.White : UnusableButton;
+        if (button.Modulate != tint)
+            button.Modulate = tint; // (its count and anything else on it)
+        _buildBar.SetUsable(button, usable); // its picture
         // The hotbar tooltip (hoveroverhaul.gd) shows the price on its third line.
         string price = GameHud.FormatCount(cost);
         if (!_buttonPrices.TryGetValue(button, out var shown) || shown != price)
@@ -903,12 +925,9 @@ public partial class World : Node2D
         else
             _game.AddNations(_args.Nations ?? Nations);
         _game.AddBots(_args.Bots ?? Bots);
-        _palette = PlayerColors.For(_game.Players, _game.Seed);
-        _view.SetPalette(_palette);
-        _overlay.SetPalette(PlayerColors.Solid(_palette));
+        ApplyPalette();
         _ = _game.Waterways; // prepare sea routes now, not on the first boat
         _labels.SetGame(_game);
-        _labels.SetPalette(_palette);
         _labels.MouseOverride = _args.Hover is { } fake ? new Vector2(fake.X * _map.Width, fake.Y * _map.Height) : null;
         _overlay.SetGame(_game, _me);
         _placing = null;
