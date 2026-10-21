@@ -384,8 +384,10 @@ public partial class World : Node2D
 
     public override void _Input(InputEvent e)
     {
-        // Esc cancels placement before the options menu can grab it.
-        if ((_placing is not null || _aiming is not null) && e is InputEventKey { Pressed: true, Keycode: Key.Escape })
+        // Esc cancels placement before the options menu can grab it, and a right click
+        // cancels it before the radial menu (main_control.gd) can open.
+        if ((_placing is not null || _aiming is not null)
+            && e is InputEventKey { Pressed: true, Keycode: Key.Escape } or InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Right })
         {
             StopPlacing();
             GetViewport().SetInputAsHandled();
@@ -397,11 +399,6 @@ public partial class World : Node2D
         if (_hud.AdjustingRatio && e is InputEventMouse)
             return; // dragging the attack ratio slider: the mouse is only for the slider
         SyncSim(); // input may read or change the game: let the running tick finish first
-        if (e is InputEventMouseButton { ButtonIndex: MouseButton.Right, Pressed: true } && (_placing is not null || _aiming is not null))
-        {
-            StopPlacing();
-            return;
-        }
         if (e is InputEventMouseButton { Pressed: true, ShiftPressed: true, ButtonIndex: MouseButton.WheelUp or MouseButton.WheelDown } wheel)
         {
             _hud.AdjustRatio(wheel.ButtonIndex == MouseButton.WheelUp ? AttackRatioStep : -AttackRatioStep); // Shift+wheel, like OpenFront
