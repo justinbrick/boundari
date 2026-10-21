@@ -129,7 +129,9 @@ public class AllianceTests
         Assert.Equal(Emoji.MiddleFinger, game.ShownEmoji(a, b));
         Assert.Null(game.ShownEmoji(a, a)); // only the recipient sees it
         Assert.Equal(Relation.Hostile, game.RelationOf(b, a));
-        Assert.NotNull(game.ShownEmoji(b, a)); // the nation answered
+        Assert.Null(game.ShownEmoji(b, a)); // the nation takes a moment...
+        Wait(game, ChatRules.ReplyMaxTicks);
+        Assert.NotNull(game.ShownEmoji(b, a)); // ...then answers
 
         for (int i = 0; i < ChatRules.EmojiLimit; i++)
             game.Submit(new EmojiIntent(a.Id, b.Id, Emoji.Grin));

@@ -86,8 +86,10 @@ public class AiTests
 
         game.Submit(new EmojiIntent(a.Id, b.Id, Emoji.Clown));
         game.Step();
+        Assert.Equal(Relation.Distrustful, game.RelationOf(b, a)); // at once
+        for (int t = 0; t < ChatRules.ReplyMaxTicks; t++) // the answer within a few seconds
+            game.Step();
         Assert.Contains(game.ShownEmoji(b, a), new Emoji?[] { Emoji.Question, Emoji.Clown });
-        Assert.Equal(Relation.Distrustful, game.RelationOf(b, a));
     }
 
     [Fact]

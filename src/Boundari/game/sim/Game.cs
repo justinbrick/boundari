@@ -256,6 +256,7 @@ public sealed partial class Game
             ai.Think();
         StepWorst[8] = Math.Max(StepWorst[8], Stopwatch.GetTimestamp() - t0);
         RunAlliances();
+        SendReplies();
         long t1 = Stopwatch.GetTimestamp();
         GrowEconomies();
         PlanBoardingBoats();
