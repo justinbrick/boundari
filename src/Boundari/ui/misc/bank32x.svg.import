@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bml37mmutijn8"
-path="res://.godot/imported/destination64x.svg-80ec67f7cc6ac8d07436cf0232903309.ctex"
+uid="uid://csxaibnll1wnh"
+path="res://.godot/imported/bank32x.svg-7a668eb02f666458fec50da35ea23dd6.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://ui/misc64x/destination64x.svg"
-dest_files=["res://.godot/imported/destination64x.svg-80ec67f7cc6ac8d07436cf0232903309.ctex"]
+source_file="res://ui/misc/bank32x.svg"
+dest_files=["res://.godot/imported/bank32x.svg-7a668eb02f666458fec50da35ea23dd6.ctex"]
 
 [params]
 
@@ -38,6 +38,6 @@ process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
 detect_3d/compress_to=1
-svg/scale=0.08
+svg/scale=1.0
 editor/scale_with_editor_scale=false
 editor/convert_colors_with_editor_theme=false
