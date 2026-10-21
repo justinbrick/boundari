@@ -449,6 +449,8 @@ public partial class TerritoryLabels : Node2D
     private static readonly Color LeaderTag = new("#feea4f");
     private static readonly Color AllyTag = new("#278f04");      // the handshake's lines
     private static readonly Color AllyFillTag = new("#88da6f");  // inside them: the time left
+    private static readonly Color AllyOutlineTag = new(0.12f, 0.2f, 0.1f, 0.85f); // round it: dark green-grey, not black
+    private const float TagOutline = 0.027f; // outline width, of the icon's height (OpenFront's 6 px on a 224 px icon)
     private static readonly Color TargetTag = new("#ec1b2d");
     private static readonly Color BombAtMeTag = new("#ff0000");  // their bombs are coming at you
     private static readonly Color TraitorTag = new("#aa0000");   // text stand-in until there's an icon
@@ -725,13 +727,25 @@ public partial class TerritoryLabels : Node2D
             : height;
 
     /// <summary>
-    /// One icon in its colour. The alliance icon has darker green lines and a lighter green fill
-    /// inside them that drains from the top of the picture down as the alliance runs out
-    /// (OpenFront's drain line). No outline: OpenFront draws a black one, but the user didn't want it.
+    /// One icon in its colour. The alliance icon gets a dark outline so it reads on green land
+    /// (OpenFront's is black; the user wanted it softer), darker green lines, and a lighter green
+    /// fill inside them that drains from the top of the picture down as the alliance runs out
+    /// (OpenFront's drain line).
     /// </summary>
     private void DrawTagIcon(Texture2D texture, Rect2 at, Color tint, float alpha, bool ally, float fill, float top, float bottom)
     {
         var solid = new Color(tint, tint.A * alpha);
+        if (ally)
+        {
+            // The picture drawn eight times, nudged out in every direction, under the real one.
+            float o = at.Size.Y * TagOutline;
+            var outline = new Color(AllyOutlineTag, alpha);
+            for (int i = 0; i < 8; i++)
+            {
+                float angle = i * MathF.PI / 4;
+                DrawTextureRect(texture, new Rect2(at.Position + new Vector2(MathF.Cos(angle), MathF.Sin(angle)) * o, at.Size), false, outline);
+            }
+        }
         if (ally && _allyFill is not null && fill > 0)
         {
             // The fill below the drain line; the lines go on top.
