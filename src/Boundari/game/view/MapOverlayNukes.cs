@@ -38,6 +38,7 @@ public partial class MapOverlay
     private static readonly Color BlastCore = new(1f, 0.97f, 0.85f);
     private static readonly Color BlastFire = new(1f, 0.55f, 0.15f);
     private static readonly Color DangerRed = new(0.95f, 0.2f, 0.15f);
+    private static readonly Color AimColour = Colors.White;
 
     public void SetNukeGhost(NukeType type, int tile, bool valid, bool up = true)
     {
@@ -236,7 +237,8 @@ public partial class MapOverlay
     /// preview) the arc from the silo that would fire it: dashed where Flak can reach it,
     /// finely dotted up high where it can't, turning red with an X from the first point an
     /// enemy Flak covers, with small rings where it climbs out of and comes back into reach.
-    /// The blast circles turn red if the strike would break an alliance.
+    /// The blast circles are white, red if Flak would shoot the bomb down (or the strike can't
+    /// happen, or would break an alliance).
     /// </summary>
     private void DrawAim(float zoom, int w)
     {
@@ -245,7 +247,7 @@ public partial class MapOverlay
         var at = TileCentre(_aimTile, w);
         if (type == NukeType.TsarBomba)
         {
-            var tint = _aimValid ? new Color(1f, 0.85f, 0.3f) : DangerRed;
+            var tint = _aimValid ? AimColour : DangerRed; // Flak can't stop this one
             DrawArc(at, _game!.Rules.MirvRange, 0, Mathf.Tau, 128, new Color(tint, 0.5f), 1.5f / zoom, true);
             DrawCircle(at, 20, new Color(tint, 0.35f));
             if (_game.ReadySilo(_me, _aimTile) is { } silo)
@@ -267,7 +269,8 @@ public partial class MapOverlay
             _preview = _game!.PreviewNuke(_me, type, _aimTile, _aimUp);
         }
         var (inner, outer) = _game!.Rules.Blast(type);
-        var ring = !_aimValid || _preview?.BetraysAlly == true ? DangerRed : new Color(1f, 0.85f, 0.3f);
+        bool shotDown = _preview is { InterceptIndex: >= 0 };
+        var ring = !_aimValid || shotDown || _preview?.BetraysAlly == true ? DangerRed : AimColour;
         DrawCircle(at, outer, new Color(ring, 0.12f));
         DrawCircle(at, inner, new Color(ring, 0.28f));
         DrawArc(at, outer, 0, Mathf.Tau, 64, new Color(ring, 0.8f), 1.5f / zoom, true);
