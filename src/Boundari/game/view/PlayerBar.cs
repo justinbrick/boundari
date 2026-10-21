@@ -90,7 +90,15 @@ public sealed class PlayerBar
             meter.AddChild(_fill);
             meter.MoveChild(_fill, 0);
             if (meter is Panel panel && panel.GetThemeStylebox("panel") is StyleBoxFlat box)
+            {
                 _fill.MatchPanel(box);
+                // Godot softens a see-through panel's fill and border separately; when the
+                // window's scaling puts the panel between pixels, the two soft edges overlap
+                // into a dark line inside the border (right and bottom). Hard edges don't.
+                var crisp = (StyleBoxFlat)box.Duplicate();
+                crisp.AntiAliasing = false;
+                panel.AddThemeStyleboxOverride("panel", crisp);
+            }
         }
 
         if (player?.GetNodeOrNull("Structures/HBoxContainer2") is { } row)
