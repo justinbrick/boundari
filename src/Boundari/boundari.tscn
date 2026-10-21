@@ -130,6 +130,15 @@ corner_radius_top_right = 12
 [sub_resource type="FontVariation" id="FontVariation_rw53w"]
 base_font = ExtResource("49_5khtq")
 
+[sub_resource type="StyleBoxLine" id="StyleBoxLine_cjpii"]
+content_margin_left = 0.0
+content_margin_top = 4.0
+content_margin_right = 0.0
+content_margin_bottom = 4.0
+color = Color(1, 1, 1, 0.1764706)
+thickness = 2
+vertical = true
+
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_p0wbd"]
 content_margin_left = 4.0
 content_margin_top = 4.0
@@ -556,9 +565,10 @@ shader_parameter/panel_alpha = 0.800000038
 [sub_resource type="StyleBoxLine" id="StyleBoxLine_2q8dx"]
 content_margin_left = 0.0
 content_margin_top = 4.0
-content_margin_right = 0.0
+content_margin_right = 1.0
 content_margin_bottom = 4.0
-color = Color(1, 1, 1, 0.27450982)
+color = Color(1, 1, 1, 0.1764706)
+thickness = 2
 vertical = true
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_kthhr"]
@@ -1096,7 +1106,6 @@ grow_vertical = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_fruhh")
 
 [node name="AttackRatio_Hbox" type="HBoxContainer" parent="Main_Layer/Main_Control/HBox_Hud/In_Panel2" unique_id=334075000]
-visible = false
 layout_mode = 1
 anchors_preset = -1
 anchor_right = 0.976378
@@ -1123,7 +1132,7 @@ theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.29411766)
 theme_override_constants/shadow_offset_x = 1
 theme_override_constants/shadow_offset_y = 1
 theme_override_fonts/font = SubResource("FontVariation_rw53w")
-text = "20%"
+text = "35%"
 
 [node name="TroopAmount_Label" type="Label" parent="Main_Layer/Main_Control/HBox_Hud/In_Panel2/AttackRatio_Hbox" unique_id=1449151399]
 modulate = Color(1, 1, 1, 0.78431374)
@@ -1132,9 +1141,11 @@ theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.29411766)
 theme_override_fonts/font = SubResource("FontVariation_rw53w")
 text = "(1.65K)"
 
-[node name="MarginContainer2" type="MarginContainer" parent="Main_Layer/Main_Control/HBox_Hud/In_Panel2/AttackRatio_Hbox" unique_id=390742157]
-custom_minimum_size = Vector2(6, 0)
+[node name="VSeparator" type="VSeparator" parent="Main_Layer/Main_Control/HBox_Hud/In_Panel2/AttackRatio_Hbox" unique_id=486689328]
+custom_minimum_size = Vector2(0, 12)
 layout_mode = 2
+size_flags_vertical = 4
+theme_override_styles/separator = SubResource("StyleBoxLine_cjpii")
 
 [node name="HSlider" type="HSlider" parent="Main_Layer/Main_Control/HBox_Hud/In_Panel2/AttackRatio_Hbox" unique_id=110662855]
 layout_mode = 2
@@ -1142,10 +1153,11 @@ size_flags_horizontal = 3
 size_flags_vertical = 4
 theme_override_styles/slider = SubResource("StyleBoxFlat_p0wbd")
 min_value = 10.0
-value = 20.0
+value = 35.0
 scrollable = false
 
 [node name="Description_HBox" type="HBoxContainer" parent="Main_Layer/Main_Control/HBox_Hud/In_Panel2" unique_id=1619941368]
+visible = false
 layout_mode = 1
 anchors_preset = -1
 anchor_right = 0.976378
@@ -2691,26 +2703,20 @@ expand_mode = 1
 stretch_mode = 5
 
 [node name="Name" type="Label" parent="Main_Layer/Main_Control/Display_Rec/Panel/HBoxContainer/VBoxContainer2/VBoxContainer/HBoxContainer" unique_id=971260891]
-custom_minimum_size = Vector2(75, 0)
 layout_mode = 2
 theme_override_fonts/font = SubResource("FontVariation_ogqqv")
 theme_override_font_sizes/font_size = 20
 text = "brunette"
 vertical_alignment = 1
-clip_text = true
-text_overrun_behavior = 3
 
 [node name="Placement" type="Label" parent="Main_Layer/Main_Control/Display_Rec/Panel/HBoxContainer/VBoxContainer2/VBoxContainer/HBoxContainer" unique_id=1401872631]
 layout_mode = 2
-size_flags_horizontal = 3
 size_flags_vertical = 1
 theme_override_colors/font_color = Color(1, 1, 1, 0.6509804)
 theme_override_fonts/font = SubResource("FontVariation_jcive")
 theme_override_font_sizes/font_size = 14
 text = "3rd"
 vertical_alignment = 1
-clip_text = true
-text_overrun_behavior = 3
 
 [node name="HBoxContainer3" type="HBoxContainer" parent="Main_Layer/Main_Control/Display_Rec/Panel/HBoxContainer/VBoxContainer2/VBoxContainer" unique_id=536860958]
 layout_mode = 2
