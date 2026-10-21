@@ -46,6 +46,9 @@ public partial class DevTools : CanvasLayer
     /// <summary>Shows or hides the coordinate grid.</summary>
     public Action<bool>? ShowGrid { get; set; }
 
+    /// <summary>Switches the territory colour theme (0 Military, 1 Vibrant: OpenFront's).</summary>
+    public Action<ColorTheme>? SetColorTheme { get; set; }
+
     /// <summary>Makes a random territory ask the player to ally (the "Ally request" button / Y).</summary>
     public Action? ForceAllianceRequest { get; set; }
 
@@ -68,6 +71,8 @@ public partial class DevTools : CanvasLayer
             new("GRD", "Coordinate grid", new[] { "OFF", "ON" }, 0, i => ShowGrid?.Invoke(i == 1)),
             new("TOP", "Topography (contour lines, metres)", new[] { "OFF", "100", "250", "500" }, 0,
                 i => V.ContourInterval = new[] { 0f, 100f, 250f, 500f }[i]),
+            new("COL", "Territory colours (military / vibrant: OpenFront's)", new[] { "MIL", "VIB" }, 0,
+                i => SetColorTheme?.Invoke((ColorTheme)i)),
             new("LBL", "Territory names, flags and troops", new[] { "ON", "OFF" }, 0, i => ShowLabels?.Invoke(i == 0)),
             new("PLY", "Players, tribes and nations (F7 toggles)", new[] { "ON", "OFF" }, 0, i => ShowPlayers?.Invoke(i == 0)),
         };

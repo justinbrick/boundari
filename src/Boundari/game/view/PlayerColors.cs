@@ -5,12 +5,18 @@ using Godot;
 
 namespace Boundari.View;
 
+/// <summary>The territory colour themes (dev toolbar "COL").</summary>
+public enum ColorTheme { Military, Vibrant }
+
 /// <summary>
-/// Territory colours. People and nations get dull, muted colours of every hue: the palette
+/// Territory colours. In the Military theme people and nations get dull, muted colours of every hue: the palette
 /// is spread evenly around the colour wheel at one low colourfulness (in CIE Lab, so every
 /// hue looks equally muted) and three lightness levels. Each new player gets the colour most
 /// distinct from those already handed out; once the palette runs out it starts over a shade
 /// lighter or darker. Tribes are all one cream white, like OpenFront's current bot colour.
+/// The Vibrant theme is OpenFront's own (its default-theme.json): people from its bright
+/// human list, nations from its nation list, tribes all its light grey bot colour, handed
+/// out the same way.
 /// </summary>
 public static class PlayerColors
 {
@@ -50,16 +56,44 @@ public static class PlayerColors
     /// <summary>Tribes: all the same cream white, see-through like everyone else.</summary>
     public static readonly Color Tribe = new(0.96f, 0.93f, 0.84f);
 
+    // OpenFront's default theme.
+    private static readonly Color[] VibrantHumans = Hex(
+        "#a3e635", "#84cc16", "#10b981", "#34d399", "#2dd4bf", "#4ade80", "#6ee7b7", "#86efac", "#97ffbb", "#baffc9",
+        "#e6fad2", "#22c55e", "#43be54", "#52b788", "#30b2b4", "#e6fffa", "#dcf0fa", "#e9d5ff", "#ccccff", "#dcdcff",
+        "#cae1ff", "#93c5fd", "#7dd3fc", "#63cafd", "#38bdf8", "#60a5fa", "#3b82f6", "#4f46e5", "#7c3aed", "#9333ea",
+        "#b388ff", "#a78bfa", "#d946ef", "#a855f7", "#be5cfb", "#c084fc", "#f0abfc", "#f472b6", "#ec4899", "#dc2626",
+        "#ef4444", "#eb4b4b", "#f56565", "#f87171", "#fb7185", "#fda4af", "#fca5a5", "#ffcce5", "#fad7e1", "#fbebf5",
+        "#f0f0c8", "#fafad2", "#fff0c8", "#ffdfba", "#fcd34d", "#fbbf24", "#eab308", "#ca8a04", "#f59e0b", "#fb923c",
+        "#f97316", "#ea580c", "#854d0e");
+    private static readonly Color[] VibrantNations = Hex(
+        "#d2d264", "#b4d278", "#aabe64", "#50c878", "#82c882", "#8cb48c", "#a0bea0", "#a0b48c", "#64a050", "#648c6e",
+        "#64b4a0", "#82b4aa", "#aabeb4", "#648296", "#78a0c8", "#8c96b4", "#64d2d2", "#8cb4dc", "#82aabe", "#64b4e6",
+        "#5082be", "#7878be", "#966ebe", "#a078a0", "#aa8cbe", "#b482b4", "#be8c96", "#b464e6", "#b4a0b4", "#aa96aa",
+        "#968296", "#e6b4b4", "#d2a0c8", "#e682b4", "#d264a0", "#be6482", "#dc7878", "#c8826e", "#e68c8c", "#e66464",
+        "#e69664", "#d28c50", "#e6b450", "#c8a06e", "#be9682", "#b4aa8c", "#c8c88c", "#beaa64");
+    private static readonly Color VibrantTribe = new("#d1cdc7");
+
+    private static Color[] Hex(params string[] colors) => Array.ConvertAll(colors, c => new Color(c));
+
     // Past this many picks, choosing the most distinct colour isn't worth the time (OpenFront).
     private const int DistinctPicks = 50;
 
     /// <summary>A colour for every player id (index 0, nobody, is unused).</summary>
-    public static Color[] For(IReadOnlyList<Player> players, ulong seed)
+    public static Color[] For(IReadOnlyList<Player> players, ulong seed, ColorTheme theme = ColorTheme.Military)
     {
         int count = 1;
         foreach (var p in players)
             count = Math.Max(count, p.Id + 1);
         var colors = new Color[count];
+        if (theme == ColorTheme.Vibrant)
+        {
+            // OpenFront keeps separate pools for people and nations.
+            var people = new Pool(VibrantHumans, seed);
+            var nations = new Pool(VibrantNations, seed ^ 0x9E3779B97F4A7C15);
+            foreach (var p in players)
+                colors[p.Id] = p.IsBot ? VibrantTribe : p.IsNation ? nations.Next() : people.Next();
+            return colors;
+        }
         var pool = new Pool(Dull, seed);
         foreach (var p in players)
             colors[p.Id] = p.IsBot ? Tribe : pool.Next();
