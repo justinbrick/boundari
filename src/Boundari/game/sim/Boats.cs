@@ -76,8 +76,8 @@ public sealed class Waterways
     public Waterways(GameMap map, double tileScale = 1)
     {
         _map = map;
-        ShoreMargin = Math.Max(1, (int)Math.Round(BaseShoreMargin * tileScale));
-        CellMargin = Math.Max(1, (int)Math.Round(BaseCellMargin * tileScale));
+        ShoreNear = Math.Max(1, (int)Math.Round(BaseShoreNear * tileScale));
+        ShoreFar = Math.Max(ShoreNear, (int)Math.Round(BaseShoreFar * tileScale));
         Body = new int[map.TileCount];
         Array.Fill(Body, NoBody);
         var queue = new int[map.TileCount];
@@ -140,13 +140,20 @@ public sealed class Waterways
         return n;
     }
 
-    // Boats keep their distance from land when there's room: each step within ShoreMargin
-    // tiles of a coast costs extra, more the closer it is (so in a river or strait they
-    // take the middle). Distances are worked out once, when the map loads.
-    private const int BaseShoreMargin = 18;    // tiles, on the reference map (scaled by the tile scale)
-    private readonly int ShoreMargin;
-    private const int ShorePenaltyPerTile = 3; // extra cost per step, per tile closer than the margin
+    // Boats sail a few tiles off the coast, like OpenFront's (AStar.WaterBounded): a step
+    // closer than ShoreNear tiles to land costs 3 extra steps, ShoreNear..ShoreFar is free,
+    // and open water further out costs 1 extra step, so routes neither hug the coast nor
+    // swing far out to sea. Distances are worked out once, when the map loads.
+    private const int BaseShoreNear = 3;       // tiles, on the reference map (scaled by the tile scale)
+    private const int BaseShoreFar = 10;
+    private readonly int ShoreNear, ShoreFar;
+    private const int NearShorePenalty = 30;   // per step (a straight step costs 10)
+    private const int OpenSeaPenalty = 10;
+    private int ShoreMargin => ShoreFar + 1;
     private byte[] _shoreDist = Array.Empty<byte>(); // water tiles: tiles to the nearest land (capped at ShoreMargin)
+
+    /// <summary>Extra cost of a step onto a water tile this many tiles from land.</summary>
+    private int ShorePenalty(int distance) => distance < ShoreNear ? NearShorePenalty : distance <= ShoreFar ? 0 : OpenSeaPenalty;
 
     private void BuildShoreDistance()
     {
@@ -204,11 +211,10 @@ public sealed class Waterways
     private byte[] _cellLinks = Array.Empty<byte>(); // which neighbouring cells its water flows into
     private byte[] _cellCoast = Array.Empty<byte>(); // cells to the nearest cell with land in it (capped at CellMargin)
 
-    // The rough route keeps off coasts too (else its corridor would hug them): steps into
-    // cells within CellMargin cells of land cost extra, more the closer they are.
-    private const int BaseCellMargin = 3;
-    private readonly int CellMargin;
-    private const int CellCoastPenalty = 8;
+    // The rough route follows the same rule on cells: cells with land in them cost as much
+    // as the coast, the ring of cells next to them is free, open sea beyond costs a little.
+    private const int CellMargin = 2;
+    private static int CellPenalty(int coast) => coast == 0 ? NearShorePenalty : coast == 1 ? 0 : OpenSeaPenalty;
     private int _cellsWide, _cellsHigh;
 
     private readonly Workspace _instant;
@@ -373,7 +379,7 @@ public sealed class Waterways
                         continue; // don't squeeze diagonally between two land tiles
                     if (mark[n] == closed)
                         continue;
-                    int ng = g + (dx != 0 && dy != 0 ? 14 : 10) + (_w.ShoreMargin - shore[n]) * ShorePenaltyPerTile;
+                    int ng = g + (dx != 0 && dy != 0 ? 14 : 10) + _w.ShorePenalty(shore[n]);
                     if (mark[n] == seen && cost[n] <= ng)
                         continue;
                     mark[n] = seen;
@@ -587,7 +593,7 @@ public sealed class Waterways
                 int n = ny * cw + nx;
                 if ((_cellBody[n] != body && _cellBody[n] != Mixed) || mark[n] == closed)
                     continue;
-                int ng = g + (Dx[d] != 0 && Dy[d] != 0 ? 14 : 10) + (CellMargin - _cellCoast[n]) * CellCoastPenalty;
+                int ng = g + (Dx[d] != 0 && Dy[d] != 0 ? 14 : 10) + CellPenalty(_cellCoast[n]);
                 if (mark[n] == seen && cost[n] <= ng)
                     continue;
                 mark[n] = seen;

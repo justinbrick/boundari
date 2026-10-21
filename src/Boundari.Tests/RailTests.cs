@@ -90,6 +90,29 @@ public class RailTests
         Assert.NotNull(path);
         int w = map.Width;
         var middle = path.Where(t => t % w > 25 && t % w < 95).ToList();
-        Assert.All(middle, t => Assert.True(t / w >= 24, $"boats should keep about 18 tiles off the shore, got y={t / w}"));
+        // OpenFront's band: 3 to 10 tiles off the coast (the shore row is y 10).
+        Assert.All(middle, t => Assert.True(t / w >= 12 && t / w <= 20, $"boats should sail 3-10 tiles off the shore, got y={t / w}"));
+    }
+
+    [Fact]
+    public void Boats_TakeTheShortWay_BetweenNearbyIslands()
+    {
+        // Open sea with three islands in a row, 12 tiles apart (the user's screenshot: a short
+        // hop past the middle one shouldn't swing far out to sea to keep clear of the coasts).
+        var map = new GameMap(200, 160, 1);
+        for (int t = 0; t < map.TileCount; t++)
+        {
+            int x = t % map.Width, y = t / map.Width;
+            bool land = (x >= 85 && x < 115 && y >= 30 && y < 60)    // the island we sail from
+                || (x >= 90 && x < 110 && y >= 72 && y < 92)          // a small one in between
+                || (x >= 85 && x < 115 && y >= 104 && y < 134);        // the island we sail to
+            map.Terrain[t] = land ? TerrainType.Plains : TerrainType.Ocean;
+            map.CoastField[t] = land ? 1 : -1;
+        }
+        MapProcessing.LabelLandmasses(map);
+        var ways = new Waterways(map, 1.33);
+        var path = ways.FindPath(map.Index(100, 60), map.Index(100, 103))!;
+        Assert.NotNull(path);
+        Assert.True(path.Length <= 50, $"a 43-tile hop took {path.Length} tiles");
     }
 }
