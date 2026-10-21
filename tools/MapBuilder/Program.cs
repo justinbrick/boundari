@@ -43,7 +43,7 @@ public static class Program
     internal const float FieldPerTile = 0.004f;
 
     // Within this many tiles of a coastline, distances are exact (from the vector edges).
-    private const double ExactBand = 3.0;
+    internal const double ExactBand = 3.0;
 
     // Rivers narrower than this (in tiles) could break into separate puddles on the tile
     // grid, which boats couldn't use. 1.6 keeps even diagonal stretches connected.
@@ -71,7 +71,8 @@ public static class Program
                 // The land cover cuts its lakes into the map as real water (see
                 // LandCoverBuilder.CarveLakes): classify again, keeping every lake however small.
                 map.Cover = LandCoverBuilder.Build(map, spec, root);
-                Classify(map, spec, minLakeTiles: 1, dropRemoved: false);
+                RefreshFarField(map);
+                Classify(map, spec, minLakeTiles: 1);
             }
             string path = Path.Combine(outDir, spec.Id + ".bmap");
             using (var file = File.Create(path))
@@ -158,17 +159,16 @@ public static class Program
             Console.WriteLine($"  warning: {elevation.MissingTiles} elevation tiles missing (treated as sea level)");
 
         // 4. Same clean-up and classification as random maps.
-        Classify(map, spec, spec.MinLakeTiles, dropRemoved: true);
+        Classify(map, spec, spec.MinLakeTiles);
         return map;
     }
 
     /// <summary>Drops tiny islands and lakes, then sorts tiles into sea, lake and land heights.</summary>
-    private static void Classify(GameMap map, MapSpec spec, int minLakeTiles, bool dropRemoved)
+    private static void Classify(GameMap map, MapSpec spec, int minLakeTiles)
     {
         MapProcessing.RemoveSmallLandmasses(map, spec.MinIslandTiles);
         MapProcessing.ClassifyWater(map, minLakeTiles);
-        if (dropRemoved)
-            DropRemovedFeatures(map);
+        DropRemovedFeatures(map);
         MapProcessing.AssignTerrain(map, ElevationScale.PlainsEnd, ElevationScale.HighlandsEnd);
         MapProcessing.LabelLandmasses(map);
     }
@@ -181,9 +181,9 @@ public static class Program
     }
 
     /// <summary>
-    /// Dropped islands and filled lakes still pull the coast field towards 0 (it
-    /// was measured to their outlines), which would draw shallow-water blobs where
-    /// they used to be. Push each tile's value out to at least its distance from
+    /// Dropped islands and filled lakes (and lake slivers too thin to make a water
+    /// tile) still pull the coast field towards 0 (it was measured to their outlines),
+    /// which would draw shallow-water blobs or phantom shores where they used to be. Push each tile's value out to at least its distance from
     /// the coastline that actually remains.
     /// </summary>
     private static void DropRemovedFeatures(GameMap map)
@@ -202,6 +202,32 @@ public static class Program
             float remaining = ((land[i] ? toWater[i] : toLand[i]) - 0.5f) * FieldPerTile;
             float v = map.CoastField[i];
             map.CoastField[i] = land[i] ? Math.Max(v, remaining) : Math.Min(v, -remaining);
+        }
+    }
+
+    /// <summary>
+    /// Measures the coast field again beyond the exact band, on the tile grid as in Build,
+    /// after lakes were cut in. Otherwise it would jump where a lake's measured distances
+    /// stop, and the shader draws such a jump as a phantom coastline (a ring round the lake).
+    /// </summary>
+    private static void RefreshFarField(GameMap map)
+    {
+        var land = new bool[map.TileCount];
+        var water = new bool[map.TileCount];
+        for (int i = 0; i < map.TileCount; i++)
+        {
+            land[i] = map.CoastField[i] > 0;
+            water[i] = !land[i];
+        }
+        float[] toLand = Rasterizer.DistanceTransform(land, map.Width, map.Height);
+        float[] toWater = Rasterizer.DistanceTransform(water, map.Width, map.Height);
+        float band = (float)ExactBand * FieldPerTile;
+        for (int i = 0; i < map.TileCount; i++)
+        {
+            if (Math.Abs(map.CoastField[i]) < band)
+                continue; // near a shore: already exact
+            float far = Math.Max((land[i] ? toWater[i] : toLand[i]) - 0.5f, (float)ExactBand) * FieldPerTile;
+            map.CoastField[i] = land[i] ? far : -far;
         }
     }
 

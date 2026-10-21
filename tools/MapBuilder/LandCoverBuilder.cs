@@ -192,8 +192,9 @@ public static class LandCoverBuilder
 
     /// <summary>
     /// Lowers the coast field to the signed distance from the water cells (measured on
-    /// the finer cover grid), so every lake becomes water in the map itself. Returns
-    /// false if there was no water to cut.
+    /// the finer cover grid), so every lake becomes water in the map itself. Only the band
+    /// near the shore is set here; Program.RefreshFarField measures everything further out.
+    /// Returns false if there was no water to cut.
     /// </summary>
     private static bool CarveLakes(GameMap map, byte[] cells, LandCover cover)
     {
@@ -238,8 +239,8 @@ public static class LandCoverBuilder
                                 sum += water[j] ? 0.5f - toLand[j] : toWater[j] - 0.5f;
                             }
                         float d = sum / (k * k) / k; // cells to tiles, positive on land
-                        if (d >= padTiles)
-                            continue; // no lake nearby
+                        if (d >= Program.ExactBand)
+                            continue; // not near a lake's shore
                         d = Math.Max(d, -padTiles); // (deep inside a big lake: just "water")
                         if (Math.Abs(d) < 0.05f)
                             d = d < 0 ? -0.05f : 0.05f; // a tile centre on the shore still needs a side
