@@ -120,6 +120,7 @@ public partial class MapOverlay : Node2D
         int w = _game!.Map.Width;
         long part = FrameProfiler.Start();
         DrawTrains(c, zoom, w);
+        DrawFlakRanges(c, zoom);
         FrameProfiler.Stop("  overlay trains", part);
         if (_ghostType is { } ghost && _ghostTile >= 0)
         {

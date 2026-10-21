@@ -356,6 +356,10 @@ public partial class World : Node2D
         _buildBar.Update(_game, _me, delta);
         _buildBar.SetSelected(_placing, _aiming);
         _buildBar.BlockMouse(_hud.AdjustingRatio);
+        // Flak rings: OpenFront shows them while placing these or aiming a bomb, and while
+        // the Flak or bomb buttons are hovered.
+        _overlay.ShowFlakRanges = _aiming is not null || _placing is BuildingType.Sam or BuildingType.Silo or BuildingType.City
+            || _buildBar.HoveringFlakOrBomb;
         _outgoing.Update(_game, _me);
         _alerts.Update(_game, _me);
         _arcs.SetRequests(IncomingAllianceRequests());

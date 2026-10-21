@@ -49,6 +49,9 @@ public sealed class BuildBar
     private readonly Label? _name, _description, _cost;
     private Info? _hovered;
 
+    /// <summary>The mouse is on the Flak button or a bomb's (OpenFront then shows every Flak's range).</summary>
+    public bool HoveringFlakOrBomb => _hovered is { } info && (info.Building == BuildingType.Sam || info.Nuke is not null);
+
     public BuildBar(Node root)
     {
         _ratioRow = GameHud.FindInHud(root, "AttackRatio_Hbox");
