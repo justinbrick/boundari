@@ -151,6 +151,7 @@ public sealed class GameHud
         _status.Text = Status ?? (_flash is not null && Time.GetTicksMsec() < _flashUntil ? _flash : null) ?? game.Phase switch
         {
             _ when !me.HasSpawned && me.LateSpawn => "Mid-game: click on land to drop in (you take that land)",
+            GamePhase.Spawning when !me.HasSpawned && game.StartsWhenSpawned == me.Id => "Click on land to choose where you start",
             GamePhase.Spawning when !me.HasSpawned => $"Click on land to choose where you start  ·  {game.SecondsUntilStart}s",
             GamePhase.Spawning => $"Starting in {game.SecondsUntilStart}s  ·  click again to move",
             _ when !me.HasSpawned => "Spectating",

@@ -341,6 +341,7 @@ public partial class World
     private void BeginMidGame()
     {
         SyncSim();
+        _game.StartsWhenSpawned = Game.Nobody; // the spawn phase runs its usual 10 s without us
         _fastForwardTotal = Math.Max(0, _game.SpawnPhaseTicks - _game.Tick) + MidGameTicks;
         _fastForwardLeft = _fastForwardTotal;
         _fastForwarding = true;

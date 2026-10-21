@@ -9,6 +9,25 @@ public class SimTests
     private static GameMap SmallMap(ulong seed = 21) =>
         MapGenerator.Generate(seed, new MapGenSettings { Width = 400, Height = 250, MinIslandTiles = 8, MinLakeTiles = 30 });
 
+    [Fact]
+    public void SpawnPhase_WaitsForThePlayer_ThenStartsAtOnce()
+    {
+        var map = SmallMap();
+        var game = new Game(map, 1);
+        var me = game.AddPlayer("Me");
+        game.StartsWhenSpawned = me.Id;
+        for (int t = 0; t < Balance.SpawnPhaseTicks * 3; t++)
+            game.Step();
+        Assert.Equal(GamePhase.Spawning, game.Phase); // no countdown: still waiting
+
+        int land = Enumerable.Range(0, map.TileCount).First(map.IsLand);
+        game.Submit(new SpawnIntent(me.Id, land));
+        game.Step();
+        Assert.True(me.HasSpawned);
+        Assert.Equal(GamePhase.Running, game.Phase);
+        Assert.Equal(game.Tick, game.SpawnPhaseTicks);
+    }
+
     private static Game BotGame(ulong seed, int bots, int ticks, int wimpyBots = 0)
     {
         var game = new Game(SmallMap(), seed, spawnPhaseTicks: 5);

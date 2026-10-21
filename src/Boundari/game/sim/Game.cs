@@ -32,7 +32,15 @@ public sealed partial class Game
 
     public int Tick { get; private set; }
     public GamePhase Phase { get; private set; } = GamePhase.Spawning;
-    public readonly int SpawnPhaseTicks;
+    /// <summary>When the spawn phase ends (moved up to the moment <see cref="StartsWhenSpawned"/> picks a start).</summary>
+    public int SpawnPhaseTicks { get; private set; }
+
+    /// <summary>
+    /// A player the match waits for (single player): the spawn phase has no countdown and
+    /// lasts until they pick a start, then the match begins at once. Nobody = the usual
+    /// timed spawn phase.
+    /// </summary>
+    public ushort StartsWhenSpawned { get; set; } = Nobody;
 
     /// <summary>Tiles whose owner changed since the renderer last cleared this list.</summary>
     public readonly List<int> ChangedTiles = new();
@@ -246,6 +254,16 @@ public sealed partial class Game
 
         if (Phase == GamePhase.Spawning)
         {
+            if (StartsWhenSpawned != Nobody)
+            {
+                // Waiting (time stands still) until that player has spawned.
+                if (GetPlayer(StartsWhenSpawned) is { HasSpawned: true })
+                {
+                    SpawnPhaseTicks = Tick;
+                    Phase = GamePhase.Running;
+                }
+                return;
+            }
             if (++Tick >= SpawnPhaseTicks)
                 Phase = GamePhase.Running;
             return;

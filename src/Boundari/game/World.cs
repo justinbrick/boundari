@@ -936,6 +936,8 @@ public partial class World : Node2D
         _game = new Game(_map, RandomSeed(), difficulty: _args.Difficulty ?? Difficulty);
         _me = _game.AddPlayer("You");
         _game.EventsFor = _me.Id; // notifications
+        if (_args.Bench is null || _args.Autoplay)
+            _game.StartsWhenSpawned = _me.Id; // no countdown: the match starts when you pick your start
         _labels.Me = _me;
         if (DevCheats && !_args.NoCheats)
             _game.SetCheats(_me, infiniteGold: true, instantBuild: true);
