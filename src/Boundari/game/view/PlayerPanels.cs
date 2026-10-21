@@ -240,12 +240,12 @@ public sealed class PlayerPanels
         }
         Set(_infoType, p.Kind switch { PlayerKind.Nation => "Nation", PlayerKind.Bot => "Tribe", _ => "Player" });
         ShowRelation(game, me, p);
-        string trade = p == me ? "-" : game.CanTrade(me, p) ? "Active" : "Stopped";
+        string trade = p == me ? "-" : game.CanTrade(me, p) ? "Active" : "Halted";
         Set(_infoTrade, trade);
         if (_infoTrade is not null && _tradeShown != trade)
         {
             _tradeShown = trade;
-            _infoTrade.AddThemeColorOverride("font_color", trade == "Stopped" ? DistrustfulColour : AlliesColour);
+            _infoTrade.AddThemeColorOverride("font_color", trade == "Halted" ? DistrustfulColour : AlliesColour);
         }
         foreach (var (type, label, icon, dimLabel, dimIcon) in _infoBuildings)
         {

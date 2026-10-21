@@ -171,7 +171,7 @@ public sealed class BuildBar
         }
     }
 
-    private const float DimAmount = 0.5f; // how much darker a button you can't afford or use is drawn
+    private const float DimAmount = 0.25f; // how much darker a button you can't afford or use is drawn
 
     /// <summary>Dims (or undims) a button's picture: its shader ignores the button's own tint.</summary>
     public void SetUsable(Button button, bool usable)
