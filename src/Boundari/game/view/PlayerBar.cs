@@ -7,12 +7,16 @@ using Godot;
 namespace Boundari.View;
 
 /// <summary>
-/// Your side of the bar along the bottom (HBox_Player in boundari.tscn): the troop meter
-/// and the structure counts. Nodes are looked up by path and skipped if missing.
+/// Your side of the bar along the bottom (HBox_Player and Panel_Cash in boundari.tscn): the
+/// troop meter, your gold and the structure counts. Nodes are looked up by path (the
+/// TroopGold_HBox layout first, then the older one) and skipped if missing.
 /// </summary>
 public sealed class PlayerBar
 {
-    private const string Player = "Main_Layer/Main_Control/Large_Rect/HBoxContainer2/HBox_Player/";
+    private const string Bar = "Main_Layer/Main_Control/Large_Rect/";
+    private const string Player = Bar + "TroopGold_HBox/Left_HBox/HBox_Player/";
+    private const string Cash = Bar + "TroopGold_HBox/Right_HBox/Panel_Cash";
+    private const string OldPlayer = Bar + "HBoxContainer2/HBox_Player/";
 
     // Building counts loop over every building on the map, so they refresh 10 times a second.
     private const double CountRefreshSeconds = 0.1;
@@ -53,10 +57,12 @@ public sealed class PlayerBar
 
     public PlayerBar(Node root)
     {
-        _troops = root.GetNodeOrNull<Label>(Player + "TroopMeter/HBoxContainer/Current_Troops");
-        _maxTroops = root.GetNodeOrNull<Label>(Player + "TroopMeter/HBoxContainer/Max_Troops");
-        _cash = root.GetNodeOrNull<Label>(Player + "Panel_Cash/Label_Cash");
-        if (root.GetNodeOrNull<Control>(Player + "Panel_Cash") is { } cashPanel)
+        var player = root.GetNodeOrNull(Player) ?? root.GetNodeOrNull(OldPlayer);
+        var cashPanel = root.GetNodeOrNull<Control>(Cash) ?? player?.GetNodeOrNull<Control>("Panel_Cash");
+        _troops = player?.GetNodeOrNull<Label>("TroopMeter/HBoxContainer/Current_Troops");
+        _maxTroops = player?.GetNodeOrNull<Label>("TroopMeter/HBoxContainer/Max_Troops");
+        _cash = cashPanel?.GetNodeOrNull<Label>("Label_Cash");
+        if (cashPanel is not null)
         {
             _gain = new Label
             {
@@ -76,7 +82,7 @@ public sealed class PlayerBar
             _gain.OffsetTop = -28;
             _gain.OffsetBottom = -4;
         }
-        if (root.GetNodeOrNull<Control>(Player + "TroopMeter") is { } meter)
+        if (player?.GetNodeOrNull<Control>("TroopMeter") is { } meter)
         {
             // The coloured fill goes behind the numbers, inside the panel's border.
             _fill = new TroopMeterFill { Name = "Fill", MouseFilter = Control.MouseFilterEnum.Ignore };
@@ -87,7 +93,7 @@ public sealed class PlayerBar
                 _fill.MatchPanel(box);
         }
 
-        if (root.GetNodeOrNull(Player + "Structures/HBoxContainer2") is { } row)
+        if (player?.GetNodeOrNull("Structures/HBoxContainer2") is { } row)
             foreach (var child in row.GetChildren())
                 if (CellTypes.TryGetValue(child.Name, out var type) && child.GetNodeOrNull<Label>("Label") is { } label)
                 {
