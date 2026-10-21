@@ -5,8 +5,9 @@ using Godot;
 namespace Boundari.View;
 
 /// <summary>
-/// The emoji pictures: Microsoft's Fluent Emoji, Color style (MIT, ui/emoji/LICENSE.txt),
-/// one res://ui/emoji/NAME.svg per emoji.
+/// The emoji pictures: Microsoft's Fluent Emoji, Color style (MIT, ui/emoji/LICENSE.txt).
+/// ui/emoji/NAME.svg is the original; NAME.png is it drawn at 512 px by a browser, because
+/// Godot's SVG importer gets the inner shadows wrong and blurs the whole picture.
 /// </summary>
 public static class EmojiIcons
 {
@@ -17,8 +18,9 @@ public static class EmojiIcons
     {
         if (!Loaded.TryGetValue(emoji, out var texture))
         {
-            string path = $"res://ui/emoji/{File(emoji)}.svg";
-            Loaded[emoji] = texture = ResourceLoader.Exists(path) ? GD.Load<Texture2D>(path) : null;
+            string png = $"res://ui/emoji/{File(emoji)}.png", svg = $"res://ui/emoji/{File(emoji)}.svg";
+            string? path = ResourceLoader.Exists(png) ? png : ResourceLoader.Exists(svg) ? svg : null;
+            Loaded[emoji] = texture = path is null ? null : GD.Load<Texture2D>(path);
         }
         return texture;
     }
