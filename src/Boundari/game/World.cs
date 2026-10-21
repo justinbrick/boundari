@@ -114,6 +114,7 @@ public partial class World : Node2D
     private GameHud _hud = null!;
     private PlayerPanels _panels = null!;
     private PlayerBar _bar = null!;
+    private BuildBar _buildBar = null!;
     private NotificationBar _notifications = null!;
     private OutgoingAttacks _outgoing = null!;
     private TerritoryLabels _labels = null!;
@@ -138,6 +139,7 @@ public partial class World : Node2D
         _hud = new GameHud(this);
         _panels = new PlayerPanels(this);
         _bar = new PlayerBar(this);
+        _buildBar = new BuildBar(this);
         _notifications = new NotificationBar(this);
         _outgoing = new OutgoingAttacks(this, intent =>
         {
@@ -337,6 +339,7 @@ public partial class World : Node2D
         UpdateFastForward();
         _hud.Update(_game, _me);
         _bar.Update(_game, _me, delta);
+        _buildBar.Update(_game, _me, delta);
         _outgoing.Update(_game, _me);
         _arcs.SetRequests(IncomingAllianceRequests());
         FrameProfiler.Stop("  hud", hudOnly);

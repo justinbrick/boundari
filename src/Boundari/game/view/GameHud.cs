@@ -14,6 +14,7 @@ namespace Boundari.View;
 public sealed class GameHud
 {
     private const string Info = "Main_Layer/Main_Control/HBox_Info/";
+    private const string Ratio = "Main_Layer/Main_Control/HBox_AHudTEST/In_Panel2/AttackRatio_Hbox";
 
     private readonly Label? _troops;
     private readonly Label? _maxTroops;
@@ -21,6 +22,7 @@ public sealed class GameHud
     private readonly Label? _cash;
     private readonly Label? _cashRate;
     private readonly Label? _attackTroops;
+    private readonly Label? _ratioPercent;
     private readonly HSlider? _ratio;
     private readonly AttackRatioSlider? _ratioTicks;
     private readonly Label _status;
@@ -34,12 +36,24 @@ public sealed class GameHud
         _troopRate = root.GetNodeOrNull<Label>(Info + "Panel_Pop/HBoxContainer/Pop_Rate");
         _cash = root.GetNodeOrNull<Label>(Info + "Panel_Cur/HBoxContainer/Cur");
         _cashRate = root.GetNodeOrNull<Label>(Info + "Panel_Cur/HBoxContainer/Cur_Rate");
-        _attackTroops = root.GetNodeOrNull<Label>(Info + "Ratio_Panel/HBoxContainer2/Amount");
-        _ratio = root.GetNodeOrNull<HSlider>(Info + "Ratio_Panel/Slider_Control/VBox_Slider/HSlider");
+        // The attack ratio row: "20% (1.65K)" beside its slider, like OpenFront's control panel.
+        if (root.GetNodeOrNull<Control>(Ratio) is { } ratioRow)
+        {
+            _ratio = ratioRow.GetNodeOrNull<HSlider>("HSlider");
+            _ratioPercent = ratioRow.GetNodeOrNull<Label>("Percentage_Label") ?? ratioRow.GetNodeOrNull<Label>("Label");
+            _attackTroops = ratioRow.GetNodeOrNull<Label>("TroopAmount_Label") ?? ratioRow.GetNodeOrNull<Label>("Label2");
+        }
+        else
+        {
+            _attackTroops = root.GetNodeOrNull<Label>(Info + "Ratio_Panel/HBoxContainer2/Amount");
+            _ratio = root.GetNodeOrNull<HSlider>(Info + "Ratio_Panel/Slider_Control/VBox_Slider/HSlider");
+        }
+        if (_ratio is not null)
+            _ratio.FocusMode = Control.FocusModeEnum.None; // so the arrow keys keep moving the map
 
-        // The tick slider sits on top of the build bar's titles (Infrastructure / Action /
-        // Wartime), as wide as that strip.
-        if (root.GetNodeOrNull<Control>("Main_Layer/Main_Control/HBox_AHudTEST/In_Panel/Struct_Titles_Panel") is { } titles)
+        // The old tick slider sat on top of the build bar's titles (Infrastructure / Action /
+        // Wartime), as wide as that strip; only used when the scene has no slider.
+        if (_ratio is null && root.GetNodeOrNull<Control>("Main_Layer/Main_Control/HBox_AHudTEST/In_Panel/Struct_Titles_Panel") is { } titles)
         {
             // Hidden for now (the user's call); it still holds the ratio attacks use (20%).
             _ratioTicks = new AttackRatioSlider { Name = "AttackRatioSlider", AnchorRight = 1, OffsetTop = -SliderHeight, Visible = false };
@@ -62,8 +76,8 @@ public sealed class GameHud
         layer.AddChild(_status);
     }
 
-    /// <summary>Share of troops to send when attacking, from the HUD slider (10..100; the old slider 1..100).</summary>
-    public int AttackRatioPercent => _ratioTicks?.Value ?? Mathf.Clamp((int)(_ratio?.Value ?? 20), 1, 100);
+    /// <summary>Share of troops to send when attacking, from the HUD slider (10..100).</summary>
+    public int AttackRatioPercent => _ratioTicks?.Value ?? Mathf.Clamp((int)Math.Round(_ratio?.Value ?? 20), 1, 100);
 
     /// <summary>Shown in place of the usual status line while set (e.g. fast-forward progress).</summary>
     public string? Status { get; set; }
@@ -78,13 +92,13 @@ public sealed class GameHud
         _flashUntil = Time.GetTicksMsec() + (ulong)(seconds * 1000);
     }
 
-    /// <summary>Changes the share of troops sent (the hidden slider holds it), like OpenFront's T/Y keys.</summary>
+    /// <summary>Changes the share of troops sent (the slider holds it), like OpenFront's T/Y keys.</summary>
     public void AdjustRatio(int byPercent)
     {
         if (_ratioTicks is not null)
             _ratioTicks.Value += byPercent;
         else if (_ratio is not null)
-            _ratio.Value = Math.Clamp(_ratio.Value + byPercent, 1, 100);
+            _ratio.Value += byPercent; // the slider keeps it within its own min and max
         Flash($"Attack ratio {AttackRatioPercent}%");
     }
 
@@ -96,7 +110,14 @@ public sealed class GameHud
         Set(_cash, me.InfiniteGold ? "$∞" : "$" + me.Gold.ToString("N0", CultureInfo.InvariantCulture));
         long goldPerSecond = me.TileCount > 0 ? Balance.GoldPerTick(me) * Balance.TicksPerSecond : 0;
         Set(_cashRate, "+" + goldPerSecond.ToString("N0", CultureInfo.InvariantCulture) + "/s");
-        Set(_attackTroops, FormatCount(me.Troops * AttackRatioPercent / 100));
+        long attackTroops = me.Troops * AttackRatioPercent / 100;
+        if (_ratioPercent is not null)
+        {
+            Set(_ratioPercent, AttackRatioPercent.ToString(CultureInfo.InvariantCulture) + "%");
+            Set(_attackTroops, "(" + FormatCount(attackTroops) + ")");
+        }
+        else
+            Set(_attackTroops, FormatCount(attackTroops));
 
         _status.Text = Status ?? (_flash is not null && Time.GetTicksMsec() < _flashUntil ? _flash : null) ?? game.Phase switch
         {
