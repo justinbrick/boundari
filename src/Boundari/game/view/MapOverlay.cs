@@ -293,12 +293,13 @@ public partial class MapOverlay : Node2D
             DrawBoat(pos, heading, boatSize, ColorOf(boat.Owner.Id));
             if (boatSize * zoom < TinyIconPixels)
                 continue; // too small to label
+            // The troops aboard, under the boat, in screen pixels (sharp at any zoom).
             string troops = GameHud.FormatCount(boat.Troops);
-            int fontSize = Math.Max(1, (int)(12 / zoom));
-            float textWidth = _font.GetStringSize(troops, HorizontalAlignment.Left, -1, fontSize).X;
-            var textPos = pos + new Vector2(-textWidth / 2, boatSize * 1.15f);
-            DrawStringOutline(_font, textPos, troops, HorizontalAlignment.Left, -1, fontSize, Math.Max(1, (int)(3 / zoom)), new Color(0, 0, 0, 0.6f));
-            DrawString(_font, textPos, troops, HorizontalAlignment.Left, -1, fontSize, Colors.White);
+            BeginScreenPixels(pos + new Vector2(0, boatSize * 1.15f));
+            var origin = new Vector2(-MathF.Round(_font.GetStringSize(troops, HorizontalAlignment.Left, -1, BoatTextPixels).X / 2), MathF.Round(BoatTextPixels * 0.75f));
+            DrawStringOutline(_font, origin, troops, HorizontalAlignment.Left, -1, BoatTextPixels, 3, new Color(0, 0, 0, 0.6f));
+            DrawString(_font, origin, troops, HorizontalAlignment.Left, -1, BoatTextPixels, Colors.White);
+            DrawSetTransform(Vector2.Zero, 0, Vector2.One);
         }
 
         FrameProfiler.Stop("  overlay ships+boats", part);
@@ -334,16 +335,32 @@ public partial class MapOverlay : Node2D
         DrawSetTransform(Vector2.Zero, 0, Vector2.One);
     }
 
+    private const int BoatTextPixels = 12;
+
+    /// <summary>
+    /// Until DrawSetTransform is reset, draws in screen pixels with the origin at this map
+    /// point, rounded to a whole pixel. Text drawn this way is laid out at its real size,
+    /// so it stays sharp when zoomed in and doesn't shimmer as it moves.
+    /// </summary>
+    private void BeginScreenPixels(Vector2 at)
+    {
+        var toScreen = GetGlobalTransformWithCanvas();
+        var screen = (toScreen * at).Round();
+        DrawSetTransform(toScreen.AffineInverse() * screen, 0, Vector2.One / _zoom);
+    }
+
     /// <summary>A small level badge in the corner of a building ("+3" while previewing a stack).</summary>
     private void DrawLevel(Vector2 at, int level, float size, float zoom, bool plus = false)
     {
         string text = (plus ? "+" : "") + level;
-        float r = size * 0.24f;
-        DrawCircle(at, r, new Color(0.08f, 0.09f, 0.1f, 0.9f));
-        int fontSize = Math.Max(1, (int)(r * 1.3f));
+        float r = size * zoom * 0.24f; // screen pixels
+        BeginScreenPixels(at);
+        DrawCircle(Vector2.Zero, r, new Color(0.08f, 0.09f, 0.1f, 0.9f));
+        int fontSize = Math.Max(1, (int)MathF.Round(r * 1.3f));
         var font = ThemeDB.FallbackFont;
         var extent = font.GetStringSize(text, HorizontalAlignment.Left, -1, fontSize);
-        DrawString(font, at + new Vector2(-extent.X / 2, fontSize * 0.36f), text, HorizontalAlignment.Left, -1, fontSize, Colors.White);
+        DrawString(font, new Vector2(-MathF.Round(extent.X / 2), MathF.Round(fontSize * 0.36f)), text, HorizontalAlignment.Left, -1, fontSize, Colors.White);
+        DrawSetTransform(Vector2.Zero, 0, Vector2.One);
     }
 
     // Roads (the depots' railroads), like OpenFront's: one reference tile wide (its
