@@ -26,7 +26,7 @@ public partial class MapOverlay : Node2D
 
     // Where your own boats are headed: the destination crosshair, red and a little see-through,
     // turning slowly in place, a fixed size on screen.
-    private const string DestinationIconFile = "res://ui/misc64x/destination64x.svg";
+    private const string DestinationIconFile = "res://ui/misc/destination64x.svg";
     private const float DestinationPixels = 40;
     private const float DestinationSecondsPerTurn = 8;
     private static readonly Color DestinationColour = new(1f, 0.15f, 0.15f, 0.7f);
