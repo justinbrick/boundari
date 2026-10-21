@@ -40,7 +40,7 @@ public static class Program
 
     // Coast field units per tile of distance. Matches the scale of the random
     // generator's field, which the shader's water shading is tuned for.
-    private const float FieldPerTile = 0.004f;
+    internal const float FieldPerTile = 0.004f;
 
     // Within this many tiles of a coastline, distances are exact (from the vector edges).
     private const double ExactBand = 3.0;
@@ -67,7 +67,12 @@ public static class Program
             var timer = Stopwatch.StartNew();
             var map = Build(spec, dataDir);
             if (spec.LandCoverScale > 0)
+            {
+                // The land cover cuts its lakes into the map as real water (see
+                // LandCoverBuilder.CarveLakes): classify again, keeping every lake however small.
                 map.Cover = LandCoverBuilder.Build(map, spec, root);
+                Classify(map, spec, minLakeTiles: 1, dropRemoved: false);
+            }
             string path = Path.Combine(outDir, spec.Id + ".bmap");
             using (var file = File.Create(path))
                 MapFile.Write(map, file);
@@ -153,12 +158,19 @@ public static class Program
             Console.WriteLine($"  warning: {elevation.MissingTiles} elevation tiles missing (treated as sea level)");
 
         // 4. Same clean-up and classification as random maps.
+        Classify(map, spec, spec.MinLakeTiles, dropRemoved: true);
+        return map;
+    }
+
+    /// <summary>Drops tiny islands and lakes, then sorts tiles into sea, lake and land heights.</summary>
+    private static void Classify(GameMap map, MapSpec spec, int minLakeTiles, bool dropRemoved)
+    {
         MapProcessing.RemoveSmallLandmasses(map, spec.MinIslandTiles);
-        MapProcessing.ClassifyWater(map, spec.MinLakeTiles);
-        DropRemovedFeatures(map);
+        MapProcessing.ClassifyWater(map, minLakeTiles);
+        if (dropRemoved)
+            DropRemovedFeatures(map);
         MapProcessing.AssignTerrain(map, ElevationScale.PlainsEnd, ElevationScale.HighlandsEnd);
         MapProcessing.LabelLandmasses(map);
-        return map;
     }
 
     /// <summary>Half a river's width in tiles: the most important rivers are widest.</summary>
