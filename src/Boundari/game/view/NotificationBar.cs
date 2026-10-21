@@ -1,20 +1,24 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using Boundari.Sim;
 using Godot;
 
 namespace Boundari.View;
 
 /// <summary>
-/// The notification bar (Panel_Notif in boundari.tscn): shows one message at a time from a
+/// The notification bar (Button_Notif in boundari.tscn): shows one message at a time from a
 /// queue. Each stays up at least <see cref="MinSeconds"/> so it can be read, and at most
-/// <see cref="MaxSeconds"/>; the queue's length shows in the corner badge. Urgent messages
-/// (attacks, bombs, betrayals) jump ahead of the others. Clicking the bar skips to the next.
+/// <see cref="MaxSeconds"/>; the queue's length shows in the corner badge (if the scene has one).
+/// Urgent messages (attacks, bombs, betrayals) jump ahead of the others. Clicking the bar opens
+/// or closes Panel_Notif, a scrollable list of the last <see cref="MaxHistory"/> messages,
+/// newest at the bottom like OpenFront's events panel. Messages about something the player sent
+/// end in "*".
 /// </summary>
 public sealed class NotificationBar
 {
-    private const string Path = "Main_Layer/Main_Control/Large_Rect/HBoxContainer2/Panel_Notif";
+    private const string Path = "Main_Layer/Main_Control/Large_Rect/Notif_HBox/HBoxContainer/VBoxContainer/Button_Notif";
 
     private const double MinSeconds = 2.5;   // before a queued message may replace this one
     private const double MaxSeconds = 6;     // then it goes, even with nothing waiting
@@ -22,12 +26,19 @@ public sealed class NotificationBar
     private const double FadeOutSeconds = 0.3;
     private const double RepeatSeconds = 10; // the same message isn't shown again this soon
     private const int MaxQueued = 20;        // beyond this the oldest ordinary messages are dropped
+    private const int MaxHistory = 30;       // OpenFront's events panel keeps its last 30
+    private const int ListMargin = 10;       // px between the panel's edge and the list
+    private static readonly Color UrgentColor = new(1f, 0.55f, 0.55f);
 
     private sealed record Message(string Text, bool Urgent);
 
     private readonly Label? _text, _idle, _count;
     private readonly CanvasItem? _badge;
     private readonly List<Message> _queue = new();
+    private readonly Control? _panel;
+    private readonly ScrollContainer? _scroll;
+    private readonly VBoxContainer? _list;
+    private bool _stickToBottom = true;
     private readonly Dictionary<string, double> _lastShown = new();
     private Message? _current;
     private double _shownFor, _clock, _fadingOut = -1;
@@ -35,11 +46,12 @@ public sealed class NotificationBar
 
     public NotificationBar(Node root)
     {
-        var panel = root.GetNodeOrNull<Control>(Path);
-        _text = panel?.GetNodeOrNull<Label>("Label_Notif_Example");
-        _idle = panel?.GetNodeOrNull<Label>("Label_No_Notif");
-        _badge = panel?.GetNodeOrNull<CanvasItem>("ColorRect");
-        _count = panel?.GetNodeOrNull<Label>("ColorRect/Label_Notif_Queue");
+        var hud = root.GetNodeOrNull("Main_Layer/Main_Control");
+        var bar = root.GetNodeOrNull<Control>(Path) ?? hud?.FindChild("Button_Notif", true, false) as Control;
+        _text = bar?.GetNodeOrNull<Label>("Label_Notif_Example");
+        _idle = bar?.GetNodeOrNull<Label>("Label_No_Notif");
+        _badge = bar?.GetNodeOrNull<CanvasItem>("ColorRect");
+        _count = bar?.GetNodeOrNull<Label>("ColorRect/Label_Notif_Queue");
         if (_text is not null)
         {
             // Messages use the width left of the queue badge, cut short with "..." if too long.
@@ -54,12 +66,145 @@ public sealed class NotificationBar
             _count.SetAnchorsPreset(Control.LayoutPreset.FullRect);
             _count.OffsetLeft = _count.OffsetRight = _count.OffsetTop = _count.OffsetBottom = 0;
         }
-        if (panel is BaseButton button)
+        if (bar is not null)
         {
-            button.Pressed += Skip;
+            bar.Visible = true;
+            // The boxes around the bar are only layout: let clicks and hovers through to the map.
+            for (var n = bar.GetParent() as Control; n is Container; n = n.GetParent() as Control)
+                n.MouseFilter = Control.MouseFilterEnum.Ignore;
+        }
+        if (bar is BaseButton button)
+        {
+            button.Pressed += ToggleList;
             button.FocusMode = Control.FocusModeEnum.None; // so Space/Enter keep working in the game
         }
+
+        _panel = bar?.GetParent()?.GetNodeOrNull<Control>("Panel_Notif");
+        if (_panel is null && hud?.FindChild("Panel_Notif", true, false) is Control found and not BaseButton)
+            _panel = found;
+        if (_panel is not null)
+        {
+            (_scroll, _list) = MakeList(_panel);
+            _panel.Visible = false; // opens from the bar
+        }
         Show(null);
+    }
+
+    /// <summary>
+    /// The list inside Panel_Notif: a ScrollContainer and VBoxContainer the scene already has,
+    /// or new ones filling the panel.
+    /// </summary>
+    private (ScrollContainer, VBoxContainer) MakeList(Control panel)
+    {
+        var scroll = FirstChild<ScrollContainer>(panel);
+        if (scroll is null)
+        {
+            scroll = new ScrollContainer { Name = "Scroll_Notif" };
+            panel.AddChild(scroll);
+            scroll.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+            scroll.OffsetLeft = scroll.OffsetTop = ListMargin;
+            scroll.OffsetRight = scroll.OffsetBottom = -ListMargin;
+        }
+        scroll.HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled;
+        scroll.FocusMode = Control.FocusModeEnum.None;
+        var list = FirstChild<VBoxContainer>(scroll);
+        if (list is null)
+        {
+            list = new VBoxContainer { Name = "List_Notif" };
+            list.AddThemeConstantOverride("separation", 6);
+            scroll.AddChild(list);
+        }
+        list.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+
+        // New rows keep the list scrolled to the bottom, unless the player has scrolled up to read.
+        var scrollBar = scroll.GetVScrollBar();
+        scrollBar.Changed += () =>
+        {
+            if (_stickToBottom)
+                scroll.ScrollVertical = (int)scrollBar.MaxValue;
+        };
+        scrollBar.ValueChanged += value => _stickToBottom = scrollBar.MaxValue - scrollBar.Page - value < 5;
+        return (scroll, list);
+    }
+
+    private static T? FirstChild<T>(Node parent) where T : Node
+    {
+        foreach (var child in parent.GetChildren())
+            if (child is T match)
+                return match;
+        return null;
+    }
+
+    /// <summary>(Testing, --notifs) a few kinds of message, with the list open.</summary>
+    public void ShowSamples(Game game, Player me)
+    {
+        var others = game.Players.Where(p => p != me && p.IsAlive).Take(3).Select(p => (ushort)p.Id).ToList();
+        if (others.Count < 3)
+            return;
+        ushort i = (ushort)me.Id;
+        GameEvent[] samples =
+        {
+            new(GameEventKind.AllianceRequested, i, others[0]),
+            new(GameEventKind.AllianceRequested, others[1], i),
+            new(GameEventKind.AllianceAccepted, i, others[0]),
+            new(GameEventKind.QuickChat, i, others[1], 0),
+            new(GameEventKind.QuickChat, others[2], i, 1),
+            new(GameEventKind.EmbargoStarted, i, others[2]),
+            new(GameEventKind.Targeted, i, others[2]),
+            new(GameEventKind.AttackStarted, others[2], i),
+            new(GameEventKind.AllianceEnding, i, others[0]),
+            new(GameEventKind.AllianceBroken, others[0], i),
+        };
+        foreach (var e in samples)
+            if (Describe(game, me, e) is var (text, urgent) && text is not null)
+                Push(text, urgent);
+        ToggleList();
+    }
+
+    /// <summary>A click on the bar: opens or closes the list.</summary>
+    private void ToggleList()
+    {
+        if (_panel is null)
+            return;
+        _panel.Visible = !_panel.Visible;
+        if (_panel.Visible && _scroll is not null)
+        {
+            _stickToBottom = true;
+            _scroll.ScrollVertical = (int)_scroll.GetVScrollBar().MaxValue;
+        }
+    }
+
+    /// <summary>Adds a row to the bottom of the list, dropping the oldest past <see cref="MaxHistory"/>.</summary>
+    private void AddToList(Message message)
+    {
+        if (_list is null)
+            return;
+        // Rows copy the look of the bar's message label (its font size and tint).
+        var row = _text?.Duplicate() as Label ?? new Label();
+        row.Visible = true;
+        row.SelfModulate = Colors.White;
+        row.SetAnchorsPreset(Control.LayoutPreset.TopLeft);
+        row.CustomMinimumSize = Vector2.Zero;
+        row.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        row.HorizontalAlignment = HorizontalAlignment.Left;
+        row.VerticalAlignment = VerticalAlignment.Top;
+        row.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        row.TextOverrunBehavior = TextServer.OverrunBehavior.NoTrimming;
+        row.MouseFilter = Control.MouseFilterEnum.Ignore;
+        row.Text = message.Text;
+        if (message.Urgent)
+        {
+            // The scene's label is tinted far brighter than white, which would wash red out: divide it back.
+            var tint = row.Modulate;
+            row.AddThemeColorOverride("font_color", new Color(UrgentColor.R / Math.Max(tint.R, 1), UrgentColor.G / Math.Max(tint.G, 1), UrgentColor.B / Math.Max(tint.B, 1)));
+        }
+        _list.AddChild(row);
+        while (_list.GetChildCount() > MaxHistory)
+        {
+            var oldest = _list.GetChild(0);
+            _list.RemoveChild(oldest);
+            oldest.QueueFree();
+        }
     }
 
     /// <summary>Adds a message to the queue (urgent ones go ahead of ordinary ones).</summary>
@@ -70,6 +215,7 @@ public sealed class NotificationBar
         if (_lastShown.TryGetValue(text, out double at) && _clock - at < RepeatSeconds)
             return;
         var message = new Message(text, urgent);
+        AddToList(message);
         if (urgent)
             _queue.Insert(_queue.FindIndex(m => !m.Urgent) is int i and >= 0 ? i : _queue.Count, message);
         else
@@ -107,7 +253,7 @@ public sealed class NotificationBar
         bool byMe = e.A == me.Id, toMe = e.B == me.Id;
         return e.Kind switch
         {
-            GameEventKind.AllianceRequested when byMe => ($"Alliance request sent to {B}.", false),
+            GameEventKind.AllianceRequested when byMe => ($"Alliance request sent to {B}.*", false),
             GameEventKind.AllianceRequested when toMe => ($"{A} requests an alliance.", false),
             GameEventKind.AllianceAccepted when byMe => ($"{B} accepted your alliance.", false),
             GameEventKind.AllianceAccepted when toMe => ($"You are now allied with {A}.", false),
@@ -116,22 +262,22 @@ public sealed class NotificationBar
             GameEventKind.AllianceExpired => ($"Your alliance with {(byMe ? B : A)} has ended.", false),
             GameEventKind.AllianceEnding => ($"Your alliance with {(byMe ? B : A)} ends in 30 s. Right-click them to renew.", false),
             GameEventKind.AllianceRenewRequested when toMe => ($"{A} wants to renew your alliance.", false),
-            GameEventKind.AllianceRenewRequested when byMe => ($"Asked {B} to renew your alliance.", false),
+            GameEventKind.AllianceRenewRequested when byMe => ($"Asked {B} to renew your alliance.*", false),
             GameEventKind.AllianceRenewed => ($"Your alliance with {(byMe ? B : A)} is renewed.", false),
             GameEventKind.AllianceBroken when toMe => ($"{A} broke your alliance!", true),
-            GameEventKind.AllianceBroken when byMe => ($"You broke your alliance with {B}.", false),
+            GameEventKind.AllianceBroken when byMe => ($"You broke your alliance with {B}.*", false),
             GameEventKind.AttackStarted when toMe => ($"{A} is attacking you!", true),
             GameEventKind.BoatLaunched when toMe => ($"{A} is sending a boat your way!", true),
             GameEventKind.NukeLaunched when toMe => ($"{A} launched {BombName((NukeType)e.Detail)} at you!", true),
-            GameEventKind.EmbargoStarted when byMe => ($"You stopped trading with {B}", false),
+            GameEventKind.EmbargoStarted when byMe => ($"You stopped trading with {B}.*", false),
             GameEventKind.EmbargoStarted when toMe => ($"{A} stopped trading with you", false),
-            GameEventKind.EmbargoStopped when byMe => ($"You resumed trading with {B}", false),
+            GameEventKind.EmbargoStopped when byMe => ($"You resumed trading with {B}.*", false),
             GameEventKind.EmbargoStopped when toMe => ($"{A} resumed trading with you", false),
-            GameEventKind.Targeted when byMe => ($"You marked {B} as a target.", false),
+            GameEventKind.Targeted when byMe => ($"You marked {B} as a target.*", false),
             GameEventKind.Targeted when toMe => ($"{A} marked you as a target!", true),
             GameEventKind.Targeted => ($"Your ally {A} marked {B} as a target.", false),
             GameEventKind.QuickChat when toMe => ($"{A}: {Phrase(e.Detail)}", false),
-            GameEventKind.QuickChat when byMe => ($"To {B}: {Phrase(e.Detail)}", false),
+            GameEventKind.QuickChat when byMe => ($"To {B}: {Phrase(e.Detail)}*", false),
             GameEventKind.Conquered when byMe => ($"You conquered {B}.", false),
             GameEventKind.Conquered when toMe => ($"{A} conquered you.", true),
             _ => (null, false),
@@ -176,13 +322,6 @@ public sealed class NotificationBar
         GameHud.SetText(_count, _queue.Count.ToString(CultureInfo.InvariantCulture));
         if (_badge is not null && _badge.Visible != _queue.Count > 0)
             _badge.Visible = _queue.Count > 0;
-    }
-
-    /// <summary>A click on the bar: on to the next message (or clear this one).</summary>
-    private void Skip()
-    {
-        if (_current is not null && _fadingOut < 0)
-            _fadingOut = 0;
     }
 
     private void ShowNext()

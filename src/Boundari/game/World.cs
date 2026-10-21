@@ -924,6 +924,8 @@ public partial class World : Node2D
         if (_args.AllyRequests > 0)
             AskForAlliances(_args.AllyRequests);
         _labels.PreviewAllTags = _args.Tags;
+        if (_args.Notifs)
+            _notifications.ShowSamples(_game, _me);
 
         _view.SetOwners(_game.Owner, _game.Fallout);
         _shownTick = _game.Tick;
@@ -1148,7 +1150,7 @@ public partial class World : Node2D
 
     private record struct Args(string? Map, ulong? Seed, int? Bots, int? Nations, Difficulty? Difficulty, bool NoCheats, double? Bench, string? Dev, bool Autoplay, int Ticks,
         float Zoom, Vector2? Focus, string? Screenshot, bool Perf, Vector2? Hover, bool HoverLeader, bool Showcase, string? ShowcaseFocus,
-        string? Start = null, int AllyRequests = 0, string? RightClick = null, string? Aim = null, bool Incoming = false, bool Tags = false);
+        string? Start = null, int AllyRequests = 0, string? RightClick = null, string? Aim = null, bool Incoming = false, bool Tags = false, bool Notifs = false);
 
     private static Args ParseArgs()
     {
@@ -1180,6 +1182,7 @@ public partial class World : Node2D
                 case "perf": args.Perf = true; break;
                 case "start": args.Start = value; break;             // now / mid / ask
                 case "ally-requests": args.AllyRequests = int.Parse(value, inv); break;
+                case "notifs": args.Notifs = true; break; // (testing) sample messages in the notification list, opened
                 case "tags": args.Tags = true; break; // (testing) every name shows every icon above it
                 case "incoming": args.Incoming = true; break; // (testing) a neighbour attacks you, to show the incoming tabs
                 case "aim": args.Aim = value; break; // (testing) "moab"/"fatman": aim at the biggest other nation, screen centred on the arc
