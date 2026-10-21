@@ -340,10 +340,13 @@ public partial class World : Node2D
         _hud.Update(_game, _me);
         _bar.Update(_game, _me, delta);
         _buildBar.Update(_game, _me, delta);
+        _buildBar.SetSelected(_placing, _aiming);
         _outgoing.Update(_game, _me);
         _arcs.SetRequests(IncomingAllianceRequests());
         FrameProfiler.Stop("  hud", hudOnly);
         var hovered = HoveredPlayer();
+        if (_args.Hover is null) // name plates stop fading under the mouse while the slider is held
+            _labels.MouseOverride = _hud.AdjustingRatio ? new Vector2(float.MinValue, float.MinValue) : null;
         _view.HoverId = hovered?.Id ?? -1;
         _labels.Hovered = hovered?.Id ?? 0;
         _panels.Update(_game, _me, hovered, delta);
@@ -391,6 +394,8 @@ public partial class World : Node2D
 
     public override void _UnhandledInput(InputEvent e)
     {
+        if (_hud.AdjustingRatio && e is InputEventMouse)
+            return; // dragging the attack ratio slider: the mouse is only for the slider
         SyncSim(); // input may read or change the game: let the running tick finish first
         if (e is InputEventMouseButton { ButtonIndex: MouseButton.Right, Pressed: true } && (_placing is not null || _aiming is not null))
         {
@@ -677,6 +682,8 @@ public partial class World : Node2D
             _sinceButtons = 0;
             UpdateButtons();
         }
+        if (_hud.AdjustingRatio)
+            return; // the preview stays put while the attack ratio slider is held
         if (_aiming is { } nukeType)
         {
             if (!_me.CanAfford(_game.NukeCost(nukeType)) || !_me.IsAlive)
@@ -777,6 +784,8 @@ public partial class World : Node2D
     /// <summary>The player whose territory is under the mouse (ignoring the HUD), or null.</summary>
     private Player? HoveredPlayer()
     {
+        if (_hud.AdjustingRatio)
+            return null;
         if (_args.Hover is null && !_args.HoverLeader && GetViewport().GuiGetHoveredControl() is { MouseFilter: not Control.MouseFilterEnum.Ignore })
             return null;
         if (_args.HoverLeader)

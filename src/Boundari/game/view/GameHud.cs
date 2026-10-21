@@ -50,7 +50,11 @@ public sealed class GameHud
             _ratio = root.GetNodeOrNull<HSlider>(Info + "Ratio_Panel/Slider_Control/VBox_Slider/HSlider");
         }
         if (_ratio is not null)
+        {
             _ratio.FocusMode = Control.FocusModeEnum.None; // so the arrow keys keep moving the map
+            _ratio.DragStarted += () => AdjustingRatio = true;
+            _ratio.DragEnded += _ => AdjustingRatio = false;
+        }
 
         // The old tick slider sat on top of the build bar's titles (Infrastructure / Action /
         // Wartime), as wide as that strip; only used when the scene has no slider.
@@ -100,6 +104,9 @@ public sealed class GameHud
 
     /// <summary>Share of troops to send when attacking, from the HUD slider (10..100).</summary>
     public int AttackRatioPercent => _ratioTicks?.Value ?? Mathf.Clamp((int)Math.Round(_ratio?.Value ?? 20), 1, 100);
+
+    /// <summary>True while the player holds the attack ratio slider: the map ignores the mouse until it's let go.</summary>
+    public bool AdjustingRatio { get; private set; }
 
     /// <summary>Shown in place of the usual status line while set (e.g. fast-forward progress).</summary>
     public string? Status { get; set; }

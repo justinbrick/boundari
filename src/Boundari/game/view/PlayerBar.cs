@@ -180,9 +180,10 @@ public sealed class PlayerBar
 /// </summary>
 public partial class TroopMeterFill : Control
 {
-    // OpenFront's "malibu blue" (troops at home) and "aquarius" (troops out attacking).
-    private static readonly Color HomeColour = new("#0084d1");
-    private static readonly Color AwayColour = new("#3fa9f5");
+    // OpenFront's "malibu blue" (troops at home) and "aquarius" (troops out attacking),
+    // both about a quarter darker (the user found OpenFront's too light).
+    private static readonly Color HomeColour = new("#00649e");
+    private static readonly Color AwayColour = new("#2f80ba");
 
     // Eases most of the way to a new length in OpenFront's 0.2 s.
     private const float EaseSeconds = 0.06f;

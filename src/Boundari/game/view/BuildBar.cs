@@ -6,16 +6,17 @@ using Godot;
 namespace Boundari.View;
 
 /// <summary>
-/// The build buttons (ButtonsRow in boundari.tscn): each button's picture lifts a little while
-/// hovered and settles back after, and the number on it is how many of that structure you have
-/// (levels count, like OpenFront's bar). Buttons without a Label child (the bombs) just lift.
+/// The build buttons (ButtonsRow in boundari.tscn): each button's picture lifts and brightens
+/// while hovered (and stays up while it's the one you're placing or aiming), darkens while
+/// pressed, and the number on it is how many of that structure you have (levels count, like
+/// OpenFront's bar). Buttons without a Label child (the bombs) just lift.
 /// While a button is hovered, the attack ratio row above them (AttackRatio_Hbox) gives way to
 /// Description_HBox: that structure's icon, name, what it does and its current price.
 /// </summary>
 public sealed class BuildBar
 {
     private const string Row = "Main_Layer/Main_Control/ButtonsRow";
-    private const float LiftPixels = 6;
+    private const float LiftPixels = 12;
     private const double LiftSeconds = 0.12;
 
     // Building counts loop over every building on the map, so they refresh 10 times a second.
@@ -40,6 +41,7 @@ public sealed class BuildBar
     };
 
     private readonly List<(BuildingType Type, Label Label)> _counts = new();
+    private readonly List<Lift> _lifts = new();
 
     // The description row and the attack ratio row it takes the place of.
     private readonly Control? _ratioRow, _descriptionRow;
@@ -64,8 +66,9 @@ public sealed class BuildBar
             var button = wrapper as Button ?? FirstButton(wrapper);
             if (button?.GetNodeOrNull<Control>("TextureRect") is not { } picture)
                 continue;
-            AddLift(button, picture);
-            if (!Buttons.TryGetValue(button.Name, out var info))
+            Buttons.TryGetValue(button.Name, out var info);
+            _lifts.Add(new Lift(button, picture, info));
+            if (info is null)
                 continue;
             if (info.Building is { } type && picture.GetNodeOrNull<Label>("Label") is { } label)
                 _counts.Add((type, label));
@@ -86,21 +89,75 @@ public sealed class BuildBar
         return null;
     }
 
-    /// <summary>Hovering slides the picture (and its number) up; leaving slides it back.</summary>
-    private static void AddLift(Button button, Control picture)
+    /// <summary>
+    /// One button's picture: up and brighter while hovered or selected, back down otherwise,
+    /// and darker while the mouse button is held on it. The brightness comes from the
+    /// button shader's hover_amount and pressed_amount (buttonoverhaul.gdshader).
+    /// </summary>
+    private sealed class Lift
     {
-        // Offsets, not position: they are what the scene sets, so they stay right when the window resizes.
-        float top = picture.OffsetTop, bottom = picture.OffsetBottom;
-        Tween? tween = null;
-        void Slide(float up)
+        public readonly Info? Info;
+        private readonly Control _picture;
+        private readonly ShaderMaterial? _shader;
+        private readonly float _top, _bottom;
+        private bool _hovered, _selected;
+        private Tween? _tween;
+
+        public Lift(Button button, Control picture, Info? info)
         {
-            tween?.Kill();
-            tween = picture.CreateTween().SetParallel().SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.Out);
-            tween.TweenProperty(picture, "offset_top", top - up, LiftSeconds);
-            tween.TweenProperty(picture, "offset_bottom", bottom - up, LiftSeconds);
+            Info = info;
+            _picture = picture;
+            // Offsets, not position: they are what the scene sets, so they stay right when the window resizes.
+            _top = picture.OffsetTop;
+            _bottom = picture.OffsetBottom;
+            // Its own copy, so lighting one button never lights another that shares the material.
+            if (picture.Material is ShaderMaterial shared && HasParam(shared, "hover_amount"))
+                picture.Material = _shader = (ShaderMaterial)shared.Duplicate();
+            button.MouseEntered += () => { _hovered = true; Refresh(); };
+            button.MouseExited += () => { _hovered = false; Refresh(); };
+            button.ButtonDown += () => _shader?.SetShaderParameter("pressed_amount", 1f);
+            button.ButtonUp += () => _shader?.SetShaderParameter("pressed_amount", 0f);
         }
-        button.MouseEntered += () => Slide(LiftPixels);
-        button.MouseExited += () => Slide(0);
+
+        private static bool HasParam(ShaderMaterial material, string name)
+        {
+            if (material.Shader is null)
+                return false;
+            foreach (var u in material.Shader.GetShaderUniformList())
+                if (u.AsGodotDictionary()["name"].AsString() == name)
+                    return true;
+            return false;
+        }
+
+        public bool Selected
+        {
+            set
+            {
+                if (_selected == value)
+                    return;
+                _selected = value;
+                Refresh();
+            }
+        }
+
+        private void Refresh()
+        {
+            bool up = _hovered || _selected;
+            _tween?.Kill();
+            _tween = _picture.CreateTween().SetParallel().SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.Out);
+            _tween.TweenProperty(_picture, "offset_top", _top - (up ? LiftPixels : 0), LiftSeconds);
+            _tween.TweenProperty(_picture, "offset_bottom", _bottom - (up ? LiftPixels : 0), LiftSeconds);
+            if (_shader is not null)
+                _tween.TweenProperty(_shader, "shader_parameter/hover_amount", up ? 1f : 0f, LiftSeconds);
+        }
+    }
+
+    /// <summary>The structure being placed or the bomb being aimed keeps its button up.</summary>
+    public void SetSelected(BuildingType? placing, NukeType? aiming)
+    {
+        foreach (var lift in _lifts)
+            lift.Selected = lift.Info is { } info
+                && ((placing is not null && info.Building == placing) || (aiming is not null && info.Nuke == aiming));
     }
 
     /// <summary>Swaps the attack ratio row for this button's description, or back (null).</summary>

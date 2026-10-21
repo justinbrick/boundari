@@ -28,6 +28,7 @@ public sealed class NotificationBar
     private const int MaxQueued = 20;        // beyond this the oldest ordinary messages are dropped
     private const int MaxHistory = 30;       // OpenFront's events panel keeps its last 30
     private const int ListMargin = 10;       // px between the panel's edge and the list
+    private const string BlurShader = "res://blurroundcorn.gdshader";
     private static readonly Color UrgentColor = new(1f, 0.55f, 0.55f);
 
     private sealed record Message(string Text, bool Urgent);
@@ -84,10 +85,41 @@ public sealed class NotificationBar
             _panel = found;
         if (_panel is not null)
         {
+            AddBlur(_panel);
             (_scroll, _list) = MakeList(_panel);
             _panel.Visible = false; // opens from the bar
         }
         Show(null);
+    }
+
+    /// <summary>
+    /// Blurs and darkens the map behind the panel (the scene's blurroundcorn shader, set like
+    /// its other blurred panels), drawn under the panel's own see-through colour and border.
+    /// </summary>
+    private static void AddBlur(Control panel)
+    {
+        if (!ResourceLoader.Exists(BlurShader) || panel.GetNodeOrNull("Blur_Notif") is not null)
+            return;
+        var material = new ShaderMaterial { Shader = GD.Load<Shader>(BlurShader) };
+        material.SetShaderParameter("blur_amount", 3.5f);
+        material.SetShaderParameter("darken_amount", 0.81f);
+        material.SetShaderParameter("noise_strength", 0.025f);
+        material.SetShaderParameter("noise_speed", 0f);
+        material.SetShaderParameter("corner_smooth_px", 1f);
+        int radius = panel.GetThemeStylebox("panel") is StyleBoxFlat box ? box.CornerRadiusTopLeft : 6;
+        material.SetShaderParameter("corner_radius_px", (float)radius);
+        var blur = new ColorRect
+        {
+            Name = "Blur_Notif",
+            Material = material,
+            ShowBehindParent = true,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+        };
+        panel.AddChild(blur);
+        panel.MoveChild(blur, 0);
+        blur.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+        // The shader rounds its corners in pixels, so it needs the panel's size.
+        blur.Resized += () => material.SetShaderParameter("rect_size", blur.Size);
     }
 
     /// <summary>
