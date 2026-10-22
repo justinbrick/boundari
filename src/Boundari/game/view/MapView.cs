@@ -108,6 +108,8 @@ public partial class MapView : Sprite2D
         _territory = new TerritoryTextures(map);
         _material.SetShaderParameter("owner_tex", _territory.OwnerArray);
         _material.SetShaderParameter("capture_tex", _territory.TimeArray);
+        _material.SetShaderParameter("hatch_tex", _territory.HatchArray);
+        _material.SetShaderParameter("hatch_tiles", HatchStripeTiles * (float)map.TileScale);
         _material.SetShaderParameter("owner_chunk", TerritoryTextures.ChunkSize);
         _material.SetShaderParameter("owner_chunks_x", _territory.ChunksX);
         SetOwners(null);
@@ -128,15 +130,18 @@ public partial class MapView : Sprite2D
         return Math.Clamp(normal.Dot(LightDir) / LightDir.Z, 0.45f, 1.4f);
     }
 
+    // Hatched land's stripes repeat every this many OpenFront-sized tiles.
+    private const float HatchStripeTiles = 2.5f;
+
     /// <summary>Shows these owners immediately (pass null to clear all territory).</summary>
-    public void SetOwners(ushort[]? owners, bool[]? fallout = null) => _territory?.SetAll(owners, fallout);
+    public void SetOwners(ushort[]? owners, bool[]? fallout = null, int[]? hatched = null) => _territory?.SetAll(owners, fallout, hatched);
 
     /// <summary>
     /// Records tiles that changed hands during one simulation tick; they'll be animated
     /// in as the visual clock passes that tick. Call <see cref="FlushTerritory"/> after.
     /// </summary>
-    public void RecordTick(ushort[] owners, bool[]? fallout, System.Collections.Generic.List<int> changed, int tick) =>
-        _territory?.RecordTick(owners, fallout, changed, tick);
+    public void RecordTick(ushort[] owners, bool[]? fallout, int[]? hatched, System.Collections.Generic.List<int> changed, int tick) =>
+        _territory?.RecordTick(owners, fallout, hatched, changed, tick);
 
     /// <summary>Uploads changed territory chunks to the GPU.</summary>
     public void FlushTerritory() => _territory?.Flush();

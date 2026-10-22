@@ -9,7 +9,8 @@ namespace Boundari.View;
 /// <summary>
 /// GPU copy of who owns each tile, plus what's needed to animate captures smoothly:
 /// the previous owner, the exact moment (in ticks, with a fraction) each tile changed
-/// hands, and how long it takes to fade over. The map is split into 256x256-tile chunks (texture-array layers)
+/// hands, how long it takes to fade over, and which tiles are hatched (freshly conquered).
+/// The map is split into 256x256-tile chunks (texture-array layers)
 /// so only chunks that actually changed are re-uploaded.
 /// </summary>
 public sealed class TerritoryTextures
@@ -44,11 +45,14 @@ public sealed class TerritoryTextures
     private readonly byte[][] _timeBytes;
     private readonly Image[] _ownerImages;
     private readonly Image[] _timeImages;
+    private readonly byte[][] _hatchBytes; // R8: 255 = hatched
+    private readonly Image[] _hatchImages;
     private readonly bool[] _dirty;
     private readonly ushort[] _shown; // owner currently drawn for each tile
 
     public readonly Texture2DArray OwnerArray = new();
     public readonly Texture2DArray TimeArray = new();
+    public readonly Texture2DArray HatchArray = new();
     public int ChunksX => _chunksX;
 
     public TerritoryTextures(GameMap map)
@@ -62,11 +66,14 @@ public sealed class TerritoryTextures
         _timeBytes = new byte[_layers][];
         _ownerImages = new Image[_layers];
         _timeImages = new Image[_layers];
+        _hatchBytes = new byte[_layers][];
+        _hatchImages = new Image[_layers];
         _dirty = new bool[_layers];
         _shown = new ushort[map.TileCount];
 
         var owners = new Godot.Collections.Array<Image>();
         var times = new Godot.Collections.Array<Image>();
+        var hatches = new Godot.Collections.Array<Image>();
         for (int l = 0; l < _layers; l++)
         {
             _ownerBytes[l] = new byte[ChunkSize * ChunkSize * 4];
@@ -74,21 +81,26 @@ public sealed class TerritoryTextures
             MemoryMarshal.Cast<byte, float>(_timeBytes[l]).Fill(LongAgo);
             _ownerImages[l] = Image.CreateFromData(ChunkSize, ChunkSize, false, Image.Format.Rgba8, _ownerBytes[l]);
             _timeImages[l] = Image.CreateFromData(ChunkSize, ChunkSize, false, Image.Format.Rf, _timeBytes[l]);
+            _hatchBytes[l] = new byte[ChunkSize * ChunkSize];
+            _hatchImages[l] = Image.CreateFromData(ChunkSize, ChunkSize, false, Image.Format.R8, _hatchBytes[l]);
             owners.Add(_ownerImages[l]);
             times.Add(_timeImages[l]);
+            hatches.Add(_hatchImages[l]);
         }
         OwnerArray.CreateFromImages(owners);
         TimeArray.CreateFromImages(times);
+        HatchArray.CreateFromImages(hatches);
     }
 
-    /// <summary>Shows exactly these owners, with no animation (start of a match).</summary>
-    public void SetAll(ushort[]? owners, bool[]? fallout = null)
+    /// <summary>Shows exactly these owners (and hatched tiles: settle tick, 0 = not hatched), with no animation (start of a match).</summary>
+    public void SetAll(ushort[]? owners, bool[]? fallout = null, int[]? hatched = null)
     {
         for (int i = 0; i < _map.TileCount; i++)
         {
             ushort id = Shown(i, owners, fallout);
             _shown[i] = id;
             Write(i, id, id, LongAgo, DefaultFade);
+            WriteHatch(i, hatched is not null && hatched[i] != 0);
         }
         _frontLastTick.Clear();
         Array.Fill(_dirty, true);
@@ -101,8 +113,12 @@ public sealed class TerritoryTextures
     /// tick and late the next because of other fronts), and fade over that front's pace (see
     /// <see cref="DefaultFade"/>), so the shader sweeps fronts forward smoothly.
     /// </summary>
-    public void RecordTick(ushort[] owners, bool[]? fallout, List<int> changed, int tick)
+    public void RecordTick(ushort[] owners, bool[]? fallout, int[]? hatched, List<int> changed, int tick)
     {
+        // Hatching can change without the owner changing (land settling).
+        foreach (int i in changed)
+            WriteHatch(i, hatched is not null && hatched[i] != 0);
+
         // First pass: how many tiles each front took this tick, and its pace.
         foreach (int i in changed)
         {
@@ -163,8 +179,10 @@ public sealed class TerritoryTextures
             _nextFlush = (l + 1) % _layers;
             _ownerImages[l].SetData(ChunkSize, ChunkSize, false, Image.Format.Rgba8, _ownerBytes[l]);
             _timeImages[l].SetData(ChunkSize, ChunkSize, false, Image.Format.Rf, _timeBytes[l]);
+            _hatchImages[l].SetData(ChunkSize, ChunkSize, false, Image.Format.R8, _hatchBytes[l]);
             OwnerArray.UpdateLayer(_ownerImages[l], l);
             TimeArray.UpdateLayer(_timeImages[l], l);
+            HatchArray.UpdateLayer(_hatchImages[l], l);
         }
     }
 
@@ -192,6 +210,18 @@ public sealed class TerritoryTextures
         bytes[local * 4 + 2] = (byte)(previous >> 4);
         bytes[local * 4 + 3] = (byte)Math.Clamp((int)MathF.Round(fade * FadeUnits), 1, 255);
         MemoryMarshal.Cast<byte, float>(_timeBytes[layer])[local] = time;
+        _dirty[layer] = true;
+    }
+
+    private void WriteHatch(int tile, bool hatched)
+    {
+        int x = tile % _map.Width, y = tile / _map.Width;
+        int layer = (y / ChunkSize) * _chunksX + x / ChunkSize;
+        int local = (y % ChunkSize) * ChunkSize + x % ChunkSize;
+        byte value = hatched ? (byte)255 : (byte)0;
+        if (_hatchBytes[layer][local] == value)
+            return;
+        _hatchBytes[layer][local] = value;
         _dirty[layer] = true;
     }
 }

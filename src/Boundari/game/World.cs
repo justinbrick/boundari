@@ -35,6 +35,7 @@ namespace Boundari;
 ///                      nations, e.g. Europe's 52 like OpenFront; 120 random ones elsewhere)
 ///   --bots=N           number of bots ("tribes"), the weak filler players (default 400, like OpenFront)
 ///   --no-cheats        play without the dev cheats (infinite gold, instant building)
+///   --classic          OpenFront's rules: no hatched (occupied) land
 ///   --difficulty=D     easy, medium (default), hard or impossible: how strong nations are
 ///   --autoplay         spawn the human player automatically (for testing)
 ///   --ticks=N          fast-forward the match N ticks at start
@@ -267,7 +268,7 @@ public partial class World : Node2D
         _worstStepMs = Math.Max(_worstStepMs, stepMs);
         _steps++;
         long recordStart = FrameProfiler.Start();
-        _view.RecordTick(_game.Owner, _game.Fallout, _game.ChangedTiles, _simTick);
+        _view.RecordTick(_game.Owner, _game.Fallout, _game.HatchedUntil, _game.ChangedTiles, _simTick);
         _game.ChangedTiles.Clear();
         ShowGoldGains();
         _alerts.TakeEvents(_game, _me);
@@ -938,7 +939,7 @@ public partial class World : Node2D
     private void StartMatch()
     {
         SyncSim();
-        _game = new Game(_map, RandomSeed(), difficulty: _args.Difficulty ?? Difficulty);
+        _game = new Game(_map, RandomSeed(), difficulty: _args.Difficulty ?? Difficulty) { HatchedLand = !_args.Classic };
         _me = _game.AddPlayer("You");
         _game.EventsFor = _me.Id; // notifications
         if (_args.Bench is null || _args.Autoplay)
@@ -983,7 +984,7 @@ public partial class World : Node2D
         if (_args.Notifs)
             _notifications.ShowSamples(_game, _me);
 
-        _view.SetOwners(_game.Owner, _game.Fallout);
+        _view.SetOwners(_game.Owner, _game.Fallout, _game.HatchedUntil);
         _shownTick = _game.Tick;
         _game.ChangedTiles.Clear();
         _tickTime = 0;
@@ -1218,7 +1219,7 @@ public partial class World : Node2D
     private record struct Args(string? Map, ulong? Seed, int? Bots, int? Nations, Difficulty? Difficulty, bool NoCheats, double? Bench, string? Dev, bool Autoplay, int Ticks,
         float Zoom, Vector2? Focus, string? Screenshot, bool Perf, Vector2? Hover, bool HoverLeader, bool Showcase, string? ShowcaseFocus,
         string? Start = null, int AllyRequests = 0, string? RightClick = null, string? Aim = null, bool Incoming = false, bool Tags = false, bool Notifs = false,
-        bool Splash = false, string? Alert = null);
+        bool Splash = false, string? Alert = null, bool Classic = false);
 
     private static Args ParseArgs()
     {
@@ -1236,6 +1237,7 @@ public partial class World : Node2D
                 case "nations": args.Nations = int.Parse(value, inv); break;
                 case "tribes": args.Bots = int.Parse(value, inv); break;
                 case "no-cheats": args.NoCheats = true; break;
+                case "classic": args.Classic = true; break;
                 case "bench": args.Bench = double.Parse(value, inv); break;
                 case "dev": args.Dev = value; break;
                 case "difficulty": args.Difficulty = Enum.Parse<Difficulty>(value, ignoreCase: true); break;
