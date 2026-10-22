@@ -29,7 +29,7 @@ namespace Boundari;
 ///                          silo (left click to launch, Shift to keep aiming)
 ///
 /// Command-line options (after "--" when launching Godot):
-///   --map=ID           load res://maps/ID.bmap ("random" for a generated map)
+///   --map=ID           load res://maps/ID.bmap (default ardennes; "random" for a generated map)
 ///   --seed=N           generate a random map with this seed
 ///   --nations=N        number of nations, the proper AI opponents (default: the map's own
 ///                      nations, e.g. Europe's 52 like OpenFront; 6 on the Ardennes, 120 elsewhere)
@@ -56,7 +56,7 @@ namespace Boundari;
 public partial class World : Node2D
 {
     /// <summary>Map to load at start (res://maps/ID.bmap). Empty means a random map.</summary>
-    [Export] public string StartMap { get; set; } = "europe";
+    [Export] public string StartMap { get; set; } = "ardennes";
     [Export] public ulong Seed { get; set; }
     [Export] public int MapWidth { get; set; } = 2000;
     [Export] public int MapHeight { get; set; } = 1250;
