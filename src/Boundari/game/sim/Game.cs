@@ -298,6 +298,7 @@ public sealed partial class Game
         RunNukes(); Lap(5);
         long te = Stopwatch.GetTimestamp();
         RemoveClusters();
+        RunDots();
         q = te;
         Lap(6);
         Profile[4] += Stopwatch.GetTimestamp() - te;
@@ -365,6 +366,18 @@ public sealed partial class Game
                 break;
             case RejectAllianceIntent no when GetPlayer(no.RequesterId) is { } asker && PendingRequest(asker, player) is { } request:
                 RejectAlliance(request);
+                break;
+            case BuyDotsIntent buy when Phase == GamePhase.Running:
+                BuyDots(player, buy.Count, buy.BorderTile);
+                break;
+            case SellDotIntent sell when Phase == GamePhase.Running:
+                SellDot(player, sell.DotId);
+                break;
+            case UpgradeDotIntent upgrade when Phase == GamePhase.Running:
+                UpgradeDot(player, upgrade.DotId);
+                break;
+            case MoveDotsIntent move when Phase == GamePhase.Running && move.DotIds is not null:
+                MoveDots(player, move.DotIds, move.BorderTile);
                 break;
             case DemolishIntent demolish when Phase == GamePhase.Running:
                 StartDemolition(player, demolish.Tile);
@@ -442,6 +455,7 @@ public sealed partial class Game
         }
         player.HasSpawned = true;
         player.Troops = Balance.StartTroopsFor(player.Kind, Difficulty);
+        PlaceStartingDots(player, tile);
     }
 
     private int FindBotSpawn(List<int> taken)
@@ -1905,10 +1919,13 @@ public sealed partial class Game
             _players[newOwner].LastLandChange = Tick;
 
         bool coastal = _coastal![tile];
+        int x = tile % Map.Width, y = tile / Map.Width;
         if (old != Nobody)
         {
             var oldPlayer = _players[old];
             oldPlayer.TileCount--;
+            oldPlayer.SumX -= x;
+            oldPlayer.SumY -= y;
             oldPlayer.Border.Remove(tile);
             if (coastal)
                 oldPlayer.Coast.Remove(tile);
@@ -1921,6 +1938,8 @@ public sealed partial class Game
                 FalloutTiles--;
             }
             _players[newOwner].TileCount++;
+            _players[newOwner].SumX += x;
+            _players[newOwner].SumY += y;
             if (coastal)
                 _players[newOwner].Coast.Add(tile);
         }

@@ -54,6 +54,8 @@ public sealed class ScaledRules
         NukeArcMinHeight = 50 * Linear;
         NukeBreakTiles = A(AllianceRules.NukeBreakTiles);
         LargeTerritoryMidpoint = AttackRules.LargeTerritoryMidpoint * Area;
+        DotSpacing = D(DotRules.Spacing);
+        DotWalkSpeedPerTick = (long)Math.Round(DotRules.WalkSpeedPerTick * Linear);
     }
 
     /// <summary>A distance in tiles, scaled (never below 1).</summary>
@@ -72,6 +74,8 @@ public sealed class ScaledRules
     public readonly double NukeArcMinHeight;
     public readonly int NukeBreakTiles;
     public readonly double LargeTerritoryMidpoint;
+    public readonly int DotSpacing;
+    public readonly long DotWalkSpeedPerTick;
 
     /// <summary>A SAM's reach at this level.</summary>
     public int SamRange(int level) => D(Balance.SamRange(level));

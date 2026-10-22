@@ -45,6 +45,13 @@ public sealed class Player
     public long TradeGold { get; internal set; }
     public int TileCount { get; internal set; }
 
+    /// <summary>Sums of the owned tiles' x and y (their average is the middle of the land).</summary>
+    internal long SumX, SumY;
+
+    /// <summary>Dots this player owns, and the most they may own.</summary>
+    public int DotCount { get; internal set; }
+    public int DotCap => DotRules.StartCap;
+
     /// <summary>Tiles of <see cref="TileCount"/> that are hatched (freshly taken from a player): they add nothing to the troop cap yet.</summary>
     public int HatchedTiles { get; internal set; }
 

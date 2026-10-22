@@ -41,5 +41,20 @@ public sealed record BreakAllianceIntent(ushort PlayerId, ushort TargetId) : Int
 /// <summary>Turn down someone's alliance request.</summary>
 public sealed record RejectAllianceIntent(ushort PlayerId, ushort RequesterId) : Intent(PlayerId);
 
+/// <summary>
+/// Buy up to <paramref name="Count"/> dots (cap and Funds allowing): they appear in the
+/// middle of your land and walk to <paramref name="BorderTile"/>, spreading out along it.
+/// </summary>
+public sealed record BuyDotsIntent(ushort PlayerId, int Count, int BorderTile) : Intent(PlayerId);
+
+/// <summary>Sell one of your dots (half of what it cost comes back).</summary>
+public sealed record SellDotIntent(ushort PlayerId, int DotId) : Intent(PlayerId);
+
+/// <summary>Raise one of your dots a strength level (up to 4).</summary>
+public sealed record UpgradeDotIntent(ushort PlayerId, int DotId) : Intent(PlayerId);
+
+/// <summary>Send some of your dots to a border tile: they walk there through your land and spread along it.</summary>
+public sealed record MoveDotsIntent(ushort PlayerId, int[] DotIds, int BorderTile) : Intent(PlayerId);
+
 /// <summary>Tear down one of your own buildings (it goes after a delay, as in OpenFront).</summary>
 public sealed record DemolishIntent(ushort PlayerId, int Tile) : Intent(PlayerId);
