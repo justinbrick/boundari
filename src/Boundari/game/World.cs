@@ -141,7 +141,7 @@ public partial class World : Node2D
         _view = GetNode<MapView>("MapDisplay");
         _camera = GetNode<Camera2D>("Camera2D");
         _hud = new GameHud(this);
-        _panels = new PlayerPanels(this);
+        _panels = new PlayerPanels(this) { Intel = _intel };
         _bar = new PlayerBar(this);
         _buildBar = new BuildBar(this);
         _notifications = new NotificationBar(this);
@@ -157,7 +157,7 @@ public partial class World : Node2D
         AddChild(_overlay);
         MoveChild(_overlay, _grid.GetIndex() + 1); // just above the map, below the HUD
         _fps = MakeFpsLabel();
-        _labels = new TerritoryLabels { Name = "TerritoryLabels" };
+        _labels = new TerritoryLabels { Name = "TerritoryLabels", Intel = _intel };
         AddChild(_labels);
         MoveChild(_labels, _overlay.GetIndex() + 1);
         _overlay.WaitForSim = SyncSim;
@@ -367,12 +367,18 @@ public partial class World : Node2D
         _alerts.Update(_game, _me);
         _arcs.SetRequests(IncomingAllianceRequests());
         FrameProfiler.Stop("  hud", hudOnly);
+        _intel.Update(delta); // (fog: before the panels and labels show anyone's troops)
         var hovered = HoveredPlayer(out bool wilderness);
         if (_args.Hover is null) // name plates stop fading under the mouse while the slider is held
             _labels.MouseOverride = _hud.AdjustingRatio ? new Vector2(float.MinValue, float.MinValue) : null;
         _view.HoverId = _arrowActive ? -1 : hovered?.Id ?? -1; // (the arrow lights up its own target)
         _labels.Hovered = hovered?.Id ?? 0;
         _panels.Update(_game, _me, hovered, wilderness, delta);
+        // Fog: hovering a player further away shows when their troops refresh next.
+        if (hovered is not null && _intel.RefreshProgress(hovered, fraction) is { } refresh)
+            _overlay.SetRefreshRing(HoverMouse(), (float)refresh);
+        else
+            _overlay.ClearRefreshRing();
         FrameProfiler.Stop("hud+panels", hudStart);
     }
 
@@ -864,8 +870,7 @@ public partial class World : Node2D
             return null;
         if (_args.HoverLeader)
             return _game.Players.MaxBy(p => p.TileCount);
-        var mouse = _args.Hover is { } h ? new Vector2(h.X * _map.Width, h.Y * _map.Height) : GetGlobalMousePosition();
-        int tile = _view.TileAt(mouse);
+        int tile = _view.TileAt(HoverMouse());
         if (tile < 0)
             return null;
         wilderness = _game.Owner[tile] == Game.Nobody && _map.IsLand(tile);
@@ -873,6 +878,12 @@ public partial class World : Node2D
     }
 
     private bool _pressIsDouble;
+
+    /// <summary>The mouse on the map (or where --hover pretends it is).</summary>
+    private Vector2 HoverMouse() => _args.Hover is { } h ? new Vector2(h.X * _map.Width, h.Y * _map.Height) : GetGlobalMousePosition();
+
+    // The light fog of war: what we're shown of other players' troops and gold.
+    private readonly View.TroopIntel _intel = new();
 
     /// <summary>A left click on the map (the second click of a double click has <paramref name="doubleClick"/> set).</summary>
     private void OnMapClicked(Vector2 worldPosition, bool doubleClick)
@@ -973,7 +984,7 @@ public partial class World : Node2D
     private void StartMatch()
     {
         SyncSim();
-        _game = new Game(_map, RandomSeed(), difficulty: _args.Difficulty ?? Difficulty) { HatchedLand = !_args.Classic, DirectedAttacks = !_args.Classic };
+        _game = new Game(_map, RandomSeed(), difficulty: _args.Difficulty ?? Difficulty) { HatchedLand = !_args.Classic, DirectedAttacks = !_args.Classic, FogOfWar = !_args.Classic };
         _me = _game.AddPlayer("You");
         _game.EventsFor = _me.Id; // notifications
         if (_args.Bench is null || _args.Autoplay)
@@ -989,6 +1000,7 @@ public partial class World : Node2D
         ApplyPalette();
         _ = _game.Waterways; // prepare sea routes now, not on the first boat
         _labels.SetGame(_game);
+        _intel.SetGame(_game, _me);
         _labels.MouseOverride = _args.Hover is { } fake ? new Vector2(fake.X * _map.Width, fake.Y * _map.Height) : null;
         _overlay.SetGame(_game, _me);
         _placing = null;

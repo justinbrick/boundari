@@ -76,6 +76,9 @@ public partial class TerritoryLabels : Node2D
     /// <summary>The player at this screen: tags like "ally" are from their point of view.</summary>
     public Player? Me { get; set; }
 
+    /// <summary>The light fog of war: what we're shown of other players' troops (null = everything exact).</summary>
+    public TroopIntel? Intel { get; set; }
+
     /// <summary>Where a player's name sits on the map (the middle of their main territory), if they have one.</summary>
     public bool TryGetAnchor(ushort id, out Vector2 position)
     {
@@ -394,7 +397,7 @@ public partial class TerritoryLabels : Node2D
         var flag = FlagTexture(player.Flag);
         float flagHeight = cap * FlagCapShare, flagWidth = flag is null ? 0 : flagHeight * FlagAspect;
         float flagGap = flag is null ? 0 : em * FlagGap;
-        var troops = Line(_troops, id, GameHud.FormatCount(player.Troops), troopBucket, TroopSpacing);
+        var troops = Line(_troops, id, Intel?.TroopText(player) ?? GameHud.FormatCount(player.Troops), troopBucket, TroopSpacing);
         float troopScale = em * TroopScale / troopBucket;
         float troopWidth = troops.GetSize().X * troopScale;
         float troopCap = cap * TroopScale;

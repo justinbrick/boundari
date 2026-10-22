@@ -59,6 +59,9 @@ public sealed class PlayerPanels
     private double _sinceRefresh = LeaderboardRefreshSeconds;
     private Dictionary<ushort, int> _ranks = new();
 
+    /// <summary>The light fog of war: what we're shown of other players' troops and gold (null = everything).</summary>
+    public TroopIntel? Intel { get; set; }
+
     public PlayerPanels(Node root)
     {
         foreach (string row in RowNodes)
@@ -208,7 +211,7 @@ public sealed class PlayerPanels
         }
     }
 
-    private static void Fill(Row row, int rank, Player p, long land, bool isMe)
+    private void Fill(Row row, int rank, Player p, long land, bool isMe)
     {
         Set(row.Pos, rank.ToString(CultureInfo.InvariantCulture));
         Set(row.Name, p.Name);
@@ -221,8 +224,8 @@ public sealed class PlayerPanels
                 label?.AddThemeColorOverride("font_color", color);
         }
         Set(row.Percent, Percent(p.TileCount, land));
-        Set(row.Troops, GameHud.FormatCount(p.Troops));
-        Set(row.Cash, GameHud.FormatCount(p.Gold));
+        Set(row.Troops, Intel?.TroopText(p) ?? GameHud.FormatCount(p.Troops));
+        Set(row.Cash, Intel?.ShowsGold(p) == false ? "?" : GameHud.FormatCount(p.Gold)); // (fog: only allies' gold)
     }
 
     private void UpdateInfo(Game game, Player me, Player? p, bool wilderness)
@@ -249,8 +252,9 @@ public sealed class PlayerPanels
         FitName();
         string percent = Percent(p.TileCount, Math.Max(1, game.Map.LandTileCount));
         Set(_infoLand, percent.TrimEnd('%'));
-        Set(_infoCash, p.InfiniteGold ? "$∞" : "$" + GameHud.FormatCount(p.Gold));
-        Set(_infoTroops, GameHud.FormatCount(p.Troops));
+        Set(_infoCash, Intel?.ShowsGold(p) == false ? "$?" : p.InfiniteGold ? "$∞" : "$" + GameHud.FormatCount(p.Gold)); // (fog: only allies' gold)
+        long shownTroops = Intel?.ShownTroops(p) ?? p.Troops;
+        Set(_infoTroops, Intel?.TroopText(p) ?? GameHud.FormatCount(p.Troops));
         Set(_infoMaxTroops, GameHud.FormatCount(p.MaxTroops));
         long attacking = 0;
         foreach (var a in game.Attacks)
@@ -260,7 +264,7 @@ public sealed class PlayerPanels
         {
             // Like the troop meter at the bottom: troops at home, then those out attacking.
             double cap = Math.Max(p.MaxTroops, 1);
-            float home = (float)Math.Clamp(p.Troops / cap, 0, 1);
+            float home = (float)Math.Clamp(shownTroops / cap, 0, 1);
             float away = (float)Math.Clamp(attacking / cap, 0, 1 - home);
             _infoMeter.SetTarget(home, away, snap: p != _meterShows);
             _meterShows = p;
