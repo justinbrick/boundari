@@ -105,9 +105,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			show_radial_menu(event.position)
 			return
 
-		# Left-click → close radial menu
+		# Left-click → close radial menu (only that: the click doesn't reach the map, so
+		# closing the menu never sends an attack)
 		if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
-			hide_radial_menu()
+			if current_menu and is_instance_valid(current_menu):
+				hide_radial_menu()
+				get_viewport().set_input_as_handled()
 
 
 
