@@ -696,6 +696,7 @@ public partial class World : Node2D
         _placing = null;
         _aiming = null;
         _overlay.ClearGhost();
+        ShowSecurePatch(-1);
     }
 
     /// <summary>Moves the placement preview with the mouse and greys out buttons you can't afford.</summary>
@@ -735,10 +736,33 @@ public partial class World : Node2D
             return;
         }
         int tile = PlacementTile(type2, _view.TileAt(GetGlobalMousePosition()));
+        bool canBuild = tile >= 0 && _game.CanBuild(_me, type2, tile);
         if (tile < 0)
             _overlay.ClearGhost();
         else
-            _overlay.SetGhost(type2, tile, _game.CanBuild(_me, type2, tile));
+            _overlay.SetGhost(type2, tile, canBuild);
+        ShowSecurePatch(canBuild ? tile : -1);
+    }
+
+    // The hatched patch the structure being placed would secure, highlighted on the map,
+    // and the tick it was worked out (land settles, so it's redone every tick).
+    private readonly System.Collections.Generic.HashSet<int> _securePatch = new();
+    private int _securePatchTick = -1;
+
+    /// <summary>Highlights the hatched land a structure placed on this tile would secure (-1 = none).</summary>
+    private void ShowSecurePatch(int tile)
+    {
+        if (_game is null || (tile < 0 && _securePatch.Count == 0))
+            return;
+        if (tile >= 0 && _securePatchTick == _game.Tick && _securePatch.Contains(tile))
+            return; // still pointing into the same patch
+        var patch = tile >= 0 ? _game.HatchedPatch(_me, tile) : new System.Collections.Generic.List<int>();
+        _securePatchTick = _game.Tick;
+        if (patch.Count == _securePatch.Count && patch.TrueForAll(_securePatch.Contains))
+            return; // unchanged
+        _securePatch.Clear();
+        _securePatch.UnionWith(patch);
+        _view.SetSecureHighlight(patch.Count > 0 ? patch : null);
     }
 
     /// <summary>Greys out what you can't afford, and keeps each button's tooltip price current.</summary>
@@ -958,6 +982,7 @@ public partial class World : Node2D
         _labels.MouseOverride = _args.Hover is { } fake ? new Vector2(fake.X * _map.Width, fake.Y * _map.Height) : null;
         _overlay.SetGame(_game, _me);
         _placing = null;
+        _securePatch.Clear(); // (the new match's territory upload clears the highlight)
 
         if (_args.Autoplay)
             AutoSpawn();

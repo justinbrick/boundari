@@ -45,7 +45,9 @@ public sealed class TerritoryTextures
     private readonly byte[][] _timeBytes;
     private readonly Image[] _ownerImages;
     private readonly Image[] _timeImages;
-    private readonly byte[][] _hatchBytes; // R8: 255 = hatched
+    private readonly byte[][] _hatchBytes; // R8 bits: HatchedBit, HighlightBit
+    private const byte HatchedBit = 1, HighlightBit = 2;
+    private readonly List<int> _highlighted = new();
     private readonly Image[] _hatchImages;
     private readonly bool[] _dirty;
     private readonly ushort[] _shown; // owner currently drawn for each tile
@@ -95,6 +97,7 @@ public sealed class TerritoryTextures
     /// <summary>Shows exactly these owners (and hatched tiles: settle tick, 0 = not hatched), with no animation (start of a match).</summary>
     public void SetAll(ushort[]? owners, bool[]? fallout = null, int[]? hatched = null)
     {
+        SetHighlight(null);
         for (int i = 0; i < _map.TileCount; i++)
         {
             ushort id = Shown(i, owners, fallout);
@@ -213,13 +216,29 @@ public sealed class TerritoryTextures
         _dirty[layer] = true;
     }
 
-    private void WriteHatch(int tile, bool hatched)
+    private void WriteHatch(int tile, bool hatched) => SetHatchBit(tile, HatchedBit, hatched);
+
+    /// <summary>Highlights these tiles (the hatched patch a structure being placed would secure), or none.</summary>
+    public void SetHighlight(IReadOnlyList<int>? tiles)
+    {
+        foreach (int t in _highlighted)
+            SetHatchBit(t, HighlightBit, false);
+        _highlighted.Clear();
+        if (tiles is null)
+            return;
+        _highlighted.AddRange(tiles);
+        foreach (int t in _highlighted)
+            SetHatchBit(t, HighlightBit, true);
+    }
+
+    private void SetHatchBit(int tile, byte bit, bool on)
     {
         int x = tile % _map.Width, y = tile / _map.Width;
         int layer = (y / ChunkSize) * _chunksX + x / ChunkSize;
         int local = (y % ChunkSize) * ChunkSize + x % ChunkSize;
-        byte value = hatched ? (byte)255 : (byte)0;
-        if (_hatchBytes[layer][local] == value)
+        byte old = _hatchBytes[layer][local];
+        byte value = on ? (byte)(old | bit) : (byte)(old & ~bit);
+        if (old == value)
             return;
         _hatchBytes[layer][local] = value;
         _dirty[layer] = true;

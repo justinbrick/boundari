@@ -105,6 +105,8 @@ public class HatchedLandTests
         var other = BlockOfB(game, b, 60, 6, 6); // far from the first: a separate patch
         foreach (int t in patch.Concat(other))
             SetOwner(game, t, a.Id);
+        Assert.Equal(patch.OrderBy(t => t), game.HatchedPatch(a, patch[^1]).OrderBy(t => t)); // what placing it would highlight
+        Assert.Empty(game.HatchedPatch(b, patch[^1]));
 
         game.Submit(new BuildIntent(a.Id, BuildingType.City, patch[^1]));
         game.Step();

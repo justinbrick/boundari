@@ -23,7 +23,8 @@ uniform vec3 cover_colors[7];
 uniform sampler2DArray owner_tex : filter_nearest, repeat_disable;
 // R32F: tick (with fraction) when each tile changed hands, for animating captures.
 uniform sampler2DArray capture_tex : filter_nearest, repeat_disable;
-// R8: 1 where a tile is hatched (land freshly taken from a player, see GameHatching.cs).
+// R8 bits: 1 = hatched (land freshly taken from a player, see GameHatching.cs),
+// 2 = highlighted (the patch a structure being placed would secure).
 uniform sampler2DArray hatch_tex : filter_nearest, repeat_disable;
 uniform int owner_chunk = 256;
 uniform int owner_chunks_x = 1;
@@ -59,14 +60,16 @@ uniform float border_darken : hint_range(0.0, 1.0) = 0.35;
 // The territory under the mouse (owner id; -1 = none) is drawn lighter.
 uniform int hover_id = -1;
 uniform float hover_lighten : hint_range(0.0, 1.0) = 0.08;
-// Hatched land: diagonal stripes of the owner's colour, this many tiles apart (set from
-// MapView.cs; never closer than hatch_min_pixels on screen), over a fainter fill.
+// Hatched land: diagonal stripes in the territory's border colour, this many tiles apart
+// (set from MapView.cs). Zoomed out, the spacing doubles in steps (every other stripe
+// fades away) so stripes are never closer than hatch_min_pixels on screen and stay put.
 uniform float hatch_tiles = 2.5;
-uniform float hatch_min_pixels = 7.0;
-uniform float hatch_stripe_opacity : hint_range(0.0, 1.0) = 0.9;
-uniform float hatch_gap_opacity : hint_range(0.0, 1.0) = 0.12;
+uniform float hatch_min_pixels = 8.0;
+uniform float hatch_strength : hint_range(0.0, 1.0) = 0.85;
 // Share of each stripe period the stripe covers.
-uniform float hatch_stripe_width : hint_range(0.1, 0.9) = 0.4;
+uniform float hatch_stripe_width : hint_range(0.1, 0.9) = 0.3;
+// The patch a structure being placed would secure: lightened, with a gentle pulse.
+uniform float secure_highlight : hint_range(0.0, 1.0) = 0.3;
 
 group_uniforms dev_tools;
 // Land-cover patches: 1 = smooth rounded shapes (the normal look), 0 = square cells.
@@ -281,25 +284,26 @@ int owner_id_at(ivec2 c) {
 	return b.r + (b.g & 15) * 256;
 }
 
-// How hatched the land of `id` is here (0..1), blended between tile centres. Only tiles
-// `id` owns and has finished fading into count, so a capture still sweeping in isn't
-// striped on the previous owner's colour.
-float hatch_at(vec2 tile, int id) {
+// How hatched (x) and how highlighted (y) the land of `id` is here (0..1), blended between
+// tile centres. Only tiles `id` owns and has finished fading into count, so a capture
+// still sweeping in isn't striped on the previous owner's colour.
+vec2 hatch_at(vec2 tile, int id) {
 	vec2 p = tile - 0.5;
 	ivec2 c = ivec2(floor(p));
 	vec2 f = p - vec2(c);
-	float v[4];
+	vec2 v[4];
 	bool any = false;
 	for (int k = 0; k < 4; k++) {
 		ivec2 cc = clamp(c + ivec2(k & 1, k >> 1), ivec2(0), ivec2(map_size) - 1);
-		v[k] = texelFetch(hatch_tex, ivec3(cc % owner_chunk, (cc.y / owner_chunk) * owner_chunks_x + cc.x / owner_chunk), 0).r;
-		any = any || v[k] > 0.0;
+		int bits = int(texelFetch(hatch_tex, ivec3(cc % owner_chunk, (cc.y / owner_chunk) * owner_chunks_x + cc.x / owner_chunk), 0).r * 255.0 + 0.5);
+		v[k] = vec2(float(bits & 1), float((bits >> 1) & 1));
+		any = any || bits != 0;
 	}
 	if (!any) {
-		return 0.0;
+		return vec2(0.0);
 	}
 	for (int k = 0; k < 4; k++) {
-		if (v[k] > 0.0) {
+		if (v[k].x > 0.0 || v[k].y > 0.0) {
 			int owner;
 			int prev;
 			float fade_in;
@@ -308,6 +312,15 @@ float hatch_at(vec2 tile, int id) {
 		}
 	}
 	return mix(mix(v[0], v[1], f.x), mix(v[2], v[3], f.x), f.y);
+}
+
+// Diagonal stripes this many tiles apart: 1 on a stripe, 0 between, anti-aliased. Stripes
+// sit on whole multiples of the period, so doubling it keeps every other stripe in place.
+float stripes(vec2 tile, float period, float tiles_per_px) {
+	float u = (tile.x + tile.y) / period;
+	float tri = abs(fract(u + 0.5) - 0.5) * 2.0; // 0 mid-stripe, 1 mid-gap
+	float aa = max(2.0 * tiles_per_px / period, 1e-4); // (no fwidth: this runs in a branch)
+	return 1.0 - smoothstep(hatch_stripe_width - aa, hatch_stripe_width + aa, tri);
 }
 
 // Smooth territory lookup: nearby tiles vote for their owner with Gaussian weights
@@ -539,14 +552,15 @@ void fragment() {
 			// A palette alpha below 1 asks for a more solid fill (tribes are drawn opaque).
 			float opacity = max(territory_opacity, 1.0 - swatch.a);
 
-			// Hatched land: diagonal stripes, anti-aliased.
-			float hatched = hatch_at(tile, id);
-			if (hatched > 0.0) {
-				float u = (tile.x + tile.y) / max(hatch_tiles, hatch_min_pixels * tiles_per_px);
-				float tri = abs(fract(u) - 0.5) * 2.0; // 0 mid-stripe, 1 mid-gap
-				float aa = max(fwidth(u) * 2.0, 1e-4);
-				float stripe = 1.0 - smoothstep(hatch_stripe_width - aa, hatch_stripe_width + aa, tri);
-				opacity = mix(opacity, mix(hatch_gap_opacity, hatch_stripe_opacity, stripe), hatched);
+			// Hatched land: stripes in the border colour, spaced in whole doublings of
+			// hatch_tiles, cross-fading between the two nearest as the zoom changes.
+			vec2 hatch = hatch_at(tile, id);
+			float stripe = 0.0;
+			if (hatch.x > 0.0) {
+				float lod = max(log2(hatch_min_pixels * tiles_per_px / hatch_tiles), 0.0);
+				float fine = hatch_tiles * exp2(floor(lod));
+				stripe = mix(stripes(tile, fine, tiles_per_px), stripes(tile, fine * 2.0, tiles_per_px), smoothstep(0.0, 1.0, fract(lod)));
+				stripe *= hatch.x * hatch_strength;
 			}
 
 			// Distance to the coastline in tiles, so territories get an outline along the shore too.
@@ -562,7 +576,11 @@ void fragment() {
 
 			vec3 fill = mix(ground, nation, opacity);
 			vec3 outline = nation * (1.0 - border_darken);
-			vec3 owned = mix(fill, outline, border);
+			vec3 owned = mix(mix(fill, outline, stripe), outline, border);
+			if (hatch.y > 0.0) {
+				float pulse = 0.75 + 0.25 * sin(visual_time * 0.6);
+				owned = mix(owned, vec3(1.0), hatch.y * secure_highlight * pulse);
+			}
 			if (id == hover_id) {
 				owned = mix(owned, vec3(1.0), hover_lighten);
 			}

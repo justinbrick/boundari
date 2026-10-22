@@ -78,23 +78,32 @@ public sealed partial class Game
     /// </summary>
     private void SecureHatchedPatch(Player player, int tile)
     {
-        if (!IsHatched(tile) || Owner[tile] != player.Id)
-            return;
-        var queue = new Queue<int>();
-        queue.Enqueue(tile);
-        Settle(tile);
+        foreach (int t in HatchedPatch(player, tile))
+            Settle(t);
+    }
+
+    /// <summary>
+    /// The player's hatched tiles joined to this one (itself included): what a structure
+    /// built here would secure. Empty if the tile isn't the player's hatched land.
+    /// </summary>
+    public List<int> HatchedPatch(Player player, int tile)
+    {
+        var patch = new List<int>();
+        if (tile < 0 || tile >= Map.TileCount || !IsHatched(tile) || Owner[tile] != player.Id)
+            return patch;
+        var seen = new HashSet<int> { tile };
+        patch.Add(tile);
         Span<int> nb = stackalloc int[4];
-        while (queue.Count > 0)
+        for (int i = 0; i < patch.Count; i++)
         {
-            int count = LandNeighbours(queue.Dequeue(), nb);
+            int count = LandNeighbours(patch[i], nb);
             for (int k = 0; k < count; k++)
             {
                 int n = nb[k];
-                if (Owner[n] != player.Id || !IsHatched(n))
-                    continue;
-                Settle(n);
-                queue.Enqueue(n);
+                if (Owner[n] == player.Id && IsHatched(n) && seen.Add(n))
+                    patch.Add(n);
             }
         }
+        return patch;
     }
 }
