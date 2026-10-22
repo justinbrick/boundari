@@ -17,6 +17,14 @@ public sealed record SpawnIntent(ushort PlayerId, int Tile) : Intent(PlayerId);
 /// </summary>
 public sealed record AttackIntent(ushort PlayerId, ushort TargetId, int RatioPercent, long Troops = 0) : Intent(PlayerId);
 
+/// <summary>
+/// A directed attack (Boundari's own): like <see cref="AttackIntent"/>, but leaning the way
+/// an arrow drawn from <paramref name="FromTile"/> to <paramref name="ToTile"/> points.
+/// <paramref name="ThinPermille"/> is the arrow's shape: 0 = short and flat (wide, slow,
+/// strong) .. 1000 = long and thin (narrow, fast, weak). See <see cref="DirectedRules"/>.
+/// </summary>
+public sealed record DirectedAttackIntent(ushort PlayerId, ushort TargetId, int RatioPercent, int FromTile, int ToTile, int ThinPermille) : Intent(PlayerId);
+
 /// <summary>Call off one of your attacks (OpenFront's retreat: the troops come home after a short delay, a quarter lost if the target was a player).</summary>
 public sealed record RetreatIntent(ushort PlayerId, int AttackId) : Intent(PlayerId);
 

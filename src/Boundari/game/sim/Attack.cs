@@ -44,8 +44,12 @@ public sealed class Attack
 
     internal readonly Rng Rng;
 
-    internal Attack(Player attacker, ushort targetId, long troops, int sourceTile, Rng rng)
+    /// <summary>The arrow of a directed attack (Boundari's own), or null for a normal one.</summary>
+    public readonly AttackArrow? Arrow;
+
+    internal Attack(Player attacker, ushort targetId, long troops, int sourceTile, Rng rng, AttackArrow? arrow = null)
     {
+        Arrow = arrow;
         Attacker = attacker;
         TargetId = targetId;
         TroopsExact = troops;

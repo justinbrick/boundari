@@ -105,9 +105,11 @@ public sealed partial class Game
     /// <summary>
     /// A land attack: takes the troops, cancels against any attack the target has coming
     /// at us, absorbs our earlier attacks on the same target, and queues every target tile
-    /// along our border. If there's nothing to take, the troops come straight back.
+    /// along our border. If there's nothing to take, the troops come straight back. A
+    /// directed attack (with an <paramref name="arrow"/>) stays on its own: it neither
+    /// absorbs nor is absorbed by other attacks.
     /// </summary>
-    private void StartAttack(Player attacker, ushort targetId, long troops)
+    private void StartAttack(Player attacker, ushort targetId, long troops, AttackArrow? arrow = null)
     {
         if (targetId == attacker.Id || (targetId != Nobody && GetPlayer(targetId) is not { IsAlive: true }))
             return;
@@ -117,15 +119,15 @@ public sealed partial class Game
             attacker.AttacksSent++;
 
         attacker.Troops -= troops;
-        var attack = new Attack(attacker, targetId, troops, -1, new Rng(_rng.Fork())) { Id = _nextUnitId++ };
+        var attack = new Attack(attacker, targetId, troops, -1, new Rng(_rng.Fork()), arrow) { Id = _nextUnitId++ };
         RefreshToConquer(attack);
         if (CancelAgainstIncoming(attack))
             return;
         bool reinforcing = false;
-        for (int i = _attacks.Count - 1; i >= 0; i--)
+        for (int i = _attacks.Count - 1; i >= 0 && arrow is null; i--)
         {
             var other = _attacks[i];
-            if (other.Attacker == attacker && other.TargetId == targetId)
+            if (other.Attacker == attacker && other.TargetId == targetId && other.Arrow is null)
             {
                 attack.TroopsExact += other.TroopsExact;
                 _attacks.RemoveAt(i);
@@ -250,7 +252,10 @@ public sealed partial class Game
                     mine++;
             // 40 x (1 - mine/2 + mag x cover/2), OpenFront's factor with land cover on its terrain term.
             long factor40 = 40 - 20 * mine + AttackRules.PriorityTerrainTimes2(Map.Terrain[n]) * CoverTenths[n];
-            long priority = (attack.Rng.RangeInt(0, 6) + 10) * factor40 + 40L * Tick;
+            long delay = (attack.Rng.RangeInt(0, 6) + 10) * factor40;
+            if (attack.Arrow is { } arrow)
+                delay = arrow.Lean(delay, tile, n, Map.Width); // a directed attack leans its way
+            long priority = delay + 40L * Tick;
             attack.ToConquer.Enqueue(n, priority);
         }
     }
@@ -290,7 +295,10 @@ public sealed partial class Game
                 continue;
             }
 
-            int borderSize = Math.Max(1, attack.Border.Count + attack.Rng.RangeInt(0, 4));
+            // A directed attack's front counts no wider than its arrow (thin ones), so a thin
+            // push takes fewer tiles than a broad one, all going forward.
+            int front = attack.Arrow is { } arrow ? Math.Min(attack.Border.Count, arrow.FrontCap) : attack.Border.Count;
+            int borderSize = Math.Max(1, front + attack.Rng.RangeInt(0, 4));
             double budget = 1;
             while (budget > 0)
             {
@@ -357,6 +365,8 @@ public sealed partial class Game
             double loss = mag / (attacker.IsBot ? 10 : 5) / area;
             double cost = Math.Clamp(AttackRules.TerraNulliusCostScale * tileCost / attackTroops,
                 AttackRules.TerraNulliusMinCost, AttackRules.TerraNulliusMaxCost);
+            if (attack.Arrow is { } flat)
+                return (loss * flat.Loss, 0, cost / (borderSize * 2.0) / linear / flat.Speed);
             return (loss, 0, cost / (borderSize * 2.0) / linear);
         }
 
@@ -365,7 +375,10 @@ public sealed partial class Game
         double traitorCost = IsTraitor(defender) ? AllianceRules.TraitorTravelPercent / 100.0 : 1;
         double speedCost = Math.Clamp(ratio, 0.82, 7.5) * Math.Clamp(ratio / 20, 1, 50) / AttackRules.SpeedCostDivisor;
         double largeAttackerSpeed = AttackRules.LargeTerritoryBonus(attacker.TileCount, AttackRules.LargeAttackerSpeedDepth, Rules.LargeTerritoryMidpoint);
-        return (attackerLoss, defenderLoss, speedCost * tileCost * largeAttackerSpeed * largeDefender * traitorCost / borderSize / linear);
+        double tickFraction = speedCost * tileCost * largeAttackerSpeed * largeDefender * traitorCost / borderSize / linear;
+        if (attack.Arrow is { } arrow) // directed: thin arrows go faster and pay more, flat ones the other way round
+            return (attackerLoss * arrow.Loss, defenderLoss, tickFraction / arrow.Speed);
+        return (attackerLoss, defenderLoss, tickFraction);
     }
 
     /// <summary>Troops an attack of this size loses per tile of the defender's land with this terrain cost (OpenFront's attackerTroopLoss).</summary>

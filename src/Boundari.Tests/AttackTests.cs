@@ -119,7 +119,7 @@ public class AttackTests
         var (game, a, b) = Setup();
         SetTroops(b, 100_000);
         var attack = (Attack)typeof(Attack).GetConstructors(BindingFlags.NonPublic | BindingFlags.Instance)[0]
-            .Invoke(new object[] { a, b.Id, 50_000L, -1, new Boundari.Core.Rng(1) });
+            .Invoke(new object[] { a, b.Id, 50_000L, -1, new Boundari.Core.Rng(1), null! });
         var logic = typeof(Game).GetMethod("AttackLogic", BindingFlags.NonPublic | BindingFlags.Instance)!;
         int plains = Enumerable.Range(0, game.Map.TileCount).First(t => game.Owner[t] == b.Id);
         var (loss, defLoss, frac) = ((double, double, double))logic.Invoke(game, new object[] { attack, plains, b, 50_000.0, 100 })!;
@@ -156,7 +156,7 @@ public class AttackTests
         var a = game.AddPlayer("A");
         Assert.Equal(20, game.CoverTenths[plain]);
         var attack = (Attack)typeof(Attack).GetConstructors(BindingFlags.NonPublic | BindingFlags.Instance)[0]
-            .Invoke(new object[] { a, (ushort)0, 3_000L, -1, new Boundari.Core.Rng(1) });
+            .Invoke(new object[] { a, (ushort)0, 3_000L, -1, new Boundari.Core.Rng(1), null! });
         var logic = typeof(Game).GetMethod("AttackLogic", BindingFlags.NonPublic | BindingFlags.Instance)!;
         var (forestLoss, _, forestFrac) = ((double, double, double))logic.Invoke(game, new object[] { attack, plain, null!, 3_000.0, 40 })!;
         var (fieldLoss, _, fieldFrac) = ((double, double, double))logic.Invoke(game, new object[] { attack, other, null!, 3_000.0, 40 })!;
@@ -182,7 +182,7 @@ public class AttackTests
             var game = new Game(map, 1);
             var a = game.AddPlayer("A");
             var attack = (Attack)typeof(Attack).GetConstructors(BindingFlags.NonPublic | BindingFlags.Instance)[0]
-                .Invoke(new object[] { a, (ushort)0, 3_000L, -1, new Boundari.Core.Rng(1) });
+                .Invoke(new object[] { a, (ushort)0, 3_000L, -1, new Boundari.Core.Rng(1), null! });
             var (loss, _, frac) = ((double, double, double))logic.Invoke(game, new object[] { attack, plain, null!, 3_000.0, 40 })!;
             return (loss, frac);
         }

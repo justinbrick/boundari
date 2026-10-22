@@ -333,6 +333,9 @@ public sealed partial class Game
                     ? Math.Min(attack.Troops, player.Troops)
                     : player.Troops * Math.Clamp(attack.RatioPercent, 1, 100) / 100);
                 break;
+            case DirectedAttackIntent directed when Phase == GamePhase.Running:
+                StartDirectedAttack(player, directed);
+                break;
             case NukeIntent nuke:
                 LaunchNuke(player, nuke.Type, nuke.Tile, nuke.DirectionUp);
                 break;
