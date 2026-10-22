@@ -38,6 +38,7 @@ public sealed class GameMap
     {
         "Europe" => width / 3000.0,
         "World" => width / 2400.0,
+        "Ardennes" => width / 1200.0, // plain OpenFront numbers at 30 m tiles; the dots rules come later
         _ => 1,
     };
 

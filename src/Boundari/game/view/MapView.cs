@@ -130,7 +130,10 @@ public partial class MapView : Sprite2D
     }
 
     // Hill shading: how much the land is exaggerated, and where the light comes from (north-west).
+    // Fine maps show real slopes that big maps average away, so they're exaggerated less:
+    // full strength from 1 km tiles up, down to a fifth (true slopes) at 200 m and below.
     private const double ReliefExaggeration = 5;
+    private static double ReliefFor(double metresPerTile) => ReliefExaggeration * Math.Clamp(metresPerTile / 1000, 0.2, 1);
     private static readonly Vector3 LightDir = new Vector3(-1, -1, 1.5f).Normalized();
 
     private static float Sq(float v) => v * v;
@@ -138,8 +141,8 @@ public partial class MapView : Sprite2D
     /// <summary>Brightness of a tile's slope under the light (1 = flat), from its neighbours' heights.</summary>
     private static float HillShade(GameMap map, int left, int right, int up, int down, double metresPerTile)
     {
-        double gx = (ElevationScale.ToMetres(map.Elevation[right]) - ElevationScale.ToMetres(map.Elevation[left])) * 0.5 / metresPerTile * ReliefExaggeration;
-        double gy = (ElevationScale.ToMetres(map.Elevation[down]) - ElevationScale.ToMetres(map.Elevation[up])) * 0.5 / metresPerTile * ReliefExaggeration;
+        double gx = (ElevationScale.ToMetres(map.Elevation[right]) - ElevationScale.ToMetres(map.Elevation[left])) * 0.5 / metresPerTile * ReliefFor(metresPerTile);
+        double gy = (ElevationScale.ToMetres(map.Elevation[down]) - ElevationScale.ToMetres(map.Elevation[up])) * 0.5 / metresPerTile * ReliefFor(metresPerTile);
         var normal = new Vector3((float)-gx, (float)-gy, 1).Normalized();
         return Math.Clamp(normal.Dot(LightDir) / LightDir.Z, 0.45f, 1.4f);
     }

@@ -101,12 +101,33 @@ public class MapFileTests
         Assert.Equal(map.Terrain, loaded.Terrain);
         Assert.Equal(map.LandTileCount, loaded.LandTileCount);
         Assert.Equal(map.LandmassSizes, loaded.LandmassSizes);
-        // Fields are stored as 16-bit floats, so allow a little rounding.
+        // The coast field is stored as 16-bit floats, elevation as 16-bit fractions (finer:
+        // under 0.1 m even on high ground), so allow a little rounding.
         for (int i = 0; i < map.TileCount; i++)
         {
             Assert.Equal(map.CoastField[i], loaded.CoastField[i], 0.002f);
-            Assert.Equal(map.Elevation[i], loaded.Elevation[i], 0.002f);
+            Assert.Equal(map.Elevation[i], loaded.Elevation[i], 0.00001f);
         }
+    }
+
+    [Fact]
+    public void Ardennes_IsAllClaimableLandWithDrawnRivers()
+    {
+        string dir = System.AppContext.BaseDirectory;
+        while (!System.IO.File.Exists(System.IO.Path.Combine(dir, "Boundari.sln")) || !System.IO.Directory.Exists(System.IO.Path.Combine(dir, "src")))
+            dir = System.IO.Path.GetDirectoryName(dir)!;
+        using var file = System.IO.File.OpenRead(System.IO.Path.Combine(dir, "src", "Boundari", "maps", "ardennes.bmap"));
+        var map = MapFile.Read(file);
+
+        Assert.Equal("Ardennes", map.Name);
+        Assert.Equal(1200, map.Width);
+        Assert.Equal(1.0, map.TileScale);
+        Assert.Equal(map.TileCount, map.LandTileCount); // no sea or lakes: rivers are only drawn
+        Assert.Single(map.LandmassSizes);
+        Assert.All(map.CoastField, v => Assert.True(float.IsFinite(v) && v > 0));
+        var cover = Assert.IsType<LandCover>(map.Cover);
+        double water = cover.Cells.Count(c => c == CoverType.Water) / (double)cover.Cells.Length;
+        Assert.InRange(water, 0.003, 0.02); // the Ourthe, Sure, Wiltz, Clerve and a few lakes
     }
 }
 

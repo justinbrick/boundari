@@ -23,7 +23,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 import rasterio
-from rasterio.errors import RasterioIOError
+from rasterio.errors import RasterioIOError, WindowError
 from rasterio.transform import from_bounds
 from rasterio.warp import Resampling, reproject
 from rasterio.windows import from_bounds as window_from_bounds
@@ -90,13 +90,22 @@ def main():
         try:
             kwargs = {} if overview is None else {"overview_level": overview}
             with rasterio.open(URL.format(name=tile_name(lat0, lon0)), **kwargs) as src:
-                data = src.read(1)
+                # Read only the part of the file under the map (plus a little margin), so a
+                # small map at full detail doesn't fetch the whole ~1.3 GB of pixels.
+                pad = 4 * factor * SOURCE_DEGREES_PER_PIXEL
+                src_win = src.window(max(lon0, lon_min) - pad, max(lat0, lat_min) - pad,
+                                     min(lon0 + 3, lon_max) + pad, min(lat0 + 3, lat_max) + pad)
+                src_win = src_win.round_offsets().round_lengths().intersection(
+                    rasterio.windows.Window(0, 0, src.width, src.height))
+                data = src.read(1, window=src_win)
                 part = np.zeros((rows, cols), dtype=np.uint8)
                 reproject(data, part,
-                          src_transform=src.transform, src_crs=src.crs, src_nodata=0,
+                          src_transform=src.window_transform(src_win), src_crs=src.crs, src_nodata=0,
                           dst_transform=rasterio.windows.transform(rasterio.windows.Window(col0, row0, cols, rows), dst_transform),
                           dst_crs="EPSG:4326", dst_nodata=0, resampling=Resampling.mode)
             return tile, (row0, col0, part)
+        except WindowError:
+            return tile, None  # the margin reached into this file but the map doesn't
         except RasterioIOError:
             return tile, None  # no file: open ocean
 

@@ -8,12 +8,12 @@ namespace Boundari.Map;
 /// <summary>
 /// Reads and writes .bmap files: pre-built maps (e.g. real-world maps made by
 /// tools/MapBuilder). Gzipped binary: header, then terrain, coast field and
-/// elevation per tile (the two fields as 16-bit floats).
+/// elevation per tile (the coast field as 16-bit floats, elevation as 16-bit fractions).
 /// </summary>
 public static class MapFile
 {
     private const uint Magic = 0x50414D42; // "BMAP"
-    private const int Version = 3; // 2: real-world location, 3: land cover
+    private const int Version = 4; // 2: real-world location, 3: land cover, 4: finer elevation
 
     public static void Write(GameMap map, Stream output)
     {
@@ -44,8 +44,10 @@ public static class MapFile
             w.Write((byte)t);
         foreach (float v in map.CoastField)
             w.Write((Half)v);
+        // Elevation as 0..65535: a 16-bit float only has ~3 m steps above 350 m, which
+        // shows as terraces in the hill shading of a fine map like the Ardennes.
         foreach (float v in map.Elevation)
-            w.Write((Half)v);
+            w.Write((ushort)Math.Round(Math.Clamp(v, 0f, 1f) * ushort.MaxValue));
     }
 
     public static GameMap Read(Stream input)
@@ -81,10 +83,23 @@ public static class MapFile
         for (int i = 0; i < map.TileCount; i++)
             map.Terrain[i] = (TerrainType)terrain[i];
         ReadHalves(r, map.CoastField);
-        ReadHalves(r, map.Elevation);
+        if (version >= 4)
+            ReadFractions(r, map.Elevation);
+        else
+            ReadHalves(r, map.Elevation);
 
         MapProcessing.LabelLandmasses(map);
         return map;
+    }
+
+    /// <summary>Reads 16-bit fractions (0..65535 = 0..1) in one go.</summary>
+    private static void ReadFractions(BinaryReader r, float[] into)
+    {
+        byte[] bytes = r.ReadBytes(into.Length * 2);
+        if (bytes.Length != into.Length * 2)
+            throw new EndOfStreamException("Map file is truncated.");
+        for (int i = 0; i < into.Length; i++)
+            into[i] = System.Buffers.Binary.BinaryPrimitives.ReadUInt16LittleEndian(bytes.AsSpan(i * 2, 2)) / (float)ushort.MaxValue;
     }
 
     /// <summary>Reads 16-bit floats in one go (one at a time through the decompressor is very slow).</summary>

@@ -21,7 +21,10 @@ public sealed record MapSpec(
     int MinLakeTiles,     // smaller lakes are filled in
     int LandCoverScale,   // land-cover cells per tile side (0 = no land cover)
     int RiverMaxRank,     // include rivers up to this Natural Earth rank (0 = biggest; -1 = none)
-    double RiverWidth);   // width in tiles of the biggest rivers; smaller ones are narrower
+    double RiverWidth,    // width in tiles of the biggest rivers; smaller ones are narrower
+    bool CarveLakes = true,     // land-cover lakes become real (unclaimable) water
+    string? OsmWater = null,    // OpenStreetMap rivers/lakes in tools/data, drawn as claimable water
+    double RiverMetres = 0);    // drawn width of those rivers
 
 public static class Program
 {
@@ -36,6 +39,12 @@ public static class Program
         // real-world sizes: 45 / 68 tiles and 3.9 wide at 3000.
         new("europe", "Europe", -25, 45, 33, 72, 50, 4000, "10m", 6, MinIslandTiles: 80, MinLakeTiles: 121, LandCoverScale: 2,
             RiverMaxRank: 7, RiverWidth: 5.2),
+        // The Ardennes around Bastogne and Houffalize, ~36 km square, 30 m per tile. The
+        // Ourthe, Sure, Wiltz and Clerve come from OpenStreetMap and are only drawn: they can
+        // be crossed and claimed like land. No sea or lakes. Land cover at WorldCover's full
+        // 10 m detail (15 m cells), elevation from zoom-12 terrain tiles (~25 m).
+        new("ardennes", "Ardennes", 5.50, 6.00, 49.93, 50.25, 50.09, 1200, "10m", 12, MinIslandTiles: 0, MinLakeTiles: 0, LandCoverScale: 2,
+            RiverMaxRank: -1, RiverWidth: 0, CarveLakes: false, OsmWater: "osm/ardennes_water.json", RiverMetres: 60),
     };
 
     // Coast field units per tile of distance. Matches the scale of the random

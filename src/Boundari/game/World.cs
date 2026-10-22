@@ -22,7 +22,7 @@ namespace Boundari;
 ///   1-7 or hotbar buttons — place a port, city, factory, defense, silo, SAM, or a
 ///                          warship (on water near one of your ports)
 ///                          (left click to place, right click / Esc / same key to cancel)
-///   M — switch map (Europe, World) and start a new match
+///   M — switch map (Europe, World, Ardennes) and start a new match
 ///   R — new random map and match
 ///   H — toggle hill shading
 ///   8 / 9 / 0 or bomb buttons — aim a MOAB / Fat Man / Tsar Bomba from your nearest loaded
@@ -32,8 +32,8 @@ namespace Boundari;
 ///   --map=ID           load res://maps/ID.bmap ("random" for a generated map)
 ///   --seed=N           generate a random map with this seed
 ///   --nations=N        number of nations, the proper AI opponents (default: the map's own
-///                      nations, e.g. Europe's 52 like OpenFront; 120 random ones elsewhere)
-///   --bots=N           number of bots ("tribes"), the weak filler players (default 400, like OpenFront)
+///                      nations, e.g. Europe's 52 like OpenFront; 6 on the Ardennes, 120 elsewhere)
+///   --bots=N           number of bots ("tribes"), the weak filler players (default 400, like OpenFront; 12 on the Ardennes)
 ///   --no-cheats        play without the dev cheats (infinite gold, instant building)
 ///   --classic          OpenFront's rules: no hatched (occupied) land
 ///   --difficulty=D     easy, medium (default), hard or impossible: how strong nations are
@@ -70,7 +70,14 @@ public partial class World : Node2D
 
     private const float ClickMaxDrag = 6; // pixels; more than this is a camera drag, not a click
 
-    private static readonly string[] BuiltInMaps = { "europe", "world" };
+    private static readonly string[] BuiltInMaps = { "europe", "world", "ardennes" };
+
+    // Small maps get fewer players than the Nations / Bots defaults (until spawning is redone for dots).
+    private static (int Nations, int Bots)? SmallMapPlayers(string mapId) => mapId switch
+    {
+        "ardennes" => (6, 12),
+        _ => null,
+    };
 
     // Hotbar buttons in boundari.tscn, in hotkey order (1-6).
     private static readonly (BuildingType Type, string Button)[] BuildButtons =
@@ -993,8 +1000,8 @@ public partial class World : Node2D
         if (_args.Nations is null && MapNations.For(_mapId) is { } mapNations)
             _game.AddNations(mapNations); // the map's own nations, at their real homes
         else
-            _game.AddNations(_args.Nations ?? Nations);
-        _game.AddBots(_args.Bots ?? Bots);
+            _game.AddNations(_args.Nations ?? SmallMapPlayers(_mapId)?.Nations ?? Nations);
+        _game.AddBots(_args.Bots ?? SmallMapPlayers(_mapId)?.Bots ?? Bots);
         ApplyPalette();
         _ = _game.Waterways; // prepare sea routes now, not on the first boat
         _labels.SetGame(_game);

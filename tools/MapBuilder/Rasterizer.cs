@@ -164,9 +164,12 @@ public static class Rasterizer
             for (int x = 0; x < width; x++) grid[y * width + x] = d[x];
         }
 
+        // With no feature at all (no water on an all-land map) everything is just "further
+        // than anything on the map", not infinitely far: the field is stored as 16-bit floats.
+        float cap = width + height;
         var result = new float[grid.Length];
         for (int i = 0; i < grid.Length; i++)
-            result[i] = (float)Math.Sqrt(grid[i]);
+            result[i] = Math.Min((float)Math.Sqrt(grid[i]), cap);
         return result;
     }
 

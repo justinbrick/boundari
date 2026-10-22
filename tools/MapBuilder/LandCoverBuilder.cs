@@ -56,12 +56,19 @@ public static class LandCoverBuilder
         }
 
         // 2. Drop tiny ponds and thin river slivers (real rivers are cut into the map itself).
-        DropSmallWater(cells, cover.Width, cover.Height);
+        //    Maps with OpenStreetMap water drop all of WorldCover's (it breaks thin rivers
+        //    into dashes) and paint OSM's in at the end instead.
+        if (spec.OsmWater is null)
+            DropSmallWater(cells, cover.Width, cover.Height);
+        else
+            for (int i = 0; i < cells.Length; i++)
+                if (cells[i] == (byte)CoverType.Water)
+                    cells[i] = Unassigned;
 
         // 3. The lakes left are real water: cut them into the map, so nobody can claim them
         //    and they get a shoreline and territory borders like any other lake. Their cells
         //    are now sea (None); slivers the tile grid left as land get filled in below.
-        if (CarveLakes(map, cells, cover))
+        if (spec.CarveLakes && CarveLakes(map, cells, cover))
             for (int y = 0; y < cover.Height; y++)
                 for (int x = 0; x < cover.Width; x++)
                 {
@@ -78,7 +85,37 @@ public static class LandCoverBuilder
         FillFromNeighbours(cells, cover.Width, cover.Height);
         for (int i = 0; i < cells.Length; i++)
             cover.Cells[i] = cells[i] == Unassigned ? CoverType.Farmland : (CoverType)cells[i];
+
+        // 5. OpenStreetMap rivers and lakes, drawn as water but left as land in the map, so
+        //    they can be crossed and claimed like any other ground.
+        if (spec.OsmWater is not null)
+            PaintOsmWater(cover, geo, map, spec, Path.Combine(root, "tools", "data", spec.OsmWater));
         return cover;
+    }
+
+    private static void PaintOsmWater(LandCover cover, MapGeo geo, GameMap map, MapSpec spec, string path)
+    {
+        if (!File.Exists(path))
+            throw new FileNotFoundException("OpenStreetMap water is missing: run tools/download-data.ps1.", path);
+        var (rivers, lakes) = OsmWater.Load(path);
+        int w = cover.Width, h = cover.Height;
+        TileRing ToCells(Ring r) => new(
+            Array.ConvertAll(r.Lon, lon => geo.TileX(lon, map.Width) * cover.Scale),
+            Array.ConvertAll(r.Lat, lat => geo.TileY(lat, map.Height) * cover.Scale));
+
+        double metresPerCell = geo.KmPerTile(map.Height) * 1000 / cover.Scale;
+        double halfWidth = spec.RiverMetres / metresPerCell / 2;
+        float[] river = Rasterizer.RiverDistance(rivers.ConvertAll(r => (ToCells(r), halfWidth)), w, h, 0);
+        bool[] lake = Rasterizer.Fill(lakes.ConvertAll(ToCells), w, h);
+        int painted = 0;
+        for (int i = 0; i < cover.Cells.Length; i++)
+            if ((river[i] < 0 || lake[i]) && cover.Cells[i] != CoverType.None)
+            {
+                cover.Cells[i] = CoverType.Water;
+                painted++;
+            }
+        Console.WriteLine($"  OpenStreetMap water: {rivers.Count} river lines, {lakes.Count} lakes, " +
+                          $"{100.0 * painted / cover.Cells.Length:F2}% of the map");
     }
 
     private static CoverType FromWorldCover(byte code) => code switch
