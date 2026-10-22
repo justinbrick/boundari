@@ -42,7 +42,7 @@ public sealed partial class Game
     /// </summary>
     public ushort StartsWhenSpawned { get; set; } = Nobody;
 
-    /// <summary>Tiles whose owner changed since the renderer last cleared this list.</summary>
+    /// <summary>Tiles whose owner (or fallout, or hatching) changed since the renderer last cleared this list.</summary>
     public readonly List<int> ChangedTiles = new();
 
     /// <summary>Time spent per part of a tick (bots, economy+boats, trade+warships+enclaves, attacks, enclaves alone), in Stopwatch ticks. For profiling only.</summary>
@@ -102,6 +102,8 @@ public sealed partial class Game
         Fallout = new bool[map.TileCount];
         SpawnPhaseTicks = spawnPhaseTicks;
         Owner = new ushort[map.TileCount];
+        HatchedUntil = new int[map.TileCount];
+        _hatchedFrom = new ushort[map.TileCount];
         CoverTenths = AttackRules.TileCoverTenths(map);
         _coastal = new bool[map.TileCount];
         Span<int> bodies = stackalloc int[4];
@@ -276,6 +278,7 @@ public sealed partial class Game
         RunAlliances();
         SendReplies();
         long t1 = Stopwatch.GetTimestamp();
+        SettleHatchedLand();
         GrowEconomies();
         PlanBoardingBoats();
         SailBoats();
@@ -385,6 +388,7 @@ public sealed partial class Game
                     existing.Level++; // stacking: one more level, straight away (like OpenFront's upgrades)
                     if (existing.Type == BuildingType.City && existing.IsReady(Tick))
                         player.CityLevels++;
+                    SecureHatchedPatch(player, existing.Tile);
                     break;
                 }
                 int buildTicks = player.InstantBuild ? 0 : Balance.ConstructionTicks(build.Type);
@@ -393,6 +397,7 @@ public sealed partial class Game
                 _constructing.Add(building);
                 if (build.Type == BuildingType.Port)
                     _ports[building] = new PortTrade(_rng.Fork(), Tick % TradeRules.PortCheckTicks);
+                SecureHatchedPatch(player, build.Tile);
                 break;
         }
     }
@@ -1882,6 +1887,7 @@ public sealed partial class Game
         ushort old = Owner[tile];
         if (old == newOwner)
             return;
+        HatchOnCapture(tile, old, newOwner);
         Owner[tile] = newOwner;
         ChangedTiles.Add(tile);
         if (old != Nobody)

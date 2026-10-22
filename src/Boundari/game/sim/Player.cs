@@ -45,6 +45,9 @@ public sealed class Player
     public long TradeGold { get; internal set; }
     public int TileCount { get; internal set; }
 
+    /// <summary>Tiles of <see cref="TileCount"/> that are hatched (freshly taken from a player): they add nothing to the troop cap yet.</summary>
+    public int HatchedTiles { get; internal set; }
+
     /// <summary>Owned tiles that touch land owned by someone else (or nobody).</summary>
     public readonly HashSet<int> Border = new();
 
@@ -72,9 +75,9 @@ public sealed class Player
     /// <summary>Same, without what cities add.</summary>
     public long MaxTroopsWithoutCities => Balance.MaxTroops(ReferenceTiles, 0, Kind, Difficulty);
 
-    /// <summary>The map's tiles per reference tile, squared (see ScaledRules): troop caps count land in reference tiles.</summary>
+    /// <summary>The map's tiles per reference tile, squared (see ScaledRules): troop caps count settled land in reference tiles.</summary>
     internal double AreaScale { get; init; } = 1;
-    private int ReferenceTiles => AreaScale == 1 ? TileCount : (int)Math.Round(TileCount / AreaScale);
+    private int ReferenceTiles => AreaScale == 1 ? TileCount - HatchedTiles : (int)Math.Round((TileCount - HatchedTiles) / AreaScale);
 
     /// <summary>Attacks and boats this player has sent (someone who never fought gives up no gold when conquered).</summary>
     internal int AttacksSent;
