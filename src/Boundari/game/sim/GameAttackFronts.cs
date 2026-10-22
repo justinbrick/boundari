@@ -15,7 +15,8 @@ public sealed partial class Game
     /// attack's border splits into pieces that don't touch (diagonals count), and each piece
     /// is marked by its tile nearest the piece's centre. Pieces under
     /// <see cref="FrontClusterMinTiles"/> are left out unless there's nothing bigger. With no
-    /// front yet, a boat attack's landing tile. Read-only; only for drawing.
+    /// front yet, a boat attack's landing tile. A thin directed attack has one spot, on the
+    /// lead of its push. Read-only; only for drawing.
     /// </summary>
     public List<int> AttackFrontTiles(Attack attack)
     {
@@ -24,6 +25,11 @@ public sealed partial class Game
         {
             if (attack.SourceTile >= 0)
                 result.Add(attack.SourceTile);
+            return result;
+        }
+        if (attack.Arrow is { } arrow && arrow.LeadTile(attack.Border, Map.Width) is { } lead and >= 0)
+        {
+            result.Add(lead);
             return result;
         }
 

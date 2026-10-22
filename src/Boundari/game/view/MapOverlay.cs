@@ -307,6 +307,7 @@ public partial class MapOverlay : Node2D
         part = FrameProfiler.Start();
         // --- Bombs, interceptors and explosions (on top of everything) ---
         DrawAttackLabels(zoom, w);
+        DrawArrows(zoom, w);
         DrawNukeLayer(zoom, w);
         DrawGoldPopups(zoom);
         FrameProfiler.Stop("  overlay bombs+reloads", part);

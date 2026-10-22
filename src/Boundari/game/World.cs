@@ -350,6 +350,7 @@ public partial class World : Node2D
 
         long hudStart = FrameProfiler.Start();
         UpdatePlacing();
+        UpdateArrow();
         FrameProfiler.Stop("  placing", hudStart);
         long hudOnly = FrameProfiler.Start();
         UpdateFastForward();
@@ -369,7 +370,7 @@ public partial class World : Node2D
         var hovered = HoveredPlayer(out bool wilderness);
         if (_args.Hover is null) // name plates stop fading under the mouse while the slider is held
             _labels.MouseOverride = _hud.AdjustingRatio ? new Vector2(float.MinValue, float.MinValue) : null;
-        _view.HoverId = hovered?.Id ?? -1;
+        _view.HoverId = _arrowActive ? -1 : hovered?.Id ?? -1; // (the arrow lights up its own target)
         _labels.Hovered = hovered?.Id ?? 0;
         _panels.Update(_game, _me, hovered, wilderness, delta);
         FrameProfiler.Stop("hud+panels", hudStart);
@@ -424,6 +425,12 @@ public partial class World : Node2D
             StopPlacing();
             GetViewport().SetInputAsHandled();
         }
+        // ...and they drop a directed-attack arrow being drawn.
+        if (_arrowActive && e is InputEventKey { Pressed: true, Keycode: Key.Escape } or InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Right })
+        {
+            CancelArrow();
+            GetViewport().SetInputAsHandled();
+        }
     }
 
     public override void _UnhandledInput(InputEvent e)
@@ -444,10 +451,13 @@ public partial class World : Node2D
         {
             _pressPosition = button.Position;
             _pressIsDouble = button.DoubleClick;
+            OnLeftPress(button); // may start a directed-attack arrow (WorldArrows)
         }
         else if (_pressPosition is { } start)
         {
             _pressPosition = null;
+            if (OnLeftRelease())
+                return; // an arrow was let go
             if (start.DistanceTo(button.Position) <= ClickMaxDrag)
                 OnMapClicked(GetGlobalMousePosition(), _pressIsDouble);
         }
@@ -963,7 +973,7 @@ public partial class World : Node2D
     private void StartMatch()
     {
         SyncSim();
-        _game = new Game(_map, RandomSeed(), difficulty: _args.Difficulty ?? Difficulty) { HatchedLand = !_args.Classic };
+        _game = new Game(_map, RandomSeed(), difficulty: _args.Difficulty ?? Difficulty) { HatchedLand = !_args.Classic, DirectedAttacks = !_args.Classic };
         _me = _game.AddPlayer("You");
         _game.EventsFor = _me.Id; // notifications
         if (_args.Bench is null || _args.Autoplay)
@@ -1000,6 +1010,8 @@ public partial class World : Node2D
             _game.Step();
             GD.Print($"incoming: {_game.Attacks.Count(a => a.TargetId == _me.Id)} attacks on us");
         }
+        if (_args.Arrow is { } arrowMode)
+            ArrowForScreenshot(arrowMode, _args.ArrowPixels);
 
         if (_args.Alert is { } alert)
             _alerts.Test(betrayal: alert == "betrayal");
@@ -1244,7 +1256,7 @@ public partial class World : Node2D
     private record struct Args(string? Map, ulong? Seed, int? Bots, int? Nations, Difficulty? Difficulty, bool NoCheats, double? Bench, string? Dev, bool Autoplay, int Ticks,
         float Zoom, Vector2? Focus, string? Screenshot, bool Perf, Vector2? Hover, bool HoverLeader, bool Showcase, string? ShowcaseFocus,
         string? Start = null, int AllyRequests = 0, string? RightClick = null, string? Aim = null, bool Incoming = false, bool Tags = false, bool Notifs = false,
-        bool Splash = false, string? Alert = null, bool Classic = false);
+        bool Splash = false, string? Alert = null, bool Classic = false, string? Arrow = null, float ArrowPixels = 250);
 
     private static Args ParseArgs()
     {
@@ -1263,6 +1275,8 @@ public partial class World : Node2D
                 case "tribes": args.Bots = int.Parse(value, inv); break;
                 case "no-cheats": args.NoCheats = true; break;
                 case "classic": args.Classic = true; break;
+                case "arrow": args.Arrow = value; break; // (testing) "drag" or "launch[:TICKS]": a directed attack at the biggest neighbour
+                case "arrow-px": args.ArrowPixels = float.Parse(value, inv); break; // ...this long on screen (40 = flattest, 360+ = thinnest)
                 case "bench": args.Bench = double.Parse(value, inv); break;
                 case "dev": args.Dev = value; break;
                 case "difficulty": args.Difficulty = Enum.Parse<Difficulty>(value, ignoreCase: true); break;

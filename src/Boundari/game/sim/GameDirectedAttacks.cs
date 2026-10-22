@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace Boundari.Sim;
 
@@ -78,6 +79,53 @@ public sealed class AttackArrow
             wait += 40 * Math.Min(DirectedRules.MaxSideTicks, DirectedRules.SideTicks * off * off);
         }
         return (long)wait;
+    }
+
+    /// <summary>
+    /// For drawing: the front tile in the middle of the push's lead (the front tiles near
+    /// the arrow's line that are furthest along it), or -1 for flat arrows, whose front is
+    /// as wide as a normal attack's.
+    /// </summary>
+    internal int LeadTile(IEnumerable<int> front, int mapWidth)
+    {
+        if (InvWidth <= 0)
+            return -1;
+        double width = 1 / InvWidth, best = double.MinValue;
+        var near = new List<(int Tile, double Ahead)>();
+        foreach (int tile in front)
+        {
+            int x = tile % mapWidth, y = tile / mapWidth;
+            if (Math.Abs((x - _fromX) * DirY - (y - _fromY) * DirX) > 2 * width)
+                continue;
+            double ahead = (x - _fromX) * DirX + (y - _fromY) * DirY;
+            near.Add((tile, ahead));
+            best = Math.Max(best, ahead);
+        }
+        if (near.Count == 0)
+            return -1;
+        double sumX = 0, sumY = 0;
+        int n = 0;
+        foreach (var (tile, ahead) in near)
+            if (ahead >= best - Math.Max(3, width))
+            {
+                sumX += tile % mapWidth;
+                sumY += tile / mapWidth;
+                n++;
+            }
+        double cx = sumX / n, cy = sumY / n, bestDist = double.MaxValue;
+        int lead = -1;
+        foreach (var (tile, ahead) in near)
+        {
+            if (ahead < best - Math.Max(3, width))
+                continue;
+            double dx = tile % mapWidth - cx, dy = tile / mapWidth - cy, d = dx * dx + dy * dy;
+            if (d < bestDist || (d == bestDist && tile < lead))
+            {
+                bestDist = d;
+                lead = tile;
+            }
+        }
+        return lead;
     }
 }
 

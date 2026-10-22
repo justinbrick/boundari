@@ -8,7 +8,8 @@ namespace Boundari.View;
 /// <summary>
 /// Troop counts riding on the front lines of the attacks you're in, like OpenFront's
 /// AttackingTroopsController: your attacks on other players in blue, other players' attacks
-/// on you in red (tribes' attacks aren't labelled). One number sits on each of an attack's
+/// on you in red (tribes' attacks aren't labelled). Your directed attacks into empty land
+/// get a front spot with no number, for their arrow (see MapOverlayArrows). One number sits on each of an attack's
 /// (up to two) biggest front pieces; the spots are worked out 5 times a second and the
 /// numbers glide there over 0.25 s, jumping instead when the front moves very far.
 /// </summary>
@@ -51,6 +52,8 @@ public partial class MapOverlay
         foreach (var front in _fronts.Values)
             foreach (var slot in front.Slots)
             {
+                if (front.Text.Length == 0)
+                    break; // a spot for an arrow only
                 var at = slot.At(now);
                 if (!OnScreen(at, 100 / zoom))
                     continue;
@@ -71,14 +74,14 @@ public partial class MapOverlay
         {
             if (attack.Retreating)
                 continue;
-            bool outgoing = attack.Attacker == _me && attack.TargetId != 0;
+            bool outgoing = attack.Attacker == _me && (attack.TargetId != 0 || attack.Arrow is not null);
             bool incoming = attack.TargetId == _me!.Id && !attack.Attacker.IsBot;
             if (!outgoing && !incoming)
                 continue;
             active.Add(attack.Id);
             if (!_fronts.TryGetValue(attack.Id, out var front))
                 _fronts[attack.Id] = front = new FrontLabel();
-            front.Text = GameHud.FormatCount(attack.Troops);
+            front.Text = attack.TargetId != 0 || !outgoing ? GameHud.FormatCount(attack.Troops) : "";
             front.Incoming = incoming;
 
             var tiles = _game.AttackFrontTiles(attack);

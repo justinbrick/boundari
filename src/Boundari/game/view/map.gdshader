@@ -60,6 +60,9 @@ uniform float border_darken : hint_range(0.0, 1.0) = 0.35;
 // The territory under the mouse (owner id; -1 = none) is drawn lighter.
 uniform int hover_id = -1;
 uniform float hover_lighten : hint_range(0.0, 1.0) = 0.08;
+// The player a directed-attack arrow being dragged points at: lightened, with a gentle pulse.
+uniform int target_id = -1;
+uniform float target_lighten : hint_range(0.0, 1.0) = 0.3;
 // Hatched land: diagonal stripes in the territory's border colour, this many tiles apart
 // (set from MapView.cs). Zoomed out, the spacing doubles in steps (every other stripe
 // fades away) so stripes are never closer than hatch_min_pixels on screen and stay put.
@@ -583,6 +586,9 @@ void fragment() {
 			}
 			if (id == hover_id) {
 				owned = mix(owned, vec3(1.0), hover_lighten);
+			}
+			if (id == target_id) {
+				owned = mix(owned, vec3(1.0), target_lighten * (0.75 + 0.25 * sin(visual_time * 0.6)));
 			}
 			color = mix(color, owned, land * (1.0 - cover_water));
 		}

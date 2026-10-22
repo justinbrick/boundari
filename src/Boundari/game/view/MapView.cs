@@ -51,6 +51,20 @@ public partial class MapView : Sprite2D
         }
     }
 
+    private int _targetId = -1;
+
+    /// <summary>The owner whose whole territory is highlighted as a directed attack's target while its arrow is dragged, or -1.</summary>
+    public int TargetId
+    {
+        set
+        {
+            if (value == _targetId)
+                return;
+            _targetId = value;
+            _material.SetShaderParameter("target_id", value);
+        }
+    }
+
     public bool ShowTerritory
     {
         get => (bool)_material.GetShaderParameter("show_territory");
