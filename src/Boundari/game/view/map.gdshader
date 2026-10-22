@@ -66,11 +66,11 @@ uniform float target_lighten : hint_range(0.0, 1.0) = 0.3;
 // Hatched land: diagonal stripes in the territory's border colour, this many tiles apart
 // (set from MapView.cs). Zoomed out, the spacing doubles in steps (every other stripe
 // fades away) so stripes are never closer than hatch_min_pixels on screen and stay put.
-uniform float hatch_tiles = 2.5;
-uniform float hatch_min_pixels = 8.0;
+uniform float hatch_tiles = 4.5;
+uniform float hatch_min_pixels = 16.0;
 uniform float hatch_strength : hint_range(0.0, 1.0) = 0.85;
 // Share of each stripe period the stripe covers.
-uniform float hatch_stripe_width : hint_range(0.1, 0.9) = 0.3;
+uniform float hatch_stripe_width : hint_range(0.1, 0.9) = 0.4;
 // The patch a structure being placed would secure: lightened, with a gentle pulse.
 uniform float secure_highlight : hint_range(0.0, 1.0) = 0.3;
 

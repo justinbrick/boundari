@@ -145,7 +145,7 @@ public partial class MapView : Sprite2D
     }
 
     // Hatched land's stripes repeat every this many OpenFront-sized tiles.
-    private const float HatchStripeTiles = 2.5f;
+    private const float HatchStripeTiles = 4.5f;
 
     /// <summary>Shows these owners immediately (pass null to clear all territory).</summary>
     public void SetOwners(ushort[]? owners, bool[]? fallout = null, int[]? hatched = null) => _territory?.SetAll(owners, fallout, hatched);
