@@ -79,7 +79,7 @@ public partial class DevTools : CanvasLayer
                 i => SetColorTheme?.Invoke((ColorTheme)i)),
             new("LBL", "Territory names, flags and troops", new[] { "ON", "OFF" }, 0, i => ShowLabels?.Invoke(i == 0)),
             new("NOL", "Name outlines (territory colour / white)", new[] { "COL", "WHT" }, 0, i => ColourNameOutlines?.Invoke(i == 0)),
-            new("PLY", "Players, tribes and nations (F7 toggles)", new[] { "ON", "OFF" }, 0, i => ShowPlayers?.Invoke(i == 0)),
+            new("PLY", "Players, Locals and commanders (F7 toggles)", new[] { "ON", "OFF" }, 0, i => ShowPlayers?.Invoke(i == 0)),
         };
         _values = new int[_settings.Count];
         for (int i = 0; i < _settings.Count; i++)

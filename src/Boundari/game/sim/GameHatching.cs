@@ -17,8 +17,8 @@ public static class HatchRules
 // it's yours again straight away. Grabbing empty land is never hatched.
 public sealed partial class Game
 {
-    /// <summary>Match option: play with hatched land (on by default; off = classic OpenFront).</summary>
-    public bool HatchedLand { get; set; } = true;
+    /// <summary>Match option: play with hatched land (off by default: dropped for the dots game, kept until its code is deleted).</summary>
+    public bool HatchedLand { get; set; }
 
     /// <summary>Tick each hatched tile settles at (turns into normal land); 0 = not hatched.</summary>
     public readonly int[] HatchedUntil;

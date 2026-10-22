@@ -35,7 +35,9 @@ namespace Boundari;
 ///                      nations, e.g. Europe's 52 like OpenFront; 6 on the Ardennes, 120 elsewhere)
 ///   --bots=N           number of bots ("tribes"), the weak filler players (default 400, like OpenFront; 12 on the Ardennes)
 ///   --no-cheats        play without the dev cheats (infinite gold, instant building)
-///   --classic          OpenFront's rules: no hatched (occupied) land
+///   --classic          OpenFront's rule for walled-in land (every cut-off piece goes to the attacker)
+///   --old-systems      bring back the systems dropped for the dots game: hatched land, directed
+///                      attacks, light fog, boats and warships (off by default until their code is deleted)
 ///   --difficulty=D     easy, medium (default), hard or impossible: how strong nations are
 ///   --autoplay         spawn the human player automatically (for testing)
 ///   --ticks=N          fast-forward the match N ticks at start
@@ -853,7 +855,7 @@ public partial class World : Node2D
     /// <summary>Boats troops towards the land at this tile (B key, or a double click on land you can't walk to).</summary>
     private void SendBoat(int tile)
     {
-        if (tile < 0 || !_map.IsLand(tile) || _game.Phase != GamePhase.Running || !_me.HasSpawned || !_me.IsAlive)
+        if (!_game.BoatsAllowed || tile < 0 || !_map.IsLand(tile) || _game.Phase != GamePhase.Running || !_me.HasSpawned || !_me.IsAlive)
             return;
         if (_game.Owner[tile] != _me.Id)
             _game.Submit(new BoatIntent(_me.Id, tile, _hud.AttackRatioPercent));
@@ -989,7 +991,10 @@ public partial class World : Node2D
     private void StartMatch()
     {
         SyncSim();
-        _game = new Game(_map, RandomSeed(), difficulty: _args.Difficulty ?? Difficulty) { HatchedLand = !_args.Classic, DirectedAttacks = !_args.Classic, FogOfWar = !_args.Classic, KeepCutOffLand = !_args.Classic };
+        _game = new Game(_map, RandomSeed(), difficulty: _args.Difficulty ?? Difficulty) {
+            HatchedLand = _args.OldSystems, DirectedAttacks = _args.OldSystems, FogOfWar = _args.OldSystems, BoatsAllowed = _args.OldSystems,
+            KeepCutOffLand = !_args.Classic,
+        };
         _me = _game.AddPlayer("You");
         _game.EventsFor = _me.Id; // notifications
         if (_args.Bench is null || _args.Autoplay)
@@ -1273,7 +1278,7 @@ public partial class World : Node2D
     private record struct Args(string? Map, ulong? Seed, int? Bots, int? Nations, Difficulty? Difficulty, bool NoCheats, double? Bench, string? Dev, bool Autoplay, int Ticks,
         float Zoom, Vector2? Focus, string? Screenshot, bool Perf, Vector2? Hover, bool HoverLeader, bool Showcase, string? ShowcaseFocus,
         string? Start = null, int AllyRequests = 0, string? RightClick = null, string? Aim = null, bool Incoming = false, bool Tags = false, bool Notifs = false,
-        bool Splash = false, string? Alert = null, bool Classic = false, string? Arrow = null, float ArrowPixels = 250);
+        bool Splash = false, string? Alert = null, bool Classic = false, bool OldSystems = false, string? Arrow = null, float ArrowPixels = 250);
 
     private static Args ParseArgs()
     {
@@ -1292,6 +1297,7 @@ public partial class World : Node2D
                 case "tribes": args.Bots = int.Parse(value, inv); break;
                 case "no-cheats": args.NoCheats = true; break;
                 case "classic": args.Classic = true; break;
+                case "old-systems": args.OldSystems = true; break;
                 case "arrow": args.Arrow = value; break; // (testing) "drag" or "launch[:TICKS]": a directed attack at the biggest neighbour
                 case "arrow-px": args.ArrowPixels = float.Parse(value, inv); break; // ...this long on screen (40 = flattest, 360+ = thinnest)
                 case "bench": args.Bench = double.Parse(value, inv); break;

@@ -578,7 +578,7 @@ public sealed partial class Game
     public bool CanBuild(Player player, BuildingType type, int tile)
     {
         if (type == BuildingType.Warship)
-            return Phase == GamePhase.Running && player.IsAlive && player.CanAfford(BuildingCost(player, type))
+            return BoatsAllowed && Phase == GamePhase.Running && player.IsAlive && player.CanAfford(BuildingCost(player, type))
                 && WarshipLaunch(player, tile).Port is not null;
         if (Phase != GamePhase.Running || tile < 0 || tile >= Map.TileCount)
             return false;
@@ -630,6 +630,12 @@ public sealed partial class Game
         return false;
     }
 
+    /// <summary>Match option: troop boats and warships (off: dropped for the dots game; kept for the old rules).</summary>
+    public bool BoatsAllowed { get; set; }
+
+    /// <summary>Whether the player may launch another troop boat now (boats allowed, fewer than the most at sea).</summary>
+    public bool CanSendBoat(Player player) => BoatsAllowed && BoatsAtSea(player) < Balance.MaxBoatsPerPlayer;
+
     /// <summary>The player's troop boats at sea (and still boarding).</summary>
     public int BoatsAtSea(Player player)
     {
@@ -651,7 +657,7 @@ public sealed partial class Game
     /// </summary>
     private void LaunchBoat(Player player, int tile, int ratioPercent, long exactTroops = 0)
     {
-        if (BoatsAtSea(player) >= Balance.MaxBoatsPerPlayer)
+        if (!CanSendBoat(player))
             return;
         long troops = exactTroops > 0
             ? Math.Min(exactTroops, player.Troops)

@@ -165,7 +165,7 @@ internal sealed class BotAi : IPlayerAi
     /// <summary>A player we don't border by land: a boat with a fifth of our troops at their nearest coast.</summary>
     private bool BoatAt(Player target)
     {
-        if (_game.BoatsAtSea(_player) >= Balance.MaxBoatsPerPlayer || _player.Troops / 5 < 1
+        if (!_game.CanSendBoat(_player) || _player.Troops / 5 < 1
             || _player.Coast.Count == 0 || target.Coast.Count == 0)
             return false;
         var ours = new List<int>(_player.Coast);
@@ -190,7 +190,7 @@ internal sealed class BotAi : IPlayerAi
     /// <summary>Empty land just across a narrow strait: send a boat with a fifth of the troops.</summary>
     private bool BoatToEmptyLand()
     {
-        if (_game.BoatsAtSea(_player) >= Balance.MaxBoatsPerPlayer || _player.Troops / 5 < 1)
+        if (!_game.CanSendBoat(_player) || _player.Troops / 5 < 1)
             return false;
         var map = _game.Map;
         int w = map.Width;

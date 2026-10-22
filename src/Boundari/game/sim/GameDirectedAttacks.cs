@@ -131,8 +131,8 @@ public sealed class AttackArrow
 
 public sealed partial class Game
 {
-    /// <summary>Match option: players may drag out directed attacks (on by default; off = classic OpenFront).</summary>
-    public bool DirectedAttacks { get; set; } = true;
+    /// <summary>Match option: players may drag out directed attacks (off by default: dropped for the dots game, kept until its code is deleted).</summary>
+    public bool DirectedAttacks { get; set; }
 
     /// <summary>A directed attack (see <see cref="DirectedRules"/>); without the option, or with no real arrow, a normal one.</summary>
     private void StartDirectedAttack(Player attacker, DirectedAttackIntent intent)

@@ -269,7 +269,7 @@ public sealed class PlayerPanels
             _infoMeter.SetTarget(home, away, snap: p != _meterShows);
             _meterShows = p;
         }
-        Set(_infoType, p.Kind switch { PlayerKind.Nation => "Nation", PlayerKind.Bot => "Tribe", _ => "Player" });
+        Set(_infoType, p.Kind switch { PlayerKind.Nation => "Commander", PlayerKind.Bot => "Locals", _ => "Player" });
         ShowRelation(game, me, p);
         ShowTrade(p == me ? "-" : game.CanTrade(me, p) ? "Active" : "Halted");
         foreach (var (type, label, icon, dimLabel, dimIcon) in _infoBuildings)

@@ -158,7 +158,7 @@ internal sealed class NationAttacks
 
     private void AttackWithRandomBoat(List<Player> enemies)
     {
-        if (_game.BoatsAtSea(_player) >= Balance.MaxBoatsPerPlayer || _player.Coast.Count == 0)
+        if (!_game.CanSendBoat(_player) || _player.Coast.Count == 0)
             return;
         var shores = SortedCoast(_player);
         int src = shores[_rng.RangeInt(0, shores.Count - 1)];
@@ -565,7 +565,7 @@ internal sealed class NationAttacks
     /// <summary>The nearest player weaker than us that a boat can reach (a third of the time the second nearest).</summary>
     private Player? FindNearestIslandEnemy()
     {
-        if (_game.BoatsAtSea(_player) >= Balance.MaxBoatsPerPlayer || _player.Coast.Count == 0)
+        if (!_game.CanSendBoat(_player) || _player.Coast.Count == 0)
             return null;
         int center = AiTiles.BoxCenter(_game, _player);
         var sorted = _game.Players
@@ -733,7 +733,7 @@ internal sealed class NationAttacks
     /// <summary>Empty land just across a narrow strait (5 tiles), with a fifth of the troops.</summary>
     private bool SendBoatToNearbyEmptyLand()
     {
-        if (_game.BoatsAtSea(_player) >= Balance.MaxBoatsPerPlayer)
+        if (!_game.CanSendBoat(_player))
             return false;
         var map = _game.Map;
         int w = map.Width, reach = _game.Rules.D(5);
@@ -860,7 +860,7 @@ internal sealed class NationAttacks
     /// <summary>The direct crossing, or if a warship blocks it, the shortest safe one landing elsewhere on their coast.</summary>
     private BoatRoute? PlanBoatRoute(Player target)
     {
-        if (_game.BoatsAtSea(_player) >= Balance.MaxBoatsPerPlayer)
+        if (!_game.CanSendBoat(_player))
             return null;
         var ours = SortedCoast(_player);
         var theirs = SortedCoast(target);
@@ -1010,7 +1010,7 @@ internal sealed class NationAttacks
     /// <summary>Enemies across the water (not bordering us) whose land is within boat range of ours; whether a boat gets there is left to <see cref="CanReach"/>.</summary>
     private List<Player> OverseasTargets(List<Player> enemies)
     {
-        if (_game.BoatsAtSea(_player) >= Balance.MaxBoatsPerPlayer)
+        if (!_game.CanSendBoat(_player))
             return new();
         int range = MaxBoatRoute;
         return _game.Players

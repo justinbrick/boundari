@@ -53,6 +53,6 @@ public static class FogRules
 
 public sealed partial class Game
 {
-    /// <summary>Match option: light fog of war (see <see cref="FogRules"/>; on by default; off = classic OpenFront, everything shown).</summary>
-    public bool FogOfWar { get; set; } = true;
+    /// <summary>Match option: light fog of war (see <see cref="FogRules"/>; off by default: dropped for the dots game, kept until its code is deleted; off = everything shown).</summary>
+    public bool FogOfWar { get; set; }
 }

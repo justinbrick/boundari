@@ -28,9 +28,9 @@ public sealed class BuildBar
 
     private static readonly Dictionary<string, Info> Buttons = new()
     {
-        ["Port_Button"] = new(BuildingType.Port, null, "Harbor", "Sends trade ships to other harbors to earn gold", "res://ui/structures32x/harbour32x.svg"),
+        ["Port_Button"] = new(BuildingType.Port, null, "Harbor", "Sends trade ships to other harbors to earn Funds", "res://ui/structures32x/harbour32x.svg"),
         ["Barracks_Button"] = new(BuildingType.City, null, "Barracks", "Raises how many troops you can hold", "res://ui/structures32x/barracks32x.svg"),
-        ["Fac_Button"] = new(BuildingType.Factory, null, "Depot", "Lays railroads; trains earn gold between your structures", "res://ui/structures32x/depot32x.svg"),
+        ["Fac_Button"] = new(BuildingType.Factory, null, "Depot", "Lays railroads; trains earn Funds between your structures", "res://ui/structures32x/depot32x.svg"),
         ["Def_Button"] = new(BuildingType.Defense, null, "Defense", "Makes nearby borders much harder to attack", "res://ui/structures32x/defense32x.svg"),
         ["Silo_Button"] = new(BuildingType.Silo, null, "Silo", "Launches Mortars, Missiles and Atomic Bombs", "res://ui/structures32x/silo32x.svg"),
         ["Sam_Button"] = new(BuildingType.Sam, null, "Flak", "Shoots down enemy Mortars and Missiles flying nearby", "res://ui/structures32x/flak32x.svg"),
@@ -42,6 +42,7 @@ public sealed class BuildBar
 
     private readonly List<(BuildingType Type, Label Label)> _counts = new();
     private readonly List<Lift> _lifts = new();
+    private Control? _warshipSlot; // hidden while the match has no boats or warships
 
     // The description row and the attack ratio row it takes the place of.
     private readonly Control? _ratioRow, _descriptionRow;
@@ -73,6 +74,8 @@ public sealed class BuildBar
             _lifts.Add(new Lift(button, picture, info));
             if (info is null)
                 continue;
+            if (info.Building == BuildingType.Warship)
+                _warshipSlot = wrapper as Control;
             if (info.Building is { } type && picture.GetNodeOrNull<Label>("Label") is { } label)
                 _counts.Add((type, label));
             button.MouseEntered += () => ShowDescription(info);
@@ -237,6 +240,8 @@ public sealed class BuildBar
         if ((_sinceCounts += delta) < CountRefreshSeconds)
             return;
         _sinceCounts = 0;
+        if (!game.BoatsAllowed && GodotObject.IsInstanceValid(_warshipSlot) && _warshipSlot!.Visible)
+            _warshipSlot.Visible = false;
         foreach (var (type, label) in _counts)
         {
             int n = type == BuildingType.Warship ? game.CountWarships(me) : game.CountLevels(me, type);
