@@ -79,6 +79,17 @@ public partial class TerritoryLabels : Node2D
     /// <summary>The light fog of war: what we're shown of other players' troops (null = everything exact).</summary>
     public TroopIntel? Intel { get; set; }
 
+    /// <summary>
+    /// Fog: a further player is hovered, so a ring right of their troop number fills up
+    /// clockwise until it refreshes (Progress 0..1); null = no ring.
+    /// </summary>
+    public (ushort Id, float Progress)? RefreshRing { get; set; }
+
+    private const float FarTroopAlpha = 0.55f;   // further players' (old, rough) troop numbers are dimmed
+    private const float RingRadius = 0.6f;       // the refresh ring, in troop-number capitals
+    private const float RingWidth = 0.32f;
+    private const float RingGap = 0.45f;         // between the number and the ring
+
     /// <summary>Where a player's name sits on the map (the middle of their main territory), if they have one.</summary>
     public bool TryGetAnchor(ushort id, out Vector2 position)
     {
@@ -432,10 +443,25 @@ public partial class TerritoryLabels : Node2D
         DrawText(name, new Vector2(pos.X - nameWidth / 2, pos.Y + cap / 2 - nameAscent), scale,
             NameShadow * nameBucket, NameOutline * nameBucket, text, outline, shadow, canvas);
         float troopAscent = troops.GetLineAscent() * troopScale;
+        float troopAlpha = Intel?.SightOf(player) == TroopIntel.Sight.Far ? FarTroopAlpha : 1f;
         DrawText(troops, new Vector2(pos.X - troopWidth / 2, troopMiddle + troopCap / 2 - troopAscent), troopScale,
-            TroopShadow * troopBucket, TroopOutline * troopBucket, text, outline, shadow, canvas);
+            TroopShadow * troopBucket, TroopOutline * troopBucket, text with { A = text.A * troopAlpha },
+            outline with { A = outline.A * troopAlpha }, shadow with { A = shadow.A * troopAlpha }, canvas);
         DrawTags(emoji, tagBottom, tagHeight, zoom, alpha);
         DrawSetTransform(Vector2.Zero, 0, Vector2.One);
+        if (RefreshRing is { } ring && ring.Id == id)
+            DrawRefreshRing(new Vector2(pos.X + troopWidth / 2 + troopCap * (RingGap + RingRadius), troopMiddle), troopCap, ring.Progress, alpha);
+    }
+
+    /// <summary>The fog refresh ring: a faint track with a white arc filling it clockwise from the top.</summary>
+    private void DrawRefreshRing(Vector2 centre, float troopCap, float progress, float alpha)
+    {
+        float r = troopCap * RingRadius, width = troopCap * RingWidth;
+        DrawArc(centre, r, 0, Mathf.Tau, 48, new Color(0, 0, 0, 0.45f * alpha), width * 1.6f, true); // dark edge, readable on light land
+        DrawArc(centre, r, 0, Mathf.Tau, 48, new Color(1, 1, 1, 0.22f * alpha), width, true);         // the empty track
+        float start = -Mathf.Pi / 2;
+        if (progress > 0.002f)
+            DrawArc(centre, r, start, start + Mathf.Tau * Mathf.Clamp(progress, 0, 1), 48, new Color(1, 1, 1, alpha), width, true);
     }
 
     // ------------------------------------------------------------------

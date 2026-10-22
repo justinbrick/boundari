@@ -71,9 +71,8 @@ public sealed class TroopIntel
         _ => FogRules.Approximate(_far.TryGetValue(p.Id, out var seen) ? seen.Troops : p.Troops, near: false),
     };
 
-    /// <summary>The troop count as text: approximate ones start with "~".</summary>
-    public string TroopText(Player p) =>
-        (SightOf(p) == Sight.Exact ? "" : "~") + GameHud.FormatCount(ShownTroops(p));
+    /// <summary>The troop count as text (no mark on approximate ones: name labels dim further players' instead).</summary>
+    public string TroopText(Player p) => GameHud.FormatCount(ShownTroops(p));
 
     /// <summary>Gold is only shown for ourselves and allies (and everyone, without the fog or once we're out).</summary>
     public bool ShowsGold(Player p) => SightOf(p) == Sight.Exact;

@@ -375,10 +375,8 @@ public partial class World : Node2D
         _labels.Hovered = hovered?.Id ?? 0;
         _panels.Update(_game, _me, hovered, wilderness, delta);
         // Fog: hovering a player further away shows when their troops refresh next.
-        if (hovered is not null && _intel.RefreshProgress(hovered, fraction) is { } refresh)
-            _overlay.SetRefreshRing(HoverMouse(), (float)refresh);
-        else
-            _overlay.ClearRefreshRing();
+        _labels.RefreshRing = hovered is not null && _intel.RefreshProgress(hovered, fraction) is { } refresh
+            ? (hovered.Id, (float)refresh) : null;
         FrameProfiler.Stop("hud+panels", hudStart);
     }
 
