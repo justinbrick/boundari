@@ -1,16 +1,23 @@
 # Boundari
 
-A territorial strategy game in the style of OpenFront, built in **Godot 4.7.2 (mono / C#)**, .NET 8.
-Real-world maps (Europe is the default), bots (tribes) and nations, single player for now; multiplayer later.
+A territorial strategy game, built in **Godot 4.7.2 (mono / C#)**, .NET 8: **War of Dots + OpenFront**.
+Troops are dots that stand on borders and push the front; a small real-world map (the Ardennes, being built; Europe until then), ~6 commanders plus Locals, single player for now; multiplayer later.
+
+## Direction (since 2026-10-22)
+
+- `main` is the dots game. The old OpenFront-style game is frozen on the `Classic` branch; don't build on it.
+- **The user's dot design wins over OpenFront** for troops, attacks and territory fighting: dots, pushing, stamina, strength levels, losses, visibility. Don't copy OpenFront's attack queue, troop pool or troop numbers for these.
+- **Still copy OpenFront** for the parts kept as they are: alliances, embargo / target, trade ships, Depot roads (= OpenFront trains), structures' basics.
+- **Dropped systems** (hatched land, directed-attack arrows, light fog, boats / warships, HQ, OpenFront's attack queue for the new mode) get switched off, not deleted, until dots work end to end; then delete the dead code. Don't extend them.
 
 ## Golden rules
 
-- **Copy OpenFront's mechanics and numbers exactly, but write our own code.** OpenFront: github.com/openfrontio/OpenFrontIO (AGPL). Research its source before building a feature (`curl -sL https://raw.githubusercontent.com/openfrontio/OpenFrontIO/main/<path>`; key places: `packages/engine/src/execution/`, `packages/engine/src/configuration/`, `src/client/hud/`, `src/client/render/gl/`, `rs.json`).
+- **For the kept OpenFront parts, copy its mechanics and numbers exactly, but write our own code** (see Direction for what is no longer copied). OpenFront: github.com/openfrontio/OpenFrontIO (AGPL). Research its source before building a feature (`curl -sL https://raw.githubusercontent.com/openfrontio/OpenFrontIO/main/<path>`; key places: `packages/engine/src/execution/`, `packages/engine/src/configuration/`, `src/client/hud/`, `src/client/render/gl/`, `rs.json`).
 - **Scale OpenFront's numbers:** UI sizes in CSS px x ~1.5 for our screen; anything measured in map tiles goes through `game.Rules` (ScaledRules: `D()` distances, `A()` tile counts), because our Europe is finer than OpenFront's.
 - **The simulation is deterministic:** plain C# in `game/sim/` with no Godot types; players change it only through intents (`Game.Submit`); use `Core.Rng` (never System.Random); sort HashSet contents before iterating in sim code.
 - **The sim runs on a worker thread:** any main-thread code that reads or changes the game must call `SyncSim()` first.
 - **The UI is the user's:** they design scenes (`boundari.tscn`, `RadialMenu.tscn`) and some GDScript in the Godot editor. Look nodes up tolerantly (`GetNodeOrNull` / `FindChild` / `get_node_or_null`) and never crash when a node is missing or hidden; they move, hide and delete things while designing.
-- **Display names** differ from code names: Port = Harbor, City = Barracks, Factory = Depot, SAM = Flak, MOAB = Mortar, Fat Man = Missile, Tsar Bomba = Atomic Bomb. Use the display names when talking to the user.
+- **Display names** differ from code names: Port = Harbor, City = Barracks, Factory = Depot, SAM = Flak, MOAB = Mortar, Fat Man = Missile, Tsar Bomba = Atomic Bomb, gold = Funds, bots / tribes = Locals, nations = commanders. Use the display names when talking to the user.
 
 ## Working with the user
 
