@@ -20,8 +20,26 @@ namespace Boundari.Sim;
 // own: no coast or map edge, and nothing next to it but other players and fallout (at
 // least one of each). The walled-in rule above can't catch this, because its walk goes
 // through the crater and so links the piece to the main body.
+//
+// Boundari keeps large cut-off land with its owner (KeepCutOffLand): a walled-in piece
+// that's only part of someone's land changes hands only while it's small (under
+// ClusterRules.MaxHandOverTiles); anything bigger stays theirs until it's conquered. A whole
+// territory walled in is still taken, as in OpenFront.
+public static class ClusterRules
+{
+    /// <summary>The largest cut-off piece (reference tiles) handed over by itself, with KeepCutOffLand on.</summary>
+    public const int MaxHandOverTiles = 100;
+}
+
 public sealed partial class Game
 {
+    /// <summary>
+    /// Match option: a long, thin attack that cuts someone's land in two doesn't hand the
+    /// cut-off part to the attacker at once, unless it's tiny (on by default; off = classic
+    /// OpenFront, every walled-in piece is handed over).
+    /// </summary>
+    public bool KeepCutOffLand { get; set; } = true;
+
     private const int TicksPerClusterCalc = 20;
     private int[]? _clusterStamp;
     private int _clusterGen;
@@ -415,6 +433,8 @@ public sealed partial class Game
                 if (Owner[nb[k]] == p.Id && seen.Add(nb[k]))
                     tiles.Add(nb[k]);
         }
+        if (KeepCutOffLand && tiles.Count < p.TileCount && tiles.Count > Rules.A(ClusterRules.MaxHandOverTiles))
+            return; // a big piece of their land, cut off: it stays theirs until it's conquered
         if (tiles.Count == p.TileCount)
             TakeGold(capturing, p); // that was everything they had
         foreach (int t in tiles)

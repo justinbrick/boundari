@@ -201,6 +201,41 @@ public class CombatTests
         Assert.True(a.TileCount > 100, "A's main body (on the coast) is left alone");
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void BigCutOffPockets_StayWithTheirOwner_UnlessClassic(bool keepCutOffLand)
+    {
+        // As above, but the pocket is bigger than ClusterRules.MaxHandOverTiles: Boundari
+        // leaves it with A (to be conquered the usual way); classic OpenFront hands it to B.
+        var map = MapGenerator.Generate(21, new MapGenSettings { Width = 400, Height = 250, MinIslandTiles = 8, MinLakeTiles = 30 });
+        var game = new Game(map, 1, spawnPhaseTicks: 2) { KeepCutOffLand = keepCutOffLand };
+        var a = game.AddPlayer("A");
+        var b = game.AddPlayer("B");
+        int biggest = Enumerable.Range(0, map.LandmassSizes.Length).OrderByDescending(i => map.LandmassSizes[i]).First();
+        int[] land = Enumerable.Range(0, map.TileCount).Where(t => map.LandmassId[t] == biggest).ToArray();
+        game.Submit(new SpawnIntent(a.Id, land[0]));
+        game.Submit(new SpawnIntent(b.Id, land[^1]));
+        for (int t = 0; t < 3; t++)
+            game.Step();
+        int midX = (int)land.Select(t => t % map.Width).Average();
+        int pocket = land.Where(t => t % map.Width > midX + 20 && !game.IsCoastal(t)).OrderByDescending(t => DistanceToCoast(game, t)).First();
+        int px = pocket % map.Width, py = pocket / map.Width;
+        var setOwner = typeof(Game).GetMethod("SetOwner", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+        int pocketTiles = 0;
+        foreach (int t in land)
+        {
+            int dx = t % map.Width - px, dy = t / map.Width - py;
+            bool inPocket = dx * dx + dy * dy <= 8 * 8;
+            pocketTiles += inPocket ? 1 : 0;
+            setOwner.Invoke(game, new object[] { t, inPocket || t % map.Width < midX ? a.Id : b.Id });
+        }
+        Assert.True(pocketTiles > game.Rules.A(ClusterRules.MaxHandOverTiles), $"the pocket should be big: {pocketTiles} tiles");
+        for (int t = 0; t < 30; t++)
+            game.Step();
+        Assert.Equal(keepCutOffLand ? a.Id : b.Id, game.Owner[pocket]);
+    }
+
     [Fact]
     public void APlayerWalledInByOneEnemy_IsAnnexed()
     {

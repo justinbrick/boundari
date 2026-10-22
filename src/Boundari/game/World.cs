@@ -984,7 +984,7 @@ public partial class World : Node2D
     private void StartMatch()
     {
         SyncSim();
-        _game = new Game(_map, RandomSeed(), difficulty: _args.Difficulty ?? Difficulty) { HatchedLand = !_args.Classic, DirectedAttacks = !_args.Classic, FogOfWar = !_args.Classic };
+        _game = new Game(_map, RandomSeed(), difficulty: _args.Difficulty ?? Difficulty) { HatchedLand = !_args.Classic, DirectedAttacks = !_args.Classic, FogOfWar = !_args.Classic, KeepCutOffLand = !_args.Classic };
         _me = _game.AddPlayer("You");
         _game.EventsFor = _me.Id; // notifications
         if (_args.Bench is null || _args.Autoplay)
