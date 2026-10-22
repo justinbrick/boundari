@@ -567,7 +567,7 @@ content_margin_left = 0.0
 content_margin_top = 4.0
 content_margin_right = 1.0
 content_margin_bottom = 4.0
-color = Color(1, 1, 1, 0.1764706)
+color = Color(1, 1, 1, 0.11764706)
 thickness = 2
 vertical = true
 
@@ -3993,10 +3993,18 @@ texture_normal = ExtResource("73_812tb")
 ignore_texture_size = true
 stretch_mode = 0
 
+[node name="MarginContainer7" type="MarginContainer" parent="Main_Layer/Main_Control/Large_Rect/Leader_HBox" unique_id=284719007]
+custom_minimum_size = Vector2(6, 0)
+layout_mode = 2
+
 [node name="VSeparator" type="VSeparator" parent="Main_Layer/Main_Control/Large_Rect/Leader_HBox" unique_id=299074514]
 custom_minimum_size = Vector2(10, 0)
 layout_mode = 2
 theme_override_styles/separator = SubResource("StyleBoxLine_2q8dx")
+
+[node name="MarginContainer8" type="MarginContainer" parent="Main_Layer/Main_Control/Large_Rect/Leader_HBox" unique_id=166046517]
+custom_minimum_size = Vector2(6, 0)
+layout_mode = 2
 
 [node name="User" type="TextureButton" parent="Main_Layer/Main_Control/Large_Rect/Leader_HBox" unique_id=1310928031]
 material = SubResource("ShaderMaterial_fruhh")
