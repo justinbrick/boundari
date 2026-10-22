@@ -301,6 +301,12 @@ public partial class MapOverlay
             }
             prevHigh = high;
             float len = prev.DistanceTo(next) * zoom; // pixels
+            if (!OnScreen(prev, next, MarkerRadius / zoom))
+            {
+                SkipDashes(len, high ? HighDashOn : DashOn, high ? HighDashOff : DashOff, ref on, ref left);
+                prev = next;
+                continue;
+            }
             float pos = 0;
             while (len - pos > 1e-3f)
             {
@@ -343,6 +349,8 @@ public partial class MapOverlay
     /// <summary>OpenFront's telegraph: a faint fill and a turning dashed ring, gently pulsing.</summary>
     private void DrawTelegraph(Vector2 at, float radius, Color colour, float zoom)
     {
+        if (!_visible.Intersects(new Rect2(at - Vector2.One * radius, Vector2.One * radius * 2)))
+            return;
         float time = Time.GetTicksMsec() / 1000f;
         float alpha = 0.85f + 0.1f * MathF.Sin(time * 3);
         DrawCircle(at, radius, new Color(colour, Math.Max(0, alpha - 0.6f) * 0.5f));
@@ -350,11 +358,41 @@ public partial class MapOverlay
         float circumference = Mathf.Tau * radius * zoom; // pixels
         int dashes = Math.Max(4, (int)(circumference / 27));
         float dashAngle = Mathf.Tau / dashes, offset = time * 30 / Math.Max(1, radius * zoom);
+        float dashLength = radius * dashAngle;
         for (int k = 0; k < dashes; k++)
         {
             float a0 = offset + k * dashAngle;
-            DrawArc(at, radius, a0, a0 + dashAngle * 2 / 3, 6, new Color(colour, alpha), 2.25f / zoom, true);
+            if (OnScreen(at + Vector2.FromAngle(a0 + dashAngle / 3) * radius, dashLength))
+                DrawArc(at, radius, a0, a0 + dashAngle * 2 / 3, 6, new Color(colour, alpha), 2.25f / zoom, true);
         }
+    }
+
+    /// <summary>Whether any of the line from a to b (this much wider) is on screen.</summary>
+    private bool OnScreen(Vector2 a, Vector2 b, float margin) =>
+        _visible.Grow(margin).Intersects(new Rect2(a, Vector2.Zero).Expand(b), true);
+
+    /// <summary>
+    /// Moves a dash pattern (dashes this long, gaps that long) on by a stretch without drawing
+    /// it: on = in a dash, left = what's left of the current dash or gap.
+    /// </summary>
+    private static void SkipDashes(float length, float dashOn, float dashOff, ref bool on, ref float left)
+    {
+        if (length < left)
+        {
+            left -= length;
+            return;
+        }
+        length -= left;
+        on = !on;
+        length %= dashOn + dashOff; // whole dash-and-gap cycles change nothing
+        float current = on ? dashOn : dashOff;
+        if (length >= current)
+        {
+            length -= current;
+            on = !on;
+            current = on ? dashOn : dashOff;
+        }
+        left = current - length;
     }
 
     /// <summary>A dashed line along a path.</summary>
@@ -367,6 +405,11 @@ public partial class MapOverlay
             var a = points[i - 1];
             var b = points[i];
             float len = a.DistanceTo(b);
+            if (!OnScreen(a, b, width))
+            {
+                SkipDashes(len, dash, dash, ref on, ref left);
+                continue;
+            }
             float pos = 0;
             while (len - pos > 1e-4f)
             {
