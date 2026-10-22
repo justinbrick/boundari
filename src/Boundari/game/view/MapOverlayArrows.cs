@@ -9,7 +9,8 @@ namespace Boundari.View;
 /// Directed-attack arrows (Boundari's own): the arrow being dragged out, and your running
 /// directed attacks' arrows. When you let go, the arrow shrinks over half a second into a
 /// small arrow beside the attack's troop number on its front, and rides along with it.
-/// Other players' arrows are never shown.
+/// Other players' arrows are never shown. While the left button is held still, a small
+/// ring beside the pointer fills up until the arrow starts.
 /// </summary>
 public partial class MapOverlay
 {
@@ -18,6 +19,10 @@ public partial class MapOverlay
     private const float SmallArrowPixels = 26;     // the arrow beside a troop number, tip to tail
     private const float SmallArrowGapPixels = 8;   // between the number and the arrow
     private static readonly Color ArrowNoTargetColour = new(0.8f, 0.8f, 0.8f);
+    private const float HoldRingRadiusPixels = 7, HoldRingWidthPixels = 3.5f;
+    private static readonly Vector2 HoldRingOffsetPixels = new(22, 24); // below and right of the pointer
+
+    private (Vector2 Mouse, float Progress)? _holdRing; // the mouse (map units) and how full (0..1)
 
     // The arrow being dragged: from/to in map units, 0 (flat) .. 1 (thin), and whether it points at anything.
     private (Vector2 From, Vector2 To, float Thin, bool Valid)? _dragArrow;
@@ -40,12 +45,26 @@ public partial class MapOverlay
 
     public void ClearDragArrow() => _dragArrow = null;
 
+    /// <summary>Holding the left button for an arrow: a ring beside the mouse (map units) this full (0..1); null hides it.</summary>
+    public void SetHoldRing((Vector2 Mouse, float Progress)? ring) => _holdRing = ring;
+
     /// <summary>An arrow was let go: it shrinks onto its attack's front once the attack shows up.</summary>
     public void LaunchArrow(Vector2 from, Vector2 to, float thin, int fromTile, int toTile) =>
         _launched.Add(new LaunchedArrow { From = from, To = to, Thin = thin, FromTile = fromTile, ToTile = toTile, Launched = Now });
 
     private void DrawArrows(float zoom, int w)
     {
+        if (_holdRing is { } hold)
+        {
+            DrawSetTransform(hold.Mouse, 0, Vector2.One / zoom);
+            var centre = HoldRingOffsetPixels;
+            DrawArc(centre, HoldRingRadiusPixels, 0, Mathf.Tau, 32, new Color(0, 0, 0, 0.45f), HoldRingWidthPixels + 2.5f, true); // dark edge
+            DrawArc(centre, HoldRingRadiusPixels, 0, Mathf.Tau, 32, new Color(1, 1, 1, 0.22f), HoldRingWidthPixels, true);        // the empty track
+            float start = -Mathf.Pi / 2; // from the top, clockwise
+            if (hold.Progress > 0.002f)
+                DrawArc(centre, HoldRingRadiusPixels, start, start + Mathf.Tau * Mathf.Clamp(hold.Progress, 0, 1), 32, Colors.White, HoldRingWidthPixels, true);
+            DrawSetTransform(Vector2.Zero, 0, Vector2.One);
+        }
         if (_dragArrow is { } drag)
             DrawArrowShape(drag.From, drag.To, drag.Thin, zoom, drag.Valid ? OutgoingColour : ArrowNoTargetColour, 1);
         if (_launched.Count == 0 || _game is null)

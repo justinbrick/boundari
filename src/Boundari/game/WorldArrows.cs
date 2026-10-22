@@ -16,6 +16,7 @@ namespace Boundari;
 public partial class World
 {
     private const double ArrowHoldSeconds = 0.3;
+    private const double HoldRingAfterSeconds = 0.06; // the filling ring shows from here (a quick click never flashes it)
     private const float MinArrowPixels = 12;          // shorter than this on release = a plain click
     private const float FlatArrowPixels = 40;         // up to this long: the flattest arrow
     private const float ThinArrowPixels = 360;        // from this long: the thinnest
@@ -87,17 +88,25 @@ public partial class World
     /// <summary>Every frame: starts the arrow once the button's been held still long enough, and follows the mouse.</summary>
     private void UpdateArrow()
     {
+        _overlay.SetHoldRing(null);
         if (!_arrowActive)
         {
             if (_pressPosition is not { } press || _pressPanned)
                 return;
+            if (_arrowTestEnd is null && !Input.IsMouseButtonPressed(MouseButton.Left))
+                return; // let go where the map didn't hear it: no hold
             if (GetViewport().GetMousePosition().DistanceTo(press) > ClickMaxDrag)
             {
                 _pressPanned = true;
                 return;
             }
-            if (Time.GetTicksMsec() / 1000.0 - _pressTime < ArrowHoldSeconds || !CanDrawArrow())
+            double held = Time.GetTicksMsec() / 1000.0 - _pressTime;
+            if (held < ArrowHoldSeconds || !CanDrawArrow())
+            {
+                if (held >= HoldRingAfterSeconds && CanDrawArrow()) // the ring fills up as the hold goes on
+                    _overlay.SetHoldRing((GetGlobalMousePosition(), (float)((held - HoldRingAfterSeconds) / (ArrowHoldSeconds - HoldRingAfterSeconds))));
                 return;
+            }
             StartArrow();
         }
         if (!CanDrawArrow())
