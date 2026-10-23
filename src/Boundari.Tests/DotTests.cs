@@ -83,7 +83,7 @@ public class DotTests
     }
 
     [Fact]
-    public void Commanders_StartWithTenDotsOnTheirBorder_LocalsWithNone()
+    public void Commanders_StartWithTenDotsJustInsideTheirBorder_LocalsWithNone()
     {
         var map = PlainsMap();
         var game = new Game(map, 1, spawnPhaseTicks: 50);
@@ -101,7 +101,7 @@ public class DotTests
             Assert.Equal(dots.Count, me.DotCount);
             Assert.All(dots, d =>
             {
-                Assert.Contains(d.Tile, me.Border);
+                Assert.InRange(game.DistanceToLine(d), 1, DotRules.StandBack);
                 Assert.False(d.IsWalking);
                 Assert.Equal(1, d.Strength);
                 Assert.Equal(DotRules.MaxStamina, d.Stamina);
@@ -133,8 +133,9 @@ public class DotTests
         Assert.Equal(4, dots.Count); // Funds for four
         Assert.Equal(10_000 + Income, a.Gold);
         Assert.All(dots, d => Assert.True(d.IsWalking, "new dots walk from home"));
-        Assert.All(dots, d => Assert.Contains(d.Destination, a.Border));
-        Assert.Contains(dots, d => d.Destination == front);
+        Assert.All(dots, d => Assert.Equal(a.Id, game.Owner[d.Destination]));
+        Assert.All(dots, d => Assert.True(a.Border.Min(t => Chebyshev(map, t, d.Destination)) == DotRules.StandBack - 1, "they stand just behind the border (3 tiles from the line, 2 from its last tile)"));
+        Assert.Contains(dots, d => Chebyshev(map, d.Destination, front) <= DotRules.StandBack + 2);
         var ends = dots.Select(d => d.Destination).ToList();
         for (int i = 0; i < ends.Count; i++)
             for (int j = i + 1; j < ends.Count; j++)
@@ -212,7 +213,7 @@ public class DotTests
         game.Step();
         var dots = game.DotsOf(a);
         Assert.All(dots, d => Assert.True(d.IsWalking));
-        Assert.Contains(dots, d => d.Destination == there);
+        Assert.Contains(dots, d => Chebyshev(map, d.Destination, there) <= DotRules.StandBack + 2);
         Assert.All(dots, d => Assert.True(Chebyshev(map, d.Destination, there) <= 3 * game.Rules.DotSpacing));
         int farthest = dots.Max(d => Chebyshev(map, d.Tile, d.Destination));
         int ticks = WalkAll(game, a);

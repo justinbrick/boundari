@@ -13,7 +13,9 @@ using Xunit.Abstractions;
 /// <summary>
 /// The front: dots hold the line, an attack makes a whole stretch of dots push, the stronger
 /// side moves the line, gaps cave in, dots move with the line. Measured on flat farmland.
+/// (Run alone: one of them times ticks on the real maps.)
 /// </summary>
+[Collection("Timing")]
 public class FrontTests
 {
     private readonly ITestOutputHelper _out;
@@ -121,32 +123,72 @@ public class FrontTests
         int before = a.TileCount;
         Run(game, 300);
         Assert.Equal(before, a.TileCount);
-        Assert.All(game.Dots, d => Assert.Contains(d.Tile, d.Owner.Border));
+        Assert.All(game.Dots, d => Assert.Equal(DotRules.StandBack, game.DistanceToLine(d)));
     }
 
     [Fact]
-    public void OneDot_PushesIntoWilderness_AboutThreeTilesASecond_AndWalksWithTheLine()
+    public void Expanding_GrowsTheWholeBorderIntoTheWilderness_FasterWithMoreDots_AndStops()
+    {
+        // A's land is a strip down the west side; expanding moves its whole edge east evenly.
+        double Depth(int dots)
+        {
+            var (game, a, _) = Field(20, eastKind: null);
+            for (int i = 0; i < dots; i++)
+                Place(game, a, 10, 2 + i * 96 / Math.Max(1, dots));
+            Assert.Empty(game.Pushes);
+            game.Submit(new PushIntent(a.Id, game.DotsOf(a)[0].Id, game.Map.Index(20, 50))); // dots don't push into wilderness
+            game.Step();
+            Assert.Empty(game.Pushes);
+            game.Submit(new ExpandIntent(a.Id));
+            Run(game, 100); // 10 s
+            Assert.True(game.IsExpanding(a));
+            var depths = Enumerable.Range(0, H).Select(y => Reach(game, a, y) - 20).ToList();
+            _out.WriteLine($"{dots} dots, 10 s: {depths.Average():0.0} tiles on average, {depths.Min()}..{depths.Max()}");
+            Assert.True(depths.Min() >= depths.Average() / 2, "the whole edge moves, not a finger");
+            Assert.All(game.DotsOf(a), d => Assert.Equal(DotRules.MaxStamina, d.Stamina));
+
+            game.Submit(new ExpandIntent(a.Id, Start: false));
+            game.Step();
+            int held = a.TileCount;
+            Run(game, 50);
+            Assert.False(game.IsExpanding(a));
+            Assert.Equal(held, a.TileCount);
+            return depths.Average();
+        }
+        double ten = Depth(10), twenty = Depth(20), forty = Depth(40);
+        Assert.InRange(ten, 12, 30);
+        Assert.InRange(twenty / ten, 1.6, 2.4);
+        Assert.InRange(forty / twenty, 0.8, 1.25); // already at full speed
+    }
+
+    [Fact]
+    public void Expanding_SwellsRoundly_AndEndsWhenTheWildernessIsGone()
     {
         var (game, a, _) = Field(20, eastKind: null);
-        var dot = Place(game, a, 19, 50);
-        game.Submit(new PushIntent(a.Id, dot.Id, game.Map.Index(20, 50)));
-        Run(game, 100); // 10 s
-        int depth = Reach(game, a, 50) - 20;
-        int wide = Enumerable.Range(0, H).Count(y => Reach(game, a, y) - 20 >= depth / 2);
-        _out.WriteLine($"10 s: {depth} tiles in, {wide} rows at least half as deep; dot at x {dot.Tile % W}, y {dot.Tile / W}");
-        _out.WriteLine(Picture(game, a, 10, 70));
-        Assert.InRange(depth, 20, 35);
-        Assert.InRange(wide, 6, 24);
-        Assert.True(dot.Tile % W >= 20 + depth - 3, "the dot keeps to the head of its attack");
-        Assert.InRange(dot.Tile / W, 46, 54);
-
-        // Stopped, the line stays where it is.
-        game.Submit(new StopPushIntent(a.Id, dot.Id));
-        Run(game, 2);
-        int held = a.TileCount;
-        Run(game, 50);
-        Assert.Empty(game.Pushes);
-        Assert.Equal(held, a.TileCount);
+        for (int y = 45; y <= 55; y++)
+            for (int x = 95; x <= 105; x++)
+                SetOwner(game, game.Map.Index(x, y), a.Id);
+        for (int t = 0; t < game.Map.TileCount; t++)
+            if (t % W < 20)
+                SetOwner(game, t, Game.Nobody);
+        for (int i = 0; i < 10; i++)
+            Place(game, a, 100, 50);
+        game.Submit(new ExpandIntent(a.Id));
+        Run(game, 60);
+        int minX = W, maxX = 0, minY = H, maxY = 0;
+        for (int t = 0; t < game.Map.TileCount; t++)
+            if (game.Owner[t] == a.Id)
+                (minX, maxX, minY, maxY) = (Math.Min(minX, t % W), Math.Max(maxX, t % W), Math.Min(minY, t / W), Math.Max(maxY, t / W));
+        _out.WriteLine($"6 s: x {minX}..{maxX}, y {minY}..{maxY}");
+        _out.WriteLine(Picture(game, a, 60, 140));
+        double wide = maxX - minX, tall = maxY - minY;
+        Assert.True(wide > 20 && tall > 20);
+        Assert.InRange(wide / tall, 0.75, 1.33);
+        double area = a.TileCount, box = (wide + 1) * (tall + 1);
+        Assert.InRange(area / box, 0.6, 0.95); // round-ish: between a diamond (0.5) and a square (1)
+        Run(game, 1500);
+        Assert.Equal(game.Map.LandTileCount, a.TileCount);
+        Assert.False(game.IsExpanding(a));
     }
 
     [Fact]
@@ -232,7 +274,7 @@ public class FrontTests
         Assert.True(depths[^1] < 80, "but not across the whole field");
         Assert.Equal(theirs.Count, game.DotsOf(b!).Count);
         Assert.All(theirs, d => Assert.Equal(b!.Id, game.Owner[d.Tile]));
-        Assert.All(theirs, d => Assert.Contains(d.Tile, b!.Border));
+        Assert.All(theirs, d => Assert.InRange(game.DistanceToLine(d), 1, DotRules.StandBack));
         Assert.All(mine, d => Assert.True(d.Tile % W >= 100, "the attackers walked forward with the line"));
     }
 
@@ -244,7 +286,8 @@ public class FrontTests
         Line(game, b!, 100, skipFrom: 38, skipTo: 62); // rows 38..61 unguarded
         game.Submit(new PushIntent(a.Id, mine[0].Id, game.Map.Index(100, 2)));
         Run(game, 100);
-        int gap = Reach(game, a, 50) - 100, guarded = Reach(game, a, 14) - 100;
+        // (The defenders either side shuffle towards the gap, so it may cave in a little off centre.)
+        int gap = Enumerable.Range(30, 40).Max(y => Reach(game, a, y)) - 100, guarded = Reach(game, a, 14) - 100;
         _out.WriteLine($"10 s: {gap} tiles in at the gap, {guarded} where it is guarded");
         _out.WriteLine(Picture(game, a, 80, 160));
         Assert.True(gap >= 10, "the gap caves in");
@@ -256,15 +299,16 @@ public class FrontTests
     {
         var (game, a, b) = Field(100);
         // B holds a block sticking into A's land: x 100..199 plus a tongue x 90..99, rows 40..59,
-        // and a one-tile spike at row 30 out to x 92.
+        // and a one-tile spike at row 30 out to x 75. (The dots step back from the line during
+        // the tick: a tile at most.)
         for (int y = 40; y < 60; y++)
             for (int x = 90; x < 100; x++)
                 SetOwner(game, game.Map.Index(x, y), b!.Id);
-        for (int x = 92; x < 100; x++)
+        for (int x = 75; x < 100; x++)
             SetOwner(game, game.Map.Index(x, 30), b!.Id);
         var straight = Place(game, b!, 100, 10);
         var corner = Place(game, b!, 90, 40);
-        var spike = Place(game, b!, 92, 30);
+        var spike = Place(game, b!, 80, 30);
         var attacker = Place(game, a, 99, 10);
         game.Submit(new PushIntent(a.Id, attacker.Id, game.Map.Index(100, 10)));
         game.Step();
@@ -328,10 +372,10 @@ public class FrontTests
         Assert.Equal(DotRules.MaxStamina, attacker.Stamina);
 
         var (wild, c, _) = Field(20, eastKind: null);
-        var explorer = Place(wild, c, 19, 50);
-        wild.Submit(new PushIntent(c.Id, explorer.Id, wild.Map.Index(20, 50)));
+        var explorer = Place(wild, c, 17, 50);
+        wild.Submit(new ExpandIntent(c.Id));
         Run(wild, 100);
-        Assert.Single(wild.Pushes);
+        Assert.True(wild.IsExpanding(c));
         Assert.Equal(DotRules.MaxStamina, explorer.Stamina);
     }
 
@@ -352,10 +396,10 @@ public class FrontTests
         _out.WriteLine($"{hardened.Count} tiles hardened");
         Assert.True(hardened.Count >= 10);
         Assert.All(hardened, t => Assert.Contains(t, a.Border));
-        Assert.True(game.IsHardened(dot.Tile));
+        Assert.Contains(hardened, t => Math.Max(Math.Abs(t % W - dot.Tile % W), Math.Abs(t / W - dot.Tile / W)) <= DotRules.StandBack);
         Assert.False(game.IsHardened(game.Map.Index(99, 10)), "only the stretch the dots stood on");
         Run(game, 290);
-        Assert.True(game.IsHardened(dot.Tile));
+        Assert.Equal(hardened.Count, game.HardenedTiles.Count());
         Run(game, 20);
         Assert.Empty(game.HardenedTiles);
     }
@@ -428,19 +472,22 @@ public class FrontTests
         Assert.Equal(Play(), Play());
     }
 
-    [Fact]
-    public void OnTheArdennes_AttacksStayCheap()
+    [Theory]
+    [InlineData("ardennes")]
+    [InlineData("westeurope")]
+    public void OnRealMaps_AttacksStayCheap(string mapId)
     {
         string dir = AppContext.BaseDirectory;
         while (!File.Exists(Path.Combine(dir, "Boundari.sln")) || !Directory.Exists(Path.Combine(dir, "src")))
             dir = Path.GetDirectoryName(dir)!;
         GameMap map;
-        using (var file = File.OpenRead(Path.Combine(dir, "src", "Boundari", "maps", "ardennes.bmap")))
+        using (var file = File.OpenRead(Path.Combine(dir, "src", "Boundari", "maps", mapId + ".bmap")))
             map = MapFile.Read(file);
         var game = new Game(map, 1, spawnPhaseTicks: 2);
         int w = map.Width, h = map.Height;
-        // Six commanders in a 3 x 2 grid of blocks with wilderness between them, each with
-        // 60 level-1 dots: half pushing into wilderness, half into a neighbour.
+        // Six commanders in a 3 x 2 grid of blocks, the top row touching the bottom one, with
+        // wilderness between the columns; each with 60 level-1 dots pushing into every
+        // neighbour they touch, and all expanding.
         var players = new List<Player>();
         for (int i = 0; i < 6; i++)
         {
@@ -454,7 +501,7 @@ public class FrontTests
             for (int x = 0; x < w; x++)
             {
                 int t = map.Index(x, y), col = x * 3 / w, row = y * 2 / h;
-                bool margin = x % (w / 3) > w / 3 - 60 && col < 2 || y % (h / 2) > h / 2 - 60 && row < 1;
+                bool margin = x % (w / 3) > w / 3 - 60 * game.Rules.Linear && col < 2;
                 if (map.IsLand(t) && !margin)
                     SetOwner(game, t, players[row * 3 + col].Id);
             }
@@ -475,6 +522,8 @@ public class FrontTests
                     if (map.InBounds(x0 + dx, y0 + dy) && map.IsLand(map.Index(x0 + dx, y0 + dy)) && game.Owner[map.Index(x0 + dx, y0 + dy)] != d.Owner.Id)
                         game.Submit(new PushIntent(d.Owner.Id, d.Id, map.Index(x0 + dx, y0 + dy)));
         }
+        foreach (var p in players)
+            game.Submit(new ExpandIntent(p.Id));
         game.Step();
         int pushing = game.Pushes.Sum(p => p.Dots.Count);
         var clock = Stopwatch.StartNew();
@@ -487,7 +536,7 @@ public class FrontTests
             worst = Math.Max(worst, clock.ElapsedTicks - start);
         }
         double avgMs = clock.Elapsed.TotalMilliseconds / 300, worstMs = worst * 1000.0 / Stopwatch.Frequency;
-        _out.WriteLine($"{game.Pushes.Count} attacks, {pushing} dots pushing; 30 s: {players.Sum(p => p.TileCount) - before} tiles changed hands net; tick avg {avgMs:0.00} ms, worst {worstMs:0.00} ms");
+        _out.WriteLine($"{mapId} (scale {game.Rules.Linear:0.00}): {game.Pushes.Count} attacks, {pushing} dots pushing; 30 s: {players.Sum(p => p.TileCount) - before} tiles changed hands net; tick avg {avgMs:0.00} ms, worst {worstMs:0.00} ms");
         Assert.True(pushing > 60);
         // Alone: about 5 ms a tick, worst under 20 ms. Loose limits, as other tests share the CPU.
         Assert.True(avgMs < 50 && worstMs < 400, $"tick avg {avgMs:0.0} ms, worst {worstMs:0.0} ms");

@@ -53,7 +53,13 @@ public static class DotRules
 
     // ---- The front (how dots move the line) ----
 
-    /// <summary>How far a dot presses or holds the line: full force on its own tile, fading to nothing just past this many tiles.</summary>
+    /// <summary>Dots stand this many tiles behind the line, inside their owner's land.</summary>
+    public const int StandBack = 3;
+
+    /// <summary>
+    /// How far a dot presses or holds the line: full force out to <see cref="StandBack"/>
+    /// tiles (the line in front of it), fading to nothing just past this many tiles more.
+    /// </summary>
     public const int Reach = 8;
 
     /// <summary>Force of a full-stamina level-1 dot, in thousandths (force = strength x stamina).</summary>
@@ -77,20 +83,26 @@ public static class DotRules
     /// <summary>A dot whose tile is taken steps back onto its owner's nearest tile within this many; with none, it is cut off and lost.</summary>
     public const int FallBackTiles = 3;
 
-    /// <summary>A dot that found no line to stand on (its land has no border) looks again after this long.</summary>
+    /// <summary>A dot that found no line to stand on (its land has no border) looks again after this long, twice as long after each miss, up to <see cref="LookAgainMaxTicks"/>.</summary>
     public const int LookAgainTicks = 50;
+    public const int LookAgainMaxTicks = 1200;
+
+    /// <summary>Most tiles one search for a far-away line may look at, and one search for a new way when a walking dot's way is cut.</summary>
+    public const int FarLineSearchTiles = 150_000;
+    public const int DetourSearchTiles = 150_000;
 
     /// <summary>Most dots a tick that search their whole land for a line to stand on (the rest wait a tick).</summary>
-    public const int LongSearchesPerTick = 2;
+    public const int LongSearchesPerTick = 1;
 
     /// <summary>Dots this close (twice the spacing) belong to the same stretch of border: one attack moves them all.</summary>
     public const int LinkTiles = 2 * Spacing;
 
     /// <summary>
     /// Radius of the ring looked at to tell how many sides a dot is pressed from: if more
-    /// than 5/8 of the land on it is held by attacking enemies, 2 sides (half force); more than 7/8, 3 (a third).
+    /// than 5/8 of the land on it is held by attacking enemies, 2 sides (half force); more
+    /// than 7/8, 3 (a third). Reaches 4 tiles past the line in front of the dot.
     /// </summary>
-    public const int SidesRing = 4;
+    public const int SidesRing = StandBack + 4;
 
     /// <summary>
     /// When an attack stops, its dots dig in: their border within reach is hardened for this
@@ -101,6 +113,9 @@ public static class DotRules
 
     /// <summary>OpenFront's Defense post: attacks on its land take 3 times as long.</summary>
     public const int HardenedSlowdown = 3;
+
+    /// <summary>Dots it takes to expand into the wilderness at OpenFront's top speed (fewer dots, proportionally slower).</summary>
+    public const int ExpandFullSpeedDots = 20;
 }
 
 /// <summary>
@@ -163,8 +178,9 @@ public sealed class Dot
     /// <summary>Thousandths of a tile walked towards <see cref="NextTile"/>.</summary>
     internal long Progress;
 
-    /// <summary>Off the line with no line found: the tick to look for one again.</summary>
+    /// <summary>Off the line with no line found: the tick to look for one again, and how long it waited last time.</summary>
     internal long LookAgainAt;
+    internal int LookAgainWait;
 
     public bool IsWalking => Path is not null;
 

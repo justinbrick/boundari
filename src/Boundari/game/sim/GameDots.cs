@@ -77,7 +77,7 @@ public sealed partial class Game
         if (around < 0)
             return;
         foreach (int slot in BorderSlots(player, around, DotRules.FreeAtStart, null))
-            AddDot(player, slot);
+            AddDot(player, StandTileNear(player, slot));
     }
 
     private void BuyDots(Player player, int count, int borderTile)
@@ -88,7 +88,7 @@ public sealed partial class Game
         int home = HomeTile(player, borderTile);
         foreach (int slot in BorderSlots(player, borderTile, count, null))
         {
-            if (FindDotPath(player, home, slot) is not { } path)
+            if (FindDotPath(player, home, StandTileNear(player, slot)) is not { } path)
                 continue;
             player.Spend(DotRules.Price);
             var dot = AddDot(player, home);
@@ -142,7 +142,7 @@ public sealed partial class Game
                     (best, bestDist) = (d, dist);
             }
             moving.Remove(best!);
-            if (FindDotPath(player, best!.Tile, slot) is { } path)
+            if (FindDotPath(player, best!.Tile, StandTileNear(player, slot)) is { } path)
                 SetOff(best, path);
         }
     }
@@ -185,7 +185,7 @@ public sealed partial class Game
                 {
                     // The way was lost under its feet: find another, or stop where it is.
                     dot.Progress = 0;
-                    if (Owner[dot.Destination] == dot.Owner.Id && FindDotPath(dot.Owner, dot.Tile, dot.Destination) is { } detour)
+                    if (Owner[dot.Destination] == dot.Owner.Id && FindDotPath(dot.Owner, dot.Tile, dot.Destination, DotRules.DetourSearchTiles) is { } detour)
                         SetOff(dot, detour);
                     else
                         SetOff(dot, new[] { dot.Tile });
@@ -319,7 +319,7 @@ public sealed partial class Game
     /// no cutting corners past someone else's land), first and last tile included; null if
     /// there is none.
     /// </summary>
-    internal int[]? FindDotPath(Player player, int from, int to)
+    internal int[]? FindDotPath(Player player, int from, int to, int maxTiles = DotRules.PathSearchTiles)
     {
         if (from == to)
             return new[] { from };
@@ -348,7 +348,7 @@ public sealed partial class Game
                 break;
             if (key >> PathKeyBits > _pathCost[t] + Guess(t))
                 continue; // queued before a shorter way here was found
-            if (++expanded > DotRules.PathSearchTiles)
+            if (++expanded > maxTiles)
                 return null;
             int x = t % w, y = t / w;
             for (int dy = -1; dy <= 1; dy++)

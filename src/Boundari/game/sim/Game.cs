@@ -305,6 +305,7 @@ public sealed partial class Game
         Profile[4] += Stopwatch.GetTimestamp() - te;
         long t3 = Stopwatch.GetTimestamp();
         AdvanceAttacks();
+        RunExpansions();
         long t4 = Stopwatch.GetTimestamp();
         Profile[0] += t1 - t0;
         Profile[1] += t2 - t1;
@@ -385,6 +386,12 @@ public sealed partial class Game
                 break;
             case StopPushIntent stop when Phase == GamePhase.Running:
                 StopPush(player, stop.DotId);
+                break;
+            case ExpandIntent expand when Phase == GamePhase.Running:
+                if (expand.Start)
+                    StartExpansion(player);
+                else
+                    StopExpansion(player);
                 break;
             case DemolishIntent demolish when Phase == GamePhase.Running:
                 StartDemolition(player, demolish.Tile);

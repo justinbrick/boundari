@@ -58,12 +58,15 @@ public sealed record MoveDotsIntent(ushort PlayerId, int[] DotIds, int BorderTil
 
 /// <summary>
 /// Attack with the stretch of border <paramref name="DotId"/> stands on: every dot on it
-/// pushes into the land of whoever owns <paramref name="TargetTile"/> (or the wilderness) until stopped.
+/// pushes into the land of whoever owns <paramref name="TargetTile"/> until stopped (not the wilderness: see <see cref="ExpandIntent"/>).
 /// </summary>
 public sealed record PushIntent(ushort PlayerId, int DotId, int TargetTile) : Intent(PlayerId);
 
 /// <summary>Stop the attack this dot is part of (its dots stay where the line is).</summary>
 public sealed record StopPushIntent(ushort PlayerId, int DotId) : Intent(PlayerId);
+
+/// <summary>Start (or stop) expanding into the wilderness all along your border.</summary>
+public sealed record ExpandIntent(ushort PlayerId, bool Start = true) : Intent(PlayerId);
 
 /// <summary>Tear down one of your own buildings (it goes after a delay, as in OpenFront).</summary>
 public sealed record DemolishIntent(ushort PlayerId, int Tile) : Intent(PlayerId);

@@ -10,9 +10,9 @@ namespace Boundari.Sim;
 /// holds it (the defenders' dots near it, plus a little from the land itself); where the
 /// attackers are stronger the line moves, faster the bigger the difference, slower through
 /// forest, marsh and rivers. Gaps between defending dots hold little, so they cave in; a
-/// dot pressed from several sides holds less; wilderness does not hold at all. Dots move
-/// with the line: pushed back a tile when theirs is taken (lost only when cut off), and
-/// forward when it moves away from them. Pushing into someone's land tires dots (weaker
+/// dot pressed from several sides holds less. Dots stand a few tiles behind the line and
+/// move with it: back when it comes at them (lost only when cut off), and forward when it
+/// moves away from them. Pushing into someone's land tires dots (weaker
 /// both ways) until they rest; when an attack stops, its dots dig in and the line they hold
 /// is hardened for a while, like land near an OpenFront Defense post.
 /// </summary>
@@ -81,7 +81,7 @@ public sealed partial class Game
         if (tile < 0 || tile >= Map.TileCount || !Map.IsLand(tile))
             return null;
         ushort target = Owner[tile];
-        if (target == player.Id || (target != Nobody && (GetPlayer(target) is not { IsAlive: true } || player.Allies.Contains(target))))
+        if (target == player.Id || target == Nobody || GetPlayer(target) is not { IsAlive: true } || player.Allies.Contains(target))
             return null;
         int w = Map.Width, x = tile % w, y = tile / w;
         Dot? best = null;
@@ -100,34 +100,103 @@ public sealed partial class Game
     /// <summary>A dot's force: strength level x stamina, in thousandths of a fresh level-1 dot.</summary>
     public static long DotForce(Dot dot) => (long)dot.Strength * dot.Stamina * DotRules.DotForce / DotRules.MaxStamina;
 
-    /// <summary>How much of a dot's force reaches a tile this far away (thousandths; 0 beyond its reach).</summary>
+    /// <summary>How far from a dot its force reaches, in tiles: across the land it stands back on, then its reach past the line.</summary>
+    private int ReachRadius => Rules.DotStandBack - 1 + Rules.DotReach;
+
+    /// <summary>
+    /// How much of a dot's force reaches a tile this far away (thousandths; 0 beyond its
+    /// reach): all of it across its own land up to the line it stands back from, then fading
+    /// past the line exactly as if it stood on the line itself.
+    /// </summary>
     private int ReachWeight(int dx, int dy)
     {
-        int r = Rules.DotReach, side = 2 * r + 1;
+        int r = ReachRadius, side = 2 * r + 1, back = Rules.DotStandBack, reach = Rules.DotReach;
         if (_reach is null)
         {
             _reach = new int[side * side];
             for (int y = -r; y <= r; y++)
                 for (int x = -r; x <= r; x++)
-                    _reach[(y + r) * side + x + r] = Math.Max(0, (int)Math.Round(1000 * (1 - Math.Sqrt(x * x + y * y) / (r + 1))));
+                {
+                    double past = Math.Max(0, Math.Sqrt(x * x + y * y) - (back - 1));
+                    _reach[(y + r) * side + x + r] = Math.Max(0, (int)Math.Round(1000 * (1 - past / (reach + 1))));
+                }
         }
         return Math.Abs(dx) > r || Math.Abs(dy) > r ? 0 : _reach[(dy + r) * side + dx + r];
+    }
+
+    /// <summary>
+    /// How far a tile of <paramref name="me"/>'s is from the line with <paramref name="target"/>'s
+    /// land (Nobody = the wilderness; null = anyone else's land), in tiles (Chebyshev), looking
+    /// up to <paramref name="max"/>; max + 1 if it is further.
+    /// </summary>
+    private int LineDistance(int tile, ushort me, ushort? target, int max)
+    {
+        int w = Map.Width, h = Map.Height, x0 = tile % w, y0 = tile / w;
+        for (int d = 1; d <= max; d++)
+            for (int dy = -d; dy <= d; dy++)
+            {
+                int y = y0 + dy;
+                if (y < 0 || y >= h)
+                    continue;
+                int step = Math.Abs(dy) == d ? 1 : 2 * d; // full top and bottom rows, just the ends of the others
+                for (int dx = -d; dx <= d; dx += step)
+                {
+                    int x = x0 + dx;
+                    if (x < 0 || x >= w)
+                        continue;
+                    int t = y * w + x;
+                    ushort o = Owner[t];
+                    if (o != me && Map.IsLand(t) && (target is null ? true : o == target))
+                        return d;
+                }
+            }
+        return max + 1;
+    }
+
+    /// <summary>True if the tile touches (4 ways) land that isn't <paramref name="me"/>'s: one of their border tiles.</summary>
+    private bool TouchesOthers(int tile, ushort me)
+    {
+        Span<int> nb = stackalloc int[4];
+        int count = LandNeighbours(tile, nb);
+        for (int k = 0; k < count; k++)
+            if (Owner[nb[k]] != me)
+                return true;
+        return false;
+    }
+
+    /// <summary>True if a dot of <paramref name="me"/>'s belongs on this tile: <see cref="ScaledRules.DotStandBack"/> tiles behind the line with that land (null = anyone's).</summary>
+    private bool IsStandTile(int tile, ushort me, ushort? target) =>
+        Owner[tile] == me && LineDistance(tile, me, target, Rules.DotStandBack) == Rules.DotStandBack;
+
+    /// <summary>How many tiles a dot stands behind the line with anyone else's land (for tests and drawing).</summary>
+    public int DistanceToLine(Dot dot) => LineDistance(dot.Tile, dot.Owner.Id, null, ReachRadius);
+
+    /// <summary>
+    /// Where a dot sent to this border tile stands: the nearest of its owner's tiles the right
+    /// distance behind the line (the border tile itself if the land is too thin).
+    /// </summary>
+    private int StandTileNear(Player player, int borderTile)
+    {
+        int w = Map.Width, h = Map.Height, r = Rules.DotStandBack + 2, x0 = borderTile % w, y0 = borderTile / w;
+        int best = borderTile;
+        long bestDist = long.MaxValue;
+        for (int dy = -r; dy <= r; dy++)
+            for (int dx = -r; dx <= r; dx++)
+            {
+                int x = x0 + dx, y = y0 + dy;
+                if (x < 0 || y < 0 || x >= w || y >= h)
+                    continue;
+                int t = y * w + x;
+                long dist = dx * dx + dy * dy;
+                if (dist < bestDist && IsStandTile(t, player.Id, null))
+                    (best, bestDist) = (t, dist);
+            }
+        return best;
     }
 
     /// <summary>True if the tile is land of <paramref name="target"/> (or wilderness, for Nobody) touching the player's land.</summary>
     private bool IsFrontTile(int tile, ushort target, ushort player) =>
         Owner[tile] == target && Map.IsLand(tile) && Touches(tile, player);
-
-    /// <summary>True if the tile touches land of <paramref name="target"/> (or wilderness, for Nobody).</summary>
-    private bool TouchesLandOf(int tile, ushort target)
-    {
-        Span<int> nb = stackalloc int[4];
-        int count = LandNeighbours(tile, nb);
-        for (int k = 0; k < count; k++)
-            if (Owner[nb[k]] == target)
-                return true;
-        return false;
-    }
 
     /// <summary>True if the dot stands within reach of the line with <paramref name="target"/> (worked out once a tick).</summary>
     private bool Faces(Dot dot, ushort target)
@@ -136,7 +205,7 @@ public sealed partial class Game
             return seen.Owners.Contains(target);
         var owners = seen.Owners ?? new List<ushort>();
         owners.Clear();
-        int w = Map.Width, h = Map.Height, r = Rules.DotReach, x0 = dot.Tile % w, y0 = dot.Tile / w;
+        int w = Map.Width, h = Map.Height, r = ReachRadius, x0 = dot.Tile % w, y0 = dot.Tile / w;
         ushort me = dot.Owner.Id;
         for (int dy = -r; dy <= r; dy++)
             for (int dx = -r; dx <= r; dx++)
@@ -160,9 +229,9 @@ public sealed partial class Game
         if (targetTile < 0 || targetTile >= Map.TileCount || !Map.IsLand(targetTile))
             return;
         ushort target = Owner[targetTile];
-        if (target == player.Id)
-            return;
-        if (target != Nobody && (GetPlayer(target) is not { IsAlive: true } || player.Allies.Contains(target)))
+        if (target == player.Id || target == Nobody)
+            return; // (the wilderness is expanded into, not pushed: see GameExpansion.cs)
+        if ((GetPlayer(target) is not { IsAlive: true } || player.Allies.Contains(target)))
             return; // (allies can't attack each other)
         if (!Faces(dot, target) || _pushes.Exists(p => p.Attacker == player && p.TargetId == target && p.Members.Contains(dot)))
             return;
@@ -188,7 +257,7 @@ public sealed partial class Game
     /// <summary>A stopped attack's dots dig in: their owner's border within their reach is hardened for a while.</summary>
     private void Harden(Push push)
     {
-        int w = Map.Width, h = Map.Height, r = Rules.DotReach;
+        int w = Map.Width, h = Map.Height, r = ReachRadius;
         var owner = push.Attacker;
         foreach (var dot in push.Members)
         {
@@ -315,7 +384,7 @@ public sealed partial class Game
 
     private void PressOn(Push push)
     {
-        int n = Map.TileCount, w = Map.Width, h = Map.Height, r = Rules.DotReach;
+        int n = Map.TileCount, w = Map.Width, h = Map.Height, r = ReachRadius;
         _frontForce ??= new long[n];
         _frontStamp ??= new int[n];
         int stamp = ++_frontSearch;
@@ -441,7 +510,7 @@ public sealed partial class Game
 
     /// <summary>
     /// A defending dot pressed from several sides (the attack is flowing round it) steps back
-    /// along the line: to the neighbouring border tile least surrounded by the attackers.
+    /// along the line: to the neighbouring standing tile least surrounded by the attackers.
     /// -1 if it is not pressed so, or no step makes it better.
     /// </summary>
     private int GiveGround(Dot dot)
@@ -458,7 +527,7 @@ public sealed partial class Game
                 if ((dx | dy) == 0 || x < 0 || y < 0 || x >= w || y >= h)
                     continue;
                 int t = y * w + x;
-                if (Owner[t] != me || !dot.Owner.Border.Contains(t) || (dx != 0 && dy != 0 && (Owner[y0 * w + x] != me || Owner[y * w + x0] != me)))
+                if (!IsStandTile(t, me, null) || (dx != 0 && dy != 0 && (Owner[y0 * w + x] != me || Owner[y * w + x0] != me)))
                     continue;
                 int share = AttackedShare(t, me);
                 if (share < bestShare)
@@ -469,9 +538,10 @@ public sealed partial class Game
 
     /// <summary>
     /// Dots move with the line: one whose tile was taken steps back onto its owner's nearest
-    /// tile (lost if there is none close: cut off); a standing dot the line has moved away
-    /// from walks after it (an attacking dot to the land it attacks, any other to its border);
-    /// a defending dot the attack flows round steps back along the line rather than be cut off.
+    /// tile (lost if there is none close: cut off); a standing dot keeps its distance behind
+    /// the line, walking after it when it moves away and back when it comes closer (an
+    /// attacking dot measured from the land it attacks, any other from anyone's); a defending
+    /// dot the attack flows round steps back along the line rather than be cut off.
     /// </summary>
     private void FollowLine()
     {
@@ -488,7 +558,7 @@ public sealed partial class Game
             }
             d.Tile = back;
             d.Progress = 0;
-            if (d.IsWalking && Owner[d.Destination] == d.Owner.Id && FindDotPath(d.Owner, back, d.Destination) is { } path)
+            if (d.IsWalking && Owner[d.Destination] == d.Owner.Id && FindDotPath(d.Owner, back, d.Destination, DotRules.DetourSearchTiles) is { } path)
                 SetOff(d, path);
             else
                 SetOff(d, new[] { back });
@@ -500,21 +570,29 @@ public sealed partial class Game
             if (d.IsWalking)
                 continue;
             var push = PushOf(d);
-            bool onLine = push is null ? d.Owner.Border.Contains(d.Tile) : TouchesLandOf(d.Tile, push.TargetId);
+            bool onLine = IsStandTile(d.Tile, d.Owner.Id, push?.TargetId);
             if (!onLine && Tick < d.LookAgainAt)
                 continue;
-            int goal = !onLine ? NearestOnLine(d, push, Rules.DotReach) : push is null ? GiveGround(d) : -1;
-            if (goal < 0 && !onLine && push is null)
+            int goal = !onLine ? NearestOnLine(d, push, ReachRadius) : push is null ? GiveGround(d) : -1;
+            if (goal < 0 && !onLine && LineDistance(d.Tile, d.Owner.Id, push?.TargetId, Rules.DotStandBack) <= Rules.DotStandBack)
+                goal = -2; // nearer the line than it should be, but there's no better tile close by (thin land): stay
+            if (goal == -1 && !onLine && push is null)
             {
                 // The border ran away from it (old-style attacks spread faster than dots walk):
                 // walk to wherever it is now. Its land may have no border at all (a whole
                 // island): then look again in a while. Only a few such long searches a tick.
                 if (++longSearches > DotRules.LongSearchesPerTick)
                     d.LookAgainAt = Tick + 1;
-                else if (NearestOnLine(d, null, int.MaxValue) >= 0)
-                    SetOff(d, _foundPath.ToArray());
+                else if (WayToFarLine(d) is { } way)
+                {
+                    SetOff(d, way);
+                    d.LookAgainWait = 0;
+                }
                 else
-                    d.LookAgainAt = Tick + DotRules.LookAgainTicks;
+                {
+                    d.LookAgainWait = Math.Clamp(d.LookAgainWait * 2, DotRules.LookAgainTicks, DotRules.LookAgainMaxTicks);
+                    d.LookAgainAt = Tick + d.LookAgainWait;
+                }
                 continue;
             }
             if (goal < 0)
@@ -533,6 +611,19 @@ public sealed partial class Game
                 d.Tile = d.Destination = goal;
             }
         }
+    }
+
+    /// <summary>
+    /// The walk to the line from a dot far behind it: through its own land towards the nearest
+    /// border, as far as the first tile the right distance behind it. Null if its land has no
+    /// border within reach of the search (a whole island, say).
+    /// </summary>
+    private int[]? WayToFarLine(Dot dot)
+    {
+        if (NearestOnLine(dot, null, int.MaxValue, toBorder: true, maxTiles: DotRules.FarLineSearchTiles) < 0)
+            return null;
+        int stop = _foundPath.FindIndex(t => IsStandTile(t, dot.Owner.Id, null));
+        return _foundPath.GetRange(0, stop < 0 ? _foundPath.Count : stop + 1).ToArray();
     }
 
     /// <summary>The owner's tile nearest a dot whose tile was just taken, within <see cref="ScaledRules.DotFallBack"/> tiles (a border tile on a tie); -1 if none.</summary>
@@ -557,13 +648,13 @@ public sealed partial class Game
     }
 
     /// <summary>
-    /// The first step towards the nearest tile on the dot's line (touching the land it
-    /// attacks, or any border tile), through its owner's land up to <paramref name="radius"/>
+    /// The first step towards the nearest tile where the dot belongs (standing back from the
+    /// land it attacks, or from anyone's), through its owner's land up to <paramref name="radius"/>
     /// tiles away; -1 if none. Of the nearest, the one most exposed to that land (so an
     /// attacking dot keeps to the head of its attack rather than drifting sideways along the
     /// old line). The whole way there is left in <see cref="_foundPath"/>.
     /// </summary>
-    private int NearestOnLine(Dot dot, Push? push, int radius)
+    private int NearestOnLine(Dot dot, Push? push, int radius, bool toBorder = false, int maxTiles = DotRules.PathSearchTiles)
     {
         int w = Map.Width, h = Map.Height, r = radius, x0 = dot.Tile % w, y0 = dot.Tile / w, searched = 0;
         ushort me = dot.Owner.Id;
@@ -575,12 +666,14 @@ public sealed partial class Game
         ring.Clear();
         ring.Add(dot.Tile);
 
-        // How many of the 8 tiles around this one are the land faced (a border tile: anyone else's).
+        // How many tiles of the land faced (anyone else's, for a dot not attacking) are within
+        // a tile past the line around this one.
+        int e = Rules.DotStandBack + 1;
         int Exposure(int t)
         {
             int count = 0, x = t % w, y = t / w;
-            for (int dy = -1; dy <= 1; dy++)
-                for (int dx = -1; dx <= 1; dx++)
+            for (int dy = -e; dy <= e; dy++)
+                for (int dx = -e; dx <= e; dx++)
                 {
                     int nx = x + dx, ny = y + dy;
                     if ((dx | dy) == 0 || nx < 0 || ny < 0 || nx >= w || ny >= h || !Map.IsLand(ny * w + nx))
@@ -597,11 +690,11 @@ public sealed partial class Game
             int best = -1, bestExposure = 0;
             foreach (int t in ring)
             {
-                if (t == dot.Tile || !(push is null ? dot.Owner.Border.Contains(t) : TouchesLandOf(t, push.TargetId)))
+                if (t == dot.Tile || !(toBorder ? TouchesOthers(t, me) : IsStandTile(t, me, push?.TargetId)))
                     continue;
-                int e = Exposure(t);
-                if (e > bestExposure || (e == bestExposure && t < best))
-                    (best, bestExposure) = (t, e);
+                int exposure = push is null ? 0 : Exposure(t); // (only an attacking dot looks for the head of its attack)
+                if (best < 0 || exposure > bestExposure || (exposure == bestExposure && t < best))
+                    (best, bestExposure) = (t, exposure);
             }
             if (best >= 0)
             {
@@ -611,7 +704,7 @@ public sealed partial class Game
                 _foundPath.Reverse();
                 return _foundPath[1];
             }
-            if ((searched += ring.Count) > DotRules.PathSearchTiles)
+            if ((searched += ring.Count) > maxTiles)
                 return -1;
 
             next.Clear();
