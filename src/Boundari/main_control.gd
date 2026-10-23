@@ -90,7 +90,11 @@ func _on_button_mouse_exited(_button: Button) -> void:
 # ============================================================
 # Right-click anywhere (map, HUD or the menu's own chat buttons) while the menu is up
 # closes it. This runs before the HUD sees the click, and the click stops here.
+# A hidden copy of this HUD (e.g. a test layout kept in the scene) stays out of it:
+# otherwise it opens its own invisible menu and the first click only closes that one.
 func _input(event: InputEvent) -> void:
+	if not is_visible_in_tree():
+		return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
 		if current_menu and is_instance_valid(current_menu):
 			hide_radial_menu()
@@ -98,6 +102,8 @@ func _input(event: InputEvent) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if not is_visible_in_tree():
+		return
 	if event is InputEventMouseButton:
 
 		# Right-click → open radial menu
