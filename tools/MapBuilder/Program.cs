@@ -25,7 +25,8 @@ public sealed record MapSpec(
     bool CarveLakes = true,     // land-cover lakes become real (unclaimable) water
     string? OsmWater = null,    // OpenStreetMap rivers/lakes in tools/data, drawn as claimable water
     double RiverMetres = 0,     // drawn width of those rivers
-    string? CoverFrom = null);  // take the land cover from this (bigger) map's cached grid instead of fetching it
+    string? CoverFrom = null,   // take the land cover from this (bigger) map's cached grid instead of fetching it
+    bool RiversAsCover = false); // Natural Earth rivers only drawn (land cover water): crossable and claimable, not cut into the map
 
 public static class Program
 {
@@ -43,8 +44,9 @@ public static class Program
         // Western and central Europe, the dots game's main map: Ireland to the edge of Ukraine,
         // southern Scandinavia to the North African coast. Europe's detail (~1.7 km per tile,
         // same tile shape), its land cover cut out of Europe's cached grid (no download).
+        // Rivers are only drawn, as on the Ardennes: they can be crossed and claimed (slowly).
         new("westeurope", "Western Europe", -11, 34, 35, 62, 50, 2571, "10m", 6, MinIslandTiles: 80, MinLakeTiles: 121, LandCoverScale: 2,
-            RiverMaxRank: 7, RiverWidth: 5.2, CoverFrom: "europe"),
+            RiverMaxRank: 7, RiverWidth: 3.0, CoverFrom: "europe", RiversAsCover: true),
         // The Ardennes around Bastogne and Houffalize, ~36 km square, 30 m per tile. The
         // Ourthe, Sure, Wiltz and Clerve come from OpenStreetMap and are only drawn: they can
         // be crossed and claimed like land. No sea or lakes. Land cover at WorldCover's full
@@ -119,7 +121,7 @@ public static class Program
         var lakes = Project(GeoJson.LoadRings(Path.Combine(dataDir, $"ne_{spec.Detail}_lakes.geojson")));
 
         // Rivers are real water: boats can use them and they split the land.
-        var rivers = spec.RiverMaxRank < 0
+        var rivers = spec.RiverMaxRank < 0 || spec.RiversAsCover
             ? new List<(TileRing, double)>()
             : GeoJson.LoadRivers(Path.Combine(dataDir, "ne_10m_rivers_lake_centerlines.geojson"), spec.RiverMaxRank)
                 .Select(r => (Project(new List<Ring> { r.Line })[0], RiverHalfWidth(spec, r.Rank)))
@@ -191,7 +193,7 @@ public static class Program
     }
 
     /// <summary>Half a river's width in tiles: the most important rivers are widest.</summary>
-    private static double RiverHalfWidth(MapSpec spec, int rank)
+    internal static double RiverHalfWidth(MapSpec spec, int rank)
     {
         double share = rank <= 3 ? 1.0 : rank <= 5 ? 0.85 : 0.7;
         return Math.Max(spec.RiverWidth * share, MinRiverWidth) / 2;

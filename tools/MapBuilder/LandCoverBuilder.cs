@@ -90,7 +90,28 @@ public static class LandCoverBuilder
         //    they can be crossed and claimed like any other ground.
         if (spec.OsmWater is not null)
             PaintOsmWater(cover, geo, map, spec, Path.Combine(root, "tools", "data", spec.OsmWater));
+        // ...or Natural Earth's rivers, the same way.
+        if (spec.RiversAsCover && spec.RiverMaxRank >= 0)
+            PaintRivers(cover, geo, map, spec, Path.Combine(root, "tools", "data", "ne_10m_rivers_lake_centerlines.geojson"));
         return cover;
+    }
+
+    private static void PaintRivers(LandCover cover, MapGeo geo, GameMap map, MapSpec spec, string path)
+    {
+        TileRing ToCells(Ring r) => new(
+            Array.ConvertAll(r.Lon, lon => geo.TileX(lon, map.Width) * cover.Scale),
+            Array.ConvertAll(r.Lat, lat => geo.TileY(lat, map.Height) * cover.Scale));
+        var rivers = GeoJson.LoadRivers(path, spec.RiverMaxRank)
+            .ConvertAll(r => (ToCells(r.Line), Program.RiverHalfWidth(spec, r.Rank) * cover.Scale));
+        float[] river = Rasterizer.RiverDistance(rivers, cover.Width, cover.Height, 0);
+        int painted = 0;
+        for (int i = 0; i < cover.Cells.Length; i++)
+            if (river[i] < 0 && cover.Cells[i] != CoverType.None)
+            {
+                cover.Cells[i] = CoverType.Water;
+                painted++;
+            }
+        Console.WriteLine($"  Natural Earth rivers drawn: {rivers.Count} lines, {100.0 * painted / cover.Cells.Length:F2}% of the map");
     }
 
     private static void PaintOsmWater(LandCover cover, MapGeo geo, GameMap map, MapSpec spec, string path)
