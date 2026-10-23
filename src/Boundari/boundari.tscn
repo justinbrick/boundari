@@ -10,6 +10,7 @@
 [ext_resource type="Texture2D" uid="uid://qepctrj10e6q" path="res://ui/buttons/port.svg" id="6_xc0m3"]
 [ext_resource type="Texture2D" uid="uid://b08ul63hc75jg" path="res://ui/buttons/city.svg" id="7_04lhv"]
 [ext_resource type="Texture2D" uid="uid://bqokbhm7d3jw" path="res://ui/buttons/factory.svg" id="7_ewirb"]
+[ext_resource type="Texture2D" uid="uid://bkq0o281b0dsr" path="res://tests/image-1792779624573.png" id="8_d773e"]
 [ext_resource type="Shader" uid="uid://gjp1lvaytgqf" path="res://ui/buttons/buttonoverhaul.gdshader" id="8_di8wi"]
 [ext_resource type="Texture2D" uid="uid://c0wk55sygw5ft" path="res://ui/buttons/defense.svg" id="8_tepi4"]
 [ext_resource type="Texture2D" uid="uid://cvmlaqmfyxe4j" path="res://ui/buttons/silo.svg" id="9_ewirb"]
@@ -72,6 +73,7 @@
 [ext_resource type="Texture2D" uid="uid://bwq3sboipn8sl" path="res://ui/nick.jpg" id="72_aow1b"]
 [ext_resource type="Texture2D" uid="uid://dfhmxqij04f7a" path="res://ui/tip.jpg" id="73_812tb"]
 [ext_resource type="Texture2D" uid="uid://dtptu6l5ug7bj" path="res://ui/rando.jpg" id="74_xiaxg"]
+[ext_resource type="Texture2D" uid="uid://dp25fypw8h5ts" path="res://ui/misc/cash128x.svg" id="75_cjpii"]
 [ext_resource type="Script" uid="uid://divxtioscd01k" path="res://game/view/MapView.cs" id="bw_mapview"]
 [ext_resource type="Script" uid="uid://b17hmp882uwcy" path="res://game/World.cs" id="bw_world"]
 
@@ -503,7 +505,7 @@ base_font = ExtResource("49_5khtq")
 spacing_glyph = 1
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_7iv60"]
-bg_color = Color(0, 0, 0, 0.24705882)
+bg_color = Color(0.36862746, 0.5019608, 0.26666668, 1)
 border_width_left = 2
 border_width_top = 2
 border_width_right = 2
@@ -1043,6 +1045,16 @@ max_zoom = 100.0
 
 [node name="Main_Layer" type="CanvasLayer" parent="." unique_id=1596231632]
 
+[node name="MapRect" type="TextureRect" parent="Main_Layer" unique_id=461330216]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("8_d773e")
+metadata/_edit_lock_ = true
+
 [node name="Main_Control" type="Control" parent="Main_Layer" unique_id=1204450789]
 visible = false
 layout_mode = 3
@@ -1054,6 +1066,7 @@ grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("4_pdu2b")
 popup_offset_y = 18.0
+metadata/_edit_lock_ = true
 
 [node name="HBox_Hud" type="Control" parent="Main_Layer/Main_Control" unique_id=559303388]
 layout_mode = 1
@@ -1062,6 +1075,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+metadata/_edit_lock_ = true
 
 [node name="In_Panel2" type="Panel" parent="Main_Layer/Main_Control/HBox_Hud" unique_id=1318414374]
 custom_minimum_size = Vector2(0, 53)
@@ -7852,6 +7866,7 @@ custom_minimum_size = Vector2(4, 0)
 layout_mode = 2
 
 [node name="Current_Troops" type="Label" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/VBoxContainer/Display_Meter/HBoxContainer" unique_id=2070976529]
+modulate = Color(1, 1, 1, 0.8627451)
 layout_mode = 2
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.09803922)
 theme_override_constants/shadow_offset_x = 2
@@ -7882,6 +7897,7 @@ custom_minimum_size = Vector2(4, 0)
 layout_mode = 2
 
 [node name="Current_Troops" type="Label" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/VBoxContainer/Display_Gold/HBoxContainer" unique_id=1339608101]
+modulate = Color(1, 1, 1, 0.8235294)
 layout_mode = 2
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.09803922)
 theme_override_constants/shadow_offset_x = 2
@@ -7896,6 +7912,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 
 [node name="Max_Troops" type="Label" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/VBoxContainer/Display_Gold/HBoxContainer" unique_id=1319984430]
+modulate = Color(1, 1, 1, 0.8235294)
 layout_mode = 2
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.09803922)
 theme_override_constants/shadow_offset_x = 2
@@ -8104,6 +8121,7 @@ offset_bottom = -5.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 0
+metadata/_edit_lock_ = true
 
 [node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Leader_HBox" unique_id=1734254321]
 custom_minimum_size = Vector2(10, 0)
@@ -8235,6 +8253,7 @@ theme_override_constants/separation = 0
 alignment = 1
 
 [node name="TroopMeter" type="Panel" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Left_HBox/HBox_Player" unique_id=257551140]
+visible = false
 custom_minimum_size = Vector2(230, 40)
 layout_mode = 2
 size_flags_horizontal = 4
@@ -8289,6 +8308,66 @@ horizontal_alignment = 2
 vertical_alignment = 1
 
 [node name="MarginContainer3" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Left_HBox/HBox_Player/TroopMeter/HBoxContainer" unique_id=551385624]
+custom_minimum_size = Vector2(8, 0)
+layout_mode = 2
+
+[node name="TroopMeterFAKE" type="Panel" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Left_HBox/HBox_Player" unique_id=1234097138]
+custom_minimum_size = Vector2(230, 40)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("StyleBoxFlat_7iv60")
+
+[node name="HBoxContainer" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Left_HBox/HBox_Player/TroopMeterFAKE" unique_id=1115708924]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+alignment = 1
+
+[node name="MarginContainer2" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Left_HBox/HBox_Player/TroopMeterFAKE/HBoxContainer" unique_id=1673635067]
+custom_minimum_size = Vector2(8, 0)
+layout_mode = 2
+
+[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Left_HBox/HBox_Player/TroopMeterFAKE/HBoxContainer" unique_id=123701518]
+modulate = Color(1, 1, 1, 0.74509805)
+custom_minimum_size = Vector2(16, 16)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+texture = ExtResource("67_8yhk8")
+expand_mode = 1
+
+[node name="Current_Troops" type="Label" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Left_HBox/HBox_Player/TroopMeterFAKE/HBoxContainer" unique_id=1618418965]
+modulate = Color(1, 1, 1, 0.74509805)
+layout_mode = 2
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.09803922)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_fonts/font = SubResource("FontVariation_y52gj")
+theme_override_font_sizes/font_size = 18
+text = "140K"
+vertical_alignment = 1
+
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Left_HBox/HBox_Player/TroopMeterFAKE/HBoxContainer" unique_id=1189468434]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Max_Troops" type="Label" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Left_HBox/HBox_Player/TroopMeterFAKE/HBoxContainer" unique_id=206432006]
+modulate = Color(1, 1, 1, 0.74509805)
+layout_mode = 2
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.09803922)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_fonts/font = SubResource("FontVariation_y52gj")
+theme_override_font_sizes/font_size = 18
+text = "241K"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="MarginContainer3" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Left_HBox/HBox_Player/TroopMeterFAKE/HBoxContainer" unique_id=449910983]
 custom_minimum_size = Vector2(8, 0)
 layout_mode = 2
 
@@ -8407,31 +8486,46 @@ layout_mode = 2
 theme_override_constants/separation = 0
 
 [node name="Panel_Cash" type="Panel" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Right_HBox" unique_id=718630889]
-custom_minimum_size = Vector2(100, 40)
+custom_minimum_size = Vector2(106, 40)
 layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 4
 theme_override_styles/panel = SubResource("StyleBoxFlat_ud2h5")
 
-[node name="Label_Cash" type="Label" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Right_HBox/Panel_Cash" unique_id=1136067634]
+[node name="HBoxContainer" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Right_HBox/Panel_Cash" unique_id=935845622]
 layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -35.0
-offset_top = -14.0
-offset_right = 35.0
-offset_bottom = 14.0
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Right_HBox/Panel_Cash/HBoxContainer" unique_id=1400230838]
+custom_minimum_size = Vector2(4, 0)
+layout_mode = 2
+
+[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Right_HBox/Panel_Cash/HBoxContainer" unique_id=713042433]
+modulate = Color(1, 1, 1, 0.78431374)
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+texture = ExtResource("75_cjpii")
+expand_mode = 1
+
+[node name="MarginContainer2" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Right_HBox/Panel_Cash/HBoxContainer" unique_id=1507394402]
+custom_minimum_size = Vector2(2, 0)
+layout_mode = 2
+
+[node name="Label_Cash" type="Label" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Right_HBox/Panel_Cash/HBoxContainer" unique_id=1136067634]
+modulate = Color(1, 1, 1, 0.8627451)
+layout_mode = 2
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.09803922)
 theme_override_constants/shadow_offset_x = 2
 theme_override_constants/shadow_offset_y = 2
 theme_override_fonts/font = SubResource("FontVariation_y52gj")
 theme_override_font_sizes/font_size = 18
-text = "$3.87M"
+text = "3.87M"
 horizontal_alignment = 1
 vertical_alignment = 1
 
