@@ -41,9 +41,11 @@ namespace Boundari;
 ///   --difficulty=D     easy, medium (default), hard or impossible: how strong nations are
 ///   --autoplay         spawn the human player automatically (for testing)
 ///   --ticks=N          fast-forward the match N ticks at start
+///   --expand=N         (testing) after --autoplay: expand into the wilderness for N ticks first
+///   --dot-ui=SCENARIO  (testing) gather your dots, then try a dot control with fed-in mouse events (WorldDotUiTest.cs)
 ///   --no-hillshade     start with hill shading off
 ///   --zoom=Z           start zoomed in (1 = whole map)
-///   --focus=X,Y        centre the camera on this point, as 0..1 fractions of the map
+///   --focus=X,Y        centre the camera on this point, as 0..1 fractions of the map (--focus=me: on your dots)
 ///   --screenshot=PATH  save a screenshot after loading, then quit
 ///   --perf             print the frame rate every 2 seconds
 ///   --dev=PSC=2,SMO=1  (testing) set dev-tool options by index for this run (not saved)
@@ -175,6 +177,7 @@ public partial class World : Node2D
         AddChild(_arcs);
         MoveChild(_arcs, _labels.GetIndex() + 1);
         _mainControl = GetNodeOrNull<Control>("Main_Layer/Main_Control");
+        SetUpDotOrders();
         _startPrompt = MakeStartPrompt();
         _splash = new StartupSplash();
         AddChild(_splash);
@@ -229,7 +232,7 @@ public partial class World : Node2D
         string mapId = _args.Seed is not null ? "random" : _args.Map ?? StartMap;
         if (mapId is "" or "random" || !LoadMap(mapId))
             Generate(_args.Seed ?? (Seed != 0 ? Seed : RandomSeed()));
-        FrameCamera(_args.Zoom, _args.Focus ?? _showcaseFocus);
+        FrameCamera(_args.Zoom, _args.FocusMe ? MyDotsCentre() : _args.Focus ?? _showcaseFocus);
 
         if (_args.Screenshot is not null)
             SaveScreenshotAndQuit(_args.Screenshot);
@@ -362,6 +365,7 @@ public partial class World : Node2D
         UpdatePlacing();
         UpdateArrow();
         UpdateDotHover();
+        UpdateDotOrders(delta);
         FrameProfiler.Stop("  placing", hudStart);
         long hudOnly = FrameProfiler.Start();
         UpdateFastForward();
@@ -474,7 +478,7 @@ public partial class World : Node2D
             if (OnLeftRelease())
                 return; // an arrow was let go
             if (start.DistanceTo(button.Position) <= ClickMaxDrag)
-                OnMapClicked(GetGlobalMousePosition(), _pressIsDouble);
+                OnMapClicked(GetCanvasTransform().AffineInverse() * button.Position, _pressIsDouble);
         }
     }
 
@@ -487,7 +491,7 @@ public partial class World : Node2D
 
     /// <summary>
     /// Keyboard shortcuts, OpenFront's defaults: 1-0 build / aim bombs (numpad too), B boat,
-    /// G expand into the wilderness / attack under the mouse, Shift+R hit back at the latest attacker, T/Y attack ratio,
+    /// H buy dots, G expand into the wilderness / attack under the mouse, Shift+R hit back at the latest attacker, T/Y attack ratio,
     /// K/L/N ally / break alliance / target under the mouse, F and R the emoji and chat menu,
     /// U flip bomb arcs, C centre on you, M coordinate grid, Space (held) hide territory, P
     /// pause, comma/period game speed, Shift+D the frame counter. WASD/arrows pan and Q/E or
@@ -533,6 +537,9 @@ public partial class World : Node2D
                 break;
             case Key.B:
                 SendBoat(mouseTile);
+                break;
+            case Key.H: // buy dots
+                ToggleBuying();
                 break;
             case Key.G:
                 GroundAttack(mouseTile);
@@ -696,6 +703,7 @@ public partial class World : Node2D
     private void TogglePlacing(BuildingType type)
     {
         SyncSim();
+        StopBuying();
         if (_placing == type)
             StopPlacing();
         else if (_game.Phase == GamePhase.Running && _me.IsAlive && _me.CanAfford(_game.BuildingCost(_me, type)))
@@ -709,6 +717,7 @@ public partial class World : Node2D
     private void ToggleAiming(NukeType type)
     {
         SyncSim();
+        StopBuying();
         if (_aiming == type)
             StopPlacing();
         else if (_game.Phase == GamePhase.Running && _me.IsAlive && _me.CanAfford(_game.NukeCost(type)))
@@ -921,6 +930,8 @@ public partial class World : Node2D
             }
             return;
         }
+        if (ClickToBuy(tile)) // buy mode: dots for the border clicked
+            return;
         if (tile < 0 || !_map.IsLand(tile))
             return;
 
@@ -932,6 +943,8 @@ public partial class World : Node2D
             return;
         }
         ushort target = _game.Owner[tile];
+        if (target == _me.Id)
+            _selected.Clear(); // a click on your own land drops the dot selection
         if (target == _me.Id || !_me.IsAlive || !_me.HasSpawned)
             return;
         if (ClickToExpand(tile) || ClickToPush(tile)) // wilderness: expand (or stop); someone's land: your nearest dot facing it pushes in (or stops)
@@ -1022,8 +1035,20 @@ public partial class World : Node2D
 
         if (_args.Autoplay)
             AutoSpawn();
+        if (_args.Expand > 0 && _me.HasSpawned) // (testing) grow into the wilderness first
+        {
+            for (int t = 0; t < 5000 && _game.Phase != GamePhase.Running; t++)
+                _game.Step();
+            _game.Submit(new ExpandIntent(_me.Id, Start: true));
+            for (int t = 0; t < _args.Expand; t++)
+                _game.Step();
+            _game.Submit(new ExpandIntent(_me.Id, Start: false));
+            _game.Step();
+        }
         for (int t = 0; t < _args.Ticks; t++)
             _game.Step();
+        if (_args.DotUi is not null)
+            PrepareDotUi();
         if (_args.Showcase)
             Showcase();
         if (_args.Aim is { } aimArg && Enum.TryParse<NukeType>(aimArg, true, out var aimType))
@@ -1268,6 +1293,8 @@ public partial class World : Node2D
     {
         if (_args.RightClick?.StartsWith("requester") == true)
             await RightClickRequester();
+        if (_args.DotUi is { } dotUi)
+            await RunDotUiScript(dotUi);
         while (_fastForwarding) // --start=mid: wait for the fast-forward
             await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
         // A few frames, and enough time for background work (label placement) to land.
@@ -1279,10 +1306,20 @@ public partial class World : Node2D
         GetTree().Quit();
     }
 
+    /// <summary>Testing aid (--focus=me): the middle of your dots, as 0..1 fractions of the map (null = none).</summary>
+    private Vector2? MyDotsCentre()
+    {
+        var mine = _game.Dots.Where(d => d.Owner == _me).ToList();
+        if (mine.Count == 0)
+            return null;
+        var sum = mine.Aggregate(Vector2.Zero, (s, d) => s + new Vector2(d.Tile % _map.Width + 0.5f, d.Tile / _map.Width + 0.5f));
+        return sum / mine.Count / new Vector2(_map.Width, _map.Height);
+    }
+
     private record struct Args(string? Map, ulong? Seed, int? Bots, int? Nations, Difficulty? Difficulty, bool NoCheats, double? Bench, string? Dev, bool Autoplay, int Ticks,
         float Zoom, Vector2? Focus, string? Screenshot, bool Perf, Vector2? Hover, bool HoverLeader, bool Showcase, string? ShowcaseFocus,
         string? Start = null, int AllyRequests = 0, string? RightClick = null, string? Aim = null, bool Incoming = false, bool Tags = false, bool Notifs = false,
-        bool Splash = false, string? Alert = null, bool Classic = false, bool OldSystems = false, string? Arrow = null, float ArrowPixels = 250);
+        bool Splash = false, string? Alert = null, bool Classic = false, bool OldSystems = false, string? Arrow = null, float ArrowPixels = 250, bool FocusMe = false, int Expand = 0, string? DotUi = null);
 
     private static Args ParseArgs()
     {
@@ -1309,7 +1346,10 @@ public partial class World : Node2D
                 case "difficulty": args.Difficulty = Enum.Parse<Difficulty>(value, ignoreCase: true); break;
                 case "autoplay": args.Autoplay = true; break;
                 case "ticks": args.Ticks = int.Parse(value, inv); break;
+                case "dot-ui": args.DotUi = value; break; // (testing) see WorldDotUiTest.cs
+                case "expand": args.Expand = int.Parse(value, inv); break; // (testing) after --autoplay: expand into the wilderness for N ticks
                 case "zoom": args.Zoom = float.Parse(value, inv); break;
+                case "focus" when value == "me": args.FocusMe = true; break; // (testing) centre on your dots
                 case "focus":
                     string[] xy = value.Split(',');
                     args.Focus = new Vector2(float.Parse(xy[0], inv), float.Parse(xy[1], inv));

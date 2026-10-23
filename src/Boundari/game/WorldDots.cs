@@ -52,7 +52,8 @@ public partial class World
         Dot? dot = null;
         bool stops = false;
         bool overHud = GetViewport().GuiGetHoveredControl() is { MouseFilter: not Control.MouseFilterEnum.Ignore } over && !_panels.Contains(over);
-        if (_placing is null && _aiming is null && !_startPrompt.Visible && !_fastForwarding && !_hud.AdjustingRatio && (!overHud || _args.Hover is not null))
+        if (_placing is null && _aiming is null && !_startPrompt.Visible && !_fastForwarding && !_hud.AdjustingRatio && (!overHud || _args.Hover is not null)
+            && !_buying && _gesture == DotGesture.None) // (not while buying or ordering dots)
             dot = DotForClick(_view.TileAt(HoverMouse()), out stops);
         _overlay.SetDotHover(dot?.Id ?? -1, stops);
     }
