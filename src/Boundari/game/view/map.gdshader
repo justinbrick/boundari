@@ -23,13 +23,14 @@ uniform vec3 cover_colors[7];
 uniform sampler2DArray owner_tex : filter_nearest, repeat_disable;
 // R32F: tick (with fraction) when each tile changed hands, for animating captures.
 uniform sampler2DArray capture_tex : filter_nearest, repeat_disable;
-// R8 bits: 1 = hatched (land freshly taken from a player, see GameHatching.cs),
-// 4 = near a finished defense post (only there does the shader look for posts).
+// R8 bits: 1 = hatched (land freshly taken from a player, see GameHatching.cs), 2 = was
+// hatched for its previous owner (while it fades away from them), 4 = near a finished defense post (only there does the shader look for posts).
 uniform sampler2DArray hatch_tex : filter_nearest, repeat_disable;
 // RGBA8: each tile's distance to its border in 1/dist_units tiles (255 = far): R before the
-// latest change near it, G after, B and A the offset (+128) to the tile whose capture fade
-// carries it from R to G. Kept by TerritoryTextures only while borders are too thick for
-// the smoothing to measure (border_field).
+// latest change near it, G after, B and A the offset (+128) to the tile whose front carries
+// it from R to G (offset 0: R is the previous owner's distance, see tile_border_distance).
+// Kept by TerritoryTextures only while borders are too thick for the smoothing to measure
+// (border_field).
 uniform sampler2DArray dist_tex : filter_nearest, repeat_disable;
 uniform float dist_units = 24.0;
 uniform int owner_chunk = 256;
@@ -345,13 +346,13 @@ float hatch_weight(ivec2 c) {
 // How much of `id`'s land around here is hatched (0..1), smoothed exactly like the territory
 // borders (territory_at), so 0.5 is a clean curve where hatched land meets its owner's
 // settled land. Only `id`'s own land counts, so it stays 1 out to the territory's edge,
-// and tiles still fading in count by how far they've faded (a capture sweeping in isn't
-// striped yet).
+// and tiles changing hands count by how far they've faded (a capture sweeping in isn't
+// striped yet; land being taken keeps the stripes it had until it fades away).
 float hatch_cover(vec2 tile, int id) {
 	// Most pixels have no hatched tile next to them at all.
 	vec2 p = tile - 0.5;
 	ivec2 c = ivec2(floor(p));
-	if (!hatched_bit(c) && !hatched_bit(c + ivec2(1, 0)) && !hatched_bit(c + ivec2(0, 1)) && !hatched_bit(c + ivec2(1, 1))) {
+	if (((hatch_bits(c) | hatch_bits(c + ivec2(1, 0)) | hatch_bits(c + ivec2(0, 1)) | hatch_bits(c + ivec2(1, 1))) & 3) == 0) {
 		return 0.0;
 	}
 	// Deep inside hatched land (a sparse ring all hatched and settled, as in territory_at): fully hatched.
@@ -387,12 +388,16 @@ float hatch_cover(vec2 tile, int id) {
 			int prev;
 			float fade_in;
 			owner_at(cc, owner, prev, fade_in);
-			if (owner != id) {
-				continue;
+			if (owner == id) {
+				float w = wx[i] * wy[j] * fade_in;
+				total += w;
+				hatched += w * hatch_weight(cc);
+			} else if (prev == id && fade_in < 1.0) {
+				// Being taken from `id`: striped as it was until it fades away.
+				float w = wx[i] * wy[j] * (1.0 - fade_in);
+				total += w;
+				hatched += (hatch_bits(cc) & 2) != 0 ? w : 0.0;
 			}
-			float w = wx[i] * wy[j] * fade_in;
-			total += w;
-			hatched += w * hatch_weight(cc);
 		}
 	}
 	return total > 1e-5 ? hatched / total : 0.0;
@@ -417,10 +422,36 @@ float defense_cover(vec2 tile, int id, float tiles_per_px, bool preview) {
 	return 1.0 - smoothstep(-0.5 * tiles_per_px, 0.5 * tiles_per_px, inside);
 }
 
+// A front's tiles taken in one tick are spread over it (tick + k/n) and each fades over the
+// front's pace, so the line between the two owners (where a tile is half faded) reaches a
+// tile taken at `captured` half a fade later, having set off from the front's old line half
+// a fade after the tick began. (TerritoryTextures.cs has the same two.)
+// How far the front taking a tile has come from where it stood at its tick's start (0) to the tile (1).
+float front_progress(float captured, float fade) {
+	float tick = ceil(captured) - 1.0;
+	return clamp((visual_time - tick - 0.5 * fade) / max(captured - tick, 1e-3), 0.0, 1.0);
+}
+
+// How far that front has gone on from the tile (0) to where it ends its tick (1).
+float front_passed(float captured, float fade) {
+	float tick = ceil(captured) - 1.0;
+	return clamp((visual_time - captured - 0.5 * fade) / max(tick + 1.0 - captured, 1e-3), 0.0, 1.0);
+}
+
+void capture_at(ivec2 c, out float captured, out float fade) {
+	c = clamp(c, ivec2(0), ivec2(map_size) - 1);
+	ivec3 cc = ivec3(c % owner_chunk, (c.y / owner_chunk) * owner_chunks_x + c.x / owner_chunk);
+	captured = texelFetch(capture_tex, cc, 0).r;
+	fade = texelFetch(owner_tex, cc, 0).a * 255.0 / 16.0;
+}
+
 // One tile's distance (tiles) to the edge of `id`'s territory as it's shown right now: its
-// blend from before to after the latest change near it, moved along by the fade of the tile
-// that was taken. A tile changing hands counts by how far it has faded (others' land is half
-// a tile outside the line; land being taken from `id` was at its edge). Water: is_water.
+// blend from before to after the latest change near it, moved along with the front of the
+// tile that was taken. A tile changing hands counts by how far it has faded (others' land is
+// half a tile outside the line); while it does, its distance for the owner losing it shrinks
+// from what it was to the edge as the front comes for it, and for the owner taking it grows
+// from the edge as the front moves on (so land swept up deep behind a fast front isn't all
+// border). Water: is_water.
 float tile_border_distance(ivec2 c, int id, out bool is_water) {
 	c = clamp(c, ivec2(0), ivec2(map_size) - 1);
 	int owner;
@@ -432,14 +463,28 @@ float tile_border_distance(ivec2 c, int id, out bool is_water) {
 	if (own <= 0.0) {
 		return -0.5;
 	}
+	vec4 v = texelFetch(dist_tex, ivec3(c % owner_chunk, (c.y / owner_chunk) * owner_chunks_x + c.x / owner_chunk), 0) * 255.0;
+	ivec2 offset = ivec2(int(v.b + 0.5) - 128, int(v.a + 0.5) - 128);
 	float d = 0.5;
-	if (owner == id) {
-		vec4 v = texelFetch(dist_tex, ivec3(c % owner_chunk, (c.y / owner_chunk) * owner_chunks_x + c.x / owner_chunk), 0) * 255.0;
-		int cause_owner;
-		int cause_prev;
-		float progress;
-		owner_at(c + ivec2(int(v.b + 0.5) - 128, int(v.a + 0.5) - 128), cause_owner, cause_prev, progress);
-		d = mix(v.r, v.g, progress) / dist_units;
+	if (offset == ivec2(0)) {
+		// R: the previous owner's distance when it was taken, G: the owner's.
+		float captured;
+		float fade;
+		capture_at(c, captured, fade);
+		d = owner == id
+			? mix(0.5, v.g / dist_units, front_passed(captured, fade))
+			: mix(v.r / dist_units, 0.5, front_progress(captured, fade));
+	} else {
+		float captured;
+		float fade;
+		capture_at(c + offset, captured, fade);
+		d = mix(v.r, v.g, front_progress(captured, fade)) / dist_units;
+		if (owner != id) {
+			// Being taken from `id`, with the values from before (this tick's distances are
+			// still being worked out): its distance then, down to the edge as the front comes.
+			capture_at(c, captured, fade);
+			d = mix(d, 0.5, front_progress(captured, fade));
+		}
 	}
 	return mix(-0.5, d, own);
 }

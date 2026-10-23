@@ -46,8 +46,9 @@ public sealed class TerritoryTextures
     private readonly byte[][] _timeBytes;
     private readonly Image[] _ownerImages;
     private readonly Image[] _timeImages;
-    private readonly byte[][] _hatchBytes; // R8 bits: HatchedBit, NearPostBit
+    private readonly byte[][] _hatchBytes; // R8 bits: HatchedBit, WasHatchedBit, NearPostBit
     private const byte HatchedBit = 1;
+    private const byte WasHatchedBit = 2; // hatched for its previous owner (while it fades away from them)
     private const byte NearPostBit = 4; // within reach (plus a little) of a finished defense post
     private readonly Image[] _hatchImages;
     // Per tile: how many defense posts' reach covers it (NearPostBit = more than none).
@@ -57,9 +58,10 @@ public sealed class TerritoryTextures
     // (RGBA8), how far its centre is from the nearest tile of another owner (not water),
     // through its own land, minus half a tile (about the distance to the border line), in
     // 1/DistUnits tiles (255 = DistCap or more). R = before the latest change near it, G =
-    // after, and B, A = the offset (+128) to the tile just taken whose capture fade carries
-    // it from R to G, so a thick border's inner edge sweeps along exactly with the territory.
-    // Only made and kept up to date while BorderDistances is on.
+    // after, and B, A = the offset (+128) to the tile just taken whose front carries it from
+    // R to G, so a thick border's inner edge sweeps along exactly with the territory (offset
+    // 0: R is the distance its previous owner had there; see map.gdshader's
+    // tile_border_distance). Only made and kept up to date while BorderDistances is on.
     public const float DistUnits = 24;
     private const int DistCap = 11; // tiles (255 / DistUnits, rounded up)
     private const int DistBlock = 32;
@@ -67,6 +69,7 @@ public sealed class TerritoryTextures
     private Image[]? _distImages;
     private readonly int _distBlocksX;
     private readonly bool[] _distDirtyBlock;
+    private readonly bool[] _distBlockChanged; // (set by the background work: any distance in the block changed)
     private readonly List<int> _distDirtyList = new();
     private bool _borderDistances;
     // Each tick's distances are worked out in the background (they can take ~10 ms when
@@ -104,6 +107,7 @@ public sealed class TerritoryTextures
         _shown = new ushort[map.TileCount];
         _distBlocksX = (map.Width + DistBlock - 1) / DistBlock;
         _distDirtyBlock = new bool[_distBlocksX * ((map.Height + DistBlock - 1) / DistBlock)];
+        _distBlockChanged = new bool[_distDirtyBlock.Length];
 
         var owners = new Godot.Collections.Array<Image>();
         var times = new Godot.Collections.Array<Image>();
@@ -201,7 +205,11 @@ public sealed class TerritoryTextures
         FinishDistances(); // (last tick's, which read the owners about to change)
         // Hatching can change without the owner changing (land settling).
         foreach (int i in changed)
+        {
+            if (Shown(i, owners, fallout) != _shown[i])
+                SetHatchBit(i, WasHatchedBit, HatchBits(i, HatchedBit));
             WriteHatch(i, hatched is not null && hatched[i] != 0);
+        }
 
         // First pass: how many tiles each front took this tick, and its pace.
         foreach (int i in changed)
@@ -219,6 +227,19 @@ public sealed class TerritoryTextures
                 last = tick;
             }
             f.Count++;
+            if (NextTo(i, now))
+                f.FirstRow++;
+        }
+        // A front that took several rows of land this tick (tiles taken / tiles that were next
+        // to the taker's land) fades each tile in a fraction of the tick, so a row is done
+        // before the next is: fading them all over the tick left the whole band half one
+        // owner's and half the other's, and the borders (where neither clearly wins) filled it.
+        foreach (int key in _thisTick.Keys)
+        {
+            ref var f = ref CollectionsMarshal.GetValueRefOrNullRef(_thisTick, key);
+            float rows = (float)f.Count / Math.Max(f.FirstRow, 1);
+            if (rows > FastFrontRows)
+                f.Fade = Math.Max(FastFrontRows / rows, ShortestFade);
         }
         // Second pass: write each tile with its place in its front's run.
         foreach (int i in changed)
@@ -239,31 +260,52 @@ public sealed class TerritoryTextures
             RecomputeDirtyDistances(tick);
     }
 
+    private const float FastFrontRows = 1.5f;
+    private const float ShortestFade = 0.1f;
+
+    /// <summary>Whether a tile touches (4 ways) land shown as <paramref name="owner"/>'s.</summary>
+    private bool NextTo(int tile, ushort owner)
+    {
+        int x = tile % _map.Width, w = _map.Width;
+        return (x > 0 && _shown[tile - 1] == owner) || (x < w - 1 && _shown[tile + 1] == owner)
+            || (tile >= w && _shown[tile - w] == owner) || (tile + w < _shown.Length && _shown[tile + w] == owner);
+    }
+
     private struct FrontThisTick
     {
-        public int Count, Taken;
+        public int Count, Taken, FirstRow;
         public float Fade;
     }
 
     private readonly Dictionary<int, FrontThisTick> _thisTick = new();
 
-    // Chunks uploaded per frame at most; the rest go on the next frames (territory is drawn a
-    // tick behind, which is several frames, so this never shows), keeping big fights from
-    // turning into one slow frame.
-    private const int MaxUploadsPerFlush = 24;
+    // Chunks are uploaded for up to UploadBudgetMs a frame (at least MinUploadsPerFlush); the
+    // rest go on the next frames, keeping big fights from turning into one slow frame. A
+    // chunk takes ~0.02 ms, so even a whole map at war is sent within a frame or two: borders
+    // are drawn from the distances, and distances a few ticks older than the territory paint
+    // the border where it used to be (blobs behind fast fronts, stray lines left behind).
+    private const int MinUploadsPerFlush = 24;
+    private const double UploadBudgetMs = 3;
     private int _nextFlush;
 
-    /// <summary>Uploads chunks that changed since they were last uploaded (a limited number per call).</summary>
+    /// <summary>Uploads chunks that changed since they were last uploaded (as many as fit in this frame's budget).</summary>
     public void Flush(bool all = false)
     {
         if (_distTask is { IsCompleted: true })
             FinishDistances();
-        bool distReady = _distTask is null && _distBytes is not null; // (not while the background work writes them)
+        // Border distances upload even while the background work is writing them: it writes
+        // each tile's four bytes at once, so a chunk sent meanwhile has every tile either from
+        // before or after, and the chunk is sent again once that work is done.
+        bool hasDist = _distBytes is not null;
         int uploads = 0, start = _nextFlush;
-        for (int k = 0; k < _layers && (all || uploads < MaxUploadsPerFlush); k++)
+        long started = System.Diagnostics.Stopwatch.GetTimestamp();
+        long budget = (long)(UploadBudgetMs * System.Diagnostics.Stopwatch.Frequency / 1000);
+        for (int k = 0; k < _layers; k++)
         {
+            if (!all && uploads >= MinUploadsPerFlush && System.Diagnostics.Stopwatch.GetTimestamp() - started > budget)
+                break;
             int l = (start + k) % _layers;
-            if (!_dirty[l] && !(distReady && _distLayerDirty[l]))
+            if (!_dirty[l] && !(hasDist && _distLayerDirty[l]))
                 continue;
             uploads++;
             _nextFlush = (l + 1) % _layers;
@@ -277,7 +319,7 @@ public sealed class TerritoryTextures
                 TimeArray.UpdateLayer(_timeImages[l], l);
                 HatchArray.UpdateLayer(_hatchImages[l], l);
             }
-            if (distReady && _distLayerDirty[l])
+            if (hasDist && _distLayerDirty[l])
             {
                 _distLayerDirty[l] = false;
                 _distImages![l].SetData(ChunkSize, ChunkSize, false, Image.Format.Rgba8, _distBytes![l]);
@@ -314,6 +356,12 @@ public sealed class TerritoryTextures
     }
 
     private void WriteHatch(int tile, bool hatched) => SetHatchBit(tile, HatchedBit, hatched);
+
+    private bool HatchBits(int tile, byte bit)
+    {
+        int x = tile % _map.Width, y = tile / _map.Width;
+        return (_hatchBytes[(y / ChunkSize) * _chunksX + x / ChunkSize][(y % ChunkSize) * ChunkSize + x % ChunkSize] & bit) != 0;
+    }
 
     private void SetHatchBit(int tile, byte bit, bool on)
     {
@@ -394,7 +442,9 @@ public sealed class TerritoryTextures
         foreach (int b in _distTaskBlocks)
         {
             _distDirtyBlock[b] = false;
-            MarkLayersDirty(b);
+            if (_distBlockChanged[b])
+                MarkLayersDirty(b);
+            _distBlockChanged[b] = false;
         }
         _distTaskBlocks = Array.Empty<int>();
     }
@@ -407,6 +457,7 @@ public sealed class TerritoryTextures
             MarkLayersDirty(b);
         _distDirtyList.Clear();
         Array.Fill(_distDirtyBlock, false);
+        Array.Fill(_distBlockChanged, false);
     }
 
     private void MarkLayersDirty(int block)
@@ -429,13 +480,33 @@ public sealed class TerritoryTextures
         return MemoryMarshal.Cast<byte, float>(_timeBytes[(y / ChunkSize) * _chunksX + x / ChunkSize])[(y % ChunkSize) * ChunkSize + x % ChunkSize];
     }
 
-    /// <summary>How far a tile has faded to its new owner at this moment (0..1), as map.gdshader's owner_at works it out.</summary>
-    private float FadeIn(int tile, float now)
+    private void Capture(int tile, out float time, out float fade)
     {
         int x = tile % _map.Width, y = tile / _map.Width;
         int layer = (y / ChunkSize) * _chunksX + x / ChunkSize, local = (y % ChunkSize) * ChunkSize + x % ChunkSize;
-        float fade = _ownerBytes[layer][local * 4 + 3] / FadeUnits;
-        return Math.Clamp((now - MemoryMarshal.Cast<byte, float>(_timeBytes[layer])[local]) / fade, 0, 1);
+        fade = _ownerBytes[layer][local * 4 + 3] / FadeUnits;
+        time = MemoryMarshal.Cast<byte, float>(_timeBytes[layer])[local];
+    }
+
+    // A front's tiles taken in one tick are spread over it (tick + k/n) and each fades over
+    // the front's pace, so the line between the two owners (where a tile is half faded)
+    // reaches a tile taken at c half a fade later, having set off from the front's old line
+    // half a fade after the tick began. These two match map.gdshader's functions of the same names.
+
+    /// <summary>How far the front taking this tile has come from where it stood at its tick's start (0) to the tile (1).</summary>
+    private float FrontProgress(int tile, float now)
+    {
+        Capture(tile, out float c, out float fade);
+        float tick = MathF.Ceiling(c) - 1;
+        return Math.Clamp((now - tick - 0.5f * fade) / Math.Max(c - tick, 1e-3f), 0, 1);
+    }
+
+    /// <summary>How far that front has gone on from this tile (0) to where it ends its tick (1).</summary>
+    private float FrontPassed(int tile, float now)
+    {
+        Capture(tile, out float c, out float fade);
+        float tick = MathF.Ceiling(c) - 1;
+        return Math.Clamp((now - c - 0.5f * fade) / Math.Max(tick + 1 - c, 1e-3f), 0, 1);
     }
 
     /// <summary>
@@ -444,8 +515,9 @@ public sealed class TerritoryTextures
     /// each tile carries the offset to its nearest foreign tile and passes it on only to
     /// tiles of the same owner (so distances go through a territory's own land). With a
     /// moment <paramref name="now"/> (not NaN), a tile whose distance changed blends to it from
-    /// what's shown now, along with the fade of the tile just taken (in tick
-    /// <paramref name="tick"/> or later) by its nearest foreign tile.
+    /// what's shown now, as the front of the tile just taken (in tick <paramref name="tick"/>
+    /// or later) by its nearest foreign tile moves; a tile taken in this tick keeps its previous
+    /// owner's distance (R, offset 0), which the shader shrinks as the front comes for it.
     /// </summary>
     private void RecomputeDistances(int bx, int by, float now, int tick)
     {
@@ -528,14 +600,18 @@ public sealed class TerritoryTextures
                 Pull(x, y, Left);
         }
 
-        // Write back the block itself.
-        bool animate = !float.IsNaN(now);
+        // Write back the block itself, each tile's four bytes at once (its chunk may be
+        // uploading meanwhile, see Flush), noting whether anything changed.
+        bool animate = !float.IsNaN(now), changed = false;
         for (int y = by; y < Math.Min(by + DistBlock, h); y++)
             for (int x = bx; x < Math.Min(bx + DistBlock, w); x++)
             {
                 int i = (y - y0) * rw + x - x0, tile = y * w + x;
-                var bytes = _distBytes![(y / ChunkSize) * _chunksX + x / ChunkSize];
-                int at = ((y % ChunkSize) * ChunkSize + x % ChunkSize) * 4;
+                var words = MemoryMarshal.Cast<byte, uint>(_distBytes![(y / ChunkSize) * _chunksX + x / ChunkSize]);
+                int local = (y % ChunkSize) * ChunkSize + x % ChunkSize;
+                uint old = words[local];
+                // (R, G, B, A as in the texture: little-endian, R lowest)
+                byte oldFrom = (byte)old, oldTo = (byte)(old >> 8), oldOx = (byte)(old >> 16), oldOy = (byte)(old >> 24);
                 byte to = 255;
                 if (vx[i] != None)
                 {
@@ -544,12 +620,25 @@ public sealed class TerritoryTextures
                 }
                 byte from = to;
                 int ox = 0, oy = 0;
-                // A tile taken in this tick blends in by its own fade (in the shader), so only
-                // tiles that kept their owner need a blend of their own.
-                if (animate && Measured(id[i]) && vx[i] != None && CaptureTime(tile) < tick)
+                // What the old values show (for the owner they were worked out for): a blend
+                // along another tile's front, or (offset 0) the distance from when the tile was
+                // taken, which starts at the front's line and grows as the front moves on.
+                bool oldOwn = oldOx == 128 && oldOy == 128;
+                int oldCause = Math.Clamp(y + oldOy - 128, 0, h - 1) * w + Math.Clamp(x + oldOx - 128, 0, w - 1);
+                byte Blended(float time) => (byte)MathF.Round(oldFrom + (oldTo - oldFrom) * FrontProgress(oldCause, time));
+                if (animate && CaptureTime(tile) >= tick)
                 {
-                    int oldCause = Math.Clamp(y + bytes[at + 3] - 128, 0, h - 1) * w + Math.Clamp(x + bytes[at + 2] - 128, 0, w - 1);
-                    byte Shown(float time) => (byte)MathF.Round(bytes[at] + (bytes[at + 1] - bytes[at]) * FadeIn(oldCause, time));
+                    // Taken in this tick: R keeps what its previous owner shows here as this
+                    // tick's fronts set off (the shader brings it to the edge as the front
+                    // nears), so land swept up deep behind the line isn't all drawn as border.
+                    Capture(tile, out _, out float fade);
+                    from = oldOwn ? oldTo : Blended(Math.Max(tick + 0.5f * fade, now));
+                }
+                else if (animate && Measured(id[i]) && vx[i] != None)
+                {
+                    byte Shown(float time) => oldOwn
+                        ? (byte)MathF.Round(0.5f * DistUnits + (oldTo - 0.5f * DistUnits) * FrontPassed(tile, time))
+                        : Blended(time);
                     // What moves it: the tile taken last at (or next to) the nearest foreign tile.
                     int fx = x + vx[i], fy = y + vy[i], cause = -1;
                     float latest = float.MinValue;
@@ -557,8 +646,8 @@ public sealed class TerritoryTextures
                         for (int dx = -1; dx <= 1; dx++)
                         {
                             int nx = fx + dx, ny = fy + dy;
-                            if (nx < 0 || ny < 0 || nx >= w || ny >= h)
-                                continue;
+                            if (nx < 0 || ny < 0 || nx >= w || ny >= h || ny * w + nx == tile)
+                                continue; // (never the tile itself: offset 0 means the above)
                             float taken = CaptureTime(ny * w + nx);
                             if (taken > latest)
                             {
@@ -566,14 +655,15 @@ public sealed class TerritoryTextures
                                 cause = ny * w + nx;
                             }
                         }
-                    if (cause >= 0 && FadeIn(cause, now) < 1)
+                    if (cause >= 0 && FrontProgress(cause, now) < 1)
                     {
-                        // The new blend starts from where the one shown now will be when it
-                        // starts (the cause's capture), not from where it is now: territory is
-                        // drawn a tick behind, so "now" is still the start of the last blend,
-                        // and a front taking land every tick would keep restarting it there,
-                        // leaving its old border behind as a ghost.
-                        byte start = Shown(Math.Max(CaptureTime(cause), now));
+                        // The new blend starts from where the one shown now will be when its
+                        // front sets off, not from where it is now: territory is drawn a tick
+                        // behind, so "now" is still the start of the last blend, and a front
+                        // taking land every tick would keep restarting it there, leaving its old
+                        // border behind as a ghost.
+                        Capture(cause, out float c, out float fade);
+                        byte start = Shown(Math.Max(MathF.Ceiling(c) - 1 + 0.5f * fade, now));
                         if (start != to)
                         {
                             from = start;
@@ -582,10 +672,14 @@ public sealed class TerritoryTextures
                         }
                     }
                 }
-                bytes[at] = from;
-                bytes[at + 1] = to;
-                bytes[at + 2] = (byte)(ox + 128);
-                bytes[at + 3] = (byte)(oy + 128);
+                uint word = from | (uint)to << 8 | (uint)(byte)(ox + 128) << 16 | (uint)(byte)(oy + 128) << 24;
+                if (word != old)
+                {
+                    words[local] = word;
+                    changed = true;
+                }
             }
+        if (changed)
+            _distBlockChanged[by / DistBlock * _distBlocksX + bx / DistBlock] = true;
     }
 }
