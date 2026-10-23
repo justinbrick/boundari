@@ -15,7 +15,7 @@ namespace Boundari.View;
 ///   GRD coordinate grid    off / on (OpenFront's lettered grid, see CoordinateGrid.cs)
 ///   TOP topography         contour lines: off / every 100 / 250 / 500 m
 ///   LBL labels             on / off: territory names, flags and troop counts
-///   NOL name outlines      COL (a light version of the territory's colour) / WHT (white)
+///   TOL text outline       width of the outline round territory names and troop counts: 0 .. 3x the mockup's
 ///   PLY players            on / off: hide every territory, label, building and ship to see the bare map (also T)
 /// Below the strip, an "Ally request" button (or Y): a random territory on screen asks you to ally.
 /// </summary>
@@ -26,7 +26,7 @@ public partial class DevTools : CanvasLayer
     private const string ConfigPath = "user://devtools.cfg";
     // Saved under this section name; changing it drops everyone's old choices (done when
     // the options or their defaults changed).
-    private const string ConfigSection = "dev2";
+    private const string ConfigSection = "dev3";
 
     private MapView? _view;
     private readonly List<Setting> _settings;
@@ -44,8 +44,8 @@ public partial class DevTools : CanvasLayer
     /// <summary>Shows or hides the territory names, flags and troop counts.</summary>
     public Action<bool>? ShowLabels { get; set; }
 
-    /// <summary>Name and troop outlines: true = the territory's colour (lightened), false = white.</summary>
-    public Action<bool>? ColourNameOutlines { get; set; }
+    /// <summary>Width of the outline round territory names and troop counts, as a multiple of the mockup's (1).</summary>
+    public Action<float>? TextOutlineWidth { get; set; }
 
     /// <summary>Shows or hides the coordinate grid.</summary>
     public Action<bool>? ShowGrid { get; set; }
@@ -78,7 +78,8 @@ public partial class DevTools : CanvasLayer
             new("COL", "Territory colours (military / vibrant: OpenFront's)", new[] { "MIL", "VIB" }, 0,
                 i => SetColorTheme?.Invoke((ColorTheme)i)),
             new("LBL", "Territory names, flags and troops", new[] { "ON", "OFF" }, 0, i => ShowLabels?.Invoke(i == 0)),
-            new("NOL", "Name outlines (territory colour / white)", new[] { "COL", "WHT" }, 0, i => ColourNameOutlines?.Invoke(i == 0)),
+            new("TOL", "Name and troop outline width (x the mockup's)", new[] { "0", ".5", ".75", "1", "1.5", "2", "3" }, 3,
+                i => TextOutlineWidth?.Invoke(new[] { 0f, 0.5f, 0.75f, 1f, 1.5f, 2f, 3f }[i])),
             new("PLY", "Players, tribes and nations (F7 toggles)", new[] { "ON", "OFF" }, 0, i => ShowPlayers?.Invoke(i == 0)),
         };
         _values = new int[_settings.Count];

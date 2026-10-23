@@ -157,9 +157,9 @@ public partial class MapOverlay
         var dir = along / length;
         var side = new Vector2(-dir.Y, dir.X);
         float px = 1 / zoom * widthScale;
-        float shaft = Mathf.Lerp(20, 5, thin) * px;          // half-widths
-        float head = Mathf.Lerp(40, 14, thin) * px;
-        float headLength = Math.Min(Mathf.Lerp(34, 26, thin) * px, length * 0.6f);
+        float shaft = Mathf.Lerp(30, 5, thin) * px;          // half-widths: fat while short (just started), slim when long
+        float head = Mathf.Lerp(56, 14, thin) * px;
+        float headLength = Math.Min(Mathf.Lerp(40, 26, thin) * px, length * 0.6f);
         var neck = to - dir * headLength;
         var points = new[]
         {

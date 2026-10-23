@@ -188,7 +188,7 @@ public partial class World : Node2D
                 _labels.Visible = show && _showPlayers;
             },
             ShowGrid = show => _grid.Visible = show,
-            ColourNameOutlines = coloured => _labels.ColouredOutlines = coloured,
+            TextOutlineWidth = width => _labels.OutlineScale = width,
             SetColorTheme = theme =>
             {
                 _colorTheme = theme;
@@ -983,7 +983,7 @@ public partial class World : Node2D
     {
         SyncSim();
         _game = new Game(_map, RandomSeed(), difficulty: _args.Difficulty ?? Difficulty) { HatchedLand = !_args.Classic, DirectedAttacks = !_args.Classic, FogOfWar = !_args.Classic, KeepCutOffLand = !_args.Classic };
-        _me = _game.AddPlayer("You");
+        _me = _game.AddPlayer("Player", flag: "us");
         _game.EventsFor = _me.Id; // notifications
         if (_args.Bench is null || _args.Autoplay)
             _game.StartsWhenSpawned = _me.Id; // no countdown: the match starts when you pick your start
