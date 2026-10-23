@@ -43,12 +43,14 @@ namespace Boundari;
 ///   --zoom=Z           start zoomed in (1 = whole map)
 ///   --focus=X,Y        centre the camera on this point, as 0..1 fractions of the map
 ///   --screenshot=PATH  save a screenshot after loading, then quit
+///   --no-hud           hide everything drawn over the map (HUD, dev toolbar, FPS, status line);
+///                      names, icons, structures and the rest of the map stay (for screenshots)
 ///   --perf             print the frame rate every 2 seconds
 ///   --dev=PSC=2,SMO=1  (testing) set dev-tool options by index for this run (not saved)
 ///   --bench=SECONDS    run flat out (no vsync), print where frame time goes every 2 s, then quit
 ///   --showcase         (testing) after --autoplay: build one of everything and launch a boat;
 ///                      --showcase=nukes[:N] also fires a MOAB, Fat Man and Tsar Bomba, then runs N ticks
-///                      --showcase=boat frames where your boat is headed
+///                      --showcase=boat frames where your boat is headed, --showcase=defense your defense post
 ///   --tags             (testing) every name shows every icon above it (alliance one part drained)
 ///   --hover=X,Y        pretend the mouse is over this map point (0..1 fractions), for screenshots;
 ///                      --hover=leader hovers the biggest player
@@ -1258,6 +1260,8 @@ public partial class World : Node2D
             await RightClickRequester();
         while (_fastForwarding) // --start=mid: wait for the fast-forward
             await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+        if (_args.NoHud)
+            HideHud();
         // A few frames, and enough time for background work (label placement) to land.
         var started = Time.GetTicksMsec();
         for (int i = 0; i < 4 || Time.GetTicksMsec() - started < 600; i++)
@@ -1267,10 +1271,18 @@ public partial class World : Node2D
         GetTree().Quit();
     }
 
+    /// <summary>--no-hud: hides every screen layer (the HUD, dev toolbar, FPS, start prompt...), leaving the map and what's drawn on it.</summary>
+    private void HideHud()
+    {
+        foreach (var node in FindChildren("*", "", true, false))
+            if (node is CanvasLayer layer)
+                layer.Visible = false;
+    }
+
     private record struct Args(string? Map, ulong? Seed, int? Bots, int? Nations, Difficulty? Difficulty, bool NoCheats, double? Bench, string? Dev, bool Autoplay, int Ticks,
         float Zoom, Vector2? Focus, string? Screenshot, bool Perf, Vector2? Hover, bool HoverLeader, bool Showcase, string? ShowcaseFocus,
         string? Start = null, int AllyRequests = 0, string? RightClick = null, string? Aim = null, bool Incoming = false, bool Tags = false, bool Notifs = false,
-        bool Splash = false, string? Alert = null, bool Classic = false, string? Arrow = null, float ArrowPixels = 250);
+        bool Splash = false, string? Alert = null, bool Classic = false, string? Arrow = null, float ArrowPixels = 250, bool NoHud = false);
 
     private static Args ParseArgs()
     {
@@ -1302,6 +1314,7 @@ public partial class World : Node2D
                     args.Focus = new Vector2(float.Parse(xy[0], inv), float.Parse(xy[1], inv));
                     break;
                 case "screenshot": args.Screenshot = value; break;
+                case "no-hud": args.NoHud = true; break;
                 case "perf": args.Perf = true; break;
                 case "start": args.Start = value; break;             // now / mid / ask
                 case "ally-requests": args.AllyRequests = int.Parse(value, inv); break;
