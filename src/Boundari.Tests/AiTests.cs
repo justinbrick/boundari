@@ -47,7 +47,7 @@ public class AiTests
     public void AiBoat_BoardsWhileItsRouteIsPlanned_ThenSails()
     {
         var map = SmallMap();
-        var game = new Game(map, 1, spawnPhaseTicks: 2) { BoatsAllowed = true };
+        var game = new Game(map, 1, spawnPhaseTicks: 2) { WarshipsAllowed = true };
         var nation = game.AddPlayer("N", PlayerKind.Nation); // no AI attached: we give the orders
         int biggest = Enumerable.Range(0, map.LandmassSizes.Length).OrderByDescending(i => map.LandmassSizes[i]).First();
         int coast = Enumerable.Range(0, map.TileCount).First(t => map.LandmassId[t] == biggest && game.IsCoastal(t));

@@ -240,7 +240,7 @@ public sealed class BuildBar
         if ((_sinceCounts += delta) < CountRefreshSeconds)
             return;
         _sinceCounts = 0;
-        if (!game.BoatsAllowed && GodotObject.IsInstanceValid(_warshipSlot) && _warshipSlot!.Visible)
+        if (!game.WarshipsAllowed && GodotObject.IsInstanceValid(_warshipSlot) && _warshipSlot!.Visible)
             _warshipSlot.Visible = false;
         foreach (var (type, label) in _counts)
         {

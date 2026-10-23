@@ -8,7 +8,7 @@ public class BoatAndBuildingTests
     private static (Game Game, Player Me, GameMap Map) StartOnCoast(ulong seed = 21)
     {
         var map = MapGenerator.Generate(seed, new MapGenSettings { Width = 400, Height = 250, MinIslandTiles = 8, MinLakeTiles = 30 });
-        var game = new Game(map, 1, spawnPhaseTicks: 2) { BoatsAllowed = true };
+        var game = new Game(map, 1, spawnPhaseTicks: 2) { WarshipsAllowed = true };
         var me = game.AddPlayer("Me");
         int biggest = Enumerable.Range(0, map.LandmassSizes.Length).OrderByDescending(i => map.LandmassSizes[i]).First();
         int coast = Enumerable.Range(0, map.TileCount).First(t => map.LandmassId[t] == biggest && game.IsCoastal(t));
@@ -44,10 +44,13 @@ public class BoatAndBuildingTests
     }
 
     [Fact]
-    public void BoatsAndWarships_AreOffByDefault()
+    public void BoatsAreOnAndWarshipsOffByDefault_AndBoatsCanBeSwitchedOff()
     {
         var (game, me, map) = StartOnCoast();
-        game.BoatsAllowed = false; // the dots game's default
+        Assert.True(new Game(map, 1).BoatsAllowed);
+        Assert.False(new Game(map, 1).WarshipsAllowed);
+        Assert.DoesNotContain(Enumerable.Range(0, map.TileCount), t => map.IsWater(t) && game.CanBuild(me, BuildingType.Warship, t));
+        game.BoatsAllowed = false;
         int home = map.LandmassId[game.Owner.ToList().IndexOf(me.Id)];
         int target = Enumerable.Range(0, map.TileCount)
             .First(t => map.IsLand(t) && map.LandmassId[t] != home && map.LandmassSizes[map.LandmassId[t]] > 300);
@@ -57,8 +60,6 @@ public class BoatAndBuildingTests
         Assert.Empty(game.Boats);
         Assert.True(me.Troops >= before, "no troops should have boarded");
         Assert.False(game.CanSendBoat(me));
-        Assert.DoesNotContain(Enumerable.Range(0, map.TileCount), t => map.IsWater(t) && game.CanBuild(me, BuildingType.Warship, t));
-        Assert.False(new Game(map, 1).BoatsAllowed);
     }
 
     [Fact]
@@ -86,7 +87,7 @@ public class BoatAndBuildingTests
     public void Boat_LandsOnTheClickedPlayersOwnCoast_OrNotAtAll()
     {
         var map = MapGenerator.Generate(21, new MapGenSettings { Width = 400, Height = 250, MinIslandTiles = 8, MinLakeTiles = 30 });
-        var game = new Game(map, 1, spawnPhaseTicks: 3) { BoatsAllowed = true };
+        var game = new Game(map, 1, spawnPhaseTicks: 3) { WarshipsAllowed = true };
         var me = game.AddPlayer("Me");
         var inland = game.AddPlayer("Inland");
         var coastal = game.AddPlayer("Coastal");
@@ -194,7 +195,7 @@ public class CombatTests
         // A holds the west half of the continent and B the east; A also keeps a small pocket
         // deep inside B's half. B walls the pocket in, so it's handed to B (OpenFront's clusters).
         var map = MapGenerator.Generate(21, new MapGenSettings { Width = 400, Height = 250, MinIslandTiles = 8, MinLakeTiles = 30 });
-        var game = new Game(map, 1, spawnPhaseTicks: 2) { BoatsAllowed = true };
+        var game = new Game(map, 1, spawnPhaseTicks: 2) { WarshipsAllowed = true };
         var a = game.AddPlayer("A");
         var b = game.AddPlayer("B");
         int biggest = Enumerable.Range(0, map.LandmassSizes.Length).OrderByDescending(i => map.LandmassSizes[i]).First();
@@ -227,7 +228,7 @@ public class CombatTests
         // As above, but the pocket is bigger than ClusterRules.MaxHandOverTiles: Boundari
         // leaves it with A (to be conquered the usual way); classic OpenFront hands it to B.
         var map = MapGenerator.Generate(21, new MapGenSettings { Width = 400, Height = 250, MinIslandTiles = 8, MinLakeTiles = 30 });
-        var game = new Game(map, 1, spawnPhaseTicks: 2) { KeepCutOffLand = keepCutOffLand, BoatsAllowed = true };
+        var game = new Game(map, 1, spawnPhaseTicks: 2) { KeepCutOffLand = keepCutOffLand, WarshipsAllowed = true };
         var a = game.AddPlayer("A");
         var b = game.AddPlayer("B");
         int biggest = Enumerable.Range(0, map.LandmassSizes.Length).OrderByDescending(i => map.LandmassSizes[i]).First();
@@ -259,7 +260,7 @@ public class CombatTests
     {
         // B's whole land is a disc inside A's, with no coast: OpenFront hands all of it to A.
         var map = MapGenerator.Generate(21, new MapGenSettings { Width = 400, Height = 250, MinIslandTiles = 8, MinLakeTiles = 30 });
-        var game = new Game(map, 1, spawnPhaseTicks: 2) { BoatsAllowed = true };
+        var game = new Game(map, 1, spawnPhaseTicks: 2) { WarshipsAllowed = true };
         var a = game.AddPlayer("A");
         var b = game.AddPlayer("B");
         int biggest = Enumerable.Range(0, map.LandmassSizes.Length).OrderByDescending(i => map.LandmassSizes[i]).First();
@@ -286,7 +287,7 @@ public class CombatTests
     public void OpposingAttacks_CancelOut()
     {
         var map = MapGenerator.Generate(21, new MapGenSettings { Width = 400, Height = 250, MinIslandTiles = 8, MinLakeTiles = 30 });
-        var game = new Game(map, 1, spawnPhaseTicks: 2) { BoatsAllowed = true };
+        var game = new Game(map, 1, spawnPhaseTicks: 2) { WarshipsAllowed = true };
         var a = game.AddPlayer("A");
         var b = game.AddPlayer("B");
         int biggest = Enumerable.Range(0, map.LandmassSizes.Length).OrderByDescending(i => map.LandmassSizes[i]).First();
@@ -318,7 +319,7 @@ public class CombatTests
     public void RivalWarships_FightEachOther()
     {
         var map = MapGenerator.Generate(21, new MapGenSettings { Width = 400, Height = 250, MinIslandTiles = 8, MinLakeTiles = 30 });
-        var game = new Game(map, 1, spawnPhaseTicks: 2) { BoatsAllowed = true };
+        var game = new Game(map, 1, spawnPhaseTicks: 2) { WarshipsAllowed = true };
         var a = game.AddPlayer("A");
         var b = game.AddPlayer("B");
         int biggest = Enumerable.Range(0, map.LandmassSizes.Length).OrderByDescending(i => map.LandmassSizes[i]).First();

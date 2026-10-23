@@ -131,12 +131,37 @@ public static class LandCoverBuilder
 
     private static byte[] LoadWorldCover(MapSpec spec, MapGeo geo, int width, int height, string root)
     {
+        if (spec.CoverFrom is { } parentId)
+            return CutFrom(Program.Spec(parentId), geo, width, height, root);
         string path = Path.Combine(root, "tools", "data", "worldcover", $"{spec.Id}_{width}x{height}.bin");
         if (!File.Exists(path))
             RunFetchScript(geo, width, height, path, root);
         byte[] raw = File.ReadAllBytes(path);
         if (raw.Length != width * height)
             throw new InvalidDataException($"{path} has the wrong size; delete it to fetch again.");
+        return raw;
+    }
+
+    /// <summary>This map's land-cover grid, taken (nearest cell) from a bigger map's cached grid that contains it.</summary>
+    private static byte[] CutFrom(MapSpec parent, MapGeo geo, int width, int height, string root)
+    {
+        var parentGeo = new MapGeo(parent.LonMin, parent.LonMax, parent.LatMin, parent.LatMax, parent.StandardParallel);
+        int pw = parent.Width * parent.LandCoverScale, ph = parentGeo.HeightFor(parent.Width) * parent.LandCoverScale;
+        string path = Path.Combine(root, "tools", "data", "worldcover", $"{parent.Id}_{pw}x{ph}.bin");
+        if (!File.Exists(path))
+            throw new FileNotFoundException($"Build the {parent.Id} map first (its land cover is cut out of that).", path);
+        byte[] src = File.ReadAllBytes(path);
+        var raw = new byte[width * height];
+        for (int y = 0; y < height; y++)
+        {
+            int py = Math.Clamp((int)parentGeo.TileY(geo.LatAt(y + 0.5, height), ph), 0, ph - 1);
+            for (int x = 0; x < width; x++)
+            {
+                int px = Math.Clamp((int)parentGeo.TileX(geo.LonAt(x + 0.5, width), pw), 0, pw - 1);
+                raw[y * width + x] = src[py * pw + px];
+            }
+        }
+        Console.WriteLine($"  land cover cut out of {Path.GetFileName(path)}");
         return raw;
     }
 

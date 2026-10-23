@@ -24,7 +24,8 @@ public sealed record MapSpec(
     double RiverWidth,    // width in tiles of the biggest rivers; smaller ones are narrower
     bool CarveLakes = true,     // land-cover lakes become real (unclaimable) water
     string? OsmWater = null,    // OpenStreetMap rivers/lakes in tools/data, drawn as claimable water
-    double RiverMetres = 0);    // drawn width of those rivers
+    double RiverMetres = 0,     // drawn width of those rivers
+    string? CoverFrom = null);  // take the land cover from this (bigger) map's cached grid instead of fetching it
 
 public static class Program
 {
@@ -39,6 +40,11 @@ public static class Program
         // real-world sizes: 45 / 68 tiles and 3.9 wide at 3000.
         new("europe", "Europe", -25, 45, 33, 72, 50, 4000, "10m", 6, MinIslandTiles: 80, MinLakeTiles: 121, LandCoverScale: 2,
             RiverMaxRank: 7, RiverWidth: 5.2),
+        // Western and central Europe, the dots game's main map: Ireland to the edge of Ukraine,
+        // southern Scandinavia to the North African coast. Europe's detail (~1.7 km per tile,
+        // same tile shape), its land cover cut out of Europe's cached grid (no download).
+        new("westeurope", "Western Europe", -11, 34, 35, 62, 50, 2571, "10m", 6, MinIslandTiles: 80, MinLakeTiles: 121, LandCoverScale: 2,
+            RiverMaxRank: 7, RiverWidth: 5.2, CoverFrom: "europe"),
         // The Ardennes around Bastogne and Houffalize, ~36 km square, 30 m per tile. The
         // Ourthe, Sure, Wiltz and Clerve come from OpenStreetMap and are only drawn: they can
         // be crossed and claimed like land. No sea or lakes. Land cover at WorldCover's full
@@ -57,6 +63,8 @@ public static class Program
     // Rivers narrower than this (in tiles) could break into separate puddles on the tile
     // grid, which boats couldn't use. 1.6 keeps even diagonal stretches connected.
     private const double MinRiverWidth = 1.6;
+
+    internal static MapSpec Spec(string id) => Specs.First(s => s.Id == id);
 
     public static int Main(string[] args)
     {

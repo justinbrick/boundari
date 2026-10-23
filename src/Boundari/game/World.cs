@@ -58,7 +58,7 @@ namespace Boundari;
 public partial class World : Node2D
 {
     /// <summary>Map to load at start (res://maps/ID.bmap). Empty means a random map.</summary>
-    [Export] public string StartMap { get; set; } = "ardennes";
+    [Export] public string StartMap { get; set; } = "westeurope";
     [Export] public ulong Seed { get; set; }
     [Export] public int MapWidth { get; set; } = 2000;
     [Export] public int MapHeight { get; set; } = 1250;
@@ -72,12 +72,12 @@ public partial class World : Node2D
 
     private const float ClickMaxDrag = 6; // pixels; more than this is a camera drag, not a click
 
-    private static readonly string[] BuiltInMaps = { "europe", "world", "ardennes" };
+    private static readonly string[] BuiltInMaps = { "westeurope", "europe", "world", "ardennes" };
 
     // Small maps get fewer players than the Nations / Bots defaults (until spawning is redone for dots).
     private static (int Nations, int Bots)? SmallMapPlayers(string mapId) => mapId switch
     {
-        "ardennes" => (6, 12),
+        "ardennes" or "westeurope" => (6, 12),
         _ => null,
     };
 
@@ -994,7 +994,7 @@ public partial class World : Node2D
     {
         SyncSim();
         _game = new Game(_map, RandomSeed(), difficulty: _args.Difficulty ?? Difficulty) {
-            HatchedLand = _args.OldSystems, DirectedAttacks = _args.OldSystems, FogOfWar = _args.OldSystems, BoatsAllowed = _args.OldSystems,
+            HatchedLand = _args.OldSystems, DirectedAttacks = _args.OldSystems, FogOfWar = _args.OldSystems, WarshipsAllowed = _args.OldSystems,
             KeepCutOffLand = !_args.Classic,
         };
         _me = _game.AddPlayer("You");
