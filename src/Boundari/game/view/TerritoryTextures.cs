@@ -548,29 +548,35 @@ public sealed class TerritoryTextures
                 // tiles that kept their owner need a blend of their own.
                 if (animate && Measured(id[i]) && vx[i] != None && CaptureTime(tile) < tick)
                 {
-                    int oldX = Math.Clamp(x + bytes[at + 2] - 128, 0, w - 1), oldY = Math.Clamp(y + bytes[at + 3] - 128, 0, h - 1);
-                    byte shown = (byte)MathF.Round(bytes[at] + (bytes[at + 1] - bytes[at]) * FadeIn(oldY * w + oldX, now));
-                    if (shown != to)
-                    {
-                        // What moved it: the tile taken last at (or next to) the nearest foreign tile.
-                        int fx = x + vx[i], fy = y + vy[i], cause = -1;
-                        float latest = float.MinValue;
-                        for (int dy = -1; dy <= 1; dy++)
-                            for (int dx = -1; dx <= 1; dx++)
-                            {
-                                int nx = fx + dx, ny = fy + dy;
-                                if (nx < 0 || ny < 0 || nx >= w || ny >= h)
-                                    continue;
-                                float taken = CaptureTime(ny * w + nx);
-                                if (taken > latest)
-                                {
-                                    latest = taken;
-                                    cause = ny * w + nx;
-                                }
-                            }
-                        if (cause >= 0 && FadeIn(cause, now) < 1)
+                    int oldCause = Math.Clamp(y + bytes[at + 3] - 128, 0, h - 1) * w + Math.Clamp(x + bytes[at + 2] - 128, 0, w - 1);
+                    byte Shown(float time) => (byte)MathF.Round(bytes[at] + (bytes[at + 1] - bytes[at]) * FadeIn(oldCause, time));
+                    // What moves it: the tile taken last at (or next to) the nearest foreign tile.
+                    int fx = x + vx[i], fy = y + vy[i], cause = -1;
+                    float latest = float.MinValue;
+                    for (int dy = -1; dy <= 1; dy++)
+                        for (int dx = -1; dx <= 1; dx++)
                         {
-                            from = shown;
+                            int nx = fx + dx, ny = fy + dy;
+                            if (nx < 0 || ny < 0 || nx >= w || ny >= h)
+                                continue;
+                            float taken = CaptureTime(ny * w + nx);
+                            if (taken > latest)
+                            {
+                                latest = taken;
+                                cause = ny * w + nx;
+                            }
+                        }
+                    if (cause >= 0 && FadeIn(cause, now) < 1)
+                    {
+                        // The new blend starts from where the one shown now will be when it
+                        // starts (the cause's capture), not from where it is now: territory is
+                        // drawn a tick behind, so "now" is still the start of the last blend,
+                        // and a front taking land every tick would keep restarting it there,
+                        // leaving its old border behind as a ghost.
+                        byte start = Shown(Math.Max(CaptureTime(cause), now));
+                        if (start != to)
+                        {
+                            from = start;
                             ox = cause % w - x;
                             oy = cause / w - y;
                         }
