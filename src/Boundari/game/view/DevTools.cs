@@ -12,7 +12,7 @@ namespace Boundari.View;
 ///   PMR patch morphing     1 (tight) .. 6: how far land-cover patches blend together
 ///   PSH patch shape        0 (square cells) / 60 (slightly rounded) / 100 (smooth)
 ///   OPA territory opacity  0 .. 100% in steps of 5
-///   BRD border thickness   0 / .1 / .15 / .2 / .25 / .3 / .4 / .5 / .6 / .7 / .8 / .9
+///   BRD border thickness   0 / .15 / .3 / .5 / .8 / .85 / .9 / .95 (about 2 tiles, the most the border smoothing can measure)
 ///   GRD coordinate grid    off / on (OpenFront's lettered grid, see CoordinateGrid.cs)
 ///   TOP topography         contour lines: off / every 100 / 250 / 500 m
 ///   LBL labels             on / off: territory names, flags and troop counts
@@ -26,7 +26,7 @@ public partial class DevTools : CanvasLayer
     private const string ConfigPath = "user://devtools.cfg";
     // Saved under this section name; changing it drops everyone's old choices (done when
     // the options or their defaults changed).
-    private const string ConfigSection = "dev4";
+    private const string ConfigSection = "dev5";
 
     private MapView? _view;
     private readonly List<Setting> _settings;
@@ -67,7 +67,7 @@ public partial class DevTools : CanvasLayer
             new("PSH", "Patch shape (corner rounding)", new[] { "0", "60", "100" }, 2,
                 i => V.PatchShape = new[] { 0f, 0.6f, 1f }[i]),
             new("OPA", "Territory opacity", OpacitySteps(), 11, i => V.TerritoryOpacity = i * 0.05f),
-            new("BRD", "Territory border thickness", BorderSteps.Select(b => b == 0 ? "0" : b.ToString(".0#", System.Globalization.CultureInfo.InvariantCulture)).ToArray(), 7,
+            new("BRD", "Territory border thickness", BorderSteps.Select(b => b == 0 ? "0" : b.ToString(".0#", System.Globalization.CultureInfo.InvariantCulture)).ToArray(), 3,
                 i => V.BorderWidth = BorderSteps[i]),
             new("GRD", "Coordinate grid", new[] { "OFF", "ON" }, 0, i => ShowGrid?.Invoke(i == 1)),
             new("TOP", "Topography (contour lines, metres)", new[] { "OFF", "100", "250", "500" }, 0,
@@ -83,7 +83,7 @@ public partial class DevTools : CanvasLayer
         Load();
     }
 
-    private static readonly float[] BorderSteps = { 0f, 0.1f, 0.15f, 0.2f, 0.25f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f };
+    private static readonly float[] BorderSteps = { 0f, 0.15f, 0.3f, 0.5f, 0.8f, 0.85f, 0.9f, 0.95f };
 
     /// <summary>"0", "5", ... "100".</summary>
     private static string[] OpacitySteps()
