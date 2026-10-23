@@ -124,7 +124,7 @@ public partial class MapView : Sprite2D
         _material.SetShaderParameter("capture_tex", _territory.TimeArray);
         _material.SetShaderParameter("hatch_tex", _territory.HatchArray);
         _material.SetShaderParameter("dist_units", TerritoryTextures.DistUnits);
-        SetBorderDistances(_borderTiles > ThinBorderTiles);
+        BorderWidth = _borderTiles; // (the new material starts at the shader's defaults)
         _hatchPeriod = 0; // (set on the next frame)
         _lastScreen = null;
         _material.SetShaderParameter("hatch_settle_ticks", (float)Boundari.Sim.HatchRules.SettleTicks);
@@ -438,7 +438,10 @@ public partial class MapView : Sprite2D
         if (_territory.DistArray is { } distances)
             _material.SetShaderParameter("dist_tex", distances);
     }
-    private float _borderTiles = 0.674f;
+    private float _borderTiles = DefaultBorderTiles;
+
+    /// <summary>The border thickness the game uses (1.6 tiles; was the dev tools' BRD setting).</summary>
+    public const float DefaultBorderTiles = 1.645f;
 
     // The thickest border measured from the smoothing's vote lead (0.85 here). Past this, its
     // shortcut for pixels deep inside a territory (a sparse ring of tiles 2 away) starts to
