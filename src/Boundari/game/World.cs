@@ -169,6 +169,9 @@ public partial class World : Node2D
         AddChild(_arcs);
         MoveChild(_arcs, _labels.GetIndex() + 1);
         _mainControl = GetNodeOrNull<Control>("Main_Layer/Main_Control");
+        // The scene's MapRect is only a guide for designing in the editor.
+        if ((GetNodeOrNull("Main_Layer/MapRect") ?? FindChild("MapRect", true, false)) is CanvasItem mapRect)
+            mapRect.Visible = false;
         _startPrompt = MakeStartPrompt();
         _splash = new StartupSplash();
         AddChild(_splash);
