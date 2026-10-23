@@ -33,7 +33,7 @@ Real-world maps (Europe is the default), bots (tribes) and nations, single playe
 - Tests: `dotnet test` in `src/Boundari.Tests`
 - Headless match benchmark: `BOUNDARI_BENCH=1 BOUNDARI_MINUTES=12 dotnet test -c Release --filter EuropeBotMatch` (in `src/Boundari.Tests`)
 - Godot (console build): `"C:\Users\Joe\Desktop\GoDot Ten\Godot_v4.7.2-stable_mono_win64_console.exe" --path . -- <flags>`
-  - Screenshot: `--map=europe --autoplay --ticks=N --zoom=Z --screenshot=PATH` plus extras such as `--focus=x,y`, `--hover=leader`, `--showcase[=rails|nukes:N]`, `--aim=moab|fatman`, `--incoming`, `--notifs`, `--ally-requests=N`, `--right-click=requester-accept|requester-ally-menu|requester-embargo|requester-target|requester-chat-T|R|B|L|requester-heart`, `--start=now|mid|ask`, `--dev=ABBR=i,...`
+  - Screenshot: `--map=europe --autoplay --ticks=N --zoom=Z --screenshot=PATH` plus extras such as `--focus=x,y`, `--hover=leader`, `--showcase[=rails|nukes:N]`, `--aim=moab|fatman`, `--incoming`, `--notifs`, `--ally-requests=N`, `--right-click=requester-accept|requester-ally-menu|requester-embargo|requester-target|requester-chat-T|R|B|L|requester-heart`, `--start=now|mid|ask`, `--dev=ABBR=i,...`, `--match-seed=N` (same match every run)
   - Performance: `--map=europe --autoplay --bench=SECONDS`
 - New PNG/SVG assets need an import: Godot `--headless --path . --import`.
 

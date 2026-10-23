@@ -108,6 +108,7 @@ public partial class World : Node2D
     private AlertFrame _alerts = null!;     // the screen border that flashes on betrayals and big attacks
     private int _fastForwardLeft, _fastForwardTotal;
     private bool _fastForwarding;
+    private bool _unlimited = true; // the prompt's toggle: dev cheats (endless gold, instant building) or regular play
     private BuildingType? _placing;
     private NukeType? _aiming;
     private readonly System.Collections.Generic.List<(BuildingType Type, Button Button)> _buildButtons = new();
@@ -402,6 +403,8 @@ public partial class World : Node2D
         _view.SetPalette(_palette);
         _overlay.SetPalette(PlayerColors.Solid(_palette));
         _labels.SetPalette(_palette);
+        if (_me.Id < _palette.Length)
+            _bar.SetColour(_palette[_me.Id]);
     }
 
     private double _benchTime, _benchReport, _benchWorstFrame;
@@ -991,13 +994,13 @@ public partial class World : Node2D
     private void StartMatch()
     {
         SyncSim();
-        _game = new Game(_map, RandomSeed(), difficulty: _args.Difficulty ?? Difficulty) { HatchedLand = !_args.Classic, DirectedAttacks = !_args.Classic, FogOfWar = !_args.Classic, KeepCutOffLand = !_args.Classic };
+        _game = new Game(_map, _args.MatchSeed ?? RandomSeed(), difficulty: _args.Difficulty ?? Difficulty) { HatchedLand = !_args.Classic, DirectedAttacks = !_args.Classic, FogOfWar = !_args.Classic, KeepCutOffLand = !_args.Classic };
         _me = _game.AddPlayer("Player", flag: "us");
         _game.EventsFor = _me.Id; // notifications
         if (_args.Bench is null || _args.Autoplay)
             _game.StartsWhenSpawned = _me.Id; // no countdown: the match starts when you pick your start
         _labels.Me = _me;
-        if (DevCheats && !_args.NoCheats)
+        if (DevCheats && !_args.NoCheats && _unlimited)
             _game.SetCheats(_me, infiniteGold: true, instantBuild: true);
         if (_args.Nations is null && MapNations.For(_mapId) is { } mapNations)
             _game.AddNations(mapNations); // the map's own nations, at their real homes
@@ -1292,7 +1295,7 @@ public partial class World : Node2D
     private record struct Args(string? Map, ulong? Seed, int? Bots, int? Nations, Difficulty? Difficulty, bool NoCheats, double? Bench, string? Dev, bool Autoplay, int Ticks,
         float Zoom, Vector2? Focus, string? Screenshot, bool Perf, Vector2? Hover, bool HoverLeader, bool Showcase, string? ShowcaseFocus,
         string? Start = null, int AllyRequests = 0, string? RightClick = null, string? Aim = null, bool Incoming = false, bool Tags = false, bool Notifs = false,
-        bool Splash = false, string? Alert = null, bool Classic = false, string? Arrow = null, float ArrowPixels = 250, bool NoHud = false);
+        bool Splash = false, string? Alert = null, bool Classic = false, string? Arrow = null, float ArrowPixels = 250, bool NoHud = false, ulong? MatchSeed = null);
 
     private static Args ParseArgs()
     {
@@ -1306,6 +1309,7 @@ public partial class World : Node2D
             {
                 case "map": args.Map = value; break;
                 case "seed": args.Seed = ulong.Parse(value); break;
+                case "match-seed": args.MatchSeed = ulong.Parse(value); break; // (testing) the same match every run
                 case "bots": args.Bots = int.Parse(value, inv); break;
                 case "nations": args.Nations = int.Parse(value, inv); break;
                 case "tribes": args.Bots = int.Parse(value, inv); break;

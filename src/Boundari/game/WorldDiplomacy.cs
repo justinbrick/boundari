@@ -334,6 +334,20 @@ public partial class World
         };
         buttons.AddChild(now);
         buttons.AddChild(mid);
+        // Below them: unlimited gold and instant building (dev cheats), or regular play.
+        var unlimited = new CheckButton
+        {
+            Text = "Unlimited gold and instant building",
+            ButtonPressed = _unlimited,
+            SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter,
+        };
+        unlimited.Toggled += on =>
+        {
+            _unlimited = on;
+            SyncSim();
+            _game.SetCheats(_me, infiniteGold: on, instantBuild: on);
+        };
+        column.AddChild(unlimited);
         return layer;
     }
 

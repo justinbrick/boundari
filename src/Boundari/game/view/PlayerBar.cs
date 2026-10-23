@@ -144,10 +144,13 @@ public sealed class PlayerBar
         _gain.Position = new Vector2(_gain.Position.X, -28 + 4 * (1 - ease)); // rises 4 px into place
     }
 
+    /// <summary>Colours the troop meter after your territory's colour.</summary>
+    public void SetColour(Color territory) => _fill?.SetColour(territory);
+
     public void Update(Game game, Player me, double delta)
     {
         // Troop meter, like OpenFront's: troops at home out of the cap, then the troops out
-        // attacking stacked after them in a lighter blue.
+        // attacking stacked after them in a lighter shade.
         long attacking = 0;
         foreach (var a in game.Attacks)
             if (a.Attacker == me)
@@ -155,6 +158,7 @@ public sealed class PlayerBar
         GameHud.SetText(_cash, me.InfiniteGold ? "$∞" : "$" + GameHud.FormatCount(me.Gold));
         AnimateGain(delta);
         GameHud.SetText(_troops, GameHud.FormatCount(me.Troops));
+
         GameHud.SetText(_maxTroops, GameHud.FormatCount(me.MaxTroops));
         if (_fill is not null)
         {
@@ -183,15 +187,24 @@ public sealed class PlayerBar
 }
 
 /// <summary>
-/// The troop meter's fill: two bars from the left (OpenFront's colours), easing to new
+/// The troop meter's fill: two bars from the left in your territory's colour, easing to new
 /// lengths over about 0.2 s like OpenFront's, with the panel's rounded corners.
 /// </summary>
 public partial class TroopMeterFill : Control
 {
-    // OpenFront's "malibu blue" (troops at home) and "aquarius" (troops out attacking),
-    // both about a quarter darker (the user found OpenFront's too light).
-    private static readonly Color HomeColour = new("#00649e");
-    private static readonly Color AwayColour = new("#2f80ba");
+    // Troops at home: your territory's colour at half brightness (HSV value 50%); troops out
+    // attacking: your territory's colour. (OpenFront's blues until the palette arrives.)
+    private Color _homeColour = new("#00649e");
+    private Color _awayColour = new("#2f80ba");
+
+    /// <summary>Colours the bars after this territory colour.</summary>
+    public void SetColour(Color territory)
+    {
+        territory.A = 1;
+        _awayColour = territory;
+        _homeColour = Color.FromHsv(territory.H, territory.S, 0.5f);
+        QueueRedraw();
+    }
 
     // Eases most of the way to a new length in OpenFront's 0.2 s.
     private const float EaseSeconds = 0.06f;
@@ -245,10 +258,10 @@ public partial class TroopMeterFill : Control
         float awayWidth = inner.Size.X * _awayShown;
         // Each bar is rounded only where it meets the panel's edge.
         if (homeWidth >= 0.5f)
-            DrawBar(_homeBox, HomeColour, new Rect2(inner.Position, new Vector2(homeWidth, inner.Size.Y)),
+            DrawBar(_homeBox, _homeColour, new Rect2(inner.Position, new Vector2(homeWidth, inner.Size.Y)),
                 left: true, right: homeWidth + awayWidth >= inner.Size.X - 0.5f && awayWidth < 0.5f);
         if (awayWidth >= 0.5f)
-            DrawBar(_awayBox, AwayColour, new Rect2(inner.Position + new Vector2(homeWidth, 0), new Vector2(awayWidth, inner.Size.Y)),
+            DrawBar(_awayBox, _awayColour, new Rect2(inner.Position + new Vector2(homeWidth, 0), new Vector2(awayWidth, inner.Size.Y)),
                 left: homeWidth < 0.5f, right: homeWidth + awayWidth >= inner.Size.X - 0.5f);
     }
 
