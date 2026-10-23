@@ -12,7 +12,8 @@ namespace Boundari;
 /// (as if from the mouse) to try a dot control; the screenshot shows the result, and what
 /// happened is printed. Scenarios: hover (a group's handles and a dot's tip), drag (a dot
 /// mid-drag), move (dragged and let go), box / select (Ctrl+drag, mid-drag / let go),
-/// spread / spread-done (an end handle mid-drag / let go), slide-done (the middle bar,
+/// spread / spread-done (an end handle mid-drag / let go), cramp-done (an end handle pulled
+/// in to half the group's length and let go: a second row forms), slide-done (the middle bar,
 /// let go), sell / sold (right button held a moment / long enough), radial (a quick right
 /// click on a dot), buy / buy-click (buy mode over the border / clicked), upgrade (a click).
 /// </summary>
@@ -109,7 +110,7 @@ public partial class World
                 }
                 await Wait(0.3);
                 break;
-            case "spread" or "spread-done" or "slide-done":
+            case "spread" or "spread-done" or "slide-done" or "cramp-done":
                 Move(dotAt);
                 await Wait(0.3);
                 if (_handles is null)
@@ -120,7 +121,9 @@ public partial class World
                 int which = scenario == "slide-done" ? 2 : 1;
                 var handleAt = Screen(_handles[which]);
                 var outward = Screen(_handles[1]) - Screen(_handles[0]); // along the group, past its far end
-                var pullTo = handleAt + outward.Normalized() * (scenario == "slide-done" ? 120 : 160);
+                var pullTo = scenario == "cramp-done"
+                    ? Screen(_handles[0]) + outward * 0.5f // the far end pulled in: the group on half its length
+                    : handleAt + outward.Normalized() * (scenario == "slide-done" ? 120 : 160);
                 Move(handleAt);
                 await Wait(0.1);
                 Button(handleAt, MouseButton.Left, true);
@@ -130,7 +133,7 @@ public partial class World
                 {
                     Button(pullTo, MouseButton.Left, false);
                     Move(pullTo + new Vector2(0, 300));
-                    await Wait(4);
+                    await Wait(scenario == "cramp-done" ? 8 : 4);
                 }
                 break;
             case "sell" or "sold" or "radial":

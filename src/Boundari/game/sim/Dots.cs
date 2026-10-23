@@ -38,8 +38,31 @@ public static class DotRules
     /// <summary>Selling a dot gives back this share of everything paid for it.</summary>
     public const int SellRefundPercent = 50;
 
-    /// <summary>Tiles between dots spread along a border (closer when the stretch is short).</summary>
-    public const int Spacing = 6;
+    /// <summary>
+    /// Tiles between dots spread along a border: a dot's width as drawn, so neighbours stand
+    /// shoulder to shoulder. Dots never stand closer than about this: those that don't fit
+    /// on a stretch form a second row behind (see <see cref="RowGap"/>).
+    /// </summary>
+    public const int Spacing = 12;
+
+    /// <summary>
+    /// The second row stands this many tiles further back than the first, each dot between
+    /// two in front (staggered, so the rows touch without overlapping). Its dots push and hold
+    /// the line as hard as those in front: their force reaches over the first row.
+    /// </summary>
+    public const int RowGap = 10;
+
+    /// <summary>A second-row dot looks this often (ticks) for a free place in the first row to step up to.</summary>
+    public const int StepUpTicks = 10;
+
+    /// <summary>A dot that found no free place near it on the line waits this long (ticks) before looking again.</summary>
+    public const int NoRoomWaitTicks = 10;
+
+    /// <summary>A search for a place on the line checks this many rings of tiles round the dot one by one, then works out the rest all at once.</summary>
+    public const int TilesBeforeField = 3;
+
+    /// <summary>A dot with no room near it in either row looks along the border this many times its reach for a free place in the first row (and walks there) before waiting.</summary>
+    public const int FarRoomReach = 6;
 
     /// <summary>Walking speed, thousandths of a tile per tick: 10 tiles a second.</summary>
     public const long WalkSpeedPerTick = 1000;
@@ -65,17 +88,20 @@ public static class DotRules
     /// <summary>Force of a full-stamina level-1 dot, in thousandths (force = strength x stamina).</summary>
     public const int DotForce = 1000;
 
-    /// <summary>A commander's land with no dot near still holds this much (a quarter of a level-1 dot).</summary>
-    public const int UndefendedForce = 250;
+    // (A row of dots a dot's width apart puts about one dot's force on each tile of the line
+    // in front of it: these numbers are measured against that.)
 
-    /// <summary>Locals have no dots: all their land holds like a level-2 dot.</summary>
-    public const int LocalsForce = 2000;
+    /// <summary>A commander's land with no dot near still holds this much (an eighth of a row of level-1 dots).</summary>
+    public const int UndefendedForce = 125;
+
+    /// <summary>Locals have no dots: all their land holds a little more than a row of level-1 dots (a level-2 row breaks it).</summary>
+    public const int LocalsForce = 1000;
 
     /// <summary>
     /// How fast the line moves, thousandths of a tile per tick for each level-1 dot of force
-    /// more than the other side: a lone dot in open farmland wilderness moves it 3 tiles a second.
+    /// more than the other side: a level-2 row against a level-1 row moves it about 3 tiles a second.
     /// </summary>
-    public const long PushSpeedPerTick = 300;
+    public const long PushSpeedPerTick = 600;
 
     /// <summary>The line never moves faster than dots walk.</summary>
     public const long MaxPushPerTick = WalkSpeedPerTick;
@@ -167,6 +193,9 @@ public sealed class Dot
 
     /// <summary><see cref="DotRules.MinStamina"/>..<see cref="DotRules.MaxStamina"/>: drains while pushing into someone's land, comes back when not.</summary>
     public int Stamina { get; internal set; } = DotRules.MaxStamina;
+
+    /// <summary>0 = in the first row behind the line, 1 = in the second row behind that (set as it stands).</summary>
+    public int Row { get; internal set; }
 
     /// <summary>Funds paid for it and its upgrades (selling gives back a share).</summary>
     public long Paid { get; internal set; }

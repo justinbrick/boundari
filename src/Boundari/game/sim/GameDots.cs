@@ -76,8 +76,8 @@ public sealed partial class Game
         int around = NearestBorderTile(player, spawnTile);
         if (around < 0)
             return;
-        foreach (int slot in BorderSlots(player, around, DotRules.FreeAtStart, null))
-            AddDot(player, StandTileNear(player, slot));
+        foreach (int spot in StandSlots(player, around, DotRules.FreeAtStart, null))
+            AddDot(player, spot);
     }
 
     private void BuyDots(Player player, int count, int borderTile)
@@ -86,9 +86,9 @@ public sealed partial class Game
         if (count <= 0 || !player.Border.Contains(borderTile))
             return;
         int home = HomeTile(player, borderTile);
-        foreach (int slot in BorderSlots(player, borderTile, count, null))
+        foreach (int spot in StandSlots(player, borderTile, count, null))
         {
-            if (FindDotPath(player, home, StandTileNear(player, slot)) is not { } path)
+            if (FindDotPath(player, home, spot) is not { } path)
                 continue;
             player.Spend(DotRules.Price);
             var dot = AddDot(player, home);
@@ -128,10 +128,10 @@ public sealed partial class Game
                 moving.Add(d);
         if (moving.Count == 0)
             return;
-        var slots = BorderSlots(player, borderTile, moving.Count, moving);
-        // Nearest slot to the click first, each taking the closest dot still free.
+        var spots = StandSlots(player, borderTile, moving.Count, moving);
+        // Nearest spot to the click first, each taking the closest dot still free.
         int w = Map.Width;
-        foreach (int slot in slots)
+        foreach (int slot in spots)
         {
             Dot? best = null;
             long bestDist = long.MaxValue;
@@ -142,7 +142,7 @@ public sealed partial class Game
                     (best, bestDist) = (d, dist);
             }
             moving.Remove(best!);
-            if (FindDotPath(player, best!.Tile, StandTileNear(player, slot)) is { } path)
+            if (FindDotPath(player, best!.Tile, slot) is { } path)
                 SetOff(best, path);
         }
     }
@@ -150,7 +150,8 @@ public sealed partial class Game
     /// <summary>
     /// Spreads the named dots evenly along the border from one point to the other (each
     /// snapped to the player's nearest border tile), keeping the order they stand in along
-    /// it; each walks to its new spot. Points on border pieces that don't join: they gather
+    /// it; each walks to its new spot. More than fit a dot's width apart form a second row
+    /// behind, between those in front. Points on border pieces that don't join: they gather
     /// at the second point instead, as a move there would.
     /// </summary>
     private void SpreadDots(Player player, int[] dotIds, int fromTile, int toTile)
@@ -199,10 +200,72 @@ public sealed partial class Game
             place[d.Id] = best;
         }
         moving.Sort((a, b) => place[a.Id] != place[b.Id] ? place[a.Id].CompareTo(place[b.Id]) : a.Id.CompareTo(b.Id));
+
+        // Places along the line: as many as fit a dot's width apart in front, the rest
+        // evenly in the second row (in between); the dots take them in order along the line.
+        int last = line.Count - 1, first = Math.Min(n, last / Rules.DotSpacing + 1), second = n - first;
+        var places = new List<(long At, int Row)>(); // At: thousandths of the way along, x the line's last index
+        for (int i = 0; i < first; i++)
+            places.Add((first == 1 ? last * 500L : (long)i * last * 1000 / (first - 1), 0));
+        for (int j = 0; j < second; j++)
+            places.Add(((2L * j + 1) * last * 1000 / (2 * second), 1));
+        places.Sort((a, b) => a.At != b.At ? a.At.CompareTo(b.At) : a.Row.CompareTo(b.Row));
         var plan = new List<(Dot, int)>();
         for (int i = 0; i < n; i++)
-            plan.Add((moving[i], StandTileNear(player, line[n == 1 ? line.Count / 2 : (int)((long)i * (line.Count - 1) / (n - 1))])));
+        {
+            int at = line[(int)(places[i].At / 1000)], spot = StandTileNear(player, at, places[i].Row);
+            if (spot == at && places[i].Row == 1)
+                spot = StandTileNear(player, at); // too thin for a second row here
+            plan.Add((moving[i], spot));
+        }
         return plan;
+    }
+
+    /// <summary>
+    /// The two ends of the stretch of the player's border reaching <paramref name="half"/>
+    /// tiles each way along it from a border tile (shorter where the border ends), for
+    /// spreading dots over it; (-1, -1) if the tile isn't on their border.
+    /// </summary>
+    public (int From, int To) BorderStretch(Player player, int borderTile, int half)
+    {
+        if (!player.Border.Contains(borderTile))
+            return (-1, -1);
+        var depth = new Dictionary<int, int> { [borderTile] = 0 };
+        var queue = new Queue<int>();
+        queue.Enqueue(borderTile);
+        var ends = new List<int>();
+        int w = Map.Width, h = Map.Height;
+        while (queue.Count > 0 && depth.Count < DotRules.SpreadSearchTiles)
+        {
+            int t = queue.Dequeue(), x = t % w, y = t / w, d = depth[t];
+            if (d == half)
+            {
+                ends.Add(t);
+                continue;
+            }
+            for (int dy = -1; dy <= 1; dy++)
+                for (int dx = -1; dx <= 1; dx++)
+                {
+                    int nx = x + dx, ny = y + dy;
+                    if ((dx | dy) == 0 || nx < 0 || ny < 0 || nx >= w || ny >= h)
+                        continue;
+                    int next = ny * w + nx;
+                    if (player.Border.Contains(next) && depth.TryAdd(next, d + 1))
+                        queue.Enqueue(next);
+                }
+        }
+        if (ends.Count == 0)
+            return (borderTile, borderTile);
+        ends.Sort();
+        int a = ends[0], b = borderTile;
+        long far = -1;
+        foreach (int t in ends)
+        {
+            long dist = Math.Max(Math.Abs(t % w - a % w), Math.Abs(t / w - a / w));
+            if (dist > far)
+                (far, b) = (dist, t);
+        }
+        return far * 2 > half ? (a, b) : (a, borderTile); // (both ends one way: the border stops short the other)
     }
 
     /// <summary>
@@ -274,10 +337,7 @@ public sealed partial class Game
     /// </summary>
     public List<int> BuySpotsPreview(Player player, int borderTile, int count)
     {
-        var spots = new List<int>();
-        foreach (int slot in BorderSlots(player, borderTile, DotsAffordable(player, count), null))
-            spots.Add(StandTileNear(player, slot));
-        return spots;
+        return StandSlots(player, borderTile, DotsAffordable(player, count), null);
     }
 
     /// <summary>
@@ -353,16 +413,17 @@ public sealed partial class Game
     }
 
     /// <summary>
-    /// Up to <paramref name="count"/> border tiles near <paramref name="around"/>, spread
-    /// along the border <see cref="ScaledRules.DotSpacing"/> apart (and as far from the
-    /// player's other dots), nearest first. Closer together if the stretch is too short,
-    /// sharing tiles as a last resort.
+    /// Where up to <paramref name="count"/> dots sent to the border tile <paramref name="around"/>
+    /// stand, nearest first: along the border <see cref="ScaledRules.DotSpacing"/> apart (and
+    /// as far from the player's other dots) in the first row; any that don't fit, in a second
+    /// row behind, each between two in front; if even that is short (thin land), closer
+    /// together, sharing places as a last resort.
     /// </summary>
-    private List<int> BorderSlots(Player player, int around, int count, List<Dot>? ignore)
+    private List<int> StandSlots(Player player, int around, int count, List<Dot>? ignore)
     {
-        var slots = new List<int>();
+        var spots = new List<int>();
         if (count <= 0 || !player.Border.Contains(around))
-            return slots;
+            return spots;
 
         // The border, nearest first, following it tile to tile (diagonals included).
         var order = new List<int> { around };
@@ -396,22 +457,51 @@ public sealed partial class Game
             return true;
         }
 
-        for (int spacing = Rules.DotSpacing; ; spacing /= 2)
+        int spacing = Rules.DotSpacing;
+        var front = new List<int>(); // the first row's border tiles
+        foreach (int t in order)
         {
-            slots.Clear();
+            if (front.Count == count)
+                break;
+            if (Clear(t, front, spacing, w) && Clear(t, others, spacing, w))
+                front.Add(t);
+        }
+        foreach (int t in front)
+            spots.Add(StandTileNear(player, t));
+
+        // The second row: behind the gaps between the first row's dots (looked for only along
+        // the stretch the first row covers, and a little past it).
+        var backBorder = new List<int>();
+        var back = new List<int>();
+        int look = (front.Count + 2) * spacing * 2;
+        for (int i = 0; i < order.Count && i < look && spots.Count < count; i++)
+        {
+            int t = order[i];
+            if (!Clear(t, front, spacing / 2, w) || !Clear(t, backBorder, spacing, w))
+                continue;
+            int s = StandTileNear(player, t, 1);
+            if (s == t || !Clear(s, back, spacing, w) || !Clear(s, others, spacing, w))
+                continue; // (no second row here: the land is too thin)
+            backBorder.Add(t);
+            back.Add(s);
+            spots.Add(s);
+        }
+
+        // Still short: closer together in the first row, then sharing places.
+        for (int sp = spacing / 2; sp >= 1 && spots.Count < count; sp /= 2)
             foreach (int t in order)
             {
-                if (slots.Count == count)
+                if (spots.Count == count)
                     break;
-                if (Clear(t, slots, spacing, w) && Clear(t, others, spacing, w))
-                    slots.Add(t);
+                if (Clear(t, front, sp, w) && Clear(t, others, sp, w))
+                {
+                    front.Add(t);
+                    spots.Add(StandTileNear(player, t));
+                }
             }
-            if (slots.Count == count || spacing <= 1)
-                break;
-        }
-        for (int i = 0; slots.Count < count; i++) // more dots than border tiles: they share
-            slots.Add(order[i % order.Count]);
-        return slots;
+        for (int i = 0; spots.Count < count; i++)
+            spots.Add(StandTileNear(player, order[i % order.Count]));
+        return spots;
     }
 
     /// <summary>

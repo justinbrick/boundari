@@ -9,14 +9,15 @@ namespace Boundari.Sim;
 /// seconds it keeps expanding while wilderness touches its land, buys dots up to its cap and
 /// upgrades the weakest, sends dots to any stretch an enemy pushes harder than its dots there
 /// hold, and attacks: it gathers its free dots on a weak spot (the least defended stretch of
-/// a neighbouring commander, or a Locals neighbour once its dots together are strong enough)
-/// and pushes in. The push stops when its dots tire or it stalls (the line digs in), and the
-/// dots rest before the next one. A target that stalled a push is left alone for a while.
+/// a neighbouring commander, or a Locals neighbour once its dots together are strong enough),
+/// cramps them into two rows on a short stretch there (twice the push of one row) and pushes
+/// in. The push stops when its dots tire or it stalls (the line digs in), and the dots rest
+/// before the next one. A target that stalled a push is left alone for a while.
 /// Only intents, like a human; its own seeded RNG, so it behaves the same on every machine.
 /// </summary>
 internal sealed class NationDots
 {
-    private enum Plan { Idle, Gathering, Pushing, Resting }
+    private enum Plan { Idle, Gathering, Forming, Pushing, Resting }
 
     private readonly Game _game;
     private readonly Player _me;
@@ -37,9 +38,12 @@ internal sealed class NationDots
 
     /// <summary>
     /// A rough guess of the force a line of dots puts on each tile in front of it, per strength
-    /// level, in thousandths (each tile gets most of the dot in front and some of its neighbours').
+    /// level, in thousandths: about one dot's for a single row, nearly twice that for two.
     /// </summary>
-    private const int LineForcePerLevel = 1800;
+    private const int OneRowForcePerLevel = 950, TwoRowForcePerLevel = 1800;
+
+    /// <summary>Groups this big or bigger attack in two rows.</summary>
+    private const int TwoRowGroup = 4;
 
     /// <summary>An attack is only tried where that guess beats the defence by this many percent.</summary>
     private const int MarginPercent = 15;
@@ -238,13 +242,23 @@ internal sealed class NationDots
                     _plan = Plan.Idle;
                 break;
 
-            case Plan.Gathering:
+            case Plan.Gathering or Plan.Forming:
                 bool arrived = true;
                 foreach (var d in dots)
                     if (InGroup(d) && d.IsWalking)
                         arrived = false;
                 if (!arrived && _game.Tick - _since < GatherTicks)
                     break;
+                if (_plan == Plan.Gathering && _group.Length >= TwoRowGroup && _me.Border.Contains(_spot))
+                {
+                    // Cramp them into two rows: half of them a dot's width apart in front.
+                    int half = ((_group.Length + 1) / 2 - 1) * _game.Rules.DotSpacing / 2;
+                    var (from, to) = _game.BorderStretch(_me, _spot, half);
+                    _game.Submit(new SpreadDotsIntent(_me.Id, _group, from, to));
+                    _plan = Plan.Forming;
+                    _since = _game.Tick;
+                    break;
+                }
                 if (_game.Owner[_targetTile] == _target && _game.DotToPush(_me, _targetTile) is { } first)
                 {
                     _game.Submit(new PushIntent(_me.Id, first.Id, _targetTile));
@@ -282,7 +296,7 @@ internal sealed class NationDots
             sy += d.Tile / w;
         }
         long cx = sx / free.Count, cy = sy / free.Count;
-        long force = strength * LineForcePerLevel / free.Count; // a line of these dots, per tile
+        long force = strength * (free.Count >= TwoRowGroup ? TwoRowForcePerLevel : OneRowForcePerLevel) / free.Count; // a line of these dots, per tile
 
         // Of each neighbour, its weakest spot; of those, the best: a gap in a commander's
         // line first, then whatever we can break nearest our dots.

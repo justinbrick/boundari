@@ -38,14 +38,14 @@ public sealed class DotOrdersView
 /// edge bottom right) and a lowercase "t", darker the stronger it is; a white rim while it
 /// is attacking; a ring on the dot a click would send (white) or stop (red); a yellow ring
 /// on selected dots; and, for your own dots, how much stamina is left as an arc once tiring.
-/// Their size follows the zoom (a share of the spacing between dots), never under 24 px across.
+/// Their size follows the zoom (as wide as the spacing between dots), never under 36 px across.
 /// Dots glide: each tick, from where it was drawn to where it is now, over the tick.
 /// </summary>
 public partial class MapOverlay
 {
     private const string DotFontFile = "res://fonts/NotoSerifGurmukhi-VariableFont_wght.ttf";
-    private const float DotSpacingShare = 0.55f; // radius, as a share of the spacing between dots (neighbours on a line stand shoulder to shoulder)
-    private const float DotMinPixels = 12;       // radius never under this on screen (24 px across)
+    private const float DotSpacingShare = 0.5f;  // radius, as a share of the spacing between dots (neighbours stand shoulder to shoulder; extras form a second row)
+    private const float DotMinPixels = 18;       // radius never under this on screen (36 px across)
     private const float DotLetterPixels = 6;     // no "t" on dots smaller than this (radius)
     private static readonly Color PushRim = new(1f, 1f, 1f, 0.95f);
     private static readonly Color SendRing = new(1f, 1f, 1f, 0.95f);

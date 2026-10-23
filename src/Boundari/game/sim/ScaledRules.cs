@@ -58,6 +58,7 @@ public sealed class ScaledRules
         DotWalkSpeedPerTick = (long)Math.Round(DotRules.WalkSpeedPerTick * Linear);
         DotReach = D(DotRules.Reach);
         DotStandBack = D(DotRules.StandBack);
+        DotSecondRowBack = DotStandBack + D(DotRules.RowGap);
         DotFallBack = D(DotRules.FallBackTiles);
         DotLink = D(DotRules.LinkTiles);
         DotSidesRing = D(DotRules.SidesRing);
@@ -83,7 +84,7 @@ public sealed class ScaledRules
     public readonly double LargeTerritoryMidpoint;
     public readonly int DotSpacing;
     public readonly long DotWalkSpeedPerTick;
-    public readonly int DotReach, DotStandBack, DotFallBack, DotLink, DotSidesRing;
+    public readonly int DotReach, DotStandBack, DotSecondRowBack, DotFallBack, DotLink, DotSidesRing;
     public readonly long DotPushSpeedPerTick, DotMaxPushPerTick;
 
     /// <summary>A SAM's reach at this level.</summary>

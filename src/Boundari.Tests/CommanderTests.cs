@@ -90,6 +90,38 @@ public class CommanderTests
         if (y < map.Height - 1) yield return t + w;
     }
 
+    [Theory]
+    [InlineData(2UL)]
+    [InlineData(4UL)]
+    public void ACrampedGroup_FormsASecondRow_WithoutOverlapping(ulong seed)
+    {
+        // Your ten dots on a stretch of the Ardennes border, then cramped onto about half of it.
+        var map = RealMap("ardennes");
+        var (game, me) = DotsMatch(map, seed);
+        game.Step();
+        game.Submit(new ExpandIntent(me.Id));
+        for (int t = 0; t < 300; t++)
+            game.Step();
+        game.Submit(new ExpandIntent(me.Id, Start: false));
+        var dots = game.DotsOf(me);
+        var ids = dots.Select(d => d.Id).ToArray();
+        int border = game.BorderTileNear(me, dots[0].Tile);
+        game.Submit(new MoveDotsIntent(me.Id, ids, border));
+        for (int t = 0; t < 600; t++)
+            game.Step();
+        var (from, to) = game.BorderStretch(me, border, 2 * DotRules.Spacing);
+        game.Submit(new SpreadDotsIntent(me.Id, ids, from, to));
+        for (int t = 0; t < 300; t++)
+            game.Step();
+
+        int w = map.Width, second = game.Rules.DotSecondRowBack;
+        double Gap(Dot d) => dots.Where(o => o != d).Min(o => Math.Sqrt(Math.Pow(o.Tile % w - d.Tile % w, 2) + Math.Pow(o.Tile / w - d.Tile / w, 2)));
+        _out.WriteLine(string.Join(" ", dots.Select(d => $"{game.DistanceToLine(d)}/{Gap(d):F0}")) + "  (tiles behind the line / to the nearest other dot)");
+        Assert.Contains(dots, d => game.DistanceToLine(d) == second);
+        Assert.All(dots, d => Assert.False(d.IsWalking));
+        Assert.All(dots, d => Assert.True(Gap(d) >= DotRules.Spacing * 19 / 20, $"{d} overlaps another ({Gap(d):F1} tiles)"));
+    }
+
     [Fact]
     public void SameSeed_SameMatch()
     {

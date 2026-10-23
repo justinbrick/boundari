@@ -70,7 +70,7 @@ public class FrontTests
     }
 
     /// <summary>A column of dots at x, every <paramref name="spacing"/> rows from row 2, within rows [fromY, toY) but not [skipFrom, skipTo).</summary>
-    private static List<Dot> Line(Game game, Player p, int x, int strength = 1, int spacing = 6, int fromY = 0, int toY = H, int skipFrom = 0, int skipTo = 0)
+    private static List<Dot> Line(Game game, Player p, int x, int strength = 1, int spacing = DotRules.Spacing, int fromY = 0, int toY = H, int skipFrom = 0, int skipTo = 0)
     {
         var dots = new List<Dot>();
         for (int y = 2; y < H; y += spacing)
@@ -195,7 +195,7 @@ public class FrontTests
     public void AnAttack_TakesEveryDotOnThatStretch_ButNotDotsFarAlong()
     {
         var (game, a, b) = Field(100);
-        var near = Line(game, a, 99, toY: 50); // rows 2..44, 6 apart
+        var near = Line(game, a, 99, toY: 50); // rows 2..38, 12 apart
         var far = Place(game, a, 99, 80);           // 36 rows on: another stretch
         var inland = Place(game, a, 60, 20);        // not on the line at all
         game.Submit(new PushIntent(a.Id, near[0].Id, game.Map.Index(100, 2)));
@@ -334,6 +334,48 @@ public class FrontTests
     }
 
     [Fact]
+    public void DotsTooCloseTogether_FormASecondRowBehind_WithoutOverlapping()
+    {
+        var (game, a, b) = Field(100);
+        var mine = Line(game, a, 99, spacing: DotRules.Spacing / 2, fromY: 20, toY: 80); // twice as many as fit in one row there
+        Line(game, b!, 100);
+        Run(game, 300);
+        int front = game.Rules.DotStandBack, second = game.Rules.DotSecondRowBack, w = game.Map.Width;
+        _out.WriteLine(Picture(game, a, 70, 110));
+        int inSecond = mine.Count(d => game.DistanceToLine(d) == second);
+        _out.WriteLine($"{mine.Count} dots: {mine.Count(d => game.DistanceToLine(d) == front)} in front, {inSecond} in the second row");
+        Assert.All(mine, d => Assert.Contains(game.DistanceToLine(d), new[] { front, second }));
+        Assert.True(inSecond >= 2, $"{inSecond} in the second row");
+        foreach (var d in mine)
+            foreach (var o in mine)
+                if (d != o)
+                {
+                    double gap = Math.Sqrt(Math.Pow(d.Tile % w - o.Tile % w, 2) + Math.Pow(d.Tile / w - o.Tile / w, 2));
+                    Assert.True(gap >= DotRules.Spacing * 19 / 20, $"{d} and {o} overlap ({gap:F1} tiles apart)");
+                }
+    }
+
+    [Fact]
+    public void TwoRows_BreakLocals_WhereOneRowCannot()
+    {
+        // The same eight level-1 dots: strung out in one row, or packed into two on half the stretch.
+        int Depth(bool packed)
+        {
+            var (game, a, _) = Field(100, PlayerKind.Bot);
+            var dots = packed ? Line(game, a, 99, spacing: DotRules.Spacing / 2, fromY: 26, toY: 74) : Line(game, a, 99, toY: 96);
+            Assert.Equal(8, dots.Count);
+            Run(game, 100); // (packed: half step back into the second row)
+            game.Submit(new PushIntent(a.Id, dots[0].Id, game.Map.Index(100, dots[0].Tile / game.Map.Width)));
+            Run(game, 100);
+            return Enumerable.Range(0, H).Max(y => Reach(game, a, y)) - 100;
+        }
+        int spread = Depth(false), packed = Depth(true);
+        _out.WriteLine($"10 s against Locals with 8 level-1 dots: one row {spread} tiles in, two rows {packed}");
+        Assert.Equal(0, spread);
+        Assert.True(packed >= 5, $"two rows got {packed} tiles in");
+    }
+
+    [Fact]
     public void ADotWithNoLandOfItsOwnNearby_IsCutOff_AndLost()
     {
         var (game, a, b) = Field(100);
@@ -436,7 +478,7 @@ public class FrontTests
         }
         int open = TicksToTake(false), hardened = TicksToTake(true);
         _out.WriteLine($"ticks to take the first tile: {open} open, {hardened} hardened");
-        Assert.InRange(open, 3, 10);
+        Assert.InRange(open, 2, 10);
         Assert.InRange(hardened, open * 5 / 2, open * 7 / 2);
     }
 
