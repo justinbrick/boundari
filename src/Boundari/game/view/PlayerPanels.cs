@@ -224,7 +224,7 @@ public sealed class PlayerPanels
                 label?.AddThemeColorOverride("font_color", color);
         }
         Set(row.Percent, Percent(p.TileCount, land));
-        Set(row.Troops, Intel?.TroopText(p) ?? GameHud.FormatCount(p.Troops));
+        Set(row.Troops, Intel?.TroopText(p) ?? GameHud.FormatCount(p.Troops)); // (fog: only allies' troops)
         Set(row.Cash, Intel?.ShowsGold(p) == false ? "?" : GameHud.FormatCount(p.Gold)); // (fog: only allies' gold)
     }
 
@@ -253,18 +253,23 @@ public sealed class PlayerPanels
         string percent = Percent(p.TileCount, Math.Max(1, game.Map.LandTileCount));
         Set(_infoLand, percent.TrimEnd('%'));
         Set(_infoCash, Intel?.ShowsGold(p) == false ? "$?" : p.InfiniteGold ? "$∞" : "$" + GameHud.FormatCount(p.Gold)); // (fog: only allies' gold)
-        long shownTroops = Intel?.ShownTroops(p) ?? p.Troops;
-        Set(_infoTroops, Intel?.TroopText(p) ?? GameHud.FormatCount(p.Troops));
-        Set(_infoMaxTroops, GameHud.FormatCount(p.MaxTroops));
+        bool seen = Intel?.Sees(p) ?? true; // (fog: only allies' troops)
+        Set(_infoTroops, seen ? GameHud.FormatCount(p.Troops) : "?");
+        Set(_infoMaxTroops, seen ? GameHud.FormatCount(p.MaxTroops) : "?");
         long attacking = 0;
         foreach (var a in game.Attacks)
             if (a.Attacker == p)
                 attacking += a.Troops;
-        if (_infoMeter is not null)
+        if (_infoMeter is not null && !seen)
+        {
+            _infoMeter.SetTarget(0, 0, snap: true);
+            _meterShows = null;
+        }
+        else if (_infoMeter is not null)
         {
             // Like the troop meter at the bottom: troops at home, then those out attacking.
             double cap = Math.Max(p.MaxTroops, 1);
-            float home = (float)Math.Clamp(shownTroops / cap, 0, 1);
+            float home = (float)Math.Clamp(p.Troops / cap, 0, 1);
             float away = (float)Math.Clamp(attacking / cap, 0, 1 - home);
             _infoMeter.SetTarget(home, away, snap: p != _meterShows);
             _meterShows = p;

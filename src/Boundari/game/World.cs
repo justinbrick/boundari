@@ -379,16 +379,12 @@ public partial class World : Node2D
         _alerts.Update(_game, _me);
         _arcs.SetRequests(IncomingAllianceRequests());
         FrameProfiler.Stop("  hud", hudOnly);
-        _intel.Update(delta); // (fog: before the panels and labels show anyone's troops)
         var hovered = HoveredPlayer(out bool wilderness);
         if (_args.Hover is null) // name plates stop fading under the mouse while the slider is held
             _labels.MouseOverride = _hud.AdjustingRatio ? new Vector2(float.MinValue, float.MinValue) : null;
         _view.HoverId = _arrowActive ? -1 : hovered?.Id ?? -1; // (the arrow lights up its own target)
         _labels.Hovered = hovered?.Id ?? 0;
         _panels.Update(_game, _me, hovered, wilderness, delta);
-        // Fog: hovering a player further away shows when their troops refresh next.
-        _labels.RefreshRing = hovered is not null && _intel.RefreshProgress(hovered, fraction) is { } refresh
-            ? (hovered.Id, (float)refresh) : null;
         FrameProfiler.Stop("hud+panels", hudStart);
     }
 
