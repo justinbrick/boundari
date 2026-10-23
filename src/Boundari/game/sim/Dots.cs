@@ -16,7 +16,18 @@ public static class DotRules
     public const int FreeAtStart = 10;
 
     public const int MaxStrength = 4;
-    public const int MaxStamina = 100;
+
+    /// <summary>A fresh dot's stamina points (force = strength x stamina).</summary>
+    public const int MaxStamina = 800;
+
+    /// <summary>Stamina never drops below a quarter: a worn-out dot still pushes and holds a little.</summary>
+    public const int MinStamina = MaxStamina / 4;
+
+    /// <summary>Stamina lost each tick while pushing into someone's land: fresh to worn out in 30 s.</summary>
+    public const int TirePerTick = (MaxStamina - MinStamina) / (30 * Balance.TicksPerSecond);
+
+    /// <summary>Stamina won back each tick while not pushing into someone's land (pushing into wilderness doesn't tire): worn out to fresh in 60 s.</summary>
+    public const int RestPerTick = (MaxStamina - MinStamina) / (60 * Balance.TicksPerSecond);
 
     /// <summary>Funds for one new dot.</summary>
     public const long Price = 25_000;
@@ -80,6 +91,16 @@ public static class DotRules
     /// than 5/8 of the land on it is held by attacking enemies, 2 sides (half force); more than 7/8, 3 (a third).
     /// </summary>
     public const int SidesRing = 4;
+
+    /// <summary>
+    /// When an attack stops, its dots dig in: their border within reach is hardened for this
+    /// long, like land near an OpenFront Defense post (drawn checkered; attacks there take
+    /// <see cref="HardenedSlowdown"/> times as long).
+    /// </summary>
+    public const int HardenTicks = 30 * Balance.TicksPerSecond;
+
+    /// <summary>OpenFront's Defense post: attacks on its land take 3 times as long.</summary>
+    public const int HardenedSlowdown = 3;
 }
 
 /// <summary>
@@ -129,7 +150,7 @@ public sealed class Dot
     /// <summary>1..<see cref="DotRules.MaxStrength"/>: how hard it pushes and how stiff it is when pushed.</summary>
     public int Strength { get; internal set; } = 1;
 
-    /// <summary>0..<see cref="DotRules.MaxStamina"/> (drains while pushing, from step 5 on).</summary>
+    /// <summary><see cref="DotRules.MinStamina"/>..<see cref="DotRules.MaxStamina"/>: drains while pushing into someone's land, comes back when not.</summary>
     public int Stamina { get; internal set; } = DotRules.MaxStamina;
 
     /// <summary>Funds paid for it and its upgrades (selling gives back a share).</summary>

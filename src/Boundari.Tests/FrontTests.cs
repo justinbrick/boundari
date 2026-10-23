@@ -218,15 +218,17 @@ public class FrontTests
         var mine = Line(game, a, 99, strength: 2);
         var theirs = Line(game, b!, 100);
         game.Submit(new PushIntent(a.Id, mine[0].Id, game.Map.Index(100, 2)));
+        // (Only the first 8 s: as the attackers tire the line goes ragged, and from about
+        // 10 s on defenders start being caught in surrounded pockets.)
         var depths = new List<double>();
-        for (int s = 0; s < 3; s++)
+        for (int s = 0; s < 4; s++)
         {
-            Run(game, 50);
+            Run(game, 20);
             depths.Add(Enumerable.Range(0, H).Average(y => Reach(game, a, y)) - 100);
         }
-        _out.WriteLine("mean depth every 5 s: " + string.Join(", ", depths.Select(d => d.ToString("0.0"))));
+        _out.WriteLine("mean depth every 2 s: " + string.Join(", ", depths.Select(d => d.ToString("0.0"))));
         _out.WriteLine(Picture(game, a, 80, 200));
-        Assert.True(depths[^1] >= 20, "level 2 against level 1 gets well through in 15 s");
+        Assert.True(depths[^1] >= 15, "level 2 against level 1 gets well through in 8 s");
         Assert.True(depths[^1] < 80, "but not across the whole field");
         Assert.Equal(theirs.Count, game.DotsOf(b!).Count);
         Assert.All(theirs, d => Assert.Equal(b!.Id, game.Owner[d.Tile]));
@@ -302,6 +304,113 @@ public class FrontTests
         Assert.Contains(pushedBack, game.Dots);
         Assert.Equal(a.Id, game.Owner[pushedBack.Tile]);
         Assert.Equal(1, a.DotCount);
+    }
+
+    [Fact]
+    public void PushingIntoSomeonesLand_Tires_WildernessDoesNot_AndRestingBringsItBack()
+    {
+        var (game, a, b) = Field(100);
+        var attacker = Place(game, a, 99, 50);
+        var defender = Place(game, b!, 100, 20);
+        game.Submit(new PushIntent(a.Id, attacker.Id, game.Map.Index(100, 50)));
+        Run(game, 150); // 15 s: half worn out
+        _out.WriteLine($"15 s pushing: stamina {attacker.Stamina}, defender {defender.Stamina}");
+        Assert.InRange(attacker.Stamina, DotRules.MaxStamina * 5 / 8 - 10, DotRules.MaxStamina * 5 / 8 + 10);
+        Assert.Equal(DotRules.MaxStamina, defender.Stamina);
+        Run(game, 200); // 35 s: worn out, but never below a quarter
+        Assert.Equal(DotRules.MinStamina, attacker.Stamina);
+        Assert.Equal(DotForce(1, DotRules.MinStamina), Game.DotForce(attacker));
+
+        game.Submit(new StopPushIntent(a.Id, attacker.Id));
+        Run(game, 300); // 30 s resting: half way back
+        Assert.InRange(attacker.Stamina, DotRules.MaxStamina * 5 / 8 - 10, DotRules.MaxStamina * 5 / 8 + 10);
+        Run(game, 300);
+        Assert.Equal(DotRules.MaxStamina, attacker.Stamina);
+
+        var (wild, c, _) = Field(20, eastKind: null);
+        var explorer = Place(wild, c, 19, 50);
+        wild.Submit(new PushIntent(c.Id, explorer.Id, wild.Map.Index(20, 50)));
+        Run(wild, 100);
+        Assert.Single(wild.Pushes);
+        Assert.Equal(DotRules.MaxStamina, explorer.Stamina);
+    }
+
+    private static long DotForce(int strength, int stamina) => (long)strength * stamina * DotRules.DotForce / DotRules.MaxStamina;
+
+    [Fact]
+    public void StoppingAnAttack_HardensTheLineItHolds_For30Seconds()
+    {
+        var (game, a, b) = Field(100);
+        var dot = Place(game, a, 99, 50);
+        game.Submit(new PushIntent(a.Id, dot.Id, game.Map.Index(100, 50)));
+        Run(game, 20);
+        Assert.Empty(game.HardenedTiles);
+        game.Submit(new StopPushIntent(a.Id, dot.Id));
+        game.Step();
+        Assert.Empty(game.Pushes);
+        var hardened = game.HardenedTiles.ToList();
+        _out.WriteLine($"{hardened.Count} tiles hardened");
+        Assert.True(hardened.Count >= 10);
+        Assert.All(hardened, t => Assert.Contains(t, a.Border));
+        Assert.True(game.IsHardened(dot.Tile));
+        Assert.False(game.IsHardened(game.Map.Index(99, 10)), "only the stretch the dots stood on");
+        Run(game, 290);
+        Assert.True(game.IsHardened(dot.Tile));
+        Run(game, 20);
+        Assert.Empty(game.HardenedTiles);
+    }
+
+    [Fact]
+    public void AttacksOnHardenedLand_TakeThreeTimesAsLong()
+    {
+        // B digs in on a stretch (pushes, stops, then the dot is sold: the land stays
+        // hardened); a lone dot of A's attacks there. Ticks until the tile in front falls:
+        int TicksToTake(bool dugIn)
+        {
+            var (game, a, b) = Field(100);
+            var digger = Place(game, b!, 100, 50);
+            if (dugIn)
+            {
+                game.Submit(new PushIntent(b!.Id, digger.Id, game.Map.Index(99, 50)));
+                game.Step();
+                game.Submit(new StopPushIntent(b.Id, digger.Id));
+                game.Step();
+            }
+            game.Submit(new SellDotIntent(b!.Id, digger.Id));
+            game.Step();
+            int front = game.Map.Index(100, 50);
+            Assert.Equal(dugIn, game.IsHardened(front));
+            var dot = Place(game, a, 99, 50);
+            game.Submit(new PushIntent(a.Id, dot.Id, front));
+            int ticks = 0;
+            while (game.Owner[front] != a.Id && ticks < 200)
+            {
+                game.Step();
+                ticks++;
+            }
+            return ticks;
+        }
+        int open = TicksToTake(false), hardened = TicksToTake(true);
+        _out.WriteLine($"ticks to take the first tile: {open} open, {hardened} hardened");
+        Assert.InRange(open, 3, 10);
+        Assert.InRange(hardened, open * 5 / 2, open * 7 / 2);
+    }
+
+    [Fact]
+    public void AClickSendsTheNearestDotFacingThatLand()
+    {
+        var (game, a, b) = Field(100);
+        var north = Place(game, a, 99, 10);
+        var south = Place(game, a, 99, 80);
+        var inland = Place(game, a, 50, 45);
+        Assert.Same(north, game.DotToPush(a, game.Map.Index(130, 30)));
+        Assert.Same(south, game.DotToPush(a, game.Map.Index(101, 70)));
+        Assert.Null(game.DotToPush(a, game.Map.Index(40, 45))); // own land
+        game.Submit(new PushIntent(a.Id, south.Id, game.Map.Index(101, 70)));
+        game.Step();
+        Assert.True(game.IsPushingInto(south, b!.Id));
+        Assert.False(game.IsPushingInto(north, b.Id));
+        Assert.DoesNotContain(inland, game.Pushes.Single().Dots);
     }
 
     [Fact]

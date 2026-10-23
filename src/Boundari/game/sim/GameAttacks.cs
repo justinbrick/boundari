@@ -342,7 +342,7 @@ public sealed partial class Game
         double cover = CoverTenths[tile] / 10.0;
         tileCost *= cover;
         mag *= 1 + (cover - 1) * AttackRules.CoverTroopCostPercent / 100;
-        if (defender is not null && DefendedByPost(tile, defender.Id))
+        if (defender is not null && (DefendedByPost(tile, defender.Id) || IsHardened(tile)))
         {
             mag *= AttackRules.DefensePostLossFactor;
             tileCost *= AttackRules.DefensePostSpeedFactor;
