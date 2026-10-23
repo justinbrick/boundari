@@ -361,6 +361,8 @@ public partial class World
         _fastForwarding = false;
         _hud.Status = null;
         _game.AllowLateSpawn(_me);
+        if (_args.Autoplay)
+            AutoSpawn(late: true);
         PlaySplash();
     }
 }

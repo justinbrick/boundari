@@ -37,7 +37,8 @@ namespace Boundari;
 ///   --no-cheats        play without the dev cheats (infinite gold, instant building)
 ///   --classic          OpenFront's rules: no hatched (occupied) land
 ///   --difficulty=D     easy, medium (default), hard or impossible: how strong nations are
-///   --autoplay         spawn the human player automatically (for testing)
+///   --autoplay         spawn the human player automatically (for testing; with --start=mid,
+///                      drops in once the fast-forward is done)
 ///   --ticks=N          fast-forward the match N ticks at start
 ///   --no-hillshade     start with hill shading off
 ///   --zoom=Z           start zoomed in (1 = whole map)
@@ -1008,7 +1009,7 @@ public partial class World : Node2D
         _overlay.SetGame(_game, _me);
         _placing = null;
 
-        if (_args.Autoplay)
+        if (_args.Autoplay && _args.Start != "mid")
             AutoSpawn();
         for (int t = 0; t < _args.Ticks; t++)
             _game.Step();
@@ -1061,18 +1062,24 @@ public partial class World : Node2D
             _splash.Play();
     }
 
-    /// <summary>Testing aid: spawns the human player on a random big landmass.</summary>
-    private void AutoSpawn()
+    /// <summary>
+    /// Testing aid: spawns the human player on a random big landmass (<paramref name="late"/>:
+    /// dropping in after the mid-game fast-forward, on anyone's land).
+    /// </summary>
+    private void AutoSpawn(bool late = false)
     {
+        if (late)
+            SyncSim();
         var rng = new Core.Rng(_game.Seed + 1);
         for (int tries = 0; tries < 1000; tries++)
         {
             int t = rng.RangeInt(0, _map.TileCount - 1);
-            if (_map.IsLand(t) && _game.Owner[t] == Game.Nobody && _map.LandmassSizes[_map.LandmassId[t]] > 10_000
-                && (!_args.Showcase || _game.IsCoastal(t)))
+            if (_map.IsLand(t) && (late || _game.Owner[t] == Game.Nobody) && _map.LandmassSizes[_map.LandmassId[t]] > 10_000
+                && (!(_args.Showcase || late) || _game.IsCoastal(t))) // (late: inland, the drop-in would be walled in and annexed at once)
             {
                 _game.Submit(new SpawnIntent(_me.Id, t));
-                _game.Step();
+                if (!late)
+                    _game.Step(); // (mid-game: the running match takes it on its next tick)
                 return;
             }
         }
