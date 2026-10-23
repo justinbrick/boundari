@@ -1044,7 +1044,6 @@ max_zoom = 100.0
 [node name="Main_Layer" type="CanvasLayer" parent="." unique_id=1596231632]
 
 [node name="Main_Control" type="Control" parent="Main_Layer" unique_id=1204450789]
-visible = false
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -6015,6 +6014,7 @@ texture = ExtResource("65_d773e")
 expand_mode = 2
 
 [node name="Main_ControlTEST" type="Control" parent="Main_Layer" unique_id=1365945728]
+visible = false
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -6024,6 +6024,7 @@ grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("4_pdu2b")
 popup_offset_y = 18.0
+metadata/_edit_lock_ = true
 
 [node name="HBox_Hud" type="Control" parent="Main_Layer/Main_ControlTEST" unique_id=46654828]
 layout_mode = 1
@@ -6032,6 +6033,8 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 2
+metadata/_edit_lock_ = true
 
 [node name="In_Panel2" type="Panel" parent="Main_Layer/Main_ControlTEST/HBox_Hud" unique_id=336995759]
 custom_minimum_size = Vector2(0, 53)
