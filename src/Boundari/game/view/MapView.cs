@@ -125,7 +125,8 @@ public partial class MapView : Sprite2D
         _material.SetShaderParameter("hatch_tex", _territory.HatchArray);
         _material.SetShaderParameter("dist_units", TerritoryTextures.DistUnits);
         SetBorderDistances(_borderTiles > ThinBorderTiles);
-        _material.SetShaderParameter("hatch_tiles", HatchStripeTiles * (float)map.TileScale);
+        _hatchPeriod = 0; // (set on the next frame)
+        _lastScreen = null;
         _material.SetShaderParameter("hatch_settle_ticks", (float)Boundari.Sim.HatchRules.SettleTicks);
         _material.SetShaderParameter("defense_cell_tiles", (float)map.TileScale);
         _material.SetShaderParameter("defense_count", 0);
@@ -151,8 +152,54 @@ public partial class MapView : Sprite2D
         return Math.Clamp(normal.Dot(LightDir) / LightDir.Z, 0.45f, 1.4f);
     }
 
-    // Hatched land's stripes repeat every this many OpenFront-sized tiles.
+    // Hatched land's stripes repeat every this many OpenFront-sized tiles, or this many screen
+    // pixels when that's wider (zoomed out), measured along x + y like the shader.
     private const float HatchStripeTiles = 4.5f;
+    private const float HatchMinPixels = 22f;
+    private double _hatchPeriod, _hatchOffset;
+    private Transform2D? _lastScreen;
+
+    public override void _Process(double delta) => UpdateHatching();
+
+    /// <summary>
+    /// Sizes the hatching's stripes for this frame's zoom. Zoomed in they're painted on the land
+    /// (a fixed number of tiles apart). Zoomed out they keep one size on screen instead, all
+    /// alike, so they never crowd into a haze; as the zoom changes they're shifted so the
+    /// point the camera zooms around keeps its place in the stripes (no jumps or sliding there),
+    /// and when panning they move with the land.
+    /// </summary>
+    private void UpdateHatching()
+    {
+        if (_map is null)
+            return;
+        var screen = GetScreenTransform();
+        double zoom = screen.X.Length(); // screen pixels per tile
+        if (zoom <= 0)
+            return;
+        double period = Math.Max(HatchStripeTiles * _map.TileScale, HatchMinPixels / zoom);
+        if (period == _hatchPeriod)
+        {
+            _lastScreen = screen;
+            return;
+        }
+        if (_lastScreen is { } last && _hatchPeriod > 0)
+        {
+            double lastZoom = last.X.Length();
+            if (Math.Abs(zoom - lastZoom) > 1e-9)
+            {
+                // The map point that stayed put on screen through this zoom step.
+                double fx = (screen.Origin.X - last.Origin.X) / (lastZoom - zoom);
+                double fy = (screen.Origin.Y - last.Origin.Y) / (lastZoom - zoom);
+                double s = fx + fy;
+                _hatchOffset = s - (s - _hatchOffset) * period / _hatchPeriod;
+            }
+        }
+        _hatchOffset -= Math.Floor(_hatchOffset / period) * period; // (only its place within a period matters)
+        _hatchPeriod = period;
+        _lastScreen = screen;
+        _material.SetShaderParameter("hatch_period", (float)period);
+        _material.SetShaderParameter("hatch_offset", (float)_hatchOffset);
+    }
 
     /// <summary>Shows these owners immediately (pass null to clear all territory).</summary>
     public void SetOwners(ushort[]? owners, bool[]? fallout = null, int[]? hatched = null) => _territory?.SetAll(owners, fallout, hatched);

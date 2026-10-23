@@ -73,19 +73,18 @@ uniform float hover_lighten : hint_range(0.0, 1.0) = 0.08;
 // The player a directed-attack arrow being dragged points at: lightened, with a gentle pulse.
 uniform int target_id = -1;
 uniform float target_lighten : hint_range(0.0, 1.0) = 0.3;
-// Hatched land: diagonal stripes in the territory's border colour, this many tiles apart
-// (set from MapView.cs). Zoomed out, the spacing doubles in steps (every other stripe
-// narrows away) so stripes are never closer than hatch_min_pixels on screen and stay put.
-uniform float hatch_tiles = 4.5;
-uniform float hatch_min_pixels = 16.0;
+// Hatched land: diagonal stripes in the territory's border colour, hatch_period tiles apart
+// (measured along x + y) and shifted by hatch_offset. MapView.cs sets both every frame: zoomed
+// in they stay put on the land; zoomed out they keep one size on screen, all alike.
+uniform float hatch_period = 4.5;
+uniform float hatch_offset = 0.0;
 uniform float hatch_strength : hint_range(0.0, 1.0) = 0.85;
 // Share of each stripe period the stripe covers.
 uniform float hatch_stripe_width : hint_range(0.1, 0.9) = 0.4;
-// Hatched land settles this many ticks after it was taken (HatchRules.SettleTicks); each
-// tile's stripes fade out over the last hatch_fade_ticks before that, so settling land
-// sweeps away smoothly in the order it was taken instead of popping off tick by tick.
+// Hatched land settles this many ticks after it was taken (HatchRules.SettleTicks). Each
+// tile's stripes fade out just before then over the same time its capture faded in, so
+// settling land sweeps away exactly the way it was taken (a clean moving edge).
 uniform float hatch_settle_ticks = 300.0;
-uniform float hatch_fade_ticks = 10.0;
 // Defense posts (OpenFront's BorderStampPass and TerritoryPass): their owner's land within a
 // post's range is darkened, and its borders get a checkerboard - every other cell darkened.
 // One texel per post: x, y, owner id.
@@ -330,14 +329,17 @@ bool hatched_bit(ivec2 c) {
 }
 
 // How hatched a tile still looks (0..1): fully until shortly before it settles, then fading
-// out (a couple of ticks early, so it's gone before the simulation clears its bit).
+// out over its capture's fade length (ending a couple of ticks early, so it's gone before
+// the simulation clears its bit).
 float hatch_weight(ivec2 c) {
 	if (!hatched_bit(c)) {
 		return 0.0;
 	}
 	c = clamp(c, ivec2(0), ivec2(map_size) - 1);
-	float taken = texelFetch(capture_tex, ivec3(c % owner_chunk, (c.y / owner_chunk) * owner_chunks_x + c.x / owner_chunk), 0).r;
-	return clamp((taken + hatch_settle_ticks - 2.0 - visual_time) / hatch_fade_ticks, 0.0, 1.0);
+	ivec3 cc = ivec3(c % owner_chunk, (c.y / owner_chunk) * owner_chunks_x + c.x / owner_chunk);
+	float taken = texelFetch(capture_tex, cc, 0).r;
+	float fade = max(texelFetch(owner_tex, cc, 0).a * 255.0 / 16.0, 0.1); // ticks, as in owner_at
+	return clamp((taken + hatch_settle_ticks - 2.0 - visual_time) / fade, 0.0, 1.0);
 }
 
 // How much of `id`'s land around here is hatched (0..1), smoothed exactly like the territory
@@ -474,18 +476,12 @@ float border_distance(vec2 tile, int id) {
 	return weight > 1e-5 ? total / weight : 1e3;
 }
 
-// Diagonal stripes `period` tiles apart: 1 on a stripe, 0 between, anti-aliased. Stripes sit
-// on whole multiples of the period. `thin` (0..1) is how far along the zoom is to doubling
-// the period: every other stripe narrows to nothing while the rest widen to keep their
-// share of the doubled period, so the stripes stay crisp all the way (no half-faded ones).
-float stripes(vec2 tile, float period, float tiles_per_px, float thin) {
-	float u = (tile.x + tile.y) / period;
-	float k = floor(u + 0.5);                  // the nearest stripe
-	float tri = abs(u - k) * 2.0;              // 0 mid-stripe, 1 mid-gap
-	bool going = abs(mod(k, 2.0)) > 0.5;       // the stripes that go when the period doubles
-	float width = hatch_stripe_width * (going ? 1.0 - thin : 1.0 + thin);
-	float aa = max(tiles_per_px / period, 1e-4); // (no fwidth: this runs in a branch)
-	return width <= 0.0 ? 0.0 : 1.0 - smoothstep(width - aa, width + aa, tri);
+// The hatching's diagonal stripes: 1 on a stripe, 0 between, anti-aliased, all the same width.
+float stripes(vec2 tile, float tiles_per_px) {
+	float u = (tile.x + tile.y - hatch_offset) / hatch_period;
+	float tri = abs(u - floor(u + 0.5)) * 2.0;        // 0 mid-stripe, 1 mid-gap
+	float aa = max(tiles_per_px / hatch_period, 1e-4); // (no fwidth: this runs in a branch)
+	return 1.0 - smoothstep(hatch_stripe_width - aa, hatch_stripe_width + aa, tri);
 }
 
 // Smooth territory lookup: nearby tiles vote for their owner with Gaussian weights
@@ -717,10 +713,9 @@ void fragment() {
 			// A palette alpha below 1 asks for a more solid fill (tribes are drawn opaque).
 			float opacity = max(territory_opacity, 1.0 - swatch.a);
 
-			// Hatched land: stripes in the border colour, spaced in whole doublings of
-			// hatch_tiles, cross-fading between the two nearest as the zoom changes, and an
-			// outline as thick as the borders along the inside of its edge, where it meets the
-			// owner's settled land (the territory's own border covers its outer edge).
+			// Hatched land: stripes in the border colour, and an outline as thick as the borders
+			// along the inside of its edge, where it meets the owner's settled land (the
+			// territory's own border covers its outer edge).
 			float hatch = hatch_cover(tile, id);
 			float stripe = 0.0;
 			float hatch_edge = 0.0;
@@ -728,9 +723,7 @@ void fragment() {
 				float lead = 2.0 * hatch - 1.0;  // like territory_at's edge: 0 on the line, 1 deep inside
 				float aa = 0.8 * tiles_per_px / border_smoothing; // its slope near the line, per pixel
 				float inside = smoothstep(-aa, aa, lead);
-				float lod = max(log2(hatch_min_pixels * tiles_per_px / hatch_tiles), 0.0);
-				float fine = hatch_tiles * exp2(floor(lod));
-				stripe = stripes(tile, fine, tiles_per_px, smoothstep(0.0, 1.0, fract(lod)));
+				stripe = stripes(tile, tiles_per_px);
 				stripe *= inside * hatch_strength;
 				float hbw = max(border_width, aa * 1.2);
 				hatch_edge = border_width > 0.0 ? inside * (1.0 - smoothstep(hbw - aa, hbw + aa, lead)) : 0.0;
