@@ -1227,6 +1227,52 @@ public sealed partial class Game
         }
     }
 
+    /// <summary>
+    /// The roads a structure placed on this tile would lay (OpenFront's ghost rails, for
+    /// the placement preview): a Depot links to the closest stations and to cities, ports
+    /// and depots around it; a Barracks or Harbor only joins when a Depot is in range.
+    /// At most 5 roads, closest first, skipping stations a road already shown would reach
+    /// within a few stops. Display only: changes nothing.
+    /// </summary>
+    public List<int[]> PreviewRails(BuildingType type, int tile)
+    {
+        var paths = new List<int[]>();
+        if (type is not (BuildingType.City or BuildingType.Port or BuildingType.Factory))
+            return paths;
+        bool factory = type == BuildingType.Factory;
+        if (!factory && !FactoryNear(tile))
+            return paths;
+        int x = tile % Map.Width, y = tile / Map.Width, max = Rules.StationMaxRange, min = Rules.StationMinRange;
+        var nearby = new List<(Building B, int D)>();
+        foreach (var b in _buildings.Values)
+        {
+            if (b.Tile == tile || !b.IsReady(Tick) || b.Type is not (BuildingType.City or BuildingType.Port or BuildingType.Factory))
+                continue;
+            int dx = b.Tile % Map.Width - x, dy = b.Tile / Map.Width - y, d = dx * dx + dy * dy;
+            if (d <= max * max && d > min * min)
+                nearby.Add((b, d));
+        }
+        nearby.Sort((a, c) => a.D != c.D ? a.D.CompareTo(c.D) : a.B.Tile.CompareTo(c.B.Tile));
+        var linked = new List<Station>();
+        foreach (var (b, _) in nearby)
+        {
+            if (paths.Count >= 5)
+                break;
+            _stations.TryGetValue(b, out var station);
+            if (station is null && !factory)
+                continue; // only a new Depot turns plain buildings into stations
+            if (station is not null && linked.Exists(s => s == station || Hops(s, station, RailRules.AlreadyConnectedHops) >= 0))
+                continue;
+            if (RailPath(tile, b.Tile) is { } path)
+            {
+                paths.Add(path);
+                if (station is not null)
+                    linked.Add(station);
+            }
+        }
+        return paths;
+    }
+
     private void RemoveStation(Building b)
     {
         if (!_stations.Remove(b, out var station))

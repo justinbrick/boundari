@@ -723,6 +723,7 @@ public partial class World : Node2D
         _placing = null;
         _aiming = null;
         _overlay.ClearGhost();
+        _ghostRoadsFor = (default, -1, -1);
         ShowSecurePatch(-1);
     }
 
@@ -769,6 +770,20 @@ public partial class World : Node2D
         else
             _overlay.SetGhost(type2, tile, canBuild);
         ShowSecurePatch(canBuild ? tile : -1);
+        ShowGhostRoads(type2, canBuild && _game.UpgradeTarget(_me, type2, tile) is null ? tile : -1);
+    }
+
+    // The roads the structure being placed would lay, for the tile and tick they were worked out.
+    private (BuildingType Type, int Tile, int Tick) _ghostRoadsFor = (default, -1, -1);
+
+    /// <summary>Previews the roads a Depot (or a Barracks / Harbor near one) placed here would lay (-1 = none).</summary>
+    private void ShowGhostRoads(BuildingType type, int tile)
+    {
+        var key = (type, tile, tile < 0 ? -1 : _game.Tick / 10); // buildings change: redo once a second
+        if (key == _ghostRoadsFor)
+            return;
+        _ghostRoadsFor = key;
+        _overlay.SetGhostRoads(tile < 0 ? new System.Collections.Generic.List<int[]>() : _game.PreviewRails(type, tile));
     }
 
     // The hatched patch the structure being placed would secure, highlighted on the map,

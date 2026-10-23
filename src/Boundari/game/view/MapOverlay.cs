@@ -194,6 +194,7 @@ public partial class MapOverlay : Node2D
     {
         _ghostType = null;
         _ghostTile = -1;
+        _ghostRoads.Clear();
         ClearNukeGhost();
     }
 
@@ -393,6 +394,19 @@ public partial class MapOverlay : Node2D
 
     private readonly List<Railroad> _roadsOnScreen = new();
 
+    // The roads the structure being placed would lay (OpenFront's ghost rails): half
+    // see-through white (OpenFront's own-rail colour) over the real roads, so they read as
+    // "not built yet" on any land.
+    private readonly List<int[]> _ghostRoads = new();
+    private static readonly Color GhostRoadColour = new(1, 1, 1, 0.6f);
+
+    /// <summary>Shows the roads a structure being placed would lay (none to clear).</summary>
+    public void SetGhostRoads(List<int[]> roads)
+    {
+        _ghostRoads.Clear();
+        _ghostRoads.AddRange(roads);
+    }
+
     private void DrawRoads(CanvasItem layer, float zoom, int w)
     {
         float linear = (float)_game!.Rules.Linear;
@@ -413,12 +427,15 @@ public partial class MapOverlay : Node2D
         // Bridges under every road, then the roads, then the centre lines on top of them all.
         float half = widthPixels / zoom / 2;
         foreach (var rail in _roadsOnScreen)
-            DrawRoad(layer, rail, w, RoadPass.Bridges, half * BridgeWidth, 0, toScreen, toMap);
+            DrawRoad(layer, rail.Tiles, w, RoadPass.Bridges, half * BridgeWidth, 0, toScreen, toMap);
         foreach (var rail in _roadsOnScreen)
-            DrawRoad(layer, rail, w, RoadPass.Roads, half, 0, toScreen, toMap);
+            DrawRoad(layer, rail.Tiles, w, RoadPass.Roads, half, 0, toScreen, toMap);
         if (widthPixels >= MarkingsFromPixels)
             foreach (var rail in _roadsOnScreen)
-                DrawRoad(layer, rail, w, RoadPass.Markings, markPixels / zoom / 2, DashTiles * linear, toScreen, toMap);
+                DrawRoad(layer, rail.Tiles, w, RoadPass.Markings, markPixels / zoom / 2, DashTiles * linear, toScreen, toMap);
+        foreach (var tiles in _ghostRoads)
+            if (tiles.Length >= 2)
+                DrawRoad(layer, tiles, w, RoadPass.Roads, half, 0, toScreen, toMap, GhostRoadColour);
     }
 
     private void DrawTrains(CanvasItem layer, float zoom, int w)
@@ -459,9 +476,8 @@ public partial class MapOverlay : Node2D
     /// a gap between dashes). Each piece is a flat rectangle snapped to whole screen pixels,
     /// so the road stays crisp; pieces reach half a width past their ends so corners join.
     /// </summary>
-    private void DrawRoad(CanvasItem layer, Railroad rail, int w, RoadPass pass, float half, float dash, Transform2D toScreen, Transform2D toMap)
+    private void DrawRoad(CanvasItem layer, int[] tiles, int w, RoadPass pass, float half, float dash, Transform2D toScreen, Transform2D toMap, Color? only = null)
     {
-        var tiles = rail.Tiles;
         Vector2 runStart = TileCentre(tiles[0], w), runEnd = runStart;
         Color? runColour = null;
         Vector2 runDirection = Vector2.Zero;
@@ -471,8 +487,8 @@ public partial class MapOverlay : Node2D
             // Half-tile steps: tile i's colour covers from halfway back to halfway forward.
             Vector2 a = TileCentre(tiles[i - 1], w), b = TileCentre(tiles[i], w), mid = (a + b) / 2;
             var direction = (b - a).Normalized();
-            Step(a, direction, PassColour(pass, tiles[i - 1]));
-            Step(mid, direction, PassColour(pass, tiles[i]));
+            Step(a, direction, only ?? PassColour(pass, tiles[i - 1]));
+            Step(mid, direction, only ?? PassColour(pass, tiles[i]));
         }
         Flush();
 
