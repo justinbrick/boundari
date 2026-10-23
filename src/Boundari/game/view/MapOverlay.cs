@@ -259,7 +259,7 @@ public partial class MapOverlay : Node2D
             if (!b.IsReady(_game.Tick)) // construction progress ring
             {
                 float done = Math.Clamp((float)(_game.Tick - b.StartTick) / Math.Max(1, b.ReadyTick - b.StartTick), 0, 1);
-                DrawArc(at, size * 0.62f, -Mathf.Pi / 2, -Mathf.Pi / 2 + Mathf.Tau * done, 32, Colors.White, size * 0.08f, true);
+                DrawRing(at, size * 0.62f, done, Colors.White, size * 0.08f);
             }
             if (b.Level > 1 && !dots)
                 DrawLevel(at + new Vector2(size * 0.42f, -size * 0.42f), b.Level, size, zoom, ColorOf(b.Owner));
@@ -346,6 +346,22 @@ public partial class MapOverlay : Node2D
     }
 
     private const int BoatTextPixels = 12;
+
+    /// <summary>
+    /// A ring (radius and width in map units) filled clockwise from the top up to "done" (0..1),
+    /// drawn in screen pixels: antialiasing softens a line's edge by one unit of whatever it's
+    /// drawn in, so a ring drawn in map units goes blurry when zoomed in.
+    /// </summary>
+    private void DrawRing(Vector2 at, float radius, float done, Color colour, float width)
+    {
+        float r = radius * _zoom, wide = width * _zoom;
+        if (done <= 0 || r < 0.5f)
+            return;
+        int points = Math.Clamp((int)(r * Mathf.Tau * done / 3), 8, 128);
+        DrawSetTransform(at, 0, Vector2.One / _zoom);
+        DrawArc(Vector2.Zero, r, -Mathf.Pi / 2, -Mathf.Pi / 2 + Mathf.Tau * Math.Min(done, 1), points, colour, wide, true);
+        DrawSetTransform(Vector2.Zero, 0, Vector2.One);
+    }
 
     /// <summary>
     /// Until DrawSetTransform is reset, draws in screen pixels with the origin at this map

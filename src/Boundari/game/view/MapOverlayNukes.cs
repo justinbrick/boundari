@@ -77,9 +77,8 @@ public partial class MapOverlay
             float done = Math.Clamp((_game.Tick - 1 + _tickFraction - b.ReloadStartTick) / cooldown, 0, 1);
             var at = TileCentre(b.Tile, w);
             bool empty = b.Reloading >= b.Level;
-            DrawArc(at, size * 0.7f, 0, Mathf.Tau, 32, new Color(0, 0, 0, empty ? 0.45f : 0.2f), size * 0.1f, true);
-            DrawArc(at, size * 0.7f, -Mathf.Pi / 2, -Mathf.Pi / 2 + Mathf.Tau * done, 32,
-                new Color(0.85f, 0.85f, 0.85f, empty ? 0.95f : 0.5f), size * 0.1f, true);
+            DrawRing(at, size * 0.7f, 1, new Color(0, 0, 0, empty ? 0.45f : 0.2f), size * 0.1f);
+            DrawRing(at, size * 0.7f, done, new Color(0.85f, 0.85f, 0.85f, empty ? 0.95f : 0.5f), size * 0.1f);
         }
     }
 
