@@ -487,7 +487,7 @@ public partial class World : Node2D
 
     /// <summary>
     /// Keyboard shortcuts, OpenFront's defaults: 1-0 build / aim bombs (numpad too), B boat,
-    /// G attack under the mouse, Shift+R hit back at the latest attacker, T/Y attack ratio,
+    /// G expand into the wilderness / attack under the mouse, Shift+R hit back at the latest attacker, T/Y attack ratio,
     /// K/L/N ally / break alliance / target under the mouse, F and R the emoji and chat menu,
     /// U flip bomb arcs, C centre on you, M coordinate grid, Space (held) hide territory, P
     /// pause, comma/period game speed, Shift+D the frame counter. WASD/arrows pan and Q/E or
@@ -633,10 +633,12 @@ public partial class World : Node2D
     private Player? PlayerAt(int tile) =>
         tile >= 0 && _map.IsLand(tile) && _game.GetPlayer(_game.Owner[tile]) is { } p && p != _me ? p : null;
 
-    /// <summary>G: attack whoever's land is under the mouse (or empty land), as a click would.</summary>
+    /// <summary>G: expand into the wilderness under the mouse, as a click would; over someone's land, an old-style attack (until the dots replace it).</summary>
     private void GroundAttack(int tile)
     {
         if (tile < 0 || !_map.IsLand(tile) || _game.Phase != GamePhase.Running || !_me.HasSpawned || !_me.IsAlive)
+            return;
+        if (ClickToExpand(tile))
             return;
         ushort target = _game.Owner[tile];
         if (target != _me.Id && !_me.Allies.Contains(target) && _game.CanReachByLand(_me, tile))
@@ -932,7 +934,7 @@ public partial class World : Node2D
         ushort target = _game.Owner[tile];
         if (target == _me.Id || !_me.IsAlive || !_me.HasSpawned)
             return;
-        if (ClickToPush(tile)) // your nearest dot facing that land pushes in (or stops); G sends an old-style attack
+        if (ClickToExpand(tile) || ClickToPush(tile)) // wilderness: expand (or stop); someone's land: your nearest dot facing it pushes in (or stops)
             return;
         if (doubleClick && !_game.CanReachByLand(_me, tile))
             SendBoat(tile); // land you can't walk to: a double click sends a boat (or press B)

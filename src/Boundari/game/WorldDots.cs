@@ -4,10 +4,11 @@ using Godot;
 namespace Boundari;
 
 /// <summary>
-/// Attacking with dots: hovering someone else's land (or the wilderness) rings your dot
-/// nearest to it that faces that land; a left click sends it, and its whole stretch of
-/// border pushes in until stopped. Clicking there again while it pushes (red ring) stops
-/// it, and the line it holds digs in. (The G key still sends an old-style attack.)
+/// Attacking with dots: hovering someone else's land rings your dot nearest to it that
+/// faces that land; a left click sends it, and its whole stretch of border pushes in until
+/// stopped. Clicking there again while it pushes (red ring) stops it, and the line it holds
+/// digs in. A click on the wilderness (or G over it) starts expanding your whole border into
+/// it, or stops that. (G over someone's land still sends an old-style attack.)
 /// </summary>
 public partial class World
 {
@@ -23,6 +24,17 @@ public partial class World
         var dot = _game.DotToPush(_me, tile);
         stops = dot is not null && _game.IsPushingInto(dot, _game.Owner[tile]);
         return dot;
+    }
+
+    /// <summary>A click (or G) on the wilderness: start expanding into it, or stop. False if the tile isn't wilderness.</summary>
+    private bool ClickToExpand(int tile)
+    {
+        if (_game.Phase != GamePhase.Running || !_me.IsAlive || !_me.HasSpawned || tile < 0 || !_map.IsLand(tile) || _game.Owner[tile] != Game.Nobody)
+            return false;
+        bool expanding = _game.IsExpanding(_me);
+        _game.Submit(new ExpandIntent(_me.Id, Start: !expanding));
+        _hud.Flash(expanding ? "Expansion stopped" : "Expanding into the wilderness");
+        return true;
     }
 
     /// <summary>A left click on land that isn't yours: sends (or stops) the dot ringed there. False if no dot answers.</summary>

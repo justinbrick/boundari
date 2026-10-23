@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Boundari.Sim;
 using Godot;
 
@@ -9,6 +10,7 @@ namespace Boundari.View;
 /// dots plan): a circle in the owner's colour, darker the stronger it is; a white rim while
 /// it is attacking; a ring on the dot a click would send (white) or stop (red); and, for
 /// your own dots, how much stamina is left as an arc round the dot once it is tiring.
+/// Dots glide: each tick, from where it was drawn to where it is now, over the tick.
 /// </summary>
 public partial class MapOverlay
 {
@@ -23,6 +25,12 @@ public partial class MapOverlay
     private int _dotHover = -1;
     private bool _dotHoverStops;
 
+    // Gliding: per dot, where it is drawn from and to during the current tick.
+    private readonly Dictionary<int, (Vector2 From, Vector2 To)> _glide = new();
+    private readonly Dictionary<int, Vector2> _drawnAt = new();
+    private long _glideTick = -1;
+    private Game? _glideGame;
+
     /// <summary>The dot a click would send into the land under the mouse (-1 = none), and whether the click would stop it instead.</summary>
     public void SetDotHover(int dotId, bool stops)
     {
@@ -35,11 +43,28 @@ public partial class MapOverlay
         if (_game is null || _game.Dots.Count == 0)
             return;
         float r = Math.Max(DotTiles, DotMinPixels / zoom), px = 1 / zoom;
+        if (_game.Tick != _glideTick || _game != _glideGame)
+        {
+            // A new tick: glide from where each dot was last drawn to where it is now.
+            bool sameGame = _game == _glideGame;
+            _glideTick = _game.Tick;
+            _glideGame = _game;
+            _glide.Clear();
+            foreach (var dot in _game.Dots)
+            {
+                var now = TileCentre(dot.Tile, w);
+                if (dot.IsWalking)
+                    now = now.Lerp(TileCentre(dot.NextTile, w), (float)dot.StepFraction(w));
+                _glide[dot.Id] = (sameGame && _drawnAt.TryGetValue(dot.Id, out var was) ? was : now, now);
+            }
+            _drawnAt.Clear();
+        }
         foreach (var dot in _game.Dots)
         {
-            var at = TileCentre(dot.Tile, w);
-            if (dot.IsWalking)
-                at = at.Lerp(TileCentre(dot.NextTile, w), (float)dot.StepFraction(w));
+            if (!_glide.TryGetValue(dot.Id, out var g))
+                continue; // (bought this tick: shown from the next)
+            var at = g.From.Lerp(g.To, Math.Clamp(_tickFraction, 0, 1));
+            _drawnAt[dot.Id] = at;
             if (!OnScreen(at, r * 3))
                 continue;
             var fill = ColorOf(dot.Owner.Id).Darkened(0.15f * (dot.Strength - 1));
