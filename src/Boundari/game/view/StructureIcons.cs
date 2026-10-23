@@ -21,7 +21,10 @@ public partial class StructureIcons : Node2D
         PreviewInvalid = 3,
     }
 
-    private const int Cell = 128;          // atlas cell size, in pixels (the glyphs are imported at 128)
+    private const int Cell = 128;          // glyph size, in pixels (the glyphs are imported at 128)
+    // Each glyph sits in the middle of an atlas cell twice its size, so filtering (and the
+    // smaller mipmaps) never picks up a sliver of the glyph next to it.
+    private const int Stride = Cell * 2;
     private const float Quad = 1.5f;       // quad size, in icon sizes (room for the biggest shape)
 
     // Per building type (in BuildingType order): sides (0 = circle), rotation, circumradius in icon sizes.
@@ -43,7 +46,7 @@ public partial class StructureIcons : Node2D
     /// <summary>Builds the glyph atlas from the icon pictures, by building type.</summary>
     public void Setup(Func<BuildingType, Texture2D?> glyph)
     {
-        var atlas = Image.CreateEmpty(Cell * Shapes.Length, Cell, false, Image.Format.Rgba8);
+        var atlas = Image.CreateEmpty(Stride * Shapes.Length, Stride, false, Image.Format.Rgba8);
         for (int i = 0; i < Shapes.Length; i++)
         {
             if (glyph((BuildingType)i)?.GetImage() is not { } image)
@@ -53,7 +56,7 @@ public partial class StructureIcons : Node2D
             image.Convert(Image.Format.Rgba8);
             if (image.GetWidth() != Cell || image.GetHeight() != Cell)
                 image.Resize(Cell, Cell, Image.Interpolation.Lanczos);
-            atlas.BlitRect(image, new Rect2I(0, 0, Cell, Cell), new Vector2I(i * Cell, 0));
+            atlas.BlitRect(image, new Rect2I(0, 0, Cell, Cell), new Vector2I(i * Stride + (Stride - Cell) / 2, (Stride - Cell) / 2));
         }
         atlas.GenerateMipmaps();
         _atlas = ImageTexture.CreateFromImage(atlas);
@@ -71,13 +74,17 @@ public partial class StructureIcons : Node2D
 
     public override void _Draw() => Paint?.Invoke(this);
 
+    /// <summary>The colours structure_icons.gdshader gives an owner's icon: its outline and its fill.</summary>
+    public static (Color Line, Color Fill) IconColours(Color owner) =>
+        (new Color(owner.R * 0.55f, owner.G * 0.55f, owner.B * 0.55f), owner.Lerp(Colors.White, 0.35f));
+
     /// <summary>Draws one icon, <paramref name="size"/> map units across, centred on <paramref name="at"/>.</summary>
     public void DrawIcon(BuildingType type, Vector2 at, float size, Color owner, float alpha, Mode mode)
     {
         int column = Math.Clamp((int)type, 0, Shapes.Length - 1);
         float side = size * Quad;
         var rect = new Rect2(at - new Vector2(side, side) / 2, new Vector2(side, side));
-        var source = new Rect2(column * Cell, (int)mode * Cell, Cell, Cell);
+        var source = new Rect2(column * Stride, (int)mode * Stride, Stride, Stride);
         DrawTextureRectRegion(_atlas, rect, source, new Color(owner, alpha));
     }
 }

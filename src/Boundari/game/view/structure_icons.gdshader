@@ -53,7 +53,7 @@ void fragment() {
 	float inside = 1.0 - smoothstep(-half_line - aa, -half_line + aa, d);
 
 	vec3 owner = tint.rgb;
-	vec3 fill = mix(owner, vec3(1.0), 0.35);
+	vec3 fill = mix(owner, vec3(1.0), 0.35); // (StructureIcons.IconColours matches these)
 	vec3 line = owner * 0.55;
 	if (mode > 1.5) {
 		line = mode < 2.5 ? valid_outline.rgb : invalid_outline.rgb;
@@ -64,7 +64,8 @@ void fragment() {
 		vec2 g = p / glyph_size + 0.5;
 		if (g.x >= 0.0 && g.y >= 0.0 && g.x <= 1.0 && g.y <= 1.0) {
 			// A slight negative bias keeps the glyph sharp when it's drawn small.
-			float glyph = texture(glyphs, vec2((float(column) + g.x) / float(columns), g.y), -0.6).a;
+			// (Each glyph fills the middle half of its atlas cell.)
+			float glyph = texture(glyphs, vec2((float(column) + 0.25 + 0.5 * g.x) / float(columns), 0.25 + 0.5 * g.y), -0.6).a;
 			colour = mix(colour, owner * 0.4, glyph * inside);
 		}
 	}

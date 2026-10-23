@@ -262,14 +262,14 @@ public partial class MapOverlay : Node2D
                 DrawArc(at, size * 0.62f, -Mathf.Pi / 2, -Mathf.Pi / 2 + Mathf.Tau * done, 32, Colors.White, size * 0.08f, true);
             }
             if (b.Level > 1 && !dots)
-                DrawLevel(at + new Vector2(size * 0.42f, -size * 0.42f), b.Level, size, zoom);
+                DrawLevel(at + new Vector2(size * 0.42f, -size * 0.42f), b.Level, size, zoom, ColorOf(b.Owner));
         }
         if (_ghostType is { } ghost && _ghostTile >= 0)
         {
             var at = TileCentre(_ghostTile, w);
             var tint = _ghostValid ? new Color(0.45f, 0.95f, 0.5f) : new Color(1f, 0.35f, 0.3f);
             if (_ghostStacks && !dots)
-                DrawLevel(at + new Vector2(size * 0.42f, -size * 0.42f), _ghostLevel, size, zoom, plus: true);
+                DrawLevel(at + new Vector2(size * 0.42f, -size * 0.42f), _ghostLevel, size, zoom, _me is null ? tint : ColorOf(_me.Id), plus: true);
             if (ghost == BuildingType.Warship)
                 DrawWarship(at, 0, IconPixels(zoom, WarshipPixels, WarshipPixels, 1) / zoom, _me is null ? tint : ColorOf(_me.Id), 1f, tint);
         }
@@ -359,17 +359,21 @@ public partial class MapOverlay : Node2D
         DrawSetTransform(toScreen.AffineInverse() * screen, 0, Vector2.One / _zoom);
     }
 
-    /// <summary>A small level badge in the corner of a building ("+3" while previewing a stack).</summary>
-    private void DrawLevel(Vector2 at, int level, float size, float zoom, bool plus = false)
+    /// <summary>
+    /// A small level badge in the corner of a building ("+3" while previewing a stack): a solid
+    /// circle in the icon's outline colour with the number in its fill colour.
+    /// </summary>
+    private void DrawLevel(Vector2 at, int level, float size, float zoom, Color owner, bool plus = false)
     {
         string text = (plus ? "+" : "") + level;
         float r = size * zoom * 0.24f; // screen pixels
+        var (line, fill) = StructureIcons.IconColours(owner);
         BeginScreenPixels(at);
-        DrawCircle(Vector2.Zero, r, new Color(0.08f, 0.09f, 0.1f, 0.9f));
+        DrawCircle(Vector2.Zero, r, line, true, -1, true);
         int fontSize = Math.Max(1, (int)MathF.Round(r * 1.3f));
         var font = ThemeDB.FallbackFont;
         var extent = font.GetStringSize(text, HorizontalAlignment.Left, -1, fontSize);
-        DrawString(font, new Vector2(-MathF.Round(extent.X / 2), MathF.Round(fontSize * 0.36f)), text, HorizontalAlignment.Left, -1, fontSize, Colors.White);
+        DrawString(font, new Vector2(-MathF.Round(extent.X / 2), MathF.Round(fontSize * 0.36f)), text, HorizontalAlignment.Left, -1, fontSize, fill);
         DrawSetTransform(Vector2.Zero, 0, Vector2.One);
     }
 
