@@ -73,6 +73,20 @@ uniform float hatch_strength : hint_range(0.0, 1.0) = 0.85;
 uniform float hatch_stripe_width : hint_range(0.1, 0.9) = 0.4;
 // The patch a structure being placed would secure: lightened, with a gentle pulse.
 uniform float secure_highlight : hint_range(0.0, 1.0) = 0.3;
+// Defense posts (OpenFront's BorderStampPass): borders within a post's range, on its owner's
+// land, get a checkerboard - every other cell darkened. One texel per post: x, y, owner id.
+uniform sampler2D defense_tex : filter_nearest, repeat_disable;
+uniform int defense_count = 0;
+uniform float defense_range = 30.0;
+// Checker cells are one OpenFront tile (set from MapView.cs), and defended borders are
+// about that wide too, like OpenFront's (ours are thinner elsewhere); zoomed out the cells
+// double in steps so they stay at least defense_min_pixels wide.
+uniform float defense_cell_tiles = 1.0;
+uniform float defense_min_pixels = 4.0;
+// Defended border width, in territory_at's `edge` units: about one OpenFront tile
+// (edge ~ erf(distance / (border_smoothing * sqrt 2)); 1.33 tiles on our Europe = 0.82).
+uniform float defense_border_edge : hint_range(0.0, 1.0) = 0.8;
+uniform float defense_checker_darken : hint_range(0.0, 1.0) = 0.7;
 
 group_uniforms dev_tools;
 // Land-cover patches: 1 = smooth rounded shapes (the normal look), 0 = square cells.
@@ -315,6 +329,20 @@ vec2 hatch_at(vec2 tile, int id) {
 		}
 	}
 	return mix(mix(v[0], v[1], f.x), mix(v[2], v[3], f.x), f.y);
+}
+
+// True if a finished defense post of `id` is within range of this tile.
+bool defended(vec2 tile, int id) {
+	vec2 t = floor(tile);
+	float r2 = defense_range * defense_range;
+	for (int i = 0; i < defense_count; i++) {
+		vec3 post = texelFetch(defense_tex, ivec2(i, 0), 0).rgb;
+		vec2 d = post.xy - t;
+		if (int(post.z + 0.5) == id && dot(d, d) <= r2) {
+			return true;
+		}
+	}
+	return false;
 }
 
 // Diagonal stripes this many tiles apart: 1 on a stripe, 0 between, anti-aliased. Stripes
@@ -572,6 +600,10 @@ void fragment() {
 			// Borders never get thinner than ~1 pixel, so they don't flicker when zoomed out.
 			float edge_aa = max(fwidth(edge), 1e-5);
 			float bw = max(border_width, edge_aa * 1.2);
+			bool defense = defense_count > 0 && edge < max(bw, defense_border_edge) + edge_aa && defended(tile, id);
+			if (defense) {
+				bw = max(bw, defense_border_edge);
+			}
 			float border = 1.0 - smoothstep(bw - edge_aa, bw + edge_aa, edge);
 			float cbw = max(coast_border_width, tiles_per_px * 1.2);
 			float coast_border = 1.0 - smoothstep(cbw - tiles_per_px, cbw + tiles_per_px, coast_dist);
@@ -579,6 +611,13 @@ void fragment() {
 
 			vec3 fill = mix(ground, nation, opacity);
 			vec3 outline = nation * (1.0 - border_darken);
+			if (defense && border > 0.0) {
+				float cell = defense_cell_tiles * exp2(max(ceil(log2(defense_min_pixels * tiles_per_px / defense_cell_tiles)), 0.0));
+				ivec2 c = ivec2(floor(tile / cell));
+				if (((c.x + c.y) & 1) == 1) {
+					outline *= defense_checker_darken;
+				}
+			}
 			vec3 owned = mix(mix(fill, outline, stripe), outline, border);
 			if (hatch.y > 0.0) {
 				float pulse = 0.75 + 0.25 * sin(visual_time * 0.6);

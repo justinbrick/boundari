@@ -270,11 +270,24 @@ public partial class World : Node2D
         long recordStart = FrameProfiler.Start();
         _view.RecordTick(_game.Owner, _game.Fallout, _game.HatchedUntil, _game.ChangedTiles, _simTick);
         _game.ChangedTiles.Clear();
+        ShowDefensePosts();
         ShowGoldGains();
         _alerts.TakeEvents(_game, _me);
         _notifications.TakeEvents(_game, _me);
         FrameProfiler.Stop("territory record", recordStart);
         _shownTick = _game.Tick;
+    }
+
+    private readonly System.Collections.Generic.List<(int Tile, int Owner)> _defensePosts = new();
+
+    /// <summary>Hands the map every finished defense post, for the checkerboard on the borders they defend.</summary>
+    private void ShowDefensePosts()
+    {
+        _defensePosts.Clear();
+        foreach (var p in _game.Players)
+            foreach (int tile in p.DefensePosts)
+                _defensePosts.Add((tile, p.Id));
+        _view.SetDefensePosts(_defensePosts, _game.Rules.DefensePostRange, _map.Width);
     }
 
     /// <summary>After each frame is drawn: start the next tick if one is due.</summary>

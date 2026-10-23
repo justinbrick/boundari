@@ -124,6 +124,9 @@ public partial class MapView : Sprite2D
         _material.SetShaderParameter("capture_tex", _territory.TimeArray);
         _material.SetShaderParameter("hatch_tex", _territory.HatchArray);
         _material.SetShaderParameter("hatch_tiles", HatchStripeTiles * (float)map.TileScale);
+        _material.SetShaderParameter("defense_cell_tiles", (float)map.TileScale);
+        _material.SetShaderParameter("defense_count", 0);
+        _defensePosts.Clear();
         _material.SetShaderParameter("owner_chunk", TerritoryTextures.ChunkSize);
         _material.SetShaderParameter("owner_chunks_x", _territory.ChunksX);
         SetOwners(null);
@@ -156,6 +159,36 @@ public partial class MapView : Sprite2D
     /// </summary>
     public void RecordTick(ushort[] owners, bool[]? fallout, int[]? hatched, System.Collections.Generic.List<int> changed, int tick) =>
         _territory?.RecordTick(owners, fallout, hatched, changed, tick);
+
+    private readonly System.Collections.Generic.List<(int Tile, int Owner)> _defensePosts = new();
+    private Image? _defenseImage;
+    private ImageTexture? _defenseTexture;
+
+    /// <summary>
+    /// The finished defense posts (tile, owner) whose owner's borders in range get a
+    /// checkerboard. Only uploads when the list changed.
+    /// </summary>
+    public void SetDefensePosts(System.Collections.Generic.List<(int Tile, int Owner)> posts, int range, int mapWidth)
+    {
+        if (posts.Count == _defensePosts.Count && System.Linq.Enumerable.SequenceEqual(posts, _defensePosts))
+            return;
+        _defensePosts.Clear();
+        _defensePosts.AddRange(posts);
+        int capacity = 64;
+        while (capacity < posts.Count)
+            capacity *= 2;
+        if (_defenseImage is null || _defenseImage.GetWidth() != capacity)
+        {
+            _defenseImage = Image.CreateEmpty(capacity, 1, false, Image.Format.Rgbf);
+            _defenseTexture = ImageTexture.CreateFromImage(_defenseImage);
+            _material.SetShaderParameter("defense_tex", _defenseTexture);
+        }
+        for (int i = 0; i < posts.Count; i++)
+            _defenseImage.SetPixel(i, 0, new Color(posts[i].Tile % mapWidth, posts[i].Tile / mapWidth, posts[i].Owner));
+        _defenseTexture!.Update(_defenseImage);
+        _material.SetShaderParameter("defense_count", posts.Count);
+        _material.SetShaderParameter("defense_range", (float)range);
+    }
 
     /// <summary>Highlights the hatched patch a structure being placed would secure (null = none).</summary>
     public void SetSecureHighlight(System.Collections.Generic.IReadOnlyList<int>? tiles) => _territory?.SetHighlight(tiles);
