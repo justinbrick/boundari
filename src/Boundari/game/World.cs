@@ -188,7 +188,6 @@ public partial class World : Node2D
                 _labels.Visible = show && _showPlayers;
             },
             ShowGrid = show => _grid.Visible = show,
-            TextOutlineWidth = width => _labels.OutlineScale = width,
             SetColorTheme = theme =>
             {
                 _colorTheme = theme;

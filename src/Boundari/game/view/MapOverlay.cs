@@ -125,12 +125,6 @@ public partial class MapOverlay : Node2D
         if (_ghostType is { } ghost && _ghostTile >= 0)
         {
             var at = TileCentre(_ghostTile, w);
-            var tint = _ghostValid ? new Color(0.45f, 0.95f, 0.5f) : new Color(1f, 0.35f, 0.3f);
-            if (!_ghostStacks)
-            {
-                c.DrawCircle(at, _game.Rules.MinBuildingSpacing, new Color(tint, 0.12f));
-                c.DrawArc(at, _game.Rules.MinBuildingSpacing, 0, Mathf.Tau, 48, new Color(tint, 0.6f), 1.5f / zoom);
-            }
             float reach = ghost switch
             {
                 BuildingType.Defense => _game.Rules.DefensePostRange,
@@ -481,7 +475,6 @@ public partial class MapOverlay : Node2D
         Vector2 runStart = TileCentre(tiles[0], w), runEnd = runStart;
         Color? runColour = null;
         Vector2 runDirection = Vector2.Zero;
-        float along = 0; // tiles from the road's start, for the dashes
         for (int i = 1; i < tiles.Length; i++)
         {
             // Half-tile steps: tile i's colour covers from halfway back to halfway forward.
@@ -494,26 +487,37 @@ public partial class MapOverlay : Node2D
 
         void Step(Vector2 from, Vector2 direction, Color? colour)
         {
-            float end = along + 0.5f;
             if (pass != RoadPass.Markings || colour is null)
-                Extend(from, from + direction * 0.5f, direction, colour);
-            else
             {
-                // Dashes: even-numbered stretches of `dash` tiles are line, odd ones gap. Each
-                // step moves to the next stretch's start (or the half-tile's end), always forward,
-                // so rounding can never stall it.
-                float at = along;
-                while (at < end - 1e-4f)
-                {
-                    long k = (long)Math.Floor(at / dash + 1e-4f);
-                    float next = Math.Min(end, (k + 1) * dash);
-                    if (next <= at)
-                        next = end;
-                    Extend(from + direction * (at - along), from + direction * (next - along), direction, k % 2 == 0 ? colour : null);
-                    at = next;
-                }
+                Extend(from, from + direction * 0.5f, direction, colour);
+                return;
             }
-            along = end;
+            // Dashes: even-numbered stretches of `dash` tiles are line, odd ones gap, counted
+            // along the map's own x (or y) axis rather than along the road, so roads that share
+            // tiles draw the very same dashes. Runs are straight across or up and down; each
+            // step moves on to the next stretch's edge (or the half-tile's end), so rounding
+            // can never stall it.
+            bool across = Math.Abs(direction.X) > 0.5f;
+            float sign = across ? Math.Sign(direction.X) : Math.Sign(direction.Y);
+            float start = across ? from.X : from.Y, end = start + sign * 0.5f;
+            float lo = Math.Min(start, end), hi = Math.Max(start, end);
+            Span<(float A, float B, bool Line)> pieces = stackalloc (float, float, bool)[64];
+            int count = 0;
+            for (float at = lo; at < hi - 1e-4f && count < pieces.Length;)
+            {
+                long k = (long)Math.Floor(at / dash + 1e-4f);
+                float next = Math.Min(hi, (k + 1) * dash);
+                if (next <= at)
+                    next = hi;
+                pieces[count++] = (at, next, (k & 1) == 0);
+                at = next;
+            }
+            for (int n = 0; n < count; n++)
+            {
+                var (a, b, line) = pieces[sign > 0 ? n : count - 1 - n]; // in the road's own direction
+                float p = sign > 0 ? a : b, q = sign > 0 ? b : a;
+                Extend(from + direction * Math.Abs(p - start), from + direction * Math.Abs(q - start), direction, line ? colour : null);
+            }
         }
 
         void Extend(Vector2 from, Vector2 to, Vector2 direction, Color? colour)

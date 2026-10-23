@@ -36,7 +36,7 @@ public partial class TerritoryLabels : Node2D
     private const int NearShoreWater = 10;              // water this close to land counts as room (reference tiles)
     // Mockup values at their font sizes (name 32, troops 20), as shares of the font size.
     private const float NameSpacing = 8f / 32, TroopSpacing = 4f / 20;
-    private const float NameOutline = 4f / 32, TroopOutline = 3f / 20;
+    private const float NameOutline = 8f / 32, TroopOutline = 6f / 20; // twice the mockup's (user picked 2x on the dev toolbar)
     private const float NameShadow = 4f / 32, TroopShadow = 3f / 20;
     private const float OutlineLighten = 0.4f;          // outline = the territory's colour, lightened
 
@@ -47,8 +47,6 @@ public partial class TerritoryLabels : Node2D
     /// <summary>Territory colours by owner id (the outline is a light version of each).</summary>
     public void SetPalette(Color[] palette) => _palette = palette;
 
-    /// <summary>Outline width round names and troop counts, as a multiple of the mockup's (dev toolbar TOL).</summary>
-    public float OutlineScale { get; set; } = 1f;
 
     /// <summary>A name's spot and OpenFront "size" (the font size that fits its rectangle).</summary>
     private readonly record struct Placement(Vector2 Centre, float Size);
@@ -441,11 +439,11 @@ public partial class TerritoryLabels : Node2D
         // TextLine draws from the top of its line; the baseline is one ascent down.
         float nameAscent = name.GetLineAscent() * scale;
         DrawText(name, new Vector2(pos.X - nameWidth / 2, pos.Y + cap / 2 - nameAscent), scale,
-            NameShadow * nameBucket, NameOutline * OutlineScale * nameBucket, text, outline, shadow, canvas);
+            NameShadow * nameBucket, NameOutline * nameBucket, text, outline, shadow, canvas);
         float troopAscent = troops.GetLineAscent() * troopScale;
         float troopAlpha = Intel?.SightOf(player) == TroopIntel.Sight.Far ? FarTroopAlpha : 1f;
         DrawText(troops, new Vector2(pos.X - troopWidth / 2, troopMiddle + troopCap / 2 - troopAscent), troopScale,
-            TroopShadow * troopBucket, TroopOutline * OutlineScale * troopBucket, text with { A = text.A * troopAlpha },
+            TroopShadow * troopBucket, TroopOutline * troopBucket, text with { A = text.A * troopAlpha },
             outline with { A = outline.A * troopAlpha }, shadow with { A = shadow.A * troopAlpha }, canvas);
         DrawTags(emoji, tagBottom, tagHeight, zoom, alpha);
         DrawSetTransform(Vector2.Zero, 0, Vector2.One);

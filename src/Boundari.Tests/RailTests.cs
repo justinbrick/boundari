@@ -115,4 +115,52 @@ public class RailTests
         Assert.NotNull(path);
         Assert.True(path.Length <= 50, $"a 43-tile hop took {path.Length} tiles");
     }
+
+    [Fact]
+    public void PreviewRails_MatchesTheRoadsActuallyLaid()
+    {
+        // Flat land, a first depot with cities round it, then cities further east: the new
+        // depot links to existing stations and turns the eastern cities into stations too.
+        var map = new GameMap(320, 200, 1);
+        for (int t = 0; t < map.TileCount; t++)
+        {
+            map.Terrain[t] = TerrainType.Plains;
+            map.CoastField[t] = 1;
+        }
+        MapProcessing.LabelLandmasses(map);
+        var game = new Game(map, 1, spawnPhaseTicks: 2);
+        var p = game.AddPlayer("P");
+        game.Submit(new SpawnIntent(p.Id, map.Index(10, 100)));
+        for (int t = 0; t < 4; t++)
+            game.Step();
+        for (int t = 0; t < map.TileCount; t++)
+            SetOwnerMethod.Invoke(game, new object[] { t, p.Id });
+        game.SetCheats(p, infiniteGold: true, instantBuild: true);
+
+        void Build(BuildingType type, int x, int y)
+        {
+            game.Submit(new BuildIntent(p.Id, type, map.Index(x, y)));
+            game.Step();
+        }
+        foreach (var (x, y) in new[] { (40, 60), (40, 140), (90, 100) })
+            Build(BuildingType.City, x, y);
+        Build(BuildingType.Factory, 60, 100);
+        foreach (var (x, y) in new[] { (170, 60), (170, 140), (210, 100), (130, 30) })
+            Build(BuildingType.City, x, y);
+        for (int t = 0; t < 60; t++)
+            game.Step(); // let the first depot's roads all be laid
+
+        int site = map.Index(160, 100);
+        var preview = game.PreviewRails(BuildingType.Factory, site);
+        var before = game.Railroads.ToHashSet();
+        Build(BuildingType.Factory, 160, 100);
+        for (int t = 0; t < 60; t++)
+            game.Step();
+        var laid = game.Railroads.Where(r => !before.Contains(r)).Select(r => r.Tiles).ToList();
+
+        Assert.True(preview.Count >= 3, $"expected several roads, previewed {preview.Count}");
+        Assert.Equal(laid.Count, preview.Count);
+        for (int i = 0; i < laid.Count; i++)
+            Assert.Equal(laid[i], preview[i]);
+    }
 }

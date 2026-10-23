@@ -1226,50 +1226,119 @@ public sealed partial class Game
     }
 
     /// <summary>
-    /// The roads a structure placed on this tile would lay (OpenFront's ghost rails, for
-    /// the placement preview): a Depot links to the closest stations and to cities, ports
-    /// and depots around it; a Barracks or Harbor only joins when a Depot is in range.
-    /// At most 5 roads, closest first, skipping stations a road already shown would reach
-    /// within a few stops. Display only: changes nothing.
+    /// The roads a structure placed on this tile would lay once built (OpenFront's ghost
+    /// rails, for the placement preview). Replays exactly what building it does: a Depot
+    /// (or a Barracks / Harbor with a Depot in range) becomes a station and links to the
+    /// stations around it; a Depot also turns the cities, ports and depots around it into
+    /// stations, which link up the same way; links run closest first and are skipped when
+    /// the two ends are already a few stops apart. Display only: changes nothing.
     /// </summary>
     public List<int[]> PreviewRails(BuildingType type, int tile)
     {
         var paths = new List<int[]>();
         if (type is not (BuildingType.City or BuildingType.Port or BuildingType.Factory))
             return paths;
-        bool factory = type == BuildingType.Factory;
-        if (!factory && !FactoryNear(tile))
+        if (type != BuildingType.Factory && !FactoryNear(tile))
             return paths;
-        int x = tile % Map.Width, y = tile / Map.Width, max = Rules.StationMaxRange, min = Rules.StationMinRange;
-        var nearby = new List<(Building B, int D)>();
-        foreach (var b in _buildings.Values)
+        if (_railPreviewCache.Count > 4000)
+            _railPreviewCache.Clear();
+
+        // Stations by tile: the real ones, plus the ones this structure would add.
+        var stationAt = new Dictionary<int, Station?>();
+        foreach (var s in _stations.Values)
+            stationAt[s.Building.Tile] = s;
+        var newLinks = new Dictionary<int, List<int>>();
+        var queue = new Queue<(int From, int To)>();
+        int max = Rules.StationMaxRange, min = Rules.StationMinRange;
+
+        void AddStation(int at)
         {
-            if (b.Tile == tile || !b.IsReady(Tick) || b.Type is not (BuildingType.City or BuildingType.Port or BuildingType.Factory))
-                continue;
-            int dx = b.Tile % Map.Width - x, dy = b.Tile / Map.Width - y, d = dx * dx + dy * dy;
-            if (d <= max * max && d > min * min)
-                nearby.Add((b, d));
-        }
-        nearby.Sort((a, c) => a.D != c.D ? a.D.CompareTo(c.D) : a.B.Tile.CompareTo(c.B.Tile));
-        var linked = new List<Station>();
-        foreach (var (b, _) in nearby)
-        {
-            if (paths.Count >= 5)
-                break;
-            _stations.TryGetValue(b, out var station);
-            if (station is null && !factory)
-                continue; // only a new Depot turns plain buildings into stations
-            if (station is not null && linked.Exists(s => s == station || Hops(s, station, RailRules.AlreadyConnectedHops) >= 0))
-                continue;
-            if (RailPath(tile, b.Tile) is { } path)
+            if (stationAt.ContainsKey(at))
+                return;
+            stationAt[at] = null;
+            int x = at % Map.Width, y = at / Map.Width;
+            var nearby = new List<(int Tile, int D)>();
+            foreach (int other in stationAt.Keys)
             {
-                paths.Add(path);
-                if (station is not null)
-                    linked.Add(station);
+                if (other == at)
+                    continue;
+                int dx = other % Map.Width - x, dy = other / Map.Width - y, d = dx * dx + dy * dy;
+                if (d <= max * max && d > min * min)
+                    nearby.Add((other, d));
             }
+            nearby.Sort((a, c) => a.D != c.D ? a.D.CompareTo(c.D) : a.Tile.CompareTo(c.Tile));
+            foreach (var (other, _) in nearby)
+                queue.Enqueue((at, other));
+        }
+
+        AddStation(tile);
+        if (type == BuildingType.Factory)
+        {
+            int x = tile % Map.Width, y = tile / Map.Width;
+            var promoted = new List<(int Tile, int D)>();
+            foreach (var b in _buildings.Values)
+            {
+                if (b.Tile == tile || _stations.ContainsKey(b) || !b.IsReady(Tick)
+                    || b.Type is not (BuildingType.City or BuildingType.Port or BuildingType.Factory))
+                    continue;
+                int dx = b.Tile % Map.Width - x, dy = b.Tile / Map.Width - y, d = dx * dx + dy * dy;
+                if (d <= max * max)
+                    promoted.Add((b.Tile, d));
+            }
+            promoted.Sort((a, c) => a.D != c.D ? a.D.CompareTo(c.D) : a.Tile.CompareTo(c.Tile));
+            foreach (var (t, _) in promoted)
+                AddStation(t);
+        }
+
+        IEnumerable<int> Neighbours(int at)
+        {
+            if (stationAt.TryGetValue(at, out var s) && s is not null)
+                foreach (var n in s.Neighbours())
+                    yield return n.Building.Tile;
+            if (newLinks.TryGetValue(at, out var links))
+                foreach (int n in links)
+                    yield return n;
+        }
+
+        // Within this many stops already? (Hops, on the network with the new links.)
+        bool Close(int from, int to)
+        {
+            var frontier = new List<int> { from };
+            var seen = new HashSet<int> { from };
+            for (int hops = 1; hops <= RailRules.AlreadyConnectedHops && frontier.Count > 0; hops++)
+            {
+                var next = new List<int>();
+                foreach (int s in frontier)
+                    foreach (int n in Neighbours(s))
+                    {
+                        if (n == to)
+                            return true;
+                        if (seen.Add(n))
+                            next.Add(n);
+                    }
+                frontier = next;
+            }
+            return false;
+        }
+
+        while (queue.Count > 0)
+        {
+            var (from, to) = queue.Dequeue();
+            if (Close(from, to))
+                continue;
+            if (!_railPreviewCache.TryGetValue((from, to), out var path))
+                _railPreviewCache[(from, to)] = path = RailPath(from, to);
+            if (path is null)
+                continue;
+            paths.Add(path);
+            (newLinks.TryGetValue(from, out var a) ? a : newLinks[from] = new List<int>()).Add(to);
+            (newLinks.TryGetValue(to, out var c) ? c : newLinks[to] = new List<int>()).Add(from);
         }
         return paths;
     }
+
+    // Routes worked out for previews (from, to): they depend only on the terrain.
+    private readonly Dictionary<(int, int), int[]?> _railPreviewCache = new();
 
     private void RemoveStation(Building b)
     {

@@ -16,7 +16,7 @@ namespace Boundari;
 public partial class World
 {
     private const double ArrowHoldSeconds = 0.3;
-    private const double HoldRingAfterSeconds = 0.06; // the filling ring shows from here (a quick click never flashes it)
+    private const double HoldRingAfterSeconds = 0.15; // the filling ring shows from here (an ordinary click, ~0.1 s, never shows it)
     private const float MinArrowPixels = 12;          // shorter than this on release = a plain click
     private const float FlatArrowPixels = 40;         // up to this long: the flattest arrow
     private const float ThinArrowPixels = 360;        // from this long: the thinnest
