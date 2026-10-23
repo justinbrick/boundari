@@ -147,6 +147,159 @@ public sealed partial class Game
         }
     }
 
+    /// <summary>
+    /// Spreads the named dots evenly along the border from one point to the other (each
+    /// snapped to the player's nearest border tile), keeping the order they stand in along
+    /// it; each walks to its new spot. Points on border pieces that don't join: they gather
+    /// at the second point instead, as a move there would.
+    /// </summary>
+    private void SpreadDots(Player player, int[] dotIds, int fromTile, int toTile)
+    {
+        if (SpreadPlan(player, dotIds, fromTile, toTile, out int to) is { } plan)
+        {
+            foreach (var (dot, spot) in plan)
+                if (FindDotPath(player, dot.Tile, spot) is { } path)
+                    SetOff(dot, path);
+        }
+        else if (to >= 0)
+            MoveDots(player, dotIds, to);
+    }
+
+    /// <summary>
+    /// Where each of the named dots would stand if spread from one point to the other (see
+    /// <see cref="SpreadDots"/>), in their order along the border; null if the points
+    /// aren't on one piece of border (<paramref name="to"/> is the second point's border
+    /// tile, -1 if there is none) or none of the dots is the player's.
+    /// </summary>
+    public List<(Dot Dot, int Spot)>? SpreadPlan(Player player, int[] dotIds, int fromTile, int toTile, out int to)
+    {
+        to = -1;
+        if (fromTile < 0 || toTile < 0 || fromTile >= Map.TileCount || toTile >= Map.TileCount)
+            return null;
+        var moving = new List<Dot>();
+        foreach (var d in _dots)
+            if (d.Owner == player && Array.IndexOf(dotIds, d.Id) >= 0)
+                moving.Add(d);
+        int from = BorderTileNear(player, fromTile);
+        to = BorderTileNear(player, toTile);
+        if (moving.Count == 0 || from < 0 || to < 0 || BorderLine(player, from, to) is not { } line)
+            return null;
+        // Each dot's place along the line: the nearest of its tiles (ties: the dot's id).
+        int w = Map.Width, n = moving.Count;
+        var place = new Dictionary<int, int>();
+        foreach (var d in moving)
+        {
+            int best = 0, bestDist = int.MaxValue;
+            for (int i = 0; i < line.Count; i++)
+            {
+                int dist = Math.Max(Math.Abs(d.Tile % w - line[i] % w), Math.Abs(d.Tile / w - line[i] / w));
+                if (dist < bestDist)
+                    (best, bestDist) = (i, dist);
+            }
+            place[d.Id] = best;
+        }
+        moving.Sort((a, b) => place[a.Id] != place[b.Id] ? place[a.Id].CompareTo(place[b.Id]) : a.Id.CompareTo(b.Id));
+        var plan = new List<(Dot, int)>();
+        for (int i = 0; i < n; i++)
+            plan.Add((moving[i], StandTileNear(player, line[n == 1 ? line.Count / 2 : (int)((long)i * (line.Count - 1) / (n - 1))])));
+        return plan;
+    }
+
+    /// <summary>
+    /// The shortest way along the player's border tiles (tile to tile, diagonals included)
+    /// from one border tile to another, both included; null if they aren't on one piece of
+    /// border (or it is too long to follow).
+    /// </summary>
+    private List<int>? BorderLine(Player player, int from, int to)
+    {
+        var cameFrom = new Dictionary<int, int> { [from] = -1 };
+        var queue = new Queue<int>();
+        queue.Enqueue(from);
+        int w = Map.Width, h = Map.Height;
+        while (queue.Count > 0 && !cameFrom.ContainsKey(to) && cameFrom.Count < DotRules.SpreadSearchTiles)
+        {
+            int t = queue.Dequeue(), x = t % w, y = t / w;
+            for (int dy = -1; dy <= 1; dy++)
+                for (int dx = -1; dx <= 1; dx++)
+                {
+                    int nx = x + dx, ny = y + dy;
+                    if ((dx | dy) == 0 || nx < 0 || ny < 0 || nx >= w || ny >= h)
+                        continue;
+                    int next = ny * w + nx;
+                    if (player.Border.Contains(next) && cameFrom.TryAdd(next, t))
+                        queue.Enqueue(next);
+                }
+        }
+        if (!cameFrom.ContainsKey(to))
+            return null;
+        var line = new List<int>();
+        for (int t = to; t >= 0; t = cameFrom[t])
+            line.Add(t);
+        line.Reverse();
+        return line;
+    }
+
+    /// <summary>
+    /// The player's border tile nearest this tile: looked for within two dot spacings, then
+    /// along the whole border (-1 if they have none).
+    /// </summary>
+    public int BorderTileNear(Player player, int tile)
+    {
+        int near = BorderTileWithin(player, tile, 2 * Rules.DotSpacing);
+        return near >= 0 ? near : NearestBorderTile(player, tile);
+    }
+
+    /// <summary>The player's border tile nearest this tile within <paramref name="radius"/> tiles (-1 if none).</summary>
+    public int BorderTileWithin(Player player, int tile, int radius)
+    {
+        if (tile < 0 || tile >= Map.TileCount)
+            return -1;
+        if (player.Border.Contains(tile))
+            return tile;
+        int w = Map.Width, h = Map.Height, x0 = tile % w, y0 = tile / w, best = -1;
+        long bestDist = long.MaxValue;
+        for (int y = Math.Max(0, y0 - radius); y <= Math.Min(h - 1, y0 + radius); y++)
+            for (int x = Math.Max(0, x0 - radius); x <= Math.Min(w - 1, x0 + radius); x++)
+            {
+                long dist = (long)(x - x0) * (x - x0) + (long)(y - y0) * (y - y0);
+                if (dist < bestDist && player.Border.Contains(y * w + x))
+                    (best, bestDist) = (y * w + x, dist);
+            }
+        return best;
+    }
+
+    /// <summary>
+    /// Where dots bought at this border tile would stand (as many as the player can buy of
+    /// <paramref name="count"/>), for showing before buying.
+    /// </summary>
+    public List<int> BuySpotsPreview(Player player, int borderTile, int count)
+    {
+        var spots = new List<int>();
+        foreach (int slot in BorderSlots(player, borderTile, DotsAffordable(player, count), null))
+            spots.Add(StandTileNear(player, slot));
+        return spots;
+    }
+
+    /// <summary>
+    /// The standing dots of this dot's owner chained to it, each within a stretch's link
+    /// distance of the next (the dot itself included), in id order: the group whose handles
+    /// spread or slide it.
+    /// </summary>
+    public List<Dot> DotGroup(Dot dot)
+    {
+        var group = new List<Dot> { dot };
+        if (dot.IsWalking)
+            return group;
+        int w = Map.Width, link = Rules.DotLink;
+        for (int i = 0; i < group.Count; i++)
+            foreach (var d in _dots)
+                if (d.Owner == dot.Owner && !d.IsWalking && !group.Contains(d)
+                    && Math.Max(Math.Abs(d.Tile % w - group[i].Tile % w), Math.Abs(d.Tile / w - group[i].Tile / w)) <= link)
+                    group.Add(d);
+        group.Sort((a, b) => a.Id.CompareTo(b.Id));
+        return group;
+    }
+
     private static void SetOff(Dot dot, int[] path)
     {
         dot.Destination = path[^1];

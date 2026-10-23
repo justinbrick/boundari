@@ -221,6 +221,95 @@ public class DotTests
         Assert.All(game.DotsOf(a), d => Assert.Equal(d.Destination, d.Tile));
     }
 
+    /// <summary>A's front tiles a quarter and three quarters down its border (rows apart), with four dots bought in between and walked there.</summary>
+    private static (int From, int To, int[] Ids) FourDotsOnTheFront(Game game, Player a)
+    {
+        var map = game.Map;
+        int rows = a.Border.Max(t => t / map.Width) - a.Border.Min(t => t / map.Width);
+        int top = a.Border.Min(t => t / map.Width);
+        int from = FrontTile(game, a, top + rows / 4), to = FrontTile(game, a, top + rows * 3 / 4);
+        SetGold(a, 4 * DotRules.Price);
+        game.Submit(new BuyDotsIntent(a.Id, 4, FrontTile(game, a, top + rows / 2)));
+        game.Step();
+        WalkAll(game, a);
+        return (from, to, game.DotsOf(a).Select(d => d.Id).ToArray());
+    }
+
+    [Fact]
+    public void SpreadDots_StandEvenlyFromOnePointToTheOther_InTheirOrder()
+    {
+        var (game, a, _) = Setup();
+        var map = game.Map;
+        var (from, to, ids) = FourDotsOnTheFront(game, a);
+        var before = game.DotsOf(a).OrderBy(d => d.Tile / map.Width).Select(d => d.Id).ToList();
+
+        game.Submit(new SpreadDotsIntent(a.Id, ids, from, to));
+        game.Step();
+        var dots = game.DotsOf(a).OrderBy(d => d.Destination / map.Width).ToList();
+        Assert.Equal(before, dots.Select(d => d.Id).ToList()); // nobody crosses over
+        Assert.True(Chebyshev(map, dots[0].Destination, from) <= DotRules.StandBack + 2, "the first stands at one end");
+        Assert.True(Chebyshev(map, dots[^1].Destination, to) <= DotRules.StandBack + 2, "the last at the other");
+        var gaps = Enumerable.Range(1, 3).Select(i => Chebyshev(map, dots[i - 1].Destination, dots[i].Destination)).ToList();
+        _out.WriteLine($"gaps {string.Join(", ", gaps)}, stretch {Chebyshev(map, from, to)} tiles");
+        Assert.True(gaps.Max() - gaps.Min() <= 4, $"evenly spread: gaps {string.Join(", ", gaps)}");
+        WalkAll(game, a);
+        Assert.All(game.DotsOf(a), d => Assert.Equal(d.Destination, d.Tile));
+    }
+
+    [Fact]
+    public void SpreadDots_ShiftedEnds_SlideTheGroupAlongTheBorder()
+    {
+        var (game, a, _) = Setup();
+        var map = game.Map;
+        var (from, to, ids) = FourDotsOnTheFront(game, a);
+        game.Submit(new SpreadDotsIntent(a.Id, ids, from, to));
+        game.Step();
+        WalkAll(game, a);
+        var was = game.DotsOf(a).ToDictionary(d => d.Id, d => d.Tile / map.Width);
+
+        const int Rows = 10;
+        game.Submit(new SpreadDotsIntent(a.Id, ids, from + Rows * map.Width, to + Rows * map.Width)); // off the border: snapped to it
+        game.Step();
+        WalkAll(game, a);
+        Assert.All(game.DotsOf(a), d => Assert.InRange(d.Tile / map.Width - was[d.Id], Rows - 3, Rows + 3));
+    }
+
+    [Fact]
+    public void SpreadDots_OnlyMovesTheSendersOwnDots()
+    {
+        var (game, a, b) = Setup();
+        var (from, to, ids) = FourDotsOnTheFront(game, a);
+        var tiles = game.DotsOf(a).Select(d => d.Tile).ToList();
+        game.Submit(new SpreadDotsIntent(b.Id, ids, from, to));
+        game.Step();
+        Assert.All(game.DotsOf(a), d => Assert.False(d.IsWalking));
+        Assert.Equal(tiles, game.DotsOf(a).Select(d => d.Tile).ToList());
+    }
+
+    [Fact]
+    public void ADotsGroup_IsTheStandingDotsChainedToIt_AndBuyPreviewsShowWhereDotsWillStand()
+    {
+        var (game, a, _) = Setup();
+        var map = game.Map;
+        int front = FrontTile(game, a, map.Height / 2);
+        SetGold(a, 10 * DotRules.Price);
+        var preview = game.BuySpotsPreview(a, front, 3);
+        game.Submit(new BuyDotsIntent(a.Id, 3, front));
+        game.Step();
+        Assert.Equal(preview.OrderBy(t => t), game.DotsOf(a).Select(d => d.Destination).OrderBy(t => t));
+        Assert.Single(game.DotGroup(game.DotsOf(a)[0])); // still walking: on its own
+        WalkAll(game, a);
+        var dots = game.DotsOf(a);
+        Assert.Equal(dots.Select(d => d.Id), game.DotGroup(dots[1]).Select(d => d.Id)); // spaced along one stretch: one group
+
+        int bottom = a.Border.Max(t => t / map.Width);
+        game.Submit(new MoveDotsIntent(a.Id, new[] { dots[0].Id }, FrontTile(game, a, bottom - 2)));
+        game.Step();
+        WalkAll(game, a);
+        Assert.Single(game.DotGroup(dots[0]));
+        Assert.Equal(2, game.DotGroup(dots[1]).Count);
+    }
+
     [Fact]
     public void Dots_OnlyGoToTheBuyersOwnBorder()
     {

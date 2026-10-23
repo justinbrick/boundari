@@ -381,6 +381,9 @@ public sealed partial class Game
             case MoveDotsIntent move when Phase == GamePhase.Running && move.DotIds is not null:
                 MoveDots(player, move.DotIds, move.BorderTile);
                 break;
+            case SpreadDotsIntent spread when Phase == GamePhase.Running && spread.DotIds is not null:
+                SpreadDots(player, spread.DotIds, spread.FromTile, spread.ToTile);
+                break;
             case PushIntent push when Phase == GamePhase.Running:
                 StartPush(player, push.DotId, push.TargetTile);
                 break;

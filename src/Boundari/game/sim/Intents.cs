@@ -57,6 +57,13 @@ public sealed record UpgradeDotIntent(ushort PlayerId, int DotId) : Intent(Playe
 public sealed record MoveDotsIntent(ushort PlayerId, int[] DotIds, int BorderTile) : Intent(PlayerId);
 
 /// <summary>
+/// Spread some of your dots evenly along your border from one point to another (each
+/// snapped to your nearest border tile), keeping their order: dragging a group's end
+/// handle spreads or cramps it, dragging its middle handle slides it along the border.
+/// </summary>
+public sealed record SpreadDotsIntent(ushort PlayerId, int[] DotIds, int FromTile, int ToTile) : Intent(PlayerId);
+
+/// <summary>
 /// Attack with the stretch of border <paramref name="DotId"/> stands on: every dot on it
 /// pushes into the land of whoever owns <paramref name="TargetTile"/> until stopped (not the wilderness: see <see cref="ExpandIntent"/>).
 /// </summary>
