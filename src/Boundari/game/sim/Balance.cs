@@ -69,6 +69,9 @@ public static class Balance
     // Land within this range of a defender's post costs attackers 5x the troops and
     // takes them 3x as long to take.
     public const int DefensePostRange = 30;
+    // Boundari: posts cost half OpenFront's price but aren't permanent - each crumbles this
+    // long after it's finished.
+    public const int DefensePostLifetimeTicks = 60 * TicksPerSecond;
 
     // --- SAMs and silos (for when nukes arrive) ---
     public const int SamCooldownTicks = 90;
@@ -92,7 +95,7 @@ public static class Balance
     public static long BuildingCost(BuildingType type, int owned) => type switch
     {
         BuildingType.Port or BuildingType.Factory or BuildingType.City => Math.Min(1_000_000, 125_000L << Math.Min(owned, 10)),
-        BuildingType.Defense => Math.Min(250_000, (owned + 1) * 50_000L),
+        BuildingType.Defense => Math.Min(125_000, (owned + 1) * 25_000L), // (Boundari: half OpenFront's)
         BuildingType.Silo => 1_000_000,
         BuildingType.Sam => Math.Min(3_000_000, (owned + 1) * 1_500_000L),
         BuildingType.Warship => Math.Min(1_000_000, (owned + 1) * 250_000L),

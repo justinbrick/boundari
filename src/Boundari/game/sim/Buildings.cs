@@ -32,7 +32,7 @@ public sealed class Building
 
     public bool IsReady(int tick) => tick >= ReadyTick;
 
-    /// <summary>Tick it gets torn down, if its owner ordered that (-1 = not).</summary>
+    /// <summary>Tick it gets torn down, if its owner ordered that or it's a finished defense post, which crumbles (-1 = not).</summary>
     public int DemolishTick { get; internal set; } = -1;
 
     /// <summary>Silos and SAMs: when each fired missile was launched (one per level can be out reloading).</summary>

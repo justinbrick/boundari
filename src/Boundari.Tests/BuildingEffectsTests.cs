@@ -105,6 +105,22 @@ public class BuildingEffectsTests
     }
 
     [Fact]
+    public void DefensePost_CrumblesAMinuteAfterItsFinished()
+    {
+        var (game, a, b, land) = Setup(split: true);
+        int front = land.First(t => game.Owner[t] == b.Id && game.Touches(t, a.Id));
+        int post = land.Where(t => game.Owner[t] == b.Id).OrderBy(t => Dist(game.Map, t, front)).First(t => Dist(game.Map, t, front) >= 3);
+        game.Submit(new BuildIntent(b.Id, BuildingType.Defense, post));
+        Wait(game, Balance.ConstructionTicks(BuildingType.Defense) + 2);
+        Assert.True(game.DefendedByPost(front, b.Id));
+        Wait(game, Balance.DefensePostLifetimeTicks - 10);
+        Assert.True(game.DefendedByPost(front, b.Id));
+        Wait(game, 10);
+        Assert.False(game.DefendedByPost(front, b.Id));
+        Assert.DoesNotContain(game.Buildings, x => x.Type == BuildingType.Defense);
+    }
+
+    [Fact]
     public void Factory_LinksNearbyCities_AndTrainsEarnGold()
     {
         var (game, a, _, land) = Setup(split: false);

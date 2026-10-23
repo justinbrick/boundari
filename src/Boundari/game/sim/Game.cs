@@ -1086,11 +1086,24 @@ public sealed partial class Game
                 continue;
             _constructing.RemoveAt(i--);
             Activate(b, _players[b.Owner]);
+            if (b.Type == BuildingType.Defense)
+                Crumble(b);
             if (b.Type == BuildingType.Factory)
                 OnFactoryBuilt(b);
             else if (b.Type is BuildingType.City or BuildingType.Port && FactoryNear(b.Tile))
                 AddStation(b);
         }
+    }
+
+    /// <summary>A finished defense post comes down by itself after a while (Boundari's rule), like a demolition.</summary>
+    private void Crumble(Building b)
+    {
+        int due = Tick + Balance.DefensePostLifetimeTicks;
+        if (b.DemolishTick < 0)
+            _demolishing.Add(b);
+        else
+            due = Math.Min(due, b.DemolishTick); // its owner was already tearing it down
+        b.DemolishTick = due;
     }
 
     /// <summary>Applies a finished building's lasting effect for its owner.</summary>

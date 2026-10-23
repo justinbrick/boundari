@@ -163,8 +163,8 @@ public class CombatTests
         Assert.Equal(125_000, Balance.BuildingCost(BuildingType.City, 0));
         Assert.Equal(500_000, Balance.BuildingCost(BuildingType.City, 2));
         Assert.Equal(1_000_000, Balance.BuildingCost(BuildingType.City, 9));
-        Assert.Equal(150_000, Balance.BuildingCost(BuildingType.Defense, 2));
-        Assert.Equal(250_000, Balance.BuildingCost(BuildingType.Defense, 20));
+        Assert.Equal(75_000, Balance.BuildingCost(BuildingType.Defense, 2));   // (Boundari: half OpenFront's)
+        Assert.Equal(125_000, Balance.BuildingCost(BuildingType.Defense, 20));
         Assert.Equal(1_000_000, Balance.BuildingCost(BuildingType.Silo, 5));
         Assert.Equal(3_000_000, Balance.BuildingCost(BuildingType.Sam, 1));
         Assert.Equal(500_000, Balance.BuildingCost(BuildingType.Warship, 1));

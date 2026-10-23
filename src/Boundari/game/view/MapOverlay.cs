@@ -151,7 +151,7 @@ public partial class MapOverlay : Node2D
         {
             var at = TileCentre(b.Tile, w);
             if (OnScreen(at, size))
-                c.DrawIcon(b.Type, at, size, ColorOf(b.Owner), b.IsReady(_game.Tick) ? 1f : 0.55f, mode);
+                c.DrawIcon(b.Type, at, size, ColorOf(b.Owner), IconAlpha(b), mode);
         }
         if (_ghostType is { } ghost && ghost != BuildingType.Warship && _ghostTile >= 0)
         {
@@ -160,6 +160,20 @@ public partial class MapOverlay : Node2D
             c.DrawIcon(ghost, TileCentre(_ghostTile, w), size, _me is null ? tint : ColorOf(_me.Id), 0.75f, preview);
         }
         FrameProfiler.Stop("  overlay buildings", part);
+    }
+
+    // A defense post fades out over the last this many ticks before it crumbles.
+    private const int CrumbleFadeTicks = 10 * Balance.TicksPerSecond;
+
+    /// <summary>Under construction: see-through. A defense post about to crumble fades out.</summary>
+    private float IconAlpha(Building b)
+    {
+        int tick = _game!.Tick;
+        if (!b.IsReady(tick))
+            return 0.55f;
+        if (b.Type == BuildingType.Defense && b.DemolishTick >= 0)
+            return 0.35f + 0.65f * Math.Clamp((b.DemolishTick - tick) / (float)CrumbleFadeTicks, 0, 1);
+        return 1f;
     }
 
     public void SetPalette(Color[] palette) => _palette = palette;
