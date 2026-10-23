@@ -123,10 +123,10 @@ public partial class MapView : Sprite2D
         _material.SetShaderParameter("owner_tex", _territory.OwnerArray);
         _material.SetShaderParameter("capture_tex", _territory.TimeArray);
         _material.SetShaderParameter("hatch_tex", _territory.HatchArray);
-        _material.SetShaderParameter("dist_tex", _territory.DistArray);
         _material.SetShaderParameter("dist_units", TerritoryTextures.DistUnits);
-        _territory.BorderDistances = _borderTiles > ThinBorderTiles;
+        SetBorderDistances(_borderTiles > ThinBorderTiles);
         _material.SetShaderParameter("hatch_tiles", HatchStripeTiles * (float)map.TileScale);
+        _material.SetShaderParameter("hatch_settle_ticks", (float)Boundari.Sim.HatchRules.SettleTicks);
         _material.SetShaderParameter("defense_cell_tiles", (float)map.TileScale);
         _material.SetShaderParameter("defense_count", 0);
         _defensePosts.Clear();
@@ -239,7 +239,12 @@ public partial class MapView : Sprite2D
     /// The moment being drawn, in ticks. Kept one tick behind the simulation so captures
     /// from the latest tick can be swept in smoothly instead of popping in all at once.
     /// </summary>
-    public void SetVisualTime(float ticks) => _material.SetShaderParameter("visual_time", ticks);
+    public void SetVisualTime(float ticks)
+    {
+        _material.SetShaderParameter("visual_time", ticks);
+        if (_territory is not null)
+            _territory.VisualTime = ticks;
+    }
 
     /// <summary>Sets colours by owner id (index 0 is unclaimed land and is ignored).</summary>
     public void SetPalette(ReadOnlySpan<Color> colors)
@@ -374,14 +379,24 @@ public partial class MapView : Sprite2D
             _material.SetShaderParameter("coast_border_width", thick ? value : edge * 2);
             _material.SetShaderParameter("border_tiles", value);
             _material.SetShaderParameter("border_field", thick);
-            if (_territory is not null)
-                _territory.BorderDistances = thick;
+            SetBorderDistances(thick);
         }
+    }
+
+    private void SetBorderDistances(bool on)
+    {
+        if (_territory is null)
+            return;
+        _territory.BorderDistances = on;
+        if (_territory.DistArray is { } distances)
+            _material.SetShaderParameter("dist_tex", distances);
     }
     private float _borderTiles = 0.674f;
 
-    // The thickest border the smoothing can measure (its vote lead reaches 0.95 here).
-    public const float ThinBorderTiles = 1.96f;
+    // The thickest border measured from the smoothing's vote lead (0.85 here). Past this, its
+    // shortcut for pixels deep inside a territory (a sparse ring of tiles 2 away) starts to
+    // miss border tiles and leaves tile-sized notches, so thicker ones use the distances.
+    public const float ThinBorderTiles = 1.44f;
 
     /// <summary>The error function (Abramowitz and Stegun 7.1.26, good to about 1e-7).</summary>
     private static float Erf(float x)

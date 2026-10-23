@@ -53,15 +53,18 @@ public sealed class TerritoryTextures
     // Per tile: how many defense posts' reach covers it (NearPostBit = more than none).
     private byte[]? _postReach;
 
-    // Border distance (for borders thicker than the shader's smoothing can measure): per tile,
-    // how far its centre is from the nearest tile of another owner (not water), through its
-    // own land, minus half a tile (so about the distance to the border line), in
-    // 1/DistUnits tiles; 255 = DistCap or more. Only kept up to date while BorderDistances is on.
+    // Border distance (for borders thicker than the shader's smoothing can measure): per tile
+    // (RGBA8), how far its centre is from the nearest tile of another owner (not water),
+    // through its own land, minus half a tile (about the distance to the border line), in
+    // 1/DistUnits tiles (255 = DistCap or more). R = before the latest change near it, G =
+    // after, and B, A = the offset (+128) to the tile just taken whose capture fade carries
+    // it from R to G, so a thick border's inner edge sweeps along exactly with the territory.
+    // Only made and kept up to date while BorderDistances is on.
     public const float DistUnits = 24;
     private const int DistCap = 11; // tiles (255 / DistUnits, rounded up)
     private const int DistBlock = 32;
-    private readonly byte[][] _distBytes;
-    private readonly Image[] _distImages;
+    private byte[][]? _distBytes;
+    private Image[]? _distImages;
     private readonly int _distBlocksX;
     private readonly bool[] _distDirtyBlock;
     private readonly List<int> _distDirtyList = new();
@@ -77,8 +80,11 @@ public sealed class TerritoryTextures
     public readonly Texture2DArray OwnerArray = new();
     public readonly Texture2DArray TimeArray = new();
     public readonly Texture2DArray HatchArray = new();
-    public readonly Texture2DArray DistArray = new();
+    public Texture2DArray? DistArray { get; private set; }
     public int ChunksX => _chunksX;
+
+    /// <summary>The moment being drawn (MapView's visual time), for the border distances' blends.</summary>
+    public float VisualTime { get; set; }
 
     public TerritoryTextures(GameMap map)
     {
@@ -93,8 +99,6 @@ public sealed class TerritoryTextures
         _timeImages = new Image[_layers];
         _hatchBytes = new byte[_layers][];
         _hatchImages = new Image[_layers];
-        _distBytes = new byte[_layers][];
-        _distImages = new Image[_layers];
         _dirty = new bool[_layers];
         _distLayerDirty = new bool[_layers];
         _shown = new ushort[map.TileCount];
@@ -104,7 +108,6 @@ public sealed class TerritoryTextures
         var owners = new Godot.Collections.Array<Image>();
         var times = new Godot.Collections.Array<Image>();
         var hatches = new Godot.Collections.Array<Image>();
-        var dists = new Godot.Collections.Array<Image>();
         for (int l = 0; l < _layers; l++)
         {
             _ownerBytes[l] = new byte[ChunkSize * ChunkSize * 4];
@@ -117,14 +120,32 @@ public sealed class TerritoryTextures
             owners.Add(_ownerImages[l]);
             times.Add(_timeImages[l]);
             hatches.Add(_hatchImages[l]);
-            _distBytes[l] = new byte[ChunkSize * ChunkSize];
-            Array.Fill(_distBytes[l], (byte)255);
-            _distImages[l] = Image.CreateFromData(ChunkSize, ChunkSize, false, Image.Format.R8, _distBytes[l]);
-            dists.Add(_distImages[l]);
         }
         OwnerArray.CreateFromImages(owners);
         TimeArray.CreateFromImages(times);
         HatchArray.CreateFromImages(hatches);
+    }
+
+    /// <summary>Makes the border distance storage and texture (40 MB on Europe, so only once thick borders are used).</summary>
+    private void EnsureDistances()
+    {
+        if (_distBytes is not null)
+            return;
+        _distBytes = new byte[_layers][];
+        _distImages = new Image[_layers];
+        var dists = new Godot.Collections.Array<Image>();
+        for (int l = 0; l < _layers; l++)
+        {
+            var bytes = _distBytes[l] = new byte[ChunkSize * ChunkSize * 4];
+            for (int i = 0; i < bytes.Length; i += 4)
+            {
+                bytes[i] = bytes[i + 1] = 255;
+                bytes[i + 2] = bytes[i + 3] = 128;
+            }
+            _distImages[l] = Image.CreateFromData(ChunkSize, ChunkSize, false, Image.Format.Rgba8, bytes);
+            dists.Add(_distImages[l]);
+        }
+        DistArray = new Texture2DArray();
         DistArray.CreateFromImages(dists);
     }
 
@@ -142,7 +163,10 @@ public sealed class TerritoryTextures
             FinishDistances();
             _borderDistances = value;
             if (value)
+            {
+                EnsureDistances();
                 RecomputeAllDistances();
+            }
         }
     }
 
@@ -154,7 +178,9 @@ public sealed class TerritoryTextures
         {
             ushort id = Shown(i, owners, fallout);
             _shown[i] = id;
-            Write(i, id, id, LongAgo, DefaultFade);
+            // A hatched tile's time is when it was taken (the shader fades its stripes out by it).
+            bool isHatched = hatched is not null && hatched[i] != 0;
+            Write(i, id, id, isHatched ? hatched![i] - Boundari.Sim.HatchRules.SettleTicks : LongAgo, DefaultFade);
             WriteHatch(i, hatched is not null && hatched[i] != 0);
         }
         _frontLastTick.Clear();
@@ -210,7 +236,7 @@ public sealed class TerritoryTextures
         }
         _thisTick.Clear();
         if (_borderDistances)
-            RecomputeDirtyDistances();
+            RecomputeDirtyDistances(tick);
     }
 
     private struct FrontThisTick
@@ -232,11 +258,12 @@ public sealed class TerritoryTextures
     {
         if (_distTask is { IsCompleted: true })
             FinishDistances();
+        bool distReady = _distTask is null && _distBytes is not null; // (not while the background work writes them)
         int uploads = 0, start = _nextFlush;
         for (int k = 0; k < _layers && (all || uploads < MaxUploadsPerFlush); k++)
         {
             int l = (start + k) % _layers;
-            if (!_dirty[l] && !_distLayerDirty[l])
+            if (!_dirty[l] && !(distReady && _distLayerDirty[l]))
                 continue;
             uploads++;
             _nextFlush = (l + 1) % _layers;
@@ -250,11 +277,11 @@ public sealed class TerritoryTextures
                 TimeArray.UpdateLayer(_timeImages[l], l);
                 HatchArray.UpdateLayer(_hatchImages[l], l);
             }
-            if (_distLayerDirty[l])
+            if (distReady && _distLayerDirty[l])
             {
                 _distLayerDirty[l] = false;
-                _distImages[l].SetData(ChunkSize, ChunkSize, false, Image.Format.R8, _distBytes[l]);
-                DistArray.UpdateLayer(_distImages[l], l);
+                _distImages![l].SetData(ChunkSize, ChunkSize, false, Image.Format.Rgba8, _distBytes![l]);
+                DistArray!.UpdateLayer(_distImages[l], l);
             }
         }
     }
@@ -344,16 +371,17 @@ public sealed class TerritoryTextures
             }
     }
 
-    /// <summary>Starts working out the blocks this tick changed, in the background.</summary>
-    private void RecomputeDirtyDistances()
+    /// <summary>Starts working out the blocks this tick changed, in the background (blending from what's shown now).</summary>
+    private void RecomputeDirtyDistances(int tick)
     {
         if (_distDirtyList.Count == 0)
             return;
         var blocks = _distDirtyList.ToArray();
         _distDirtyList.Clear();
         _distTaskBlocks = blocks;
+        float now = VisualTime;
         _distTask = System.Threading.Tasks.Task.Run(() =>
-            System.Threading.Tasks.Parallel.ForEach(blocks, b => RecomputeDistances(b % _distBlocksX * DistBlock, b / _distBlocksX * DistBlock)));
+            System.Threading.Tasks.Parallel.ForEach(blocks, b => RecomputeDistances(b % _distBlocksX * DistBlock, b / _distBlocksX * DistBlock, now, tick)));
     }
 
     /// <summary>Waits for the background distances (if any) and queues their layers for upload.</summary>
@@ -374,7 +402,7 @@ public sealed class TerritoryTextures
     private void RecomputeAllDistances()
     {
         int blocks = _distDirtyBlock.Length;
-        System.Threading.Tasks.Parallel.For(0, blocks, b => RecomputeDistances(b % _distBlocksX * DistBlock, b / _distBlocksX * DistBlock));
+        System.Threading.Tasks.Parallel.For(0, blocks, b => RecomputeDistances(b % _distBlocksX * DistBlock, b / _distBlocksX * DistBlock, float.NaN, 0));
         for (int b = 0; b < blocks; b++)
             MarkLayersDirty(b);
         _distDirtyList.Clear();
@@ -395,13 +423,31 @@ public sealed class TerritoryTextures
     private static readonly (int X, int Y)[] Right = { (1, 0) };
     private static readonly (int X, int Y)[] Left = { (-1, 0) };
 
+    private float CaptureTime(int tile)
+    {
+        int x = tile % _map.Width, y = tile / _map.Width;
+        return MemoryMarshal.Cast<byte, float>(_timeBytes[(y / ChunkSize) * _chunksX + x / ChunkSize])[(y % ChunkSize) * ChunkSize + x % ChunkSize];
+    }
+
+    /// <summary>How far a tile has faded to its new owner at this moment (0..1), as map.gdshader's owner_at works it out.</summary>
+    private float FadeIn(int tile, float now)
+    {
+        int x = tile % _map.Width, y = tile / _map.Width;
+        int layer = (y / ChunkSize) * _chunksX + x / ChunkSize, local = (y % ChunkSize) * ChunkSize + x % ChunkSize;
+        float fade = _ownerBytes[layer][local * 4 + 3] / FadeUnits;
+        return Math.Clamp((now - MemoryMarshal.Cast<byte, float>(_timeBytes[layer])[local]) / fade, 0, 1);
+    }
+
     /// <summary>
     /// Works out the border distance of every tile in one DistBlock-sized block: a two-pass
     /// vector distance transform (8SSEDT) over the block plus DistCap tiles around it, where
     /// each tile carries the offset to its nearest foreign tile and passes it on only to
-    /// tiles of the same owner (so distances go through a territory's own land).
+    /// tiles of the same owner (so distances go through a territory's own land). With a
+    /// moment <paramref name="now"/> (not NaN), a tile whose distance changed blends to it from
+    /// what's shown now, along with the fade of the tile just taken (in tick
+    /// <paramref name="tick"/> or later) by its nearest foreign tile.
     /// </summary>
-    private void RecomputeDistances(int bx, int by)
+    private void RecomputeDistances(int bx, int by, float now, int tick)
     {
         int w = _map.Width, h = _map.Height;
         int x0 = Math.Max(bx - DistCap, 0), y0 = Math.Max(by - DistCap, 0);
@@ -483,18 +529,57 @@ public sealed class TerritoryTextures
         }
 
         // Write back the block itself.
+        bool animate = !float.IsNaN(now);
         for (int y = by; y < Math.Min(by + DistBlock, h); y++)
             for (int x = bx; x < Math.Min(bx + DistBlock, w); x++)
             {
-                int i = (y - y0) * rw + x - x0;
-                byte value = 255;
+                int i = (y - y0) * rw + x - x0, tile = y * w + x;
+                var bytes = _distBytes![(y / ChunkSize) * _chunksX + x / ChunkSize];
+                int at = ((y % ChunkSize) * ChunkSize + x % ChunkSize) * 4;
+                byte to = 255;
                 if (vx[i] != None)
                 {
                     float d = MathF.Sqrt(vx[i] * vx[i] + vy[i] * vy[i]) - 0.5f;
-                    value = (byte)Math.Min(255, (int)MathF.Round(d * DistUnits));
+                    to = (byte)Math.Min(255, (int)MathF.Round(d * DistUnits));
                 }
-                int layer = (y / ChunkSize) * _chunksX + x / ChunkSize;
-                _distBytes[layer][(y % ChunkSize) * ChunkSize + x % ChunkSize] = value;
+                byte from = to;
+                int ox = 0, oy = 0;
+                // A tile taken in this tick blends in by its own fade (in the shader), so only
+                // tiles that kept their owner need a blend of their own.
+                if (animate && Measured(id[i]) && vx[i] != None && CaptureTime(tile) < tick)
+                {
+                    int oldX = Math.Clamp(x + bytes[at + 2] - 128, 0, w - 1), oldY = Math.Clamp(y + bytes[at + 3] - 128, 0, h - 1);
+                    byte shown = (byte)MathF.Round(bytes[at] + (bytes[at + 1] - bytes[at]) * FadeIn(oldY * w + oldX, now));
+                    if (shown != to)
+                    {
+                        // What moved it: the tile taken last at (or next to) the nearest foreign tile.
+                        int fx = x + vx[i], fy = y + vy[i], cause = -1;
+                        float latest = float.MinValue;
+                        for (int dy = -1; dy <= 1; dy++)
+                            for (int dx = -1; dx <= 1; dx++)
+                            {
+                                int nx = fx + dx, ny = fy + dy;
+                                if (nx < 0 || ny < 0 || nx >= w || ny >= h)
+                                    continue;
+                                float taken = CaptureTime(ny * w + nx);
+                                if (taken > latest)
+                                {
+                                    latest = taken;
+                                    cause = ny * w + nx;
+                                }
+                            }
+                        if (cause >= 0 && FadeIn(cause, now) < 1)
+                        {
+                            from = shown;
+                            ox = cause % w - x;
+                            oy = cause / w - y;
+                        }
+                    }
+                }
+                bytes[at] = from;
+                bytes[at + 1] = to;
+                bytes[at + 2] = (byte)(ox + 128);
+                bytes[at + 3] = (byte)(oy + 128);
             }
     }
 }

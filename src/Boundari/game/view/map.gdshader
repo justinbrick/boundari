@@ -26,8 +26,10 @@ uniform sampler2DArray capture_tex : filter_nearest, repeat_disable;
 // R8 bits: 1 = hatched (land freshly taken from a player, see GameHatching.cs),
 // 4 = near a finished defense post (only there does the shader look for posts).
 uniform sampler2DArray hatch_tex : filter_nearest, repeat_disable;
-// R8: each tile's distance to its border in 1/dist_units tiles (255 = far), kept by
-// TerritoryTextures only while borders are too thick for the smoothing to measure (border_field).
+// RGBA8: each tile's distance to its border in 1/dist_units tiles (255 = far): R before the
+// latest change near it, G after, B and A the offset (+128) to the tile whose capture fade
+// carries it from R to G. Kept by TerritoryTextures only while borders are too thick for
+// the smoothing to measure (border_field).
 uniform sampler2DArray dist_tex : filter_nearest, repeat_disable;
 uniform float dist_units = 24.0;
 uniform int owner_chunk = 256;
@@ -73,12 +75,17 @@ uniform int target_id = -1;
 uniform float target_lighten : hint_range(0.0, 1.0) = 0.3;
 // Hatched land: diagonal stripes in the territory's border colour, this many tiles apart
 // (set from MapView.cs). Zoomed out, the spacing doubles in steps (every other stripe
-// fades away) so stripes are never closer than hatch_min_pixels on screen and stay put.
+// narrows away) so stripes are never closer than hatch_min_pixels on screen and stay put.
 uniform float hatch_tiles = 4.5;
 uniform float hatch_min_pixels = 16.0;
 uniform float hatch_strength : hint_range(0.0, 1.0) = 0.85;
 // Share of each stripe period the stripe covers.
 uniform float hatch_stripe_width : hint_range(0.1, 0.9) = 0.4;
+// Hatched land settles this many ticks after it was taken (HatchRules.SettleTicks); each
+// tile's stripes fade out over the last hatch_fade_ticks before that, so settling land
+// sweeps away smoothly in the order it was taken instead of popping off tick by tick.
+uniform float hatch_settle_ticks = 300.0;
+uniform float hatch_fade_ticks = 10.0;
 // Defense posts (OpenFront's BorderStampPass and TerritoryPass): their owner's land within a
 // post's range is darkened, and its borders get a checkerboard - every other cell darkened.
 // One texel per post: x, y, owner id.
@@ -322,6 +329,17 @@ bool hatched_bit(ivec2 c) {
 	return (hatch_bits(c) & 1) != 0;
 }
 
+// How hatched a tile still looks (0..1): fully until shortly before it settles, then fading
+// out (a couple of ticks early, so it's gone before the simulation clears its bit).
+float hatch_weight(ivec2 c) {
+	if (!hatched_bit(c)) {
+		return 0.0;
+	}
+	c = clamp(c, ivec2(0), ivec2(map_size) - 1);
+	float taken = texelFetch(capture_tex, ivec3(c % owner_chunk, (c.y / owner_chunk) * owner_chunks_x + c.x / owner_chunk), 0).r;
+	return clamp((taken + hatch_settle_ticks - 2.0 - visual_time) / hatch_fade_ticks, 0.0, 1.0);
+}
+
 // How much of `id`'s land around here is hatched (0..1), smoothed exactly like the territory
 // borders (territory_at), so 0.5 is a clean curve where hatched land meets its owner's
 // settled land. Only `id`'s own land counts, so it stays 1 out to the territory's edge,
@@ -343,7 +361,7 @@ float hatch_cover(vec2 tile, int id) {
 		int prev;
 		float fade_in;
 		owner_at(centre + o, owner, prev, fade_in);
-		deep = owner == id && fade_in >= 1.0 && hatched_bit(centre + o);
+		deep = owner == id && fade_in >= 1.0 && hatch_weight(centre + o) >= 1.0;
 	}
 	if (deep) {
 		return 1.0;
@@ -372,9 +390,7 @@ float hatch_cover(vec2 tile, int id) {
 			}
 			float w = wx[i] * wy[j] * fade_in;
 			total += w;
-			if (hatched_bit(cc)) {
-				hatched += w;
-			}
+			hatched += w * hatch_weight(cc);
 		}
 	}
 	return total > 1e-5 ? hatched / total : 0.0;
@@ -399,40 +415,77 @@ float defense_cover(vec2 tile, int id, float tiles_per_px, bool preview) {
 	return 1.0 - smoothstep(-0.5 * tiles_per_px, 0.5 * tiles_per_px, inside);
 }
 
-// Distance (tiles) from this point inwards to the edge of `id`'s territory, from dist_tex,
-// blended between the four nearest tile centres. Other owners' tiles count as half a tile
-// outside the line; water doesn't count (coasts have their own border).
+// One tile's distance (tiles) to the edge of `id`'s territory as it's shown right now: its
+// blend from before to after the latest change near it, moved along by the fade of the tile
+// that was taken. A tile changing hands counts by how far it has faded (others' land is half
+// a tile outside the line; land being taken from `id` was at its edge). Water: is_water.
+float tile_border_distance(ivec2 c, int id, out bool is_water) {
+	c = clamp(c, ivec2(0), ivec2(map_size) - 1);
+	int owner;
+	int prev;
+	float fade_in;
+	owner_at(c, owner, prev, fade_in);
+	is_water = owner == WATER;
+	float own = (owner == id ? fade_in : 0.0) + (prev == id ? 1.0 - fade_in : 0.0);
+	if (own <= 0.0) {
+		return -0.5;
+	}
+	float d = 0.5;
+	if (owner == id) {
+		vec4 v = texelFetch(dist_tex, ivec3(c % owner_chunk, (c.y / owner_chunk) * owner_chunks_x + c.x / owner_chunk), 0) * 255.0;
+		int cause_owner;
+		int cause_prev;
+		float progress;
+		owner_at(c + ivec2(int(v.b + 0.5) - 128, int(v.a + 0.5) - 128), cause_owner, cause_prev, progress);
+		d = mix(v.r, v.g, progress) / dist_units;
+	}
+	return mix(-0.5, d, own);
+}
+
+// Distance (tiles) from this point inwards to the edge of `id`'s territory, smoothed over the
+// 4x4 nearest tile centres (cubic B-spline, for round curves); water doesn't count (coasts
+// have their own border). Far inside (further than any border shown), the nearest tile's.
 float border_distance(vec2 tile, int id) {
+	bool is_water;
+	float near = tile_border_distance(ivec2(floor(tile)), id, is_water);
+	if (near > border_tiles + 3.0) {
+		return near;
+	}
 	vec2 p = tile - 0.5;
-	ivec2 c = ivec2(floor(p));
+	ivec2 base = ivec2(floor(p)) - 1;
 	vec2 f = p - floor(p);
+	float wx[4];
+	float wy[4];
+	bspline_weights(f.x, wx);
+	bspline_weights(f.y, wy);
 	float total = 0.0;
 	float weight = 0.0;
-	for (int k = 0; k < 4; k++) {
-		ivec2 cc = clamp(c + ivec2(k & 1, k >> 1), ivec2(0), ivec2(map_size) - 1);
-		float w = (k & 1) == 1 ? f.x : 1.0 - f.x;
-		w *= (k >> 1) == 1 ? f.y : 1.0 - f.y;
-		int owner = owner_id_at(cc);
-		if (owner == WATER) {
-			continue;
+	for (int j = 0; j < 4; j++) {
+		for (int i = 0; i < 4; i++) {
+			float d = tile_border_distance(base + ivec2(i, j), id, is_water);
+			if (is_water) {
+				continue;
+			}
+			float w = wx[i] * wy[j];
+			total += w * d;
+			weight += w;
 		}
-		float d = -0.5;
-		if (owner == id) {
-			d = texelFetch(dist_tex, ivec3(cc % owner_chunk, (cc.y / owner_chunk) * owner_chunks_x + cc.x / owner_chunk), 0).r * 255.0 / dist_units;
-		}
-		total += w * d;
-		weight += w;
 	}
 	return weight > 1e-5 ? total / weight : 1e3;
 }
 
-// Diagonal stripes this many tiles apart: 1 on a stripe, 0 between, anti-aliased. Stripes
-// sit on whole multiples of the period, so doubling it keeps every other stripe in place.
-float stripes(vec2 tile, float period, float tiles_per_px) {
+// Diagonal stripes `period` tiles apart: 1 on a stripe, 0 between, anti-aliased. Stripes sit
+// on whole multiples of the period. `thin` (0..1) is how far along the zoom is to doubling
+// the period: every other stripe narrows to nothing while the rest widen to keep their
+// share of the doubled period, so the stripes stay crisp all the way (no half-faded ones).
+float stripes(vec2 tile, float period, float tiles_per_px, float thin) {
 	float u = (tile.x + tile.y) / period;
-	float tri = abs(fract(u + 0.5) - 0.5) * 2.0; // 0 mid-stripe, 1 mid-gap
-	float aa = max(2.0 * tiles_per_px / period, 1e-4); // (no fwidth: this runs in a branch)
-	return 1.0 - smoothstep(hatch_stripe_width - aa, hatch_stripe_width + aa, tri);
+	float k = floor(u + 0.5);                  // the nearest stripe
+	float tri = abs(u - k) * 2.0;              // 0 mid-stripe, 1 mid-gap
+	bool going = abs(mod(k, 2.0)) > 0.5;       // the stripes that go when the period doubles
+	float width = hatch_stripe_width * (going ? 1.0 - thin : 1.0 + thin);
+	float aa = max(tiles_per_px / period, 1e-4); // (no fwidth: this runs in a branch)
+	return width <= 0.0 ? 0.0 : 1.0 - smoothstep(width - aa, width + aa, tri);
 }
 
 // Smooth territory lookup: nearby tiles vote for their owner with Gaussian weights
@@ -677,7 +730,7 @@ void fragment() {
 				float inside = smoothstep(-aa, aa, lead);
 				float lod = max(log2(hatch_min_pixels * tiles_per_px / hatch_tiles), 0.0);
 				float fine = hatch_tiles * exp2(floor(lod));
-				stripe = mix(stripes(tile, fine, tiles_per_px), stripes(tile, fine * 2.0, tiles_per_px), smoothstep(0.0, 1.0, fract(lod)));
+				stripe = stripes(tile, fine, tiles_per_px, smoothstep(0.0, 1.0, fract(lod)));
 				stripe *= inside * hatch_strength;
 				float hbw = max(border_width, aa * 1.2);
 				hatch_edge = border_width > 0.0 ? inside * (1.0 - smoothstep(hbw - aa, hbw + aa, lead)) : 0.0;
