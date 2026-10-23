@@ -347,6 +347,11 @@ public sealed partial class Game
             mag *= AttackRules.DefensePostLossFactor;
             tileCost *= AttackRules.DefensePostSpeedFactor;
         }
+        if (defender is not null && IsHatched(tile))
+        {
+            mag *= HatchRules.LossFactor;
+            tileCost *= HatchRules.SpeedFactor;
+        }
         if (Fallout[tile])
         {
             // Fallout: 5x dearer and slower, easing to 3x as more of the map is poisoned.

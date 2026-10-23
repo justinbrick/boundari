@@ -190,8 +190,6 @@ public partial class MapView : Sprite2D
         _material.SetShaderParameter("defense_range", (float)range);
     }
 
-    /// <summary>Highlights the hatched patch a structure being placed would secure (null = none).</summary>
-    public void SetSecureHighlight(System.Collections.Generic.IReadOnlyList<int>? tiles) => _territory?.SetHighlight(tiles);
 
     /// <summary>Uploads changed territory chunks to the GPU.</summary>
     public void FlushTerritory() => _territory?.Flush();

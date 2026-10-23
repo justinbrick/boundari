@@ -8,13 +8,19 @@ public static class HatchRules
 {
     /// <summary>How long land taken from another player stays hatched before it settles by itself.</summary>
     public const int SettleTicks = 30 * Balance.TicksPerSecond;
+
+    // Hatched land barely holds: attacking it costs a fifth of the troops and takes a third
+    // of the time (the mirror image of a defense post's 5x and 3x, so a post on fresh land
+    // makes it hold like normal land).
+    public const double LossFactor = 1 / 5.0;
+    public const double SpeedFactor = 1 / 3.0;
 }
 
 // Hatched land: land taken from another player (tribes included) comes in hatched for a
-// while. It adds no room to the troop cap until it settles, which it does by itself after
-// HatchRules.SettleTicks, or at once when its owner builds a structure on it (that secures
-// the whole connected hatched patch). Win back a tile you lost while it's still hatched and
-// it's yours again straight away. Grabbing empty land is never hatched.
+// while. It's very weak (see HatchRules): anyone can take it cheaply and quickly until it
+// settles by itself after HatchRules.SettleTicks. Building on it doesn't settle it. Win back
+// a tile you lost while it's still hatched and it's yours again straight away (not hatched).
+// Grabbing empty land is never hatched.
 public sealed partial class Game
 {
     /// <summary>Match option: play with hatched land (on by default; off = classic OpenFront).</summary>
@@ -73,18 +79,8 @@ public sealed partial class Game
     }
 
     /// <summary>
-    /// A structure built on hatched land secures it: the whole hatched patch of the owner's
-    /// land joined to that tile turns normal.
-    /// </summary>
-    private void SecureHatchedPatch(Player player, int tile)
-    {
-        foreach (int t in HatchedPatch(player, tile))
-            Settle(t);
-    }
-
-    /// <summary>
-    /// The player's hatched tiles joined to this one (itself included): what a structure
-    /// built here would secure. Empty if the tile isn't the player's hatched land.
+    /// The player's hatched tiles joined to this one (itself included). Empty if the tile
+    /// isn't the player's hatched land.
     /// </summary>
     public List<int> HatchedPatch(Player player, int tile)
     {

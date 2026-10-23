@@ -71,8 +71,6 @@ uniform float hatch_min_pixels = 16.0;
 uniform float hatch_strength : hint_range(0.0, 1.0) = 0.85;
 // Share of each stripe period the stripe covers.
 uniform float hatch_stripe_width : hint_range(0.1, 0.9) = 0.4;
-// The patch a structure being placed would secure: lightened, with a gentle pulse.
-uniform float secure_highlight : hint_range(0.0, 1.0) = 0.3;
 // Defense posts (OpenFront's BorderStampPass): borders within a post's range, on its owner's
 // land, get a checkerboard - every other cell darkened. One texel per post: x, y, owner id.
 uniform sampler2D defense_tex : filter_nearest, repeat_disable;
@@ -301,34 +299,67 @@ int owner_id_at(ivec2 c) {
 	return b.r + (b.g & 15) * 256;
 }
 
-// How hatched (x) and how highlighted (y) the land of `id` is here (0..1), blended between
-// tile centres. Only tiles `id` owns and has finished fading into count, so a capture
-// still sweeping in isn't striped on the previous owner's colour.
-vec2 hatch_at(vec2 tile, int id) {
+bool hatched_bit(ivec2 c) {
+	c = clamp(c, ivec2(0), ivec2(map_size) - 1);
+	return texelFetch(hatch_tex, ivec3(c % owner_chunk, (c.y / owner_chunk) * owner_chunks_x + c.x / owner_chunk), 0).r > 0.002;
+}
+
+// How much of `id`'s land around here is hatched (0..1), smoothed exactly like the territory
+// borders (territory_at), so 0.5 is a clean curve where hatched land meets its owner's
+// settled land. Only `id`'s own land counts, so it stays 1 out to the territory's edge,
+// and tiles still fading in count by how far they've faded (a capture sweeping in isn't
+// striped yet).
+float hatch_cover(vec2 tile, int id) {
+	// Most pixels have no hatched tile next to them at all.
 	vec2 p = tile - 0.5;
 	ivec2 c = ivec2(floor(p));
-	vec2 f = p - vec2(c);
-	vec2 v[4];
-	bool any = false;
-	for (int k = 0; k < 4; k++) {
-		ivec2 cc = clamp(c + ivec2(k & 1, k >> 1), ivec2(0), ivec2(map_size) - 1);
-		int bits = int(texelFetch(hatch_tex, ivec3(cc % owner_chunk, (cc.y / owner_chunk) * owner_chunks_x + cc.x / owner_chunk), 0).r * 255.0 + 0.5);
-		v[k] = vec2(float(bits & 1), float((bits >> 1) & 1));
-		any = any || bits != 0;
+	if (!hatched_bit(c) && !hatched_bit(c + ivec2(1, 0)) && !hatched_bit(c + ivec2(0, 1)) && !hatched_bit(c + ivec2(1, 1))) {
+		return 0.0;
 	}
-	if (!any) {
-		return vec2(0.0);
+	// Deep inside hatched land (a sparse ring all hatched and settled, as in territory_at): fully hatched.
+	ivec2 centre = ivec2(floor(tile));
+	bool deep = true;
+	for (int k = 0; k < 13 && deep; k++) {
+		ivec2 o = k < 9 ? ivec2(k % 3 - 1, k / 3 - 1) * 2 : (k == 9 ? ivec2(1, 0) : k == 10 ? ivec2(-1, 0) : k == 11 ? ivec2(0, 1) : ivec2(0, -1));
+		int owner;
+		int prev;
+		float fade_in;
+		owner_at(centre + o, owner, prev, fade_in);
+		deep = owner == id && fade_in >= 1.0 && hatched_bit(centre + o);
 	}
-	for (int k = 0; k < 4; k++) {
-		if (v[k].x > 0.0 || v[k].y > 0.0) {
+	if (deep) {
+		return 1.0;
+	}
+	ivec2 base = ivec2(floor(tile - 0.5)) - 2;
+	float inv = 1.0 / (2.0 * border_smoothing * border_smoothing);
+	float wx[6];
+	float wy[6];
+	for (int k = 0; k < 6; k++) {
+		float dx = float(base.x + k) + 0.5 - tile.x;
+		float dy = float(base.y + k) + 0.5 - tile.y;
+		wx[k] = exp(-dx * dx * inv);
+		wy[k] = exp(-dy * dy * inv);
+	}
+	float total = 0.0;
+	float hatched = 0.0;
+	for (int j = 0; j < 6; j++) {
+		for (int i = 0; i < 6; i++) {
+			ivec2 cc = base + ivec2(i, j);
 			int owner;
 			int prev;
 			float fade_in;
-			owner_at(c + ivec2(k & 1, k >> 1), owner, prev, fade_in);
-			v[k] *= owner == id ? fade_in : 0.0;
+			owner_at(cc, owner, prev, fade_in);
+			if (owner != id) {
+				continue;
+			}
+			float w = wx[i] * wy[j] * fade_in;
+			total += w;
+			if (hatched_bit(cc)) {
+				hatched += w;
+			}
 		}
 	}
-	return mix(mix(v[0], v[1], f.x), mix(v[2], v[3], f.x), f.y);
+	return total > 1e-5 ? hatched / total : 0.0;
 }
 
 // True if a finished defense post of `id` is within range of this tile.
@@ -584,14 +615,22 @@ void fragment() {
 			float opacity = max(territory_opacity, 1.0 - swatch.a);
 
 			// Hatched land: stripes in the border colour, spaced in whole doublings of
-			// hatch_tiles, cross-fading between the two nearest as the zoom changes.
-			vec2 hatch = hatch_at(tile, id);
+			// hatch_tiles, cross-fading between the two nearest as the zoom changes, and an
+			// outline as thick as the borders along the inside of its edge, where it meets the
+			// owner's settled land (the territory's own border covers its outer edge).
+			float hatch = hatch_cover(tile, id);
 			float stripe = 0.0;
-			if (hatch.x > 0.0) {
+			float hatch_edge = 0.0;
+			if (hatch > 0.0) {
+				float lead = 2.0 * hatch - 1.0;  // like territory_at's edge: 0 on the line, 1 deep inside
+				float aa = 0.8 * tiles_per_px / border_smoothing; // its slope near the line, per pixel
+				float inside = smoothstep(-aa, aa, lead);
 				float lod = max(log2(hatch_min_pixels * tiles_per_px / hatch_tiles), 0.0);
 				float fine = hatch_tiles * exp2(floor(lod));
 				stripe = mix(stripes(tile, fine, tiles_per_px), stripes(tile, fine * 2.0, tiles_per_px), smoothstep(0.0, 1.0, fract(lod)));
-				stripe *= hatch.x * hatch_strength;
+				stripe *= inside * hatch_strength;
+				float hbw = max(border_width, aa * 1.2);
+				hatch_edge = border_width > 0.0 ? inside * (1.0 - smoothstep(hbw - aa, hbw + aa, lead)) : 0.0;
 			}
 
 			// Distance to the coastline in tiles, so territories get an outline along the shore too.
@@ -607,7 +646,7 @@ void fragment() {
 			float border = 1.0 - smoothstep(bw - edge_aa, bw + edge_aa, edge);
 			float cbw = max(coast_border_width, tiles_per_px * 1.2);
 			float coast_border = 1.0 - smoothstep(cbw - tiles_per_px, cbw + tiles_per_px, coast_dist);
-			border = border_width > 0.0 ? max(border, coast_border) : 0.0;
+			border = border_width > 0.0 ? max(max(border, coast_border), hatch_edge) : 0.0;
 
 			vec3 fill = mix(ground, nation, opacity);
 			vec3 outline = nation * (1.0 - border_darken);
@@ -619,10 +658,6 @@ void fragment() {
 				}
 			}
 			vec3 owned = mix(mix(fill, outline, stripe), outline, border);
-			if (hatch.y > 0.0) {
-				float pulse = 0.75 + 0.25 * sin(visual_time * 0.6);
-				owned = mix(owned, vec3(1.0), hatch.y * secure_highlight * pulse);
-			}
 			if (id == hover_id) {
 				owned = mix(owned, vec3(1.0), hover_lighten);
 			}

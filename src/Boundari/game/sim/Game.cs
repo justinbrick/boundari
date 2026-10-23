@@ -391,7 +391,6 @@ public sealed partial class Game
                     existing.Level++; // stacking: one more level, straight away (like OpenFront's upgrades)
                     if (existing.Type == BuildingType.City && existing.IsReady(Tick))
                         player.CityLevels++;
-                    SecureHatchedPatch(player, existing.Tile);
                     break;
                 }
                 int buildTicks = player.InstantBuild ? 0 : Balance.ConstructionTicks(build.Type);
@@ -400,7 +399,6 @@ public sealed partial class Game
                 _constructing.Add(building);
                 if (build.Type == BuildingType.Port)
                     _ports[building] = new PortTrade(_rng.Fork(), Tick % TradeRules.PortCheckTicks);
-                SecureHatchedPatch(player, build.Tile);
                 break;
         }
     }

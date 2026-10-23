@@ -4,7 +4,7 @@ using Boundari.Map;
 using Boundari.Sim;
 using Xunit;
 
-/// <summary>Hatched (occupied) land: land taken from a player settles after a while, or when its owner builds on it.</summary>
+/// <summary>Hatched (occupied) land: land taken from a player is very weak until it settles after a while.</summary>
 public class HatchedLandTests
 {
     private static readonly MethodInfo SetOwnerMethod =
@@ -67,7 +67,7 @@ public class HatchedLandTests
     }
 
     [Fact]
-    public void HatchedLand_AddsNoTroopRoom_UntilItSettles()
+    public void HatchedLand_SettlesAfterAWhile_AndCountsForTroopRoomAtOnce()
     {
         var (game, a, b, _) = Setup();
         long capBefore = a.MaxTroops;
@@ -75,13 +75,40 @@ public class HatchedLandTests
         foreach (int t in block)
             SetOwner(game, t, a.Id);
         Assert.Equal(block.Length, a.HatchedTiles);
-        Assert.Equal(capBefore, a.MaxTroops);
+        Assert.True(a.MaxTroops > capBefore);
 
         for (int t = 0; t <= HatchRules.SettleTicks; t++) // settles at the start of tick capture + SettleTicks
             game.Step();
         Assert.Equal(0, a.HatchedTiles);
         Assert.All(block, t => Assert.False(game.IsHatched(t)));
-        Assert.True(a.MaxTroops > capBefore);
+    }
+
+    /// <summary>Tiles of A's that an attack by B takes in 40 ticks, with A's land hatched or not.</summary>
+    private static int TakenFromA(bool hatched)
+    {
+        var (game, a, b, land) = Setup();
+        var c = game.AddPlayer("C"); // A's land is "taken from" C, so it comes in hatched
+        var mine = land.Where(t => game.Owner[t] == a.Id).ToArray();
+        game.HatchedLand = false;
+        foreach (int t in mine)
+            SetOwner(game, t, c.Id);
+        game.HatchedLand = hatched;
+        foreach (int t in mine)
+            SetOwner(game, t, a.Id);
+        Assert.Equal(hatched ? mine.Length : 0, a.HatchedTiles);
+        int before = a.TileCount;
+        game.Submit(new AttackIntent(b.Id, a.Id, 50));
+        for (int t = 0; t < 40; t++)
+            game.Step();
+        return before - a.TileCount;
+    }
+
+    [Fact]
+    public void HatchedLand_IsMuchCheaperAndQuickerToTake()
+    {
+        int normal = TakenFromA(hatched: false), hatched = TakenFromA(hatched: true);
+        Assert.True(normal > 0);
+        Assert.True(hatched > normal * 2, $"hatched land: {hatched} tiles taken, normal land: {normal}");
     }
 
     [Fact]
@@ -97,23 +124,18 @@ public class HatchedLandTests
     }
 
     [Fact]
-    public void Building_SecuresTheWholeConnectedHatchedPatch_Only()
+    public void Building_OnHatchedLand_DoesNotSettleIt()
     {
         var (game, a, b, _) = Setup();
         game.SetCheats(a, infiniteGold: true, instantBuild: true);
         var patch = BlockOfB(game, b, 30, 6, 6);
-        var other = BlockOfB(game, b, 60, 6, 6); // far from the first: a separate patch
-        foreach (int t in patch.Concat(other))
+        foreach (int t in patch)
             SetOwner(game, t, a.Id);
-        Assert.Equal(patch.OrderBy(t => t), game.HatchedPatch(a, patch[^1]).OrderBy(t => t)); // what placing it would highlight
-        Assert.Empty(game.HatchedPatch(b, patch[^1]));
-
         game.Submit(new BuildIntent(a.Id, BuildingType.City, patch[^1]));
         game.Step();
         Assert.NotNull(game.BuildingAt(patch[^1]));
-        Assert.All(patch, t => Assert.False(game.IsHatched(t)));
-        Assert.All(other, t => Assert.True(game.IsHatched(t)));
-        Assert.Equal(other.Length, a.HatchedTiles);
+        Assert.All(patch, t => Assert.True(game.IsHatched(t)));
+        Assert.Equal(patch.Length, a.HatchedTiles);
     }
 
     [Fact]
