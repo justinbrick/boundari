@@ -153,6 +153,29 @@ public sealed partial class Game
         return max + 1;
     }
 
+    private readonly Dictionary<ushort, List<Dot>> _standing = new(); // each player's dots, this tick (FollowLine)
+
+    /// <summary>
+    /// True if another of the dot's owner's dots is within half the spacing of this tile
+    /// (standing there or heading there). For a dot checking its own place, only older dots
+    /// count, so of two dots on one spot the newer one moves off and the older stays.
+    /// </summary>
+    private bool Crowded(Dot dot, int tile, bool olderOnly)
+    {
+        if (!_standing.TryGetValue(dot.Owner.Id, out var dots))
+            return false;
+        int w = Map.Width, x = tile % w, y = tile / w, near = Math.Max(1, Rules.DotSpacing / 2);
+        foreach (var o in dots)
+        {
+            if (o == dot || (olderOnly && o.Id > dot.Id))
+                continue;
+            int at = o.Destination;
+            if (Math.Max(Math.Abs(at % w - x), Math.Abs(at / w - y)) < near)
+                return true;
+        }
+        return false;
+    }
+
     /// <summary>True if the tile touches (4 ways) land that isn't <paramref name="me"/>'s: one of their border tiles.</summary>
     private bool TouchesOthers(int tile, ushort me)
     {
@@ -564,13 +587,22 @@ public sealed partial class Game
                 SetOff(d, new[] { back });
         }
 
+        // Where each player's dots are, so dots keep apart along the line.
+        _standing.Clear();
+        foreach (var d in _dots)
+        {
+            if (!_standing.TryGetValue(d.Owner.Id, out var list))
+                _standing[d.Owner.Id] = list = new List<Dot>();
+            list.Add(d);
+        }
+
         int longSearches = 0;
         foreach (var d in _dots)
         {
             if (d.IsWalking)
                 continue;
             var push = PushOf(d);
-            bool onLine = IsStandTile(d.Tile, d.Owner.Id, push?.TargetId);
+            bool onLine = IsStandTile(d.Tile, d.Owner.Id, push?.TargetId) && !Crowded(d, d.Tile, olderOnly: true);
             if (!onLine && Tick < d.LookAgainAt)
                 continue;
             int goal = !onLine ? NearestOnLine(d, push, ReachRadius) : push is null ? GiveGround(d) : -1;
@@ -690,7 +722,7 @@ public sealed partial class Game
             int best = -1, bestExposure = 0;
             foreach (int t in ring)
             {
-                if (t == dot.Tile || !(toBorder ? TouchesOthers(t, me) : IsStandTile(t, me, push?.TargetId)))
+                if (t == dot.Tile || !(toBorder ? TouchesOthers(t, me) : IsStandTile(t, me, push?.TargetId) && !Crowded(dot, t, olderOnly: false)))
                     continue;
                 int exposure = push is null ? 0 : Exposure(t); // (only an attacking dot looks for the head of its attack)
                 if (best < 0 || exposure > bestExposure || (exposure == bestExposure && t < best))

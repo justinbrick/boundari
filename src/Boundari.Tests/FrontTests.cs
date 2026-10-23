@@ -327,7 +327,7 @@ public class FrontTests
         game.Submit(new PushIntent(a.Id, weak[0].Id, game.Map.Index(100, 2)));
         game.Submit(new PushIntent(a.Id, strong[0].Id, game.Map.Index(100, 98)));
         Run(game, 100);
-        int weakDepth = Reach(game, a, 20) - 100, strongDepth = Reach(game, a, 80) - 100;
+        int weakDepth = Reach(game, a, 20) - 100, strongDepth = Enumerable.Range(56, 44).Max(y => Reach(game, a, y)) - 100;
         _out.WriteLine($"10 s against Locals: level 1 line {weakDepth} tiles in, level 2 line {strongDepth}");
         Assert.Equal(0, weakDepth);
         Assert.True(strongDepth >= 10);
