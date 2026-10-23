@@ -123,10 +123,14 @@ public partial class MapView : Sprite2D
         _material.SetShaderParameter("owner_tex", _territory.OwnerArray);
         _material.SetShaderParameter("capture_tex", _territory.TimeArray);
         _material.SetShaderParameter("hatch_tex", _territory.HatchArray);
+        _material.SetShaderParameter("dist_tex", _territory.DistArray);
+        _material.SetShaderParameter("dist_units", TerritoryTextures.DistUnits);
+        _territory.BorderDistances = _borderTiles > ThinBorderTiles;
         _material.SetShaderParameter("hatch_tiles", HatchStripeTiles * (float)map.TileScale);
         _material.SetShaderParameter("defense_cell_tiles", (float)map.TileScale);
         _material.SetShaderParameter("defense_count", 0);
         _defensePosts.Clear();
+        DefensePreview = null;
         _material.SetShaderParameter("owner_chunk", TerritoryTextures.ChunkSize);
         _material.SetShaderParameter("owner_chunks_x", _territory.ChunksX);
         SetOwners(null);
@@ -165,13 +169,26 @@ public partial class MapView : Sprite2D
     private ImageTexture? _defenseTexture;
 
     /// <summary>
-    /// The finished defense posts (tile, owner) whose owner's borders in range get a
-    /// checkerboard. Only uploads when the list changed.
+    /// The finished defense posts (tile, owner): their owner's land in range is darkened and
+    /// its borders get a checkerboard. Only uploads when the list changed.
     /// </summary>
     public void SetDefensePosts(System.Collections.Generic.List<(int Tile, int Owner)> posts, int range, int mapWidth)
     {
         if (posts.Count == _defensePosts.Count && System.Linq.Enumerable.SequenceEqual(posts, _defensePosts))
             return;
+        // The tiles near a post are marked, so the shader only looks for posts there.
+        var now = new System.Collections.Generic.HashSet<int>();
+        foreach (var p in posts)
+            now.Add(p.Tile);
+        var before = new System.Collections.Generic.HashSet<int>();
+        foreach (var p in _defensePosts)
+            before.Add(p.Tile);
+        foreach (int tile in before)
+            if (!now.Contains(tile))
+                _territory?.AddPostReach(tile, range + PostReachMargin, -1);
+        foreach (int tile in now)
+            if (!before.Contains(tile))
+                _territory?.AddPostReach(tile, range + PostReachMargin, +1);
         _defensePosts.Clear();
         _defensePosts.AddRange(posts);
         int capacity = 64;
@@ -189,6 +206,30 @@ public partial class MapView : Sprite2D
         _material.SetShaderParameter("defense_count", posts.Count);
         _material.SetShaderParameter("defense_range", (float)range);
     }
+
+    private const int PostReachMargin = 2; // tiles past a post's range still marked (the field's soft edge)
+
+    /// <summary>
+    /// While placing a defense post: where it would go and for whom (tile, owner), so the
+    /// land it would protect is shown darkened; null = none.
+    /// </summary>
+    public (int Tile, int Owner)? DefensePreview
+    {
+        set
+        {
+            if (value == _defensePreview)
+                return;
+            _defensePreview = value;
+            if (_map is null || value is not { } p)
+            {
+                _material.SetShaderParameter("defense_preview_on", false);
+                return;
+            }
+            _material.SetShaderParameter("defense_preview", new Vector3(p.Tile % _map.Width, p.Tile / _map.Width, p.Owner));
+            _material.SetShaderParameter("defense_preview_on", true);
+        }
+    }
+    private (int Tile, int Owner)? _defensePreview;
 
 
     /// <summary>Uploads changed territory chunks to the GPU.</summary>
@@ -316,14 +357,38 @@ public partial class MapView : Sprite2D
     public float PatchMorph { set => _material.SetShaderParameter("patch_morph", value); }
     public float TerritoryOpacity { set => _material.SetShaderParameter("territory_opacity", value); }
 
-    /// <summary>Border thickness: a share of the edge blend between two owners (about tiles).</summary>
+    /// <summary>
+    /// Border thickness in tiles (from the line between two territories inwards). Up to
+    /// ThinBorderTiles the shader measures it from its own border smoothing (the vote lead
+    /// between owners, about erf(distance / sqrt 2)); thicker borders also use each tile's
+    /// distance to its border, which TerritoryTextures then keeps up to date.
+    /// </summary>
     public float BorderWidth
     {
         set
         {
-            _material.SetShaderParameter("border_width", value);
-            _material.SetShaderParameter("coast_border_width", value * 2);
+            _borderTiles = value;
+            float edge = Erf(Math.Min(value, ThinBorderTiles) / MathF.Sqrt(2)); // (border_smoothing is 1 tile)
+            bool thick = value > ThinBorderTiles;
+            _material.SetShaderParameter("border_width", edge);
+            _material.SetShaderParameter("coast_border_width", thick ? value : edge * 2);
+            _material.SetShaderParameter("border_tiles", value);
+            _material.SetShaderParameter("border_field", thick);
+            if (_territory is not null)
+                _territory.BorderDistances = thick;
         }
+    }
+    private float _borderTiles = 0.674f;
+
+    // The thickest border the smoothing can measure (its vote lead reaches 0.95 here).
+    public const float ThinBorderTiles = 1.96f;
+
+    /// <summary>The error function (Abramowitz and Stegun 7.1.26, good to about 1e-7).</summary>
+    private static float Erf(float x)
+    {
+        float t = 1 / (1 + 0.3275911f * MathF.Abs(x));
+        float y = 1 - ((((1.061405429f * t - 1.453152027f) * t + 1.421413741f) * t - 0.284496736f) * t + 0.254829592f) * t * MathF.Exp(-x * x);
+        return MathF.Sign(x) * y;
     }
 
     /// <summary>Contour lines every this many metres (0 = off).</summary>

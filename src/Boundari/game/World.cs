@@ -718,6 +718,7 @@ public partial class World : Node2D
         _placing = null;
         _aiming = null;
         _overlay.ClearGhost();
+        _view.DefensePreview = null;
         _ghostRoadsFor = (default, -1, -1);
     }
 
@@ -763,6 +764,8 @@ public partial class World : Node2D
             _overlay.ClearGhost();
         else
             _overlay.SetGhost(type2, tile, canBuild);
+        // A defense post shows the land it would protect, darkened like a finished one's.
+        _view.DefensePreview = type2 == BuildingType.Defense && tile >= 0 ? (tile, _me.Id) : null;
         ShowGhostRoads(type2, canBuild && _game.UpgradeTarget(_me, type2, tile) is null ? tile : -1);
     }
 
@@ -1165,6 +1168,8 @@ public partial class World : Node2D
             at = new Vector2(_showcaseRailFocus % _map.Width, _showcaseRailFocus / _map.Width);
         else if (_args.ShowcaseFocus == "boat" && _game.Boats.FirstOrDefault(b => b.Owner == _me) is { } boat)
             at = new Vector2(boat.LandingTile % _map.Width, boat.LandingTile / _map.Width);
+        else if (_args.ShowcaseFocus == "defense" && _game.Buildings.FirstOrDefault(b => b.Type == BuildingType.Defense && b.Owner == _me.Id) is { } post)
+            at = new Vector2(post.Tile % _map.Width, post.Tile / _map.Width);
         else if (_game.Warships.Count > 0)
             at = new Vector2(_game.Warships[0].Tile % _map.Width, _game.Warships[0].Tile / _map.Width);
         _showcaseFocus = at / new Vector2(_map.Width, _map.Height);

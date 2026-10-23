@@ -24,8 +24,12 @@ uniform sampler2DArray owner_tex : filter_nearest, repeat_disable;
 // R32F: tick (with fraction) when each tile changed hands, for animating captures.
 uniform sampler2DArray capture_tex : filter_nearest, repeat_disable;
 // R8 bits: 1 = hatched (land freshly taken from a player, see GameHatching.cs),
-// 2 = highlighted (the patch a structure being placed would secure).
+// 4 = near a finished defense post (only there does the shader look for posts).
 uniform sampler2DArray hatch_tex : filter_nearest, repeat_disable;
+// R8: each tile's distance to its border in 1/dist_units tiles (255 = far), kept by
+// TerritoryTextures only while borders are too thick for the smoothing to measure (border_field).
+uniform sampler2DArray dist_tex : filter_nearest, repeat_disable;
+uniform float dist_units = 24.0;
 uniform int owner_chunk = 256;
 uniform int owner_chunks_x = 1;
 // The moment being drawn, in ticks (one tick behind the simulation).
@@ -53,8 +57,12 @@ uniform bool show_territory = true;
 uniform float territory_opacity : hint_range(0.0, 1.0) = 0.5;
 // How far (in tiles) borders are smoothed. Bigger = rounder, smoother bends.
 uniform float border_smoothing : hint_range(0.5, 2.0) = 1.0;
-// Border thickness, roughly in tiles.
+// Border thickness in territory_at's `edge` units (its vote lead; erf of the distance in
+// tiles over sqrt 2), set from MapView.BorderWidth. Up to 0.95, about 2 tiles.
 uniform float border_width : hint_range(0.0, 1.0) = 0.3;
+// Thicker borders: this many tiles, measured with dist_tex.
+uniform bool border_field = false;
+uniform float border_tiles = 0.4;
 uniform float coast_border_width : hint_range(0.0, 3.0) = 0.6;
 uniform float border_darken : hint_range(0.0, 1.0) = 0.35;
 // The territory under the mouse (owner id; -1 = none) is drawn lighter.
@@ -71,11 +79,17 @@ uniform float hatch_min_pixels = 16.0;
 uniform float hatch_strength : hint_range(0.0, 1.0) = 0.85;
 // Share of each stripe period the stripe covers.
 uniform float hatch_stripe_width : hint_range(0.1, 0.9) = 0.4;
-// Defense posts (OpenFront's BorderStampPass): borders within a post's range, on its owner's
-// land, get a checkerboard - every other cell darkened. One texel per post: x, y, owner id.
+// Defense posts (OpenFront's BorderStampPass and TerritoryPass): their owner's land within a
+// post's range is darkened, and its borders get a checkerboard - every other cell darkened.
+// One texel per post: x, y, owner id.
 uniform sampler2D defense_tex : filter_nearest, repeat_disable;
 uniform int defense_count = 0;
 uniform float defense_range = 30.0;
+// OpenFront's territoryDefenseDarken (here on the whole fill, ground included).
+uniform float defense_fill_darken : hint_range(0.0, 1.0) = 0.85;
+// While placing a defense post: where it would go (x, y, owner id); its field is shown darkened.
+uniform bool defense_preview_on = false;
+uniform vec3 defense_preview = vec3(0.0);
 // Checker cells are one OpenFront tile (set from MapView.cs), and defended borders are
 // about that wide too, like OpenFront's (ours are thinner elsewhere); zoomed out the cells
 // double in steps so they stay at least defense_min_pixels wide.
@@ -299,9 +313,13 @@ int owner_id_at(ivec2 c) {
 	return b.r + (b.g & 15) * 256;
 }
 
-bool hatched_bit(ivec2 c) {
+int hatch_bits(ivec2 c) {
 	c = clamp(c, ivec2(0), ivec2(map_size) - 1);
-	return texelFetch(hatch_tex, ivec3(c % owner_chunk, (c.y / owner_chunk) * owner_chunks_x + c.x / owner_chunk), 0).r > 0.002;
+	return int(texelFetch(hatch_tex, ivec3(c % owner_chunk, (c.y / owner_chunk) * owner_chunks_x + c.x / owner_chunk), 0).r * 255.0 + 0.5);
+}
+
+bool hatched_bit(ivec2 c) {
+	return (hatch_bits(c) & 1) != 0;
 }
 
 // How much of `id`'s land around here is hatched (0..1), smoothed exactly like the territory
@@ -362,18 +380,50 @@ float hatch_cover(vec2 tile, int id) {
 	return total > 1e-5 ? hatched / total : 0.0;
 }
 
-// True if a finished defense post of `id` is within range of this tile.
-bool defended(vec2 tile, int id) {
-	vec2 t = floor(tile);
-	float r2 = defense_range * defense_range;
-	for (int i = 0; i < defense_count; i++) {
-		vec3 post = texelFetch(defense_tex, ivec2(i, 0), 0).rgb;
-		vec2 d = post.xy - t;
-		if (int(post.z + 0.5) == id && dot(d, d) <= r2) {
-			return true;
+// How much this point is inside the range of one of `id`'s finished defense posts (0..1,
+// anti-aliased along the circle's edge; the circle runs through the centres of the last
+// tiles the post defends), and with `preview`, of the post being placed too.
+float defense_cover(vec2 tile, int id, float tiles_per_px, bool preview) {
+	float inside = 1e9; // distance past the nearest circle's edge, in tiles (negative = inside)
+	if (defense_count > 0 && (hatch_bits(ivec2(floor(tile))) & 4) != 0) {
+		for (int i = 0; i < defense_count; i++) {
+			vec3 post = texelFetch(defense_tex, ivec2(i, 0), 0).rgb;
+			if (int(post.z + 0.5) == id) {
+				inside = min(inside, length(tile - post.xy - 0.5) - defense_range);
+			}
 		}
 	}
-	return false;
+	if (preview && defense_preview_on && int(defense_preview.z + 0.5) == id) {
+		inside = min(inside, length(tile - defense_preview.xy - 0.5) - defense_range);
+	}
+	return 1.0 - smoothstep(-0.5 * tiles_per_px, 0.5 * tiles_per_px, inside);
+}
+
+// Distance (tiles) from this point inwards to the edge of `id`'s territory, from dist_tex,
+// blended between the four nearest tile centres. Other owners' tiles count as half a tile
+// outside the line; water doesn't count (coasts have their own border).
+float border_distance(vec2 tile, int id) {
+	vec2 p = tile - 0.5;
+	ivec2 c = ivec2(floor(p));
+	vec2 f = p - floor(p);
+	float total = 0.0;
+	float weight = 0.0;
+	for (int k = 0; k < 4; k++) {
+		ivec2 cc = clamp(c + ivec2(k & 1, k >> 1), ivec2(0), ivec2(map_size) - 1);
+		float w = (k & 1) == 1 ? f.x : 1.0 - f.x;
+		w *= (k >> 1) == 1 ? f.y : 1.0 - f.y;
+		int owner = owner_id_at(cc);
+		if (owner == WATER) {
+			continue;
+		}
+		float d = -0.5;
+		if (owner == id) {
+			d = texelFetch(dist_tex, ivec3(cc % owner_chunk, (cc.y / owner_chunk) * owner_chunks_x + cc.x / owner_chunk), 0).r * 255.0 / dist_units;
+		}
+		total += w * d;
+		weight += w;
+	}
+	return weight > 1e-5 ? total / weight : 1e3;
 }
 
 // Diagonal stripes this many tiles apart: 1 on a stripe, 0 between, anti-aliased. Stripes
@@ -639,16 +689,26 @@ void fragment() {
 			// Borders never get thinner than ~1 pixel, so they don't flicker when zoomed out.
 			float edge_aa = max(fwidth(edge), 1e-5);
 			float bw = max(border_width, edge_aa * 1.2);
-			bool defense = defense_count > 0 && edge < max(bw, defense_border_edge) + edge_aa && defended(tile, id);
+			// Defense posts: their land in range is darkened (and while placing one, the land it
+			// would protect), and their borders there are widened and checkered.
+			float posts = defense_count > 0 ? defense_cover(tile, id, tiles_per_px, false) : 0.0;
+			float cover = defense_preview_on ? defense_cover(tile, id, tiles_per_px, true) : posts;
+			// Thicker borders than the smoothing can measure use each tile's distance to the border.
+			float border_dist = border_field ? border_distance(tile, id) : 1e3;
+			bool defense = posts > 0.5 && (edge < max(bw, defense_border_edge) + edge_aa || border_dist < border_tiles + tiles_per_px);
 			if (defense) {
 				bw = max(bw, defense_border_edge);
 			}
 			float border = 1.0 - smoothstep(bw - edge_aa, bw + edge_aa, edge);
+			if (border_field) {
+				border = max(border, 1.0 - smoothstep(border_tiles - 0.5 * tiles_per_px, border_tiles + 0.5 * tiles_per_px, border_dist));
+			}
 			float cbw = max(coast_border_width, tiles_per_px * 1.2);
 			float coast_border = 1.0 - smoothstep(cbw - tiles_per_px, cbw + tiles_per_px, coast_dist);
 			border = border_width > 0.0 ? max(max(border, coast_border), hatch_edge) : 0.0;
 
 			vec3 fill = mix(ground, nation, opacity);
+			fill *= mix(1.0, defense_fill_darken, cover);
 			vec3 outline = nation * (1.0 - border_darken);
 			if (defense && border > 0.0) {
 				float cell = defense_cell_tiles * exp2(max(ceil(log2(defense_min_pixels * tiles_per_px / defense_cell_tiles)), 0.0));

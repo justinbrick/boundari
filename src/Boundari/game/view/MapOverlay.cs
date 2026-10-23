@@ -127,7 +127,6 @@ public partial class MapOverlay : Node2D
             var at = TileCentre(_ghostTile, w);
             float reach = ghost switch
             {
-                BuildingType.Defense => _game.Rules.DefensePostRange,
                 BuildingType.Sam => _game.Rules.SamRange(_ghostLevel),
                 BuildingType.Factory => _game.Rules.StationMaxRange,
                 _ => 0,
