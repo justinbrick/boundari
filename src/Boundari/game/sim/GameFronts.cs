@@ -484,6 +484,27 @@ public sealed partial class Game
     }
 
     /// <summary>
+    /// How hard this tile holds against an attack right now, worked out afresh from where its
+    /// owner's standing dots are (for the AI picking a weak spot; leaves out how many sides they
+    /// are pressed from): thousandths of a fresh level-1 dot, times the slowdown if hardened.
+    /// </summary>
+    public long DefenceAt(int tile)
+    {
+        ushort owner = Owner[tile];
+        if (owner == Nobody)
+            return 0;
+        var player = _players[owner];
+        if (player.IsBot)
+            return DotRules.LocalsForce;
+        long hold = DotRules.UndefendedForce;
+        int w = Map.Width, x = tile % w, y = tile / w;
+        foreach (var d in _dots)
+            if (d.Owner == player && !d.IsWalking && ReachWeight(d.Tile % w - x, d.Tile / w - y) is var weight and > 0)
+                hold += DotForce(d) * weight / 1000;
+        return IsHardened(tile) ? hold * DotRules.HardenedSlowdown : hold;
+    }
+
+    /// <summary>
     /// How many sides a dot is pressed from (1-3): from how much of the land around it (a
     /// ring <see cref="ScaledRules.DotSidesRing"/> tiles out) is held by players attacking its owner.
     /// </summary>

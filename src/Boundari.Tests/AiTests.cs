@@ -12,7 +12,7 @@ public class AiTests
 
     private static Game AiGame(ulong seed, Difficulty difficulty, int nations, int bots, int ticks)
     {
-        var game = new Game(SmallMap(), seed, spawnPhaseTicks: 5, difficulty: difficulty);
+        var game = new Game(SmallMap(), seed, spawnPhaseTicks: 5, difficulty: difficulty) { TroopAttacks = true, BoatsAllowed = true };
         game.AddNations(nations);
         game.AddBots(bots);
         for (int t = 0; t < ticks; t++)
@@ -47,7 +47,7 @@ public class AiTests
     public void AiBoat_BoardsWhileItsRouteIsPlanned_ThenSails()
     {
         var map = SmallMap();
-        var game = new Game(map, 1, spawnPhaseTicks: 2) { WarshipsAllowed = true };
+        var game = new Game(map, 1, spawnPhaseTicks: 2) { TroopAttacks = true, BoatsAllowed = true, WarshipsAllowed = true };
         var nation = game.AddPlayer("N", PlayerKind.Nation); // no AI attached: we give the orders
         int biggest = Enumerable.Range(0, map.LandmassSizes.Length).OrderByDescending(i => map.LandmassSizes[i]).First();
         int coast = Enumerable.Range(0, map.TileCount).First(t => map.LandmassId[t] == biggest && game.IsCoastal(t));
@@ -74,7 +74,7 @@ public class AiTests
     public void ANation_IsPuzzledByAClown_AndLikesTheSenderLess()
     {
         var map = SmallMap();
-        var game = new Game(map, 1, spawnPhaseTicks: 2);
+        var game = new Game(map, 1, spawnPhaseTicks: 2) { TroopAttacks = true, BoatsAllowed = true };
         var a = game.AddPlayer("A");
         var b = game.AddPlayer("B", PlayerKind.Nation);
         int biggest = Enumerable.Range(0, map.LandmassSizes.Length).OrderByDescending(i => map.LandmassSizes[i]).First();
@@ -96,7 +96,7 @@ public class AiTests
     public void MoveWarship_SendsItToPatrolElsewhere_OnlyForItsOwner()
     {
         var map = SmallMap();
-        var game = new Game(map, 1, spawnPhaseTicks: 2);
+        var game = new Game(map, 1, spawnPhaseTicks: 2) { TroopAttacks = true, BoatsAllowed = true };
         var me = game.AddPlayer("Me");
         var other = game.AddPlayer("Other");
         int water = Enumerable.Range(0, map.TileCount).First(t => map.IsWater(t) && game.Waterways.BodySize[game.Waterways.Body[t]] > 5000);

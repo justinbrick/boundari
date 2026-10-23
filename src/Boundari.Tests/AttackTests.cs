@@ -24,7 +24,7 @@ public class AttackTests
         for (int t = 0; t < map.TileCount; t++)
             if (map.IsLand(t))
                 map.Terrain[t] = TerrainType.Plains;
-        var game = new Game(map, 1, spawnPhaseTicks: 2);
+        var game = new Game(map, 1, spawnPhaseTicks: 2) { TroopAttacks = true, BoatsAllowed = true };
         var a = game.AddPlayer("A");
         var b = game.AddPlayer("B");
         int biggest = Enumerable.Range(0, map.LandmassSizes.Length).OrderByDescending(i => map.LandmassSizes[i]).First();
@@ -152,7 +152,7 @@ public class AttackTests
         for (int cy = y * 4; cy < y * 4 + 4; cy++)
             for (int cx = x * 4; cx < x * 4 + 4; cx++)
                 map.Cover.Cells[map.Cover.Index(cx, cy)] = CoverType.Forest;
-        var game = new Game(map, 1);
+        var game = new Game(map, 1) { TroopAttacks = true, BoatsAllowed = true };
         var a = game.AddPlayer("A");
         Assert.Equal(20, game.CoverTenths[plain]);
         var attack = (Attack)typeof(Attack).GetConstructors(BindingFlags.NonPublic | BindingFlags.Instance)[0]
@@ -179,7 +179,7 @@ public class AttackTests
         (double Loss, double Frac) Logic(double scale)
         {
             map.TileScale = scale;
-            var game = new Game(map, 1);
+            var game = new Game(map, 1) { TroopAttacks = true, BoatsAllowed = true };
             var a = game.AddPlayer("A");
             var attack = (Attack)typeof(Attack).GetConstructors(BindingFlags.NonPublic | BindingFlags.Instance)[0]
                 .Invoke(new object[] { a, (ushort)0, 3_000L, -1, new Boundari.Core.Rng(1), null! });

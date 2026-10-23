@@ -13,7 +13,7 @@ public class SimTests
     public void SpawnPhase_WaitsForThePlayer_ThenStartsAtOnce()
     {
         var map = SmallMap();
-        var game = new Game(map, 1);
+        var game = new Game(map, 1) { TroopAttacks = true, BoatsAllowed = true };
         var me = game.AddPlayer("Me");
         game.StartsWhenSpawned = me.Id;
         for (int t = 0; t < Balance.SpawnPhaseTicks * 3; t++)
@@ -30,7 +30,7 @@ public class SimTests
 
     private static Game BotGame(ulong seed, int bots, int ticks, int wimpyBots = 0)
     {
-        var game = new Game(SmallMap(), seed, spawnPhaseTicks: 5);
+        var game = new Game(SmallMap(), seed, spawnPhaseTicks: 5) { TroopAttacks = true, BoatsAllowed = true };
         game.AddNations(bots);
         game.AddBots(wimpyBots);
         for (int t = 0; t < ticks; t++)
@@ -111,7 +111,7 @@ public class SimTests
     public void Player_CanSpawnMoveSpawnAndExpand()
     {
         var map = SmallMap();
-        var game = new Game(map, 1, spawnPhaseTicks: 5);
+        var game = new Game(map, 1, spawnPhaseTicks: 5) { TroopAttacks = true, BoatsAllowed = true };
         var me = game.AddPlayer("Me");
         int[] land = Enumerable.Range(0, map.TileCount).Where(t => map.IsLand(t) && map.LandmassSizes[map.LandmassId[t]] > 2000).ToArray();
 

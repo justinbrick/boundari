@@ -13,7 +13,7 @@ public class AllianceTests
     private static (Game Game, Player A, Player B) Setup(PlayerKind bKind = PlayerKind.Human)
     {
         var map = MapGenerator.Generate(21, new MapGenSettings { Width = 400, Height = 250, MinIslandTiles = 8, MinLakeTiles = 30 });
-        var game = new Game(map, 1, spawnPhaseTicks: 2);
+        var game = new Game(map, 1, spawnPhaseTicks: 2) { TroopAttacks = true, BoatsAllowed = true };
         var a = game.AddPlayer("A");
         var b = game.AddPlayer("B", bKind);
         int biggest = Enumerable.Range(0, map.LandmassSizes.Length).OrderByDescending(i => map.LandmassSizes[i]).First();
@@ -261,7 +261,7 @@ public class AllianceTests
     public void Nations_FormAlliances_InAEuropeSizedMatch()
     {
         var map = MapGenerator.Generate(5, new MapGenSettings { Width = 600, Height = 400 });
-        var game = new Game(map, 7, spawnPhaseTicks: 2);
+        var game = new Game(map, 7, spawnPhaseTicks: 2) { TroopAttacks = true, BoatsAllowed = true };
         game.AddNations(20);
         game.AddBots(40);
         int most = 0;

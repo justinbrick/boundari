@@ -18,7 +18,7 @@ public class BuildingEffectsTests
     private static (Game Game, Player A, Player B, int[] Land) Setup(bool split)
     {
         var map = MapGenerator.Generate(21, new MapGenSettings { Width = 400, Height = 250, MinIslandTiles = 8, MinLakeTiles = 30 });
-        var game = new Game(map, 1, spawnPhaseTicks: 2);
+        var game = new Game(map, 1, spawnPhaseTicks: 2) { TroopAttacks = true, BoatsAllowed = true };
         var a = game.AddPlayer("A");
         var b = game.AddPlayer("B");
         int biggest = Enumerable.Range(0, map.LandmassSizes.Length).OrderByDescending(i => map.LandmassSizes[i]).First();

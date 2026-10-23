@@ -31,7 +31,7 @@ public class SimBenchmark
             map = MapFile.Read(file);
 
         var difficulty = Enum.TryParse<Difficulty>(Environment.GetEnvironmentVariable("BOUNDARI_DIFFICULTY"), true, out var d) ? d : Difficulty.Medium;
-        var game = new Game(map, 42, spawnPhaseTicks: 1, difficulty: difficulty);
+        var game = new Game(map, 42, spawnPhaseTicks: 1, difficulty: difficulty) { TroopAttacks = true, BoatsAllowed = true };
         if (int.TryParse(Environment.GetEnvironmentVariable("BOUNDARI_NATIONS"), out int nations))
             game.AddNations(nations);
         else
@@ -92,7 +92,7 @@ public class BoatBenchmark
         var geo = map.Geo!;
         int Tile(double lon, double lat) => map.Index((int)geo.TileX(lon, map.Width), (int)geo.TileY(lat, map.Height));
 
-        var game = new Game(map, 1, spawnPhaseTicks: 1);
+        var game = new Game(map, 1, spawnPhaseTicks: 1) { TroopAttacks = true, BoatsAllowed = true };
         var me = game.AddPlayer("Me");
         int brest = Tile(-4.3, 48.3);
         for (int r = 1; !map.IsLand(brest) && r < 30; r++) // nearest land (the exact spot may be a water tile)

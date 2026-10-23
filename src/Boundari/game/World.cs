@@ -31,13 +31,15 @@ namespace Boundari;
 /// Command-line options (after "--" when launching Godot):
 ///   --map=ID           load res://maps/ID.bmap (default ardennes; "random" for a generated map)
 ///   --seed=N           generate a random map with this seed
-///   --nations=N        number of nations, the proper AI opponents (default: the map's own
-///                      nations, e.g. Europe's 52 like OpenFront; 6 on the Ardennes, 120 elsewhere)
-///   --bots=N           number of bots ("tribes"), the weak filler players (default 400, like OpenFront; 12 on the Ardennes)
+///   --nations=N        number of nations, the proper AI opponents (commanders; default: the map's own
+///                      nations, e.g. Europe's 52 like OpenFront; 2 on Western Europe and the Ardennes, 120 elsewhere)
+///   --bots=N           number of bots ("tribes", Locals; default 400, like OpenFront; 150 on Western Europe and
+///                      the Ardennes). In the dots game they share out all the land but a patch round each commander
 ///   --no-cheats        play without the dev cheats (infinite gold, instant building)
 ///   --classic          OpenFront's rule for walled-in land (every cut-off piece goes to the attacker)
-///   --old-systems      bring back the systems dropped for the dots game: hatched land, directed
-///                      attacks, light fog, boats and warships (off by default until their code is deleted)
+///   --old-systems      bring back the systems dropped for the dots game: OpenFront's troop attacks (and
+///                      its spawning: pick your start, Locals start small and attack), hatched land,
+///                      directed attacks, light fog, boats and warships (off by default until their code is deleted)
 ///   --difficulty=D     easy, medium (default), hard or impossible: how strong nations are
 ///   --autoplay         spawn the human player automatically (for testing)
 ///   --ticks=N          fast-forward the match N ticks at start
@@ -76,10 +78,10 @@ public partial class World : Node2D
 
     private static readonly string[] BuiltInMaps = { "westeurope", "europe", "world", "ardennes" };
 
-    // Small maps get fewer players than the Nations / Bots defaults (until spawning is redone for dots).
+    // The dots game's maps: 2 AI commanders for now (6 once they're tuned), and Locals over most of the land.
     private static (int Nations, int Bots)? SmallMapPlayers(string mapId) => mapId switch
     {
-        "ardennes" or "westeurope" => (6, 12),
+        "ardennes" or "westeurope" => (2, 150),
         _ => null,
     };
 
@@ -640,13 +642,18 @@ public partial class World : Node2D
     private Player? PlayerAt(int tile) =>
         tile >= 0 && _map.IsLand(tile) && _game.GetPlayer(_game.Owner[tile]) is { } p && p != _me ? p : null;
 
-    /// <summary>G: expand into the wilderness under the mouse, as a click would; over someone's land, an old-style attack (until the dots replace it).</summary>
+    /// <summary>G: as a click would, expand into the wilderness under the mouse or push into someone's land with your dots (an old-style attack with --old-systems).</summary>
     private void GroundAttack(int tile)
     {
         if (tile < 0 || !_map.IsLand(tile) || _game.Phase != GamePhase.Running || !_me.HasSpawned || !_me.IsAlive)
             return;
         if (ClickToExpand(tile))
             return;
+        if (!_game.TroopAttacks)
+        {
+            ClickToPush(tile);
+            return;
+        }
         ushort target = _game.Owner[tile];
         if (target != _me.Id && !_me.Allies.Contains(target) && _game.CanReachByLand(_me, tile))
             _game.Submit(new AttackIntent(_me.Id, target, _hud.AttackRatioPercent));
@@ -658,7 +665,7 @@ public partial class World : Node2D
     /// </summary>
     private void Retaliate()
     {
-        if (_game.Phase != GamePhase.Running || !_me.IsAlive)
+        if (_game.Phase != GamePhase.Running || !_me.IsAlive || !_game.TroopAttacks)
             return;
         Attack? latest = null;
         foreach (var a in _game.Attacks)
@@ -1010,11 +1017,13 @@ public partial class World : Node2D
         SyncSim();
         _game = new Game(_map, RandomSeed(), difficulty: _args.Difficulty ?? Difficulty) {
             HatchedLand = _args.OldSystems, DirectedAttacks = _args.OldSystems, FogOfWar = _args.OldSystems, WarshipsAllowed = _args.OldSystems,
-            KeepCutOffLand = !_args.Classic,
+            TroopAttacks = _args.OldSystems, BoatsAllowed = _args.OldSystems, KeepCutOffLand = !_args.Classic,
         };
         _me = _game.AddPlayer("You");
         _game.EventsFor = _me.Id; // notifications
-        if (_args.Bench is null || _args.Autoplay)
+        if (!_game.TroopAttacks)
+            _game.SpawnAtRandom(_me); // the dots game: a random start on the mainland, first (the Locals leave wilderness round it)
+        if (_args.Bench is null || _args.Autoplay || _me.HasSpawned)
             _game.StartsWhenSpawned = _me.Id; // no countdown: the match starts when you pick your start
         _labels.Me = _me;
         if (DevCheats && !_args.NoCheats)
@@ -1033,7 +1042,7 @@ public partial class World : Node2D
         _placing = null;
         _securePatch.Clear(); // (the new match's territory upload clears the highlight)
 
-        if (_args.Autoplay)
+        if (_args.Autoplay && !_me.HasSpawned)
             AutoSpawn();
         if (_args.Expand > 0 && _me.HasSpawned) // (testing) grow into the wilderness first
         {

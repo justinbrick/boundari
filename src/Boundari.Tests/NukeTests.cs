@@ -17,7 +17,7 @@ public class NukeTests
     private static (Game Game, Player A, Player B, int[] Land) Setup()
     {
         var map = MapGenerator.Generate(21, new MapGenSettings { Width = 400, Height = 250, MinIslandTiles = 8, MinLakeTiles = 30 });
-        var game = new Game(map, 1, spawnPhaseTicks: 2);
+        var game = new Game(map, 1, spawnPhaseTicks: 2) { TroopAttacks = true, BoatsAllowed = true };
         var a = game.AddPlayer("A");
         var b = game.AddPlayer("B");
         int biggest = Enumerable.Range(0, map.LandmassSizes.Length).OrderByDescending(i => map.LandmassSizes[i]).First();
@@ -199,7 +199,7 @@ public class NukeTests
     public void NoBombs_DuringTheSpawnWindow_OrWithoutASilo()
     {
         var map = MapGenerator.Generate(21, new MapGenSettings { Width = 400, Height = 250, MinIslandTiles = 8, MinLakeTiles = 30 });
-        var game = new Game(map, 1, spawnPhaseTicks: 2);
+        var game = new Game(map, 1, spawnPhaseTicks: 2) { TroopAttacks = true, BoatsAllowed = true };
         var a = game.AddPlayer("A");
         game.SetCheats(a, true, true);
         int land = Enumerable.Range(0, map.TileCount).First(t => map.IsLand(t) && map.LandmassSizes[map.LandmassId[t]] > 2000);
@@ -230,7 +230,7 @@ public class NukeTests
         GameMap map;
         using (var file = File.OpenRead(Path.Combine(dir, "src", "Boundari", "maps", "europe.bmap")))
             map = MapFile.Read(file);
-        var game = new Game(map, 5);
+        var game = new Game(map, 5) { TroopAttacks = true, BoatsAllowed = true };
         game.AddNations(MapNations.Europe);
 
         Assert.Equal(52, game.Players.Count);

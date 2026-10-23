@@ -141,7 +141,10 @@ public sealed partial class Game
 
     private readonly List<int> _aiSpawns = new();
 
-    /// <summary>Adds nations (the proper AI opponents, named after countries) and places them, spread apart.</summary>
+    /// <summary>
+    /// Adds nations (the proper AI opponents, named after countries; commanders in the dots
+    /// game) and places them, spread apart (on the mainland, without <see cref="TroopAttacks"/>).
+    /// </summary>
     public void AddNations(int count)
     {
         var countries = new List<(string Code, string Name)>(Countries.All);
@@ -155,7 +158,10 @@ public sealed partial class Game
                 countries.AddRange(Countries.All);
             var nation = AddPlayer(b < Countries.All.Length ? name : $"{name} {b / Countries.All.Length + 1}", PlayerKind.Nation, code);
             _ais.Add(new NationAi(this, nation, new Rng(_rng.Fork())));
-            SpawnAi(nation);
+            if (TroopAttacks)
+                SpawnAi(nation);
+            else
+                SpawnAtRandom(nation);
         }
     }
 
@@ -222,9 +228,18 @@ public sealed partial class Game
         return -1;
     }
 
-    /// <summary>Adds bots: OpenFront's weak filler players with made-up names and no flag.</summary>
+    /// <summary>
+    /// Adds bots: OpenFront's weak filler players with made-up names and no flag. In the dots
+    /// game (no <see cref="TroopAttacks"/>) they are Locals that share out the free land at
+    /// once and never attack (see GameLocals.cs): add them after the commanders.
+    /// </summary>
     public void AddBots(int count)
     {
+        if (!TroopAttacks)
+        {
+            AddLocals(count);
+            return;
+        }
         var names = new Rng(_rng.Fork());
         for (int b = 0; b < count; b++)
         {
@@ -331,12 +346,12 @@ public sealed partial class Game
             case SpawnIntent late when player.LateSpawn && !player.HasSpawned:
                 Spawn(player, late.Tile, takeOwned: true);
                 break;
-            case AttackIntent attack when Phase == GamePhase.Running:
+            case AttackIntent attack when Phase == GamePhase.Running && TroopAttacks:
                 StartAttack(player, attack.TargetId, attack.Troops > 0
                     ? Math.Min(attack.Troops, player.Troops)
                     : player.Troops * Math.Clamp(attack.RatioPercent, 1, 100) / 100);
                 break;
-            case DirectedAttackIntent directed when Phase == GamePhase.Running:
+            case DirectedAttackIntent directed when Phase == GamePhase.Running && TroopAttacks:
                 StartDirectedAttack(player, directed);
                 break;
             case NukeIntent nuke:
@@ -661,8 +676,15 @@ public sealed partial class Game
         return false;
     }
 
-    /// <summary>Match option: troop boats (on by default).</summary>
-    public bool BoatsAllowed { get; set; } = true;
+    /// <summary>Match option: troop boats (off: they carry OpenFront's troops, and dots can't cross water; kept for the old rules).</summary>
+    public bool BoatsAllowed { get; set; }
+
+    /// <summary>
+    /// Match option: OpenFront's troop attacks (off: land only changes hands through dots
+    /// pushing and expansion into the wilderness, Locals hold their land without attacking
+    /// and commanders fight with dots; kept for the old rules).
+    /// </summary>
+    public bool TroopAttacks { get; set; }
 
     /// <summary>Match option: warships (off: dropped for the dots game; kept for the old rules). Needs boats too.</summary>
     public bool WarshipsAllowed { get; set; }

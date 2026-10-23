@@ -12,7 +12,10 @@ namespace Boundari.Sim;
 /// It also builds a third and two thirds of the way through the cycle, and every tick
 /// follows up its boat landings and bomb strikes and hits back at whoever sinks its ships.
 /// Nations only submit intents, like a human would, and use their own seeded RNG, so they
-/// behave identically on every machine.
+/// behave identically on every machine. In the dots game (no <see cref="Game.TroopAttacks"/>)
+/// a nation is a commander: its dots do the fighting (see <see cref="NationDots"/>), it still
+/// answers alliances, sets embargoes and sends emojis, builds only once its dots want no more
+/// Funds, and drops bombs and warships for now.
 /// </summary>
 internal sealed class NationAi : IPlayerAi
 {
@@ -24,6 +27,7 @@ internal sealed class NationAi : IPlayerAi
     private readonly NationEmojis _emojis;
     private readonly NationWarships _warships;
     private readonly NationAttacks _attacks;
+    private readonly NationDots _dots;
     private readonly int _attackRate, _attackTick;
     private bool _started;
 
@@ -55,12 +59,18 @@ internal sealed class NationAi : IPlayerAi
         _alliances = new NationAlliances(game, player, new Rng(rng.Fork()), _emojis);
         _warships = new NationWarships(game, player, new Rng(rng.Fork()), _emojis);
         _attacks = new NationAttacks(game, player, new Rng(rng.Fork()), trigger, reserve, expand, _alliances, _emojis, _warships);
+        _dots = new NationDots(game, player, new Rng(rng.Fork()));
     }
 
     public void Think()
     {
         if (!_player.HasSpawned || !_player.IsAlive || _game.Phase != GamePhase.Running)
             return;
+        if (!_game.TroopAttacks)
+        {
+            ThinkAsCommander();
+            return;
+        }
         if (!_started)
         {
             _started = true;
@@ -95,5 +105,19 @@ internal sealed class NationAi : IPlayerAi
         _attacks.MaybeAttack();
         _warships.CounterWarshipInfestation();
         _nukes.MaybeSendNuke();
+    }
+
+    /// <summary>The dots game: the dots every few seconds, diplomacy and building once per cycle.</summary>
+    private void ThinkAsCommander()
+    {
+        _dots.Think();
+        if (_game.Tick % _attackRate != _attackTick)
+            return;
+        _emojis.MaybeSendCasualEmoji();
+        _alliances.HandleRequests();
+        _alliances.HandleRenewals();
+        _alliances.HandleEmbargoes();
+        if (!_dots.WantsFunds)
+            _structures.Handle();
     }
 }

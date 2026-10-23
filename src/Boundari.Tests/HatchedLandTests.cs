@@ -19,7 +19,7 @@ public class HatchedLandTests
         for (int t = 0; t < map.TileCount; t++)
             if (map.IsLand(t))
                 map.Terrain[t] = TerrainType.Plains;
-        var game = new Game(map, 1, spawnPhaseTicks: 2) { HatchedLand = false };
+        var game = new Game(map, 1, spawnPhaseTicks: 2) { TroopAttacks = true, BoatsAllowed = true, HatchedLand = false };
         var a = game.AddPlayer("A");
         var b = game.AddPlayer("B");
         int biggest = Enumerable.Range(0, map.LandmassSizes.Length).OrderByDescending(i => map.LandmassSizes[i]).First();
