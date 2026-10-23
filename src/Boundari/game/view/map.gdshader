@@ -73,6 +73,9 @@ uniform float hatch_strength : hint_range(0.0, 1.0) = 0.85;
 uniform float hatch_stripe_width : hint_range(0.1, 0.9) = 0.4;
 // The patch a structure being placed would secure: lightened, with a gentle pulse.
 uniform float secure_highlight : hint_range(0.0, 1.0) = 0.3;
+// Hardened border (dots dug in after an attack): every other border tile darkened, like
+// OpenFront's checkerboard near a Defense post (its defenseCheckerDarken).
+uniform float hardened_checker_darken : hint_range(0.0, 1.0) = 0.7;
 
 group_uniforms dev_tools;
 // Land-cover patches: 1 = smooth rounded shapes (the normal look), 0 = square cells.
@@ -288,33 +291,37 @@ int owner_id_at(ivec2 c) {
 }
 
 // How hatched (x) and how highlighted (y) the land of `id` is here (0..1), blended between
-// tile centres. Only tiles `id` owns and has finished fading into count, so a capture
-// still sweeping in isn't striped on the previous owner's colour.
-vec2 hatch_at(vec2 tile, int id) {
+// tile centres, and whether any of the nearest tiles is hardened (z, 0 or 1). Only tiles
+// `id` owns and has finished fading into count, so a capture still sweeping in isn't
+// striped on the previous owner's colour.
+vec3 hatch_at(vec2 tile, int id) {
 	vec2 p = tile - 0.5;
 	ivec2 c = ivec2(floor(p));
 	vec2 f = p - vec2(c);
-	vec2 v[4];
+	vec3 v[4];
 	bool any = false;
 	for (int k = 0; k < 4; k++) {
 		ivec2 cc = clamp(c + ivec2(k & 1, k >> 1), ivec2(0), ivec2(map_size) - 1);
 		int bits = int(texelFetch(hatch_tex, ivec3(cc % owner_chunk, (cc.y / owner_chunk) * owner_chunks_x + cc.x / owner_chunk), 0).r * 255.0 + 0.5);
-		v[k] = vec2(float(bits & 1), float((bits >> 1) & 1));
+		v[k] = vec3(float(bits & 1), float((bits >> 1) & 1), float((bits >> 2) & 1));
 		any = any || bits != 0;
 	}
 	if (!any) {
-		return vec2(0.0);
+		return vec3(0.0);
 	}
+	float hardened = 0.0;
 	for (int k = 0; k < 4; k++) {
-		if (v[k].x > 0.0 || v[k].y > 0.0) {
+		if (v[k].x > 0.0 || v[k].y > 0.0 || v[k].z > 0.0) {
 			int owner;
 			int prev;
 			float fade_in;
 			owner_at(c + ivec2(k & 1, k >> 1), owner, prev, fade_in);
 			v[k] *= owner == id ? fade_in : 0.0;
+			hardened = max(hardened, v[k].z >= 1.0 ? 1.0 : 0.0);
 		}
 	}
-	return mix(mix(v[0], v[1], f.x), mix(v[2], v[3], f.x), f.y);
+	vec2 blend = mix(mix(v[0].xy, v[1].xy, f.x), mix(v[2].xy, v[3].xy, f.x), f.y);
+	return vec3(blend, hardened);
 }
 
 // Diagonal stripes this many tiles apart: 1 on a stripe, 0 between, anti-aliased. Stripes
@@ -557,7 +564,7 @@ void fragment() {
 
 			// Hatched land: stripes in the border colour, spaced in whole doublings of
 			// hatch_tiles, cross-fading between the two nearest as the zoom changes.
-			vec2 hatch = hatch_at(tile, id);
+			vec3 hatch = hatch_at(tile, id);
 			float stripe = 0.0;
 			if (hatch.x > 0.0) {
 				float lod = max(log2(hatch_min_pixels * tiles_per_px / hatch_tiles), 0.0);
@@ -579,6 +586,9 @@ void fragment() {
 
 			vec3 fill = mix(ground, nation, opacity);
 			vec3 outline = nation * (1.0 - border_darken);
+			if (hatch.z > 0.0 && ((int(floor(tile.x)) + int(floor(tile.y))) & 1) == 1) {
+				outline *= hardened_checker_darken;
+			}
 			vec3 owned = mix(mix(fill, outline, stripe), outline, border);
 			if (hatch.y > 0.0) {
 				float pulse = 0.75 + 0.25 * sin(visual_time * 0.6);

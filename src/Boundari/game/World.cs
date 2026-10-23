@@ -279,6 +279,7 @@ public partial class World : Node2D
         long recordStart = FrameProfiler.Start();
         _view.RecordTick(_game.Owner, _game.Fallout, _game.HatchedUntil, _game.ChangedTiles, _simTick);
         _game.ChangedTiles.Clear();
+        ShowHardened();
         ShowGoldGains();
         _alerts.TakeEvents(_game, _me);
         _notifications.TakeEvents(_game, _me);
@@ -360,6 +361,7 @@ public partial class World : Node2D
         long hudStart = FrameProfiler.Start();
         UpdatePlacing();
         UpdateArrow();
+        UpdateDotHover();
         FrameProfiler.Stop("  placing", hudStart);
         long hudOnly = FrameProfiler.Start();
         UpdateFastForward();
@@ -930,9 +932,9 @@ public partial class World : Node2D
         ushort target = _game.Owner[tile];
         if (target == _me.Id || !_me.IsAlive || !_me.HasSpawned)
             return;
-        if (_game.CanReachByLand(_me, tile))
-            _game.Submit(new AttackIntent(_me.Id, target, _hud.AttackRatioPercent));
-        else if (doubleClick)
+        if (ClickToPush(tile)) // your nearest dot facing that land pushes in (or stops); G sends an old-style attack
+            return;
+        if (doubleClick && !_game.CanReachByLand(_me, tile))
             SendBoat(tile); // land you can't walk to: a double click sends a boat (or press B)
     }
 

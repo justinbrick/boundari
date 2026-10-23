@@ -163,6 +163,9 @@ public partial class MapView : Sprite2D
     /// <summary>Highlights the hatched patch a structure being placed would secure (null = none).</summary>
     public void SetSecureHighlight(System.Collections.Generic.IReadOnlyList<int>? tiles) => _territory?.SetHighlight(tiles);
 
+    /// <summary>Marks the tiles whose owner has dug in: their border is drawn checkered, like OpenFront's near a Defense post.</summary>
+    public void SetHardened(System.Collections.Generic.IEnumerable<int> tiles) => _territory?.SetHardened(tiles);
+
     /// <summary>Uploads changed territory chunks to the GPU.</summary>
     public void FlushTerritory() => _territory?.Flush();
 

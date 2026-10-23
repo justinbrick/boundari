@@ -45,9 +45,10 @@ public sealed class TerritoryTextures
     private readonly byte[][] _timeBytes;
     private readonly Image[] _ownerImages;
     private readonly Image[] _timeImages;
-    private readonly byte[][] _hatchBytes; // R8 bits: HatchedBit, HighlightBit
-    private const byte HatchedBit = 1, HighlightBit = 2;
+    private readonly byte[][] _hatchBytes; // R8 bits: HatchedBit, HighlightBit, HardenedBit
+    private const byte HatchedBit = 1, HighlightBit = 2, HardenedBit = 4;
     private readonly List<int> _highlighted = new();
+    private readonly List<int> _hardened = new();
     private readonly Image[] _hatchImages;
     private readonly bool[] _dirty;
     private readonly ushort[] _shown; // owner currently drawn for each tile
@@ -229,6 +230,17 @@ public sealed class TerritoryTextures
         _highlighted.AddRange(tiles);
         foreach (int t in _highlighted)
             SetHatchBit(t, HighlightBit, true);
+    }
+
+    /// <summary>Marks the tiles whose owner has dug in (their border is drawn checkered), replacing the last set.</summary>
+    public void SetHardened(IEnumerable<int> tiles)
+    {
+        foreach (int t in _hardened)
+            SetHatchBit(t, HardenedBit, false);
+        _hardened.Clear();
+        _hardened.AddRange(tiles);
+        foreach (int t in _hardened)
+            SetHatchBit(t, HardenedBit, true);
     }
 
     private void SetHatchBit(int tile, byte bit, bool on)

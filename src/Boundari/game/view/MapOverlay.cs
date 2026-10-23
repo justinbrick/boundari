@@ -268,6 +268,9 @@ public partial class MapOverlay : Node2D
 
         FrameProfiler.Stop("  overlay buildings", part);
         part = FrameProfiler.Start();
+        DrawDots(zoom, w);
+        FrameProfiler.Stop("  overlay dots", part);
+        part = FrameProfiler.Start();
         // --- Trade ships: just the ship, no lines ---
         float boatSize = IconPixels(zoom, BoatPixels, BoatPixels, 1) / zoom;
         foreach (var ship in _game.TradeShips)
