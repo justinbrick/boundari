@@ -1072,7 +1072,7 @@ anchor_top = 1.0
 anchor_right = 0.5
 anchor_bottom = 1.0
 offset_left = -373.0
-offset_top = -137.0
+offset_top = -141.0
 offset_right = 373.0
 offset_bottom = -60.0
 grow_horizontal = 2
@@ -1111,7 +1111,7 @@ theme_override_styles/panel = SubResource("StyleBoxFlat_fruhh")
 layout_mode = 1
 anchors_preset = -1
 anchor_right = 0.976378
-anchor_bottom = 0.33766234
+anchor_bottom = 0.37037036
 metadata/_edit_use_anchors_ = true
 
 [node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_Control/HBox_Hud/In_Panel2/AttackRatio_Hbox" unique_id=1651948264]
@@ -1163,7 +1163,7 @@ visible = false
 layout_mode = 1
 anchors_preset = -1
 anchor_right = 0.976378
-anchor_bottom = 0.18978103
+anchor_bottom = 0.37037036
 metadata/_edit_use_anchors_ = true
 
 [node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_Control/HBox_Hud/In_Panel2/Description_HBox" unique_id=646491748]
@@ -6032,6 +6032,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 2
 
 [node name="In_Panel2" type="Panel" parent="Main_Layer/Main_ControlTEST/HBox_Hud" unique_id=336995759]
 custom_minimum_size = Vector2(0, 53)
