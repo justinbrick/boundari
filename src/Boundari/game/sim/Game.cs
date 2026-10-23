@@ -298,6 +298,7 @@ public sealed partial class Game
         RunNukes(); Lap(5);
         long te = Stopwatch.GetTimestamp();
         RemoveClusters();
+        RunFronts();
         RunDots();
         q = te;
         Lap(6);
@@ -378,6 +379,12 @@ public sealed partial class Game
                 break;
             case MoveDotsIntent move when Phase == GamePhase.Running && move.DotIds is not null:
                 MoveDots(player, move.DotIds, move.BorderTile);
+                break;
+            case PushIntent push when Phase == GamePhase.Running:
+                StartPush(player, push.DotId, push.TargetTile);
+                break;
+            case StopPushIntent stop when Phase == GamePhase.Running:
+                StopPush(player, stop.DotId);
                 break;
             case DemolishIntent demolish when Phase == GamePhase.Running:
                 StartDemolition(player, demolish.Tile);

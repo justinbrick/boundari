@@ -7,7 +7,7 @@ namespace Boundari.Sim;
 /// Dots (the user's design): troops as single units that stand on borders. Bought with
 /// Funds up to a cap, they appear in the middle of their owner's land and walk to the
 /// clicked border, spreading out along it; they can be moved (walking again), upgraded
-/// and sold. How they push the front comes in a later step.
+/// and sold. How they hold and push the line is in GameFronts.cs.
 /// </summary>
 public sealed partial class Game
 {
@@ -60,6 +60,9 @@ public sealed partial class Game
     {
         _dots.Remove(dot);
         dot.Owner.DotCount--;
+        foreach (var push in _pushes)
+            push.Members.Remove(dot);
+        _faced.Remove(dot.Id);
     }
 
     /// <summary>A new commander's free dots, standing spread out around the start (moving the spawn moves them).</summary>
@@ -152,7 +155,7 @@ public sealed partial class Game
         dot.Progress = 0;
     }
 
-    /// <summary>Walks every walking dot on; dots of a player with no land left are gone.</summary>
+    /// <summary>Walks every walking dot on and keeps standing dots on the line; dots of a player with no land left are gone.</summary>
     private void RunDots()
     {
         for (int i = _dots.Count - 1; i >= 0; i--)
@@ -193,6 +196,7 @@ public sealed partial class Game
                 dot.Tile = next;
             }
         }
+        FollowLine();
     }
 
     /// <summary>

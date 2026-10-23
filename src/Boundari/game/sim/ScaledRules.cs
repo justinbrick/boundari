@@ -56,6 +56,12 @@ public sealed class ScaledRules
         LargeTerritoryMidpoint = AttackRules.LargeTerritoryMidpoint * Area;
         DotSpacing = D(DotRules.Spacing);
         DotWalkSpeedPerTick = (long)Math.Round(DotRules.WalkSpeedPerTick * Linear);
+        DotReach = D(DotRules.Reach);
+        DotFallBack = D(DotRules.FallBackTiles);
+        DotLink = D(DotRules.LinkTiles);
+        DotSidesRing = D(DotRules.SidesRing);
+        DotPushSpeedPerTick = (long)Math.Round(DotRules.PushSpeedPerTick * Linear);
+        DotMaxPushPerTick = (long)Math.Round(DotRules.MaxPushPerTick * Linear);
     }
 
     /// <summary>A distance in tiles, scaled (never below 1).</summary>
@@ -76,6 +82,8 @@ public sealed class ScaledRules
     public readonly double LargeTerritoryMidpoint;
     public readonly int DotSpacing;
     public readonly long DotWalkSpeedPerTick;
+    public readonly int DotReach, DotFallBack, DotLink, DotSidesRing;
+    public readonly long DotPushSpeedPerTick, DotMaxPushPerTick;
 
     /// <summary>A SAM's reach at this level.</summary>
     public int SamRange(int level) => D(Balance.SamRange(level));

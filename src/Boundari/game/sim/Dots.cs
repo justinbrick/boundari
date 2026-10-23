@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace Boundari.Sim;
 
 /// <summary>
@@ -37,6 +39,76 @@ public static class DotRules
 
     /// <summary>Most border tiles looked at when spreading dots out along a border.</summary>
     public const int SpreadSearchTiles = 20_000;
+
+    // ---- The front (how dots move the line) ----
+
+    /// <summary>How far a dot presses or holds the line: full force on its own tile, fading to nothing just past this many tiles.</summary>
+    public const int Reach = 8;
+
+    /// <summary>Force of a full-stamina level-1 dot, in thousandths (force = strength x stamina).</summary>
+    public const int DotForce = 1000;
+
+    /// <summary>A commander's land with no dot near still holds this much (a quarter of a level-1 dot).</summary>
+    public const int UndefendedForce = 250;
+
+    /// <summary>Locals have no dots: all their land holds like a level-2 dot.</summary>
+    public const int LocalsForce = 2000;
+
+    /// <summary>
+    /// How fast the line moves, thousandths of a tile per tick for each level-1 dot of force
+    /// more than the other side: a lone dot in open farmland wilderness moves it 3 tiles a second.
+    /// </summary>
+    public const long PushSpeedPerTick = 300;
+
+    /// <summary>The line never moves faster than dots walk.</summary>
+    public const long MaxPushPerTick = WalkSpeedPerTick;
+
+    /// <summary>A dot whose tile is taken steps back onto its owner's nearest tile within this many; with none, it is cut off and lost.</summary>
+    public const int FallBackTiles = 3;
+
+    /// <summary>A dot that found no line to stand on (its land has no border) looks again after this long.</summary>
+    public const int LookAgainTicks = 50;
+
+    /// <summary>Most dots a tick that search their whole land for a line to stand on (the rest wait a tick).</summary>
+    public const int LongSearchesPerTick = 2;
+
+    /// <summary>Dots this close (twice the spacing) belong to the same stretch of border: one attack moves them all.</summary>
+    public const int LinkTiles = 2 * Spacing;
+
+    /// <summary>
+    /// Radius of the ring looked at to tell how many sides a dot is pressed from: if more
+    /// than 5/8 of the land on it is held by attacking enemies, 2 sides (half force); more than 7/8, 3 (a third).
+    /// </summary>
+    public const int SidesRing = 4;
+}
+
+/// <summary>
+/// An attack: a stretch of border whose dots all push into one neighbour's land (or the
+/// wilderness) until stopped. Every dot standing on that stretch takes part, including dots
+/// that walk onto it later; a dot that walks away leaves it.
+/// </summary>
+public sealed class Push
+{
+    public readonly int Id;
+    public readonly Player Attacker;
+
+    /// <summary>Whose land is pushed into (<see cref="Game.Nobody"/> = wilderness).</summary>
+    public readonly ushort TargetId;
+
+    internal readonly List<Dot> Members = new(); // in id order
+    internal readonly Dictionary<int, long> Progress = new(); // tile -> thousandths of a tile pushed so far
+
+    /// <summary>The dots pushing, in id order.</summary>
+    public IReadOnlyList<Dot> Dots => Members;
+
+    internal Push(int id, Player attacker, ushort targetId)
+    {
+        Id = id;
+        Attacker = attacker;
+        TargetId = targetId;
+    }
+
+    public override string ToString() => $"push {Id} of {Attacker.Name} into {TargetId}";
 }
 
 /// <summary>
@@ -69,6 +141,9 @@ public sealed class Dot
 
     /// <summary>Thousandths of a tile walked towards <see cref="NextTile"/>.</summary>
     internal long Progress;
+
+    /// <summary>Off the line with no line found: the tick to look for one again.</summary>
+    internal long LookAgainAt;
 
     public bool IsWalking => Path is not null;
 
