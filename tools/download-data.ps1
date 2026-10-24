@@ -19,8 +19,8 @@ foreach ($x in 0..7) {
     }
 }
 # Elevation, zoom level 6, only the tiles covering the Europe map.
-foreach ($x in 27..40) {
-    foreach ($y in 13..25) {
+foreach ($x in 27..43) {
+    foreach ($y in 13..26) {
         $url = "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/6/$x/$y.png"
         Invoke-WebRequest $url -OutFile (Join-Path $data "terrarium6\${x}_$y.png")
     }

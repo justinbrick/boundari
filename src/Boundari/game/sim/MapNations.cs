@@ -7,10 +7,8 @@ public sealed record NationSpec(string Name, string Flag, double Lat, double Lon
 
 /// <summary>
 /// Fixed nations for the built-in maps, like OpenFront's map manifests: the same 52
-/// nations OpenFront puts on Europe, each starting near its real home. Our Europe map
-/// stops at 33°N, so nations whose homes lie further south start at the nearest spot
-/// on the map (Libya in southern Tunisia, Jordan in southern Syria), and Egypt, which
-/// has no land on the map at all, is replaced by Cyprus.
+/// nations OpenFront puts on Europe, each starting near its real home (Egypt, which
+/// had no land on the map when it stopped at 33°N, is replaced by Cyprus).
 /// </summary>
 public static class MapNations
 {
@@ -62,14 +60,14 @@ public static class MapNations
         new("Estonia", "ee", 58.7, 25.6),
         new("Wales", "gb-wls", 52.3, -3.6),
         new("Scotland", "gb-sct", 56.8, -4.2),
-        new("Kazakhstan", "kz", 48.2, 44.7),   // its real land lies east of the map edge
+        new("Kazakhstan", "kz", 49.4, 49.6),   // its European part, west of the Ural River
         new("Northern Ireland", "gb-nir", 54.6, -6.7),
         new("Sápmi", "", 68.6, 23.0),
         new("Denmark", "dk", 56.1, 9.2),
-        new("Israel", "il", 33.1, 35.5),      // only Israel's far north is on the map
-        new("Cyprus", "cy", 35.0, 33.2),      // in place of Egypt, which is off the map
-        new("Libya", "ly", 33.2, 10.8),       // starts in southern Tunisia, by Libya's border
-        new("Jordan", "jo", 33.1, 37.3),      // starts in southern Syria, by Jordan's border
+        new("Israel", "il", 31.6, 34.95),
+        new("Cyprus", "cy", 35.0, 33.2),      // in place of Egypt
+        new("Libya", "ly", 32.2, 13.4),
+        new("Jordan", "jo", 31.2, 36.6),
         new("Lebanon", "lb", 34.0, 35.9),
         new("Iceland", "is", 64.9, -18.6),
         new("Andorra", "ad", 42.5, 1.55),

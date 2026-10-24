@@ -14,7 +14,15 @@ Players never need this: the built `.bmap` files ship with the game.
    (no map name = build all of them)
 
 Maps are defined in `Program.cs` (`Specs`): the longitude/latitude box, width in tiles,
-Natural Earth detail level, and the smallest island/lake to keep.
+Natural Earth detail level, the smallest island/lake to keep, and optionally a play area.
+
+A play area (`PlayArea.cs`, Europe's is `EuropePlayArea` in `Program.cs`) is the outline the
+game can be played in: hand-placed points the edge curves through, and stretches that follow a
+real river by name (Natural Earth's river lines). Everything outside it becomes `Outside`
+terrain: greyed out in the game like the world map drawn around Europe, and never claimable.
+To try out a change to the outline quickly, without land cover (nothing is downloaded):
+`dotnet run -c Release --project tools/MapBuilder -- europe --preview` writes a small picture to
+`tools/data/preview_europe.ppm` (green/blue = playable, grey = outside).
 
 ## How it works
 

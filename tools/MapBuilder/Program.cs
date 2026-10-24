@@ -21,7 +21,8 @@ public sealed record MapSpec(
     int MinLakeTiles,     // smaller lakes are filled in
     int LandCoverScale,   // land-cover cells per tile side (0 = no land cover)
     int RiverMaxRank,     // include rivers up to this Natural Earth rank (0 = biggest; -1 = none)
-    double RiverWidth);   // width in tiles of the biggest rivers; smaller ones are narrower
+    double RiverWidth,    // width in tiles of the biggest rivers; smaller ones are narrower
+    PlayArea? PlayArea = null); // where it can be played (null = all of it); the rest is greyed out
 
 public static class Program
 {
@@ -30,13 +31,55 @@ public static class Program
         // Plain longitude/latitude grid, like OpenFront's world map. Antarctica is cut off below 58°S.
         new("world", "World", -180, 180, -58, 84, 0, 2400, "50m", 3, MinIslandTiles: 12, MinLakeTiles: 20, LandCoverScale: 0,
             RiverMaxRank: 3, RiverWidth: 2.0),
-        // Iceland to the Urals' foothills, Scandinavia's tip to North Africa. ~1.7 km per tile.
-        // 4000 wide (tile scale 1.33 over the original 3000: finer territory; OpenFront's tile
-        // numbers are scaled to match, see Sim.ScaledRules). Islands, lakes and rivers keep their
-        // real-world sizes: 45 / 68 tiles and 3.9 wide at 3000.
-        new("europe", "Europe", -25, 45, 33, 72, 50, 4000, "10m", 6, MinIslandTiles: 80, MinLakeTiles: 121, LandCoverScale: 2,
-            RiverMaxRank: 7, RiverWidth: 5.2),
+        // Iceland to the Urals, the Arctic to the Sahara. ~1.7 km per tile: 57 1/7 tiles per degree
+        // of longitude, as when it was 4000 tiles over 70° (tile scale 1.33 over the original 3000:
+        // finer territory; OpenFront's tile numbers are scaled to match, see Sim.ScaledRules).
+        // Islands, lakes and rivers keep their real-world sizes: 45 / 68 tiles and 3.9 wide at 3000.
+        // Only Europe's natural bounds are played (EuropePlayArea); the rest is greyed out.
+        new("europe", "Europe", -25, 66.875, 27.4, 72, 50, 5250, "10m", 6, MinIslandTiles: 80, MinLakeTiles: 121, LandCoverScale: 2,
+            RiverMaxRank: 7, RiverWidth: 5.2, PlayArea: EuropePlayArea),
     };
+
+    /// <summary>
+    /// Europe's natural bounds, clockwise from west of Iceland, as (latitude, longitude): the
+    /// Arctic past Jan Mayen and the North Cape, round the south of Novaya Zemlya, down the
+    /// Ural Mountains and the Ural River to the Caspian (whose open water is played), along
+    /// the Iranian border and the Zagros to the Gulf, through the Syrian desert to the Gulf of
+    /// Aqaba, across Sinai, then along the Sahara's northern edge to the Atlantic past the
+    /// Canaries and up the ocean. Greenland, Novaya Zemlya, Iran and the deep Sahara are out.
+    /// </summary>
+    private static PlayArea EuropePlayArea => new( // (a property: the Specs above are set up first)
+        new EdgeLeg[]
+        {
+            new EdgePoints(
+                // Arctic
+                (66.6, -24.9), (68.2, -20.5), (70.0, -15.5), (71.4, -10.0), (71.85, -4.0), (71.5, 5.0), (71.9, 15.0),
+                (71.95, 27.0), (71.7, 37.0), (71.5, 45.0), (70.6, 51.5), (70.0, 56.0), (69.75, 59.8), (69.3, 61.8), (68.8, 64.0),
+                // Ural Mountains
+                (68.4, 65.8), (67.6, 65.6), (66.5, 64.4), (65.9, 62.6), (65.0, 60.1), (63.9, 59.1), (62.5, 59.3), (61.0, 59.3),
+                (59.6, 59.1), (58.2, 59.3), (56.8, 59.8), (55.4, 59.6)),
+            new EdgeRiver("Ural", (54.7, 59.4), (46.9, 51.9)),
+            new EdgePoints(
+                // through the Caspian, keeping its western shore
+                (46.4, 50.6), (45.3, 49.6), (44.2, 49.2), (43.0, 49.3), (41.9, 49.9), (40.9, 50.8), (40.0, 50.2), (39.1, 49.5),
+                (38.6, 49.1),
+                // Iran's border: the Aras, Ararat, the Zagros
+                (38.42, 48.88), (38.9, 48.2), (39.5, 48.0), (39.35, 47.0), (38.9, 46.4), (39.2, 45.6), (39.6, 44.8), (39.0, 44.3),
+                (38.2, 44.35), (37.15, 44.8), (36.6, 45.3), (35.9, 45.7), (35.1, 46.0), (34.4, 45.6), (33.6, 46.1), (32.9, 46.9),
+                (32.1, 47.5), (31.3, 47.7), (30.5, 48.0), (29.95, 48.6),
+                // the Syrian desert to the Gulf of Aqaba, across Sinai
+                (30.0, 47.9), (30.15, 46.5), (30.4, 45.2), (31.1, 43.4), (31.8, 41.2), (32.2, 39.3), (31.2, 37.6), (30.2, 37.4),
+                (29.4, 36.2), (29.53, 35.0), (29.7, 34.0), (29.95, 32.6),
+                // the Sahara's edge, Egypt to Morocco
+                (29.55, 31.4), (29.2, 30.9), (29.5, 30.0), (30.0, 28.6), (29.75, 27.0), (29.6, 25.4), (29.8, 23.7), (30.0, 22.0),
+                (29.65, 20.5), (29.55, 19.0), (29.9, 17.4), (30.4, 15.6), (30.8, 13.6), (30.9, 11.4), (30.6, 9.5), (30.2, 7.8),
+                (29.9, 6.0), (30.1, 4.1), (30.4, 2.2), (30.2, 0.2), (30.6, -1.9), (30.3, -3.9), (29.9, -5.9), (29.4, -7.6),
+                (28.95, -9.4), (28.68, -11.1),
+                // the Atlantic, round the Canaries
+                (28.0, -12.7), (27.5, -14.3), (27.45, -16.6), (27.5, -18.7), (28.6, -19.3), (30.5, -21.5), (34.0, -23.6),
+                (40.0, -24.6), (46.0, -24.85), (53.0, -24.9), (60.0, -24.9)),
+        },
+        new[] { ((47.3, 46.6), (36.4, 55.2)) }); // the Caspian Sea
 
     // Coast field units per tile of distance. Matches the scale of the random
     // generator's field, which the shader's water shading is tuned for.
@@ -62,10 +105,20 @@ public static class Program
             return 1;
         }
 
-        foreach (var spec in wanted)
+        // --preview: a quarter-size picture of each map's play area (tools/data/preview_<id>.ppm),
+        // with no land cover (nothing downloaded) and no map file written.
+        bool preview = args.Contains("--preview");
+        foreach (var full in wanted)
         {
+            var spec = preview ? full with { Width = full.Width / 4, LandCoverScale = 0, MinIslandTiles = full.MinIslandTiles / 16 } : full;
             var timer = Stopwatch.StartNew();
             var map = Build(spec, dataDir);
+            if (preview)
+            {
+                spec.PlayArea?.Apply(map, spec, dataDir);
+                WritePreview(map, Path.Combine(dataDir, $"preview_{spec.Id}.ppm"));
+                continue;
+            }
             if (spec.LandCoverScale > 0)
             {
                 // The land cover cuts its lakes into the map as real water (see
@@ -74,6 +127,7 @@ public static class Program
                 RefreshFarField(map);
                 Classify(map, spec, minLakeTiles: 1);
             }
+            spec.PlayArea?.Apply(map, spec, dataDir);
             string path = Path.Combine(outDir, spec.Id + ".bmap");
             using (var file = File.Create(path))
                 MapFile.Write(map, file);
@@ -229,6 +283,25 @@ public static class Program
             float far = Math.Max((land[i] ? toWater[i] : toLand[i]) - 0.5f, (float)ExactBand) * FieldPerTile;
             map.CoastField[i] = land[i] ? far : -far;
         }
+    }
+
+    /// <summary>A plain picture of the map: land green, water blue, outside the play area grey.</summary>
+    private static void WritePreview(GameMap map, string path)
+    {
+        using var file = File.Create(path);
+        file.Write(System.Text.Encoding.ASCII.GetBytes($"P6 {map.Width} {map.Height} 255\n"));
+        var pixels = new byte[map.TileCount * 3];
+        for (int i = 0; i < map.TileCount; i++)
+        {
+            bool land = map.CoastField[i] > 0;
+            (byte r, byte g, byte b) = map.IsOutside(i) ? (land ? ((byte)150, (byte)150, (byte)140) : ((byte)95, (byte)100, (byte)110))
+                : land ? ((byte)110, (byte)150, (byte)70) : ((byte)70, (byte)140, (byte)200);
+            pixels[i * 3] = r;
+            pixels[i * 3 + 1] = g;
+            pixels[i * 3 + 2] = b;
+        }
+        file.Write(pixels);
+        Console.WriteLine($"preview -> {path}");
     }
 
     private static string FindRepoRoot()
