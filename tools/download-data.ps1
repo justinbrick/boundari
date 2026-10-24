@@ -6,7 +6,8 @@ New-Item -ItemType Directory -Force (Join-Path $data 'terrarium3') | Out-Null
 New-Item -ItemType Directory -Force (Join-Path $data 'terrarium6') | Out-Null
 
 # Coastlines and lakes (50m detail for the world map, 10m for regional maps) and rivers.
-foreach ($name in 'ne_50m_land', 'ne_50m_lakes', 'ne_10m_land', 'ne_10m_lakes', 'ne_10m_rivers_lake_centerlines') {
+# Province/region borders (admin 1, ~41 MB) are what play areas follow on land; country borders (admin 0) for reference.
+foreach ($name in 'ne_50m_land', 'ne_50m_lakes', 'ne_10m_land', 'ne_10m_lakes', 'ne_10m_rivers_lake_centerlines', 'ne_10m_admin_1_states_provinces', 'ne_10m_admin_0_countries') {
     $url = "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/$name.geojson"
     Invoke-WebRequest $url -OutFile (Join-Path $data "$name.geojson")
 }

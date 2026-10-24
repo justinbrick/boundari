@@ -20,50 +20,478 @@ public sealed record EdgePoints(params (double Lat, double Lon)[] Points) : Edge
 public sealed record EdgeRiver(string Name, (double Lat, double Lon) From, (double Lat, double Lon) To) : EdgeLeg;
 
 /// <summary>
-/// Where a regional map can be played: everything outside the outline is turned into
-/// <see cref="TerrainType.Outside"/> (greyed out in the game, like the world around the map),
-/// so the playable edge follows coasts, rivers and mountains instead of the map's straight
-/// sides. <paramref name="WaterAreas"/>: boxes whose open water is playable even outside the
-/// outline (a sea such as the Caspian, whose far shore is outside), as (lat, lon) corners.
+/// Where a regional map can be played; everything else becomes <see cref="TerrainType.Outside"/>
+/// (greyed out in the game, like the world around the map, and never claimable).
+/// <para>
+/// On land the edge follows real borders: every province/region (Natural Earth's admin-1 file,
+/// so country borders too) is playable when most of its land lies inside the rough
+/// <paramref name="Edge"/> outline, or when it's named in <paramref name="AlwaysIn"/>; never
+/// when named in <paramref name="AlwaysOut"/>. Separate islands of a region count on their own.
+/// </para>
+/// <para>
+/// On water the edge is the outline itself (a smooth curve through the seas), pushed a little
+/// out to sea, and water next to playable land is playable up to the far shore (rivers along
+/// the edge, coasts). <paramref name="WaterAreas"/>: boxes whose water is all playable (a sea
+/// such as the Caspian, whose far shores are outside), as (lat, lon) corners.
+/// </para>
+/// The result is also kept as a smooth field (<see cref="GameMap.PlayField"/>) so the game draws
+/// the edge as a clean line rather than tile by tile.
 /// </summary>
-public sealed record PlayArea(EdgeLeg[] Edge, ((double Lat, double Lon) A, (double Lat, double Lon) B)[] WaterAreas)
+public sealed record PlayArea(
+    EdgeLeg[] Edge,
+    ((double Lat, double Lon) A, (double Lat, double Lon) B)[] WaterAreas,
+    string[]? AlwaysIn = null,
+    string[]? AlwaysOut = null)
 {
-    // A water area's water counts only this far (in coast-field units) from any shore: its far
-    // shores and the rivers running into it stay outside, greyed like the land there.
-    private const float OpenWater = 2.5f * Program.FieldPerTile;
+    private const double Range = 8;          // the field's reach, in tiles (it saturates past this)
+    private const double SeaMargin = 6;      // water stays playable this many tiles past the land edge / outline
 
-    /// <summary>Marks every tile outside the play area as Outside, then counts the landmasses again.</summary>
+    private const int PocketTiles = 20000;   // smaller playable patches cut off from the rest are dropped
+
+    private enum Region { In, Out, Cut }
+
+    private sealed record Unit(string Name, string Country, string Code, List<TileRing> Rings, double MinX, double MinY, double MaxX, double MaxY);
+
+    /// <summary>Works out the play area, stores its field and marks every tile outside it as Outside.</summary>
     public void Apply(GameMap map, MapSpec spec, string dataDir)
     {
         var geo = map.Geo!;
-        int w = map.Width, h = map.Height;
+        int w = map.Width, h = map.Height, n = map.TileCount;
+        bool Land(int i) => map.CoastField[i] > 0;
+
+        // The rough outline: a signed distance to it (+ inside), exact near it.
         var outline = Outline(Path.Combine(dataDir, "ne_10m_rivers_lake_centerlines.geojson"));
         var ring = new TileRing(outline.Select(p => geo.TileX(p.Lon, w)).ToArray(), outline.Select(p => geo.TileY(p.Lat, h)).ToArray());
-        bool[] inside = Rasterizer.Fill(new[] { ring }, w, h);
+        bool[] inGuide = Rasterizer.Fill(new[] { ring }, w, h);
+        float[] guideDist = Rasterizer.EdgeDistance(new[] { ring }, w, h, Range);
+        double Guide(int i) => (inGuide[i] ? 1 : -1) * Math.Min(guideDist[i], Range);
 
-        int outsideTiles = 0;
-        for (int i = 0; i < map.TileCount; i++)
+        // Provinces and regions, each island on its own, filled into the tile grid.
+        var units = LoadUnits(Path.Combine(dataDir, "ne_10m_admin_1_states_provinces.geojson"), geo, w, h);
+        var unitOf = new int[n];
+        Array.Fill(unitOf, -1);
+        for (int u = 0; u < units.Count; u++)
+            FillUnit(units[u], u, unitOf, w, h);
+
+        // Land the region outlines just miss (their coasts differ a little from ours) joins the nearest region.
+        var landUnit = new int[n];
+        var queue = new Queue<int>();
+        for (int i = 0; i < n; i++)
         {
-            if (inside[i] || (map.IsWater(i) && map.CoastField[i] < -OpenWater && InWaterArea(geo.LonAt(i % w + 0.5, w), geo.LatAt(i / w + 0.5, h))))
+            landUnit[i] = Land(i) ? unitOf[i] : -1;
+            if (landUnit[i] >= 0)
+                queue.Enqueue(i);
+        }
+        while (queue.Count > 0)
+        {
+            int t = queue.Dequeue();
+            foreach (int nb in Neighbours4(t, w, h))
+                if (Land(nb) && landUnit[nb] < 0)
+                {
+                    landUnit[nb] = landUnit[t];
+                    queue.Enqueue(nb);
+                }
+        }
+
+        // Which regions are in: most of their land inside the outline, unless named otherwise.
+        var landTiles = new int[units.Count];
+        var insideTiles = new int[units.Count];
+        for (int i = 0; i < n; i++)
+            if (landUnit[i] >= 0)
+            {
+                landTiles[landUnit[i]]++;
+                if (inGuide[i])
+                    insideTiles[landUnit[i]]++;
+            }
+        bool Named(Unit u, string[]? names) => names is not null && names.Any(x => x == u.Name || x == u.Code || x == u.Country);
+        // A region running off the map can't be wholly in (it would end in a straight cut along
+        // the map's edge): if at least a tenth of it is inside the outline, the outline cuts it.
+        bool OffMap(Unit u) => u.MinX < 0 || u.MinY < 0 || u.MaxX > w || u.MaxY > h;
+        var state = new Region[units.Count];
+        for (int u = 0; u < units.Count; u++)
+            state[u] = Named(units[u], AlwaysOut) ? Region.Out
+                : Named(units[u], AlwaysIn) ? Region.In
+                : OffMap(units[u]) ? (insideTiles[u] * 10 >= landTiles[u] ? Region.Cut : Region.Out)
+                : insideTiles[u] * 2 > landTiles[u] ? Region.In : Region.Out;
+
+        // Playable land tiles; then small playable pockets cut off from the main playable part of
+        // their landmass are dropped (a lone province surrounded by greyed-out land).
+        var playable = new bool[n];
+        var cutOff = new bool[n];
+        void Mark()
+        {
+            for (int i = 0; i < n; i++)
+                playable[i] = !cutOff[i] && (landUnit[i] >= 0 ? state[landUnit[i]] == Region.In || (state[landUnit[i]] == Region.Cut && inGuide[i]) : Land(i) && inGuide[i]);
+        }
+        Mark();
+        int pockets = DropPockets(map, playable, landUnit, landTiles, state, cutOff, w, h);
+        Mark();
+        Report(units, landTiles, insideTiles, state, OffMap);
+
+        // The play area's edge on land: region borders and stretches of the outline (inside cut
+        // regions) with playable land on one side and unplayable land on the other; each tile's
+        // distance to them.
+        var dist = new float[n];
+        Array.Fill(dist, (float)Range);
+        int borderEdges = 0;
+        void Consider(double ax, double ay, double bx, double by)
+        {
+            if (IsEdge(ax, ay, bx, by, playable, landUnit, w, h))
+            {
+                borderEdges++;
+                DistanceToSegment(dist, ax, ay, bx, by, w, h);
+            }
+        }
+        foreach (var unit in units)
+            foreach (var r in unit.Rings)
+                for (int k = 0; k < r.X.Length; k++)
+                    Consider(r.X[k], r.Y[k], r.X[(k + 1) % r.X.Length], r.Y[(k + 1) % r.Y.Length]);
+        for (int k = 0; k < ring.X.Length; k++)
+            Consider(ring.X[k], ring.Y[k], ring.X[(k + 1) % ring.X.Length], ring.Y[(k + 1) % ring.Y.Length]);
+
+        // Land: + inside the play area, - outside, by its distance to that edge.
+        var landField = new double[n];
+        for (int i = 0; i < n; i++)
+            if (Land(i))
+                landField[i] = landUnit[i] >= 0 ? (playable[i] ? dist[i] : -dist[i]) : Guide(i);
+
+        // Water: all of a water area; otherwise playable near playable land (fading with the
+        // distance from its shore) or inside the outline, with a margin.
+        var waterField = new double[n];
+        var fromShore = ShoreValues(map, landField, w, h);
+        for (int i = 0; i < n; i++)
+        {
+            if (Land(i))
                 continue;
-            map.Terrain[i] = TerrainType.Outside;
-            outsideTiles++;
+            if (InWaterArea(geo.LonAt(i % w + 0.5, w), geo.LatAt(i / w + 0.5, h)))
+                waterField[i] = Range;
+            else
+                waterField[i] = Math.Clamp(Math.Max(Guide(i), fromShore[i]) + SeaMargin, -Range, Range);
+        }
+
+        // Each field carries on a few tiles across the coast, so the drawn edge doesn't jump
+        // there (the shader blends the two where land meets water).
+        var landAcross = Spread(landField, i => Land(i), w, h, n, Guide);
+        var waterAcross = Spread(waterField, i => !Land(i), w, h, n, i => landField[i] + SeaMargin);
+
+        // Outside tiles, and the stored field.
+        int outsideTiles = 0;
+        var play = new byte[n * 2];
+        for (int i = 0; i < n; i++)
+        {
+            double landValue = Land(i) ? landField[i] : landAcross[i];
+            double waterValue = Land(i) ? waterAcross[i] : waterField[i];
+            if ((Land(i) ? landValue : waterValue) < 0)
+            {
+                map.Terrain[i] = TerrainType.Outside;
+                outsideTiles++;
+            }
+            play[i * 2] = Quantize(landValue);
+            play[i * 2 + 1] = Quantize(waterValue);
         }
 
         // Slivers of land the edge cut off from the rest (smaller than the smallest island kept) go too.
         MapProcessing.LabelLandmasses(map);
         int slivers = 0;
-        for (int i = 0; i < map.TileCount; i++)
+        for (int i = 0; i < n; i++)
         {
             int id = map.LandmassId[i];
             if (id != GameMap.NoLandmass && map.LandmassSizes[id] < spec.MinIslandTiles)
             {
                 map.Terrain[i] = TerrainType.Outside;
+                play[i * 2] = Quantize(-1);
                 slivers++;
             }
         }
         MapProcessing.LabelLandmasses(map);
-        Console.WriteLine($"  play area: {100.0 * outsideTiles / map.TileCount:F1}% of the map outside, {slivers} sliver tiles dropped");
+        map.PlayField = play;
+        Console.WriteLine($"  play area: {units.Count} regions ({state.Count(s => s == Region.In)} in, {state.Count(s => s == Region.Cut)} cut by the outline), " +
+                          $"{pockets} pocket regions dropped, {borderEdges} edge segments, " +
+                          $"{100.0 * outsideTiles / n:F1}% of the map outside, {slivers} sliver tiles dropped");
+    }
+
+    private static byte Quantize(double v) => (byte)Math.Clamp((int)Math.Round(128 + v * GameMap.PlayFieldSteps), 0, 255);
+
+    /// <summary>Lists the regions the outline cuts through (so they can be moved in or out by name).</summary>
+    private static void Report(List<Unit> units, int[] landTiles, int[] insideTiles, Region[] state, Func<Unit, bool> offMap)
+    {
+        var cut = Enumerable.Range(0, units.Count)
+            .Where(u => landTiles[u] > 2000 && insideTiles[u] > 0 && insideTiles[u] < landTiles[u])
+            .OrderBy(u => units[u].Country).ThenBy(u => units[u].Name);
+        foreach (int u in cut)
+            Console.WriteLine($"    {state[u].ToString().ToLowerInvariant(),-3} {units[u].Country} / {units[u].Name} ({units[u].Code}): {100.0 * insideTiles[u] / landTiles[u]:F0}% inside the outline{(offMap(units[u]) ? ", runs off the map" : "")}");
+    }
+
+    /// <summary>
+    /// For water: the best of (a shore's land field less the water's distance from that shore),
+    /// over all shores, through water (two raster sweeps each way, 8 neighbours). A river
+    /// between a playable and an unplayable bank is playable all the way across; open water
+    /// far from playable land comes out at -Range. Land: -Range.
+    /// </summary>
+    private static double[] ShoreValues(GameMap map, double[] landField, int w, int h)
+    {
+        int n = map.TileCount;
+        var value = new double[n];
+        for (int i = 0; i < n; i++)
+            value[i] = map.CoastField[i] > 0 ? landField[i] : -Range;
+        const double Diagonal = 1.41421356;
+        for (int pass = 0; pass < 4; pass++)
+        {
+            bool forward = pass % 2 == 0;
+            for (int j = forward ? 0 : h - 1; forward ? j < h : j >= 0; j += forward ? 1 : -1)
+                for (int i = forward ? 0 : w - 1; forward ? i < w : i >= 0; i += forward ? 1 : -1)
+                {
+                    int t = j * w + i;
+                    if (map.CoastField[t] > 0)
+                        continue;
+                    int dj = forward ? -1 : 1, di = forward ? -1 : 1; // neighbours already swept
+                    double best = value[t];
+                    if (i + di >= 0 && i + di < w)
+                        best = Math.Max(best, value[t + di] - 1);
+                    if (j + dj >= 0 && j + dj < h)
+                    {
+                        best = Math.Max(best, value[t + dj * w] - 1);
+                        if (i + di >= 0 && i + di < w)
+                            best = Math.Max(best, value[t + dj * w + di] - Diagonal);
+                        if (i - di >= 0 && i - di < w)
+                            best = Math.Max(best, value[t + dj * w - di] - Diagonal);
+                    }
+                    value[t] = best;
+                }
+        }
+        for (int i = 0; i < n; i++)
+            value[i] = map.CoastField[i] > 0 ? -Range : Math.Max(value[i], -Range);
+        return value;
+    }
+
+    /// <summary>
+    /// A field defined on one kind of tile (<paramref name="own"/>), carried 3 tiles onto the
+    /// other kind (each tile taking the best of its neighbours); further on, <paramref name="fallback"/>.
+    /// </summary>
+    private static double[] Spread(double[] field, Func<int, bool> own, int w, int h, int n, Func<int, double> fallback)
+    {
+        var result = new double[n];
+        var have = new bool[n];
+        for (int i = 0; i < n; i++)
+            if (own(i))
+            {
+                result[i] = field[i];
+                have[i] = true;
+            }
+        for (int pass = 0; pass < 3; pass++)
+        {
+            var next = (bool[])have.Clone();
+            for (int i = 0; i < n; i++)
+            {
+                if (have[i])
+                    continue;
+                double best = double.NegativeInfinity;
+                foreach (int nb in Neighbours4(i, w, h))
+                    if (have[nb])
+                        best = Math.Max(best, result[nb]);
+                if (best > double.NegativeInfinity)
+                {
+                    result[i] = best;
+                    next[i] = true;
+                }
+            }
+            have = next;
+        }
+        for (int i = 0; i < n; i++)
+            if (!have[i])
+                result[i] = fallback(i);
+        return result;
+    }
+
+    /// <summary>True if this line (or a piece of it) has playable land on one side and unplayable land on the other.</summary>
+    private static bool IsEdge(double ax, double ay, double bx, double by, bool[] playable, int[] landUnit, int w, int h)
+    {
+        double dx = bx - ax, dy = by - ay, len = Math.Sqrt(dx * dx + dy * dy);
+        if (len == 0)
+            return false;
+        double nx = -dy / len * 0.75, ny = dx / len * 0.75;
+        int pieces = Math.Max(1, (int)Math.Ceiling(len / 2));
+        for (int p = 0; p < pieces; p++)
+        {
+            double t = (p + 0.5) / pieces, mx = ax + dx * t, my = ay + dy * t;
+            int a = TileAt(mx + nx, my + ny), b = TileAt(mx - nx, my - ny);
+            if (a >= 0 && b >= 0 && landUnit[a] >= 0 && landUnit[b] >= 0 && playable[a] != playable[b])
+                return true;
+        }
+        return false;
+
+        int TileAt(double x, double y)
+        {
+            int i = (int)Math.Floor(x), j = (int)Math.Floor(y);
+            return i < 0 || j < 0 || i >= w || j >= h ? -1 : j * w + i;
+        }
+    }
+
+    /// <summary>
+    /// Playable patches of land cut off from the rest of the play area (not even joined by
+    /// water: rivers and seas count as joining) and smaller than <see cref="PocketTiles"/> (a
+    /// province left on its own amid greyed-out land): regions mostly in them are taken out,
+    /// and stray bits of the rest are marked <paramref name="cutOff"/>. Returns how many regions.
+    /// </summary>
+    private static int DropPockets(GameMap map, bool[] playable, int[] landUnit, int[] landTiles, Region[] state, bool[] cutOff, int w, int h)
+    {
+        int n = map.TileCount;
+        var patch = new int[n];
+        Array.Fill(patch, -1);
+        var sizes = new List<int>();
+        var queue = new Queue<int>();
+        bool Joins(int t) => playable[t] || map.CoastField[t] <= 0;
+        for (int i = 0; i < n; i++)
+        {
+            if (!Joins(i) || patch[i] >= 0)
+                continue;
+            int id = sizes.Count, size = 0;
+            patch[i] = id;
+            queue.Enqueue(i);
+            while (queue.Count > 0)
+            {
+                int t = queue.Dequeue();
+                if (map.CoastField[t] > 0)
+                    size++; // (land tiles)
+                foreach (int nb in Neighbours4(t, w, h))
+                    if (Joins(nb) && patch[nb] < 0)
+                    {
+                        patch[nb] = id;
+                        queue.Enqueue(nb);
+                    }
+            }
+            sizes.Add(size);
+        }
+        int biggest = 0;
+        for (int p = 1; p < sizes.Count; p++)
+            if (sizes[p] > sizes[biggest])
+                biggest = p;
+        var stranded = new int[state.Length];
+        for (int i = 0; i < n; i++)
+        {
+            int p = patch[i];
+            if (p >= 0 && p != biggest && sizes[p] < PocketTiles && map.CoastField[i] > 0)
+            {
+                cutOff[i] = true;
+                if (landUnit[i] >= 0)
+                    stranded[landUnit[i]]++;
+            }
+        }
+        int dropped = 0;
+        for (int u = 0; u < state.Length; u++)
+            if (state[u] == Region.In && stranded[u] * 2 > landTiles[u])
+            {
+                state[u] = Region.Out;
+                dropped++;
+            }
+        return dropped;
+    }
+
+    /// <summary>Lowers each tile's distance to the nearest border to its distance from this segment, within <see cref="Range"/>.</summary>
+    private static void DistanceToSegment(float[] dist, double ax, double ay, double bx, double by, int w, int h)
+    {
+        int i0 = Math.Max(0, (int)Math.Floor(Math.Min(ax, bx) - Range));
+        int i1 = Math.Min(w - 1, (int)Math.Ceiling(Math.Max(ax, bx) + Range));
+        int j0 = Math.Max(0, (int)Math.Floor(Math.Min(ay, by) - Range));
+        int j1 = Math.Min(h - 1, (int)Math.Ceiling(Math.Max(ay, by) + Range));
+        double dx = bx - ax, dy = by - ay, len2 = dx * dx + dy * dy;
+        for (int j = j0; j <= j1; j++)
+            for (int i = i0; i <= i1; i++)
+            {
+                double px = i + 0.5 - ax, py = j + 0.5 - ay;
+                double t = len2 > 0 ? Math.Clamp((px * dx + py * dy) / len2, 0, 1) : 0;
+                double ex = px - t * dx, ey = py - t * dy;
+                float d = (float)Math.Sqrt(ex * ex + ey * ey);
+                int idx = j * w + i;
+                if (d < dist[idx])
+                    dist[idx] = d;
+            }
+    }
+
+    private static IEnumerable<int> Neighbours4(int t, int w, int h)
+    {
+        int x = t % w, y = t / w;
+        if (x > 0) yield return t - 1;
+        if (x < w - 1) yield return t + 1;
+        if (y > 0) yield return t - w;
+        if (y < h - 1) yield return t + w;
+    }
+
+    /// <summary>Fills a region's tile centres (even-odd, so lakes cut out of it stay out) with its number.</summary>
+    private static void FillUnit(Unit unit, int id, int[] unitOf, int w, int h)
+    {
+        int j0 = Math.Max(0, (int)Math.Floor(unit.MinY)), j1 = Math.Min(h - 1, (int)Math.Ceiling(unit.MaxY));
+        if (j0 > j1 || unit.MaxX < 0 || unit.MinX > w)
+            return;
+        var crossings = new List<double>[j1 - j0 + 1];
+        for (int j = 0; j < crossings.Length; j++)
+            crossings[j] = new List<double>();
+        foreach (var r in unit.Rings)
+            for (int k = 0; k < r.X.Length; k++)
+            {
+                double x0 = r.X[k], y0 = r.Y[k], x1 = r.X[(k + 1) % r.X.Length], y1 = r.Y[(k + 1) % r.Y.Length];
+                if (y0 == y1)
+                    continue;
+                int js = Math.Max(j0, (int)Math.Ceiling(Math.Min(y0, y1) - 0.5));
+                int je = Math.Min(j1, (int)Math.Ceiling(Math.Max(y0, y1) - 0.5) - 1);
+                for (int j = js; j <= je; j++)
+                    crossings[j - j0].Add(x0 + (j + 0.5 - y0) / (y1 - y0) * (x1 - x0));
+            }
+        for (int j = j0; j <= j1; j++)
+        {
+            var xs = crossings[j - j0];
+            xs.Sort();
+            for (int p = 0; p + 1 < xs.Count; p += 2)
+            {
+                int iStart = Math.Max(0, (int)Math.Ceiling(xs[p] - 0.5));
+                int iEnd = Math.Min(w - 1, (int)Math.Ceiling(xs[p + 1] - 0.5) - 1);
+                for (int i = iStart; i <= iEnd; i++)
+                    unitOf[j * w + i] = id;
+            }
+        }
+    }
+
+    /// <summary>Every polygon (island) of every province/region that reaches onto the map, in tile coordinates.</summary>
+    private static List<Unit> LoadUnits(string path, MapGeo geo, int w, int h)
+    {
+        if (!File.Exists(path))
+            throw new FileNotFoundException("Province borders missing: run tools/download-data.ps1.", path);
+        using var doc = JsonDocument.Parse(File.ReadAllBytes(path));
+        var units = new List<Unit>();
+        foreach (var feature in doc.RootElement.GetProperty("features").EnumerateArray())
+        {
+            var geometry = feature.GetProperty("geometry");
+            if (geometry.ValueKind != JsonValueKind.Object)
+                continue;
+            var props = feature.GetProperty("properties");
+            string Prop(string key) => props.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString()! : "";
+            string name = Prop("name"), country = Prop("admin"), code = Prop("iso_3166_2");
+            var coords = geometry.GetProperty("coordinates");
+            var polygons = geometry.GetProperty("type").GetString() == "Polygon" ? new[] { coords } : coords.EnumerateArray().ToArray();
+            foreach (var polygon in polygons)
+            {
+                var rings = new List<TileRing>();
+                double minX = double.MaxValue, minY = double.MaxValue, maxX = double.MinValue, maxY = double.MinValue;
+                foreach (var r in polygon.EnumerateArray())
+                {
+                    var xs = new List<double>();
+                    var ys = new List<double>();
+                    foreach (var point in r.EnumerateArray())
+                    {
+                        double x = geo.TileX(point[0].GetDouble(), w), y = geo.TileY(point[1].GetDouble(), h);
+                        xs.Add(x);
+                        ys.Add(y);
+                        minX = Math.Min(minX, x); maxX = Math.Max(maxX, x);
+                        minY = Math.Min(minY, y); maxY = Math.Max(maxY, y);
+                    }
+                    rings.Add(new TileRing(xs.ToArray(), ys.ToArray()));
+                }
+                if (maxX < 0 || maxY < 0 || minX > w || minY > h)
+                    continue; // off the map
+                units.Add(new Unit(name, country, code, rings, minX, minY, maxX, maxY));
+            }
+        }
+        return units;
     }
 
     private bool InWaterArea(double lon, double lat)

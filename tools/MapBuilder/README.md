@@ -16,10 +16,17 @@ Players never need this: the built `.bmap` files ship with the game.
 Maps are defined in `Program.cs` (`Specs`): the longitude/latitude box, width in tiles,
 Natural Earth detail level, the smallest island/lake to keep, and optionally a play area.
 
-A play area (`PlayArea.cs`, Europe's is `EuropePlayArea` in `Program.cs`) is the outline the
-game can be played in: hand-placed points the edge curves through, and stretches that follow a
-real river by name (Natural Earth's river lines). Everything outside it becomes `Outside`
-terrain: greyed out in the game like the world map drawn around Europe, and never claimable.
+A play area (`PlayArea.cs`, Europe's is `EuropePlayArea` in `Program.cs`) is where the game can
+be played. Its outline is rough: hand-placed points the edge curves through, and stretches that
+follow a real river by name (Natural Earth's river lines). On land the edge snaps to real
+borders: every province/region (Natural Earth admin 1) is in when most of its land is inside the
+outline. The build prints the regions the outline cuts through; add a name or ISO code to
+`AlwaysIn` / `AlwaysOut` to change one. A region that runs off the map is cut along the outline
+instead (so there's no straight cut at the map's edge), and small playable patches cut off from
+the rest are dropped. At sea the edge is the outline, a little further out, and water next to
+playable land stays playable up to the far shore. Everything outside becomes `Outside` terrain:
+greyed out in the game like the world map drawn around Europe, and never claimable. The map also
+stores the edge as a smooth field, which the game draws it from.
 To try out a change to the outline quickly, without land cover (nothing is downloaded):
 `dotnet run -c Release --project tools/MapBuilder -- europe --preview` writes a small picture to
 `tools/data/preview_europe.ppm` (green/blue = playable, grey = outside).
