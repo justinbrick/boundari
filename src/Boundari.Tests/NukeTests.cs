@@ -251,7 +251,7 @@ public class NukeTests
     }
 
     [Fact]
-    public void Europe_Has52NationsNearTheirHomes()
+    public void Europe_HasItsNationsNearTheirHomes()
     {
         string dir = AppContext.BaseDirectory;
         while (!File.Exists(Path.Combine(dir, "Boundari.sln")) || !Directory.Exists(Path.Combine(dir, "src")))
@@ -262,7 +262,7 @@ public class NukeTests
         var game = new Game(map, 5);
         game.AddNations(MapNations.Europe);
 
-        Assert.Equal(52, game.Players.Count);
+        Assert.Equal(MapNations.Europe.Length, game.Players.Count);
         var geo = map.Geo!;
         var firstTile = new int[game.Players.Count + 1];
         Array.Fill(firstTile, -1);
