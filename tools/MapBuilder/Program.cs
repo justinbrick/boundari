@@ -35,26 +35,26 @@ public static class Program
         // of longitude, as when it was 4000 tiles over 70° (tile scale 1.33 over the original 3000:
         // finer territory; OpenFront's tile numbers are scaled to match, see Sim.ScaledRules).
         // Islands, lakes and rivers keep their real-world sizes: 45 / 68 tiles and 3.9 wide at 3000.
-        // Only Europe's natural bounds are played (EuropePlayArea); the rest is greyed out.
+        // Only Europe's countries are played (EuropePlayArea); the rest is greyed out.
         new("europe", "Europe", -25, 66.875, 27.4, 72, 50, 5250, "10m", 6, MinIslandTiles: 80, MinLakeTiles: 121, LandCoverScale: 2,
             RiverMaxRank: 7, RiverWidth: 5.2, PlayArea: EuropePlayArea),
     };
 
     /// <summary>
-    /// Europe's natural bounds, clockwise from west of Iceland, as (latitude, longitude): the
-    /// Arctic past Jan Mayen and the North Cape, round the south of Novaya Zemlya, down the
-    /// Ural Mountains and the Ural River to the Caspian (whose open water is played), along
-    /// the Iranian border and the Zagros to the Gulf, through the Syrian desert to the Gulf of
-    /// Aqaba, across Sinai, then along the Sahara's northern edge to the Atlantic past the
-    /// Canaries and up the ocean. Greenland, Novaya Zemlya, Iran and the deep Sahara are out.
+    /// Europe's play area. The outline (clockwise from west of Iceland, as (latitude, longitude))
+    /// is rough: it sets the edge at sea (the Arctic past Jan Mayen and the North Cape, round
+    /// the south of Novaya Zemlya, the Mediterranean to the African and Levant coasts, the
+    /// Atlantic past the Canaries) and splits Russia and Kazakhstan (down the Ural Mountains and
+    /// the Ural River to the Caspian, whose open water is played). On land the edge is the
+    /// borders of the countries listed.
     /// </summary>
     private static PlayArea EuropePlayArea => new( // (a property: the Specs above are set up first)
         new EdgeLeg[]
         {
             new EdgePoints(
                 // Arctic
-                (66.6, -24.75), (68.2, -20.5), (70.0, -15.5), (71.35, -10.0), (71.75, -4.0), (71.45, 5.0), (71.75, 15.0),
-                (71.75, 27.0), (71.6, 37.0), (71.45, 45.0), (70.6, 51.5), (70.0, 56.0), (69.75, 59.8), (69.3, 61.8), (68.8, 64.0),
+                (66.6, -24.0), (68.2, -20.5), (70.0, -15.5), (71.2, -10.0), (71.35, -4.0), (71.2, 5.0), (71.35, 15.0),
+                (71.35, 27.0), (71.3, 37.0), (71.25, 45.0), (70.6, 51.5), (70.0, 56.0), (69.75, 59.8), (69.3, 61.8), (68.8, 64.0),
                 // Ural Mountains
                 (68.4, 65.8), (67.6, 65.6), (66.5, 64.4), (65.9, 62.6), (65.0, 60.1), (63.9, 59.1), (62.5, 59.3), (61.0, 59.3),
                 (59.6, 59.1), (58.2, 59.3), (56.8, 59.8), (55.4, 59.6)),
@@ -76,10 +76,25 @@ public static class Program
                 (29.9, 6.0), (30.1, 4.1), (30.4, 2.2), (30.2, 0.2), (30.6, -1.9), (30.3, -3.9), (29.9, -5.9), (29.4, -7.6),
                 (28.95, -9.4), (28.68, -11.1),
                 // the Atlantic, round the Canaries
-                (28.0, -12.7), (27.7, -14.3), (27.65, -16.6), (27.7, -18.6), (28.6, -19.3), (30.5, -21.5), (34.0, -23.5),
-                (40.0, -24.5), (46.0, -24.7), (53.0, -24.75), (60.0, -24.75)),
+                (28.1, -12.7), (28.0, -14.3), (28.0, -16.6), (28.0, -18.6), (28.6, -19.3), (30.5, -21.3), (34.0, -23.0),
+                (40.0, -23.5), (46.0, -23.6), (53.0, -23.6), (60.0, -23.8)),
         },
-        new[] { ((47.3, 46.6), (36.4, 55.2)) }); // the Caspian Sea
+        new[] { ((47.3, 46.6), (36.4, 55.2)) }, // the Caspian Sea
+        // The countries that make up Europe (Council of Europe style: Turkey, the Caucasus and
+        // Cyprus too); Russia and Kazakhstan only west of the Urals and the Ural River.
+        Countries: new[]
+        {
+            "Akrotiri Sovereign Base Area", "Aland", "Albania", "Andorra", "Armenia", "Austria", "Azerbaijan", "Belarus",
+            "Belgium", "Bosnia and Herzegovina", "Bulgaria", "Croatia", "Cyprus", "Czech Republic", "Denmark",
+            "Dhekelia Sovereign Base Area", "Estonia", "Faroe Islands", "Finland", "France", "Georgia", "Germany",
+            "Gibraltar", "Greece", "Guernsey", "Hungary", "Iceland", "Ireland", "Isle of Man", "Italy", "Jersey",
+            "Kosovo", "Latvia", "Liechtenstein", "Lithuania", "Luxembourg", "Macedonia", "Malta", "Moldova", "Monaco",
+            "Montenegro", "Netherlands", "Northern Cyprus", "Norway", "Poland", "Portugal", "Republic of Serbia",
+            "Romania", "San Marino", "Slovakia", "Slovenia", "Spain", "Sweden", "Switzerland", "Turkey", "Ukraine",
+            "United Kingdom", "Vatican",
+        },
+        SplitCountries: new[] { "Russia", "Kazakhstan" },
+        CutByOutline: new[] { "Atyrau" }); // (its land west of the Ural River)
 
     // Coast field units per tile of distance. Matches the scale of the random
     // generator's field, which the shader's water shading is tuned for.

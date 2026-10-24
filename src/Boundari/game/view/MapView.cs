@@ -140,7 +140,7 @@ public partial class MapView : Sprite2D
 
     /// <summary>
     /// Uploads the play area's edge field (if the map has one) for the shader to grey out
-    /// what's past it: red = land, green = water, each 128 + 16 per tile inside the edge.
+    /// what's past it: red = land (128 + 16 per tile inside the edge), green = water (128 + 3 per tile).
     /// </summary>
     private void UploadPlayArea(GameMap map)
     {

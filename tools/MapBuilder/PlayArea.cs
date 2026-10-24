@@ -23,15 +23,20 @@ public sealed record EdgeRiver(string Name, (double Lat, double Lon) From, (doub
 /// Where a regional map can be played; everything else becomes <see cref="TerrainType.Outside"/>
 /// (greyed out in the game, like the world around the map, and never claimable).
 /// <para>
-/// On land the edge follows real borders: every province/region (Natural Earth's admin-1 file,
-/// so country borders too) is playable when most of its land lies inside the rough
-/// <paramref name="Edge"/> outline, or when it's named in <paramref name="AlwaysIn"/>; never
-/// when named in <paramref name="AlwaysOut"/>. Separate islands of a region count on their own.
+/// On land the edge follows real borders (Natural Earth's admin-1 provinces/regions, so country
+/// borders too). With <paramref name="Countries"/>, those countries are in whole and others
+/// out, except <paramref name="SplitCountries"/> (too big for the map), whose regions are in
+/// when most of their land lies inside the rough <paramref name="Edge"/> outline. Without
+/// <paramref name="Countries"/>, every region goes by that rule. Regions named in
+/// <paramref name="AlwaysIn"/> / <paramref name="AlwaysOut"/> are in / out whatever, and those in
+/// <paramref name="CutByOutline"/> are cut along the outline. Separate islands of a region count
+/// on their own.
 /// </para>
 /// <para>
 /// On water the edge is the outline itself (a smooth curve through the seas), pushed a little
 /// out to sea, and water next to playable land is playable up to the far shore (rivers along
-/// the edge, coasts). <paramref name="WaterAreas"/>: boxes whose water is all playable (a sea
+/// the edge, coasts). The water field reaches much further than the land one, so the game can
+/// fade the sea out past the edge. <paramref name="WaterAreas"/>: boxes whose water is all playable (a sea
 /// such as the Caspian, whose far shores are outside), as (lat, lon) corners.
 /// </para>
 /// The result is also kept as a smooth field (<see cref="GameMap.PlayField"/>) so the game draws
@@ -41,11 +46,16 @@ public sealed record PlayArea(
     EdgeLeg[] Edge,
     ((double Lat, double Lon) A, (double Lat, double Lon) B)[] WaterAreas,
     string[]? AlwaysIn = null,
-    string[]? AlwaysOut = null)
+    string[]? AlwaysOut = null,
+    string[]? Countries = null,
+    string[]? SplitCountries = null,
+    string[]? CutByOutline = null)
 {
-    private const double Range = 8;          // the field's reach, in tiles (it saturates past this)
+    private const double Range = 8;          // the land field's reach, in tiles (it saturates past this)
+    private const double WaterRange = 40;    // the water field's (the sea fades out over it)
     private const double SeaMargin = 6;      // water stays playable this many tiles past the land edge / outline
 
+    private const int MinOpenSea = 50000;    // smaller stretches of open water joined to the sea only by rivers count as lakes
     private const int PocketTiles = 20000;   // smaller playable patches cut off from the rest are dropped
 
     private enum Region { In, Out, Cut }
@@ -63,8 +73,9 @@ public sealed record PlayArea(
         var outline = Outline(Path.Combine(dataDir, "ne_10m_rivers_lake_centerlines.geojson"));
         var ring = new TileRing(outline.Select(p => geo.TileX(p.Lon, w)).ToArray(), outline.Select(p => geo.TileY(p.Lat, h)).ToArray());
         bool[] inGuide = Rasterizer.Fill(new[] { ring }, w, h);
-        float[] guideDist = Rasterizer.EdgeDistance(new[] { ring }, w, h, Range);
+        float[] guideDist = Rasterizer.EdgeDistance(new[] { ring }, w, h, WaterRange);
         double Guide(int i) => (inGuide[i] ? 1 : -1) * Math.Min(guideDist[i], Range);
+        double GuideAtSea(int i) => (inGuide[i] ? 1 : -1) * Math.Min(guideDist[i], WaterRange);
 
         // Provinces and regions, each island on its own, filled into the tile grid.
         var units = LoadUnits(Path.Combine(dataDir, "ne_10m_admin_1_states_provinces.geojson"), geo, w, h);
@@ -109,10 +120,18 @@ public sealed record PlayArea(
         bool OffMap(Unit u) => u.MinX < 0 || u.MinY < 0 || u.MaxX > w || u.MaxY > h;
         var state = new Region[units.Count];
         for (int u = 0; u < units.Count; u++)
-            state[u] = Named(units[u], AlwaysOut) ? Region.Out
-                : Named(units[u], AlwaysIn) ? Region.In
-                : OffMap(units[u]) ? (insideTiles[u] * 10 >= landTiles[u] ? Region.Cut : Region.Out)
+        {
+            var unit = units[u];
+            bool whole = Countries is not null && Countries.Contains(unit.Country);
+            bool split = Countries is null || (SplitCountries?.Contains(unit.Country) ?? false);
+            state[u] = Named(unit, AlwaysOut) ? Region.Out
+                : Named(unit, AlwaysIn) ? Region.In
+                : Named(unit, CutByOutline) ? Region.Cut
+                : whole ? (OffMap(unit) ? Region.Out : Region.In)
+                : !split ? Region.Out
+                : OffMap(unit) ? (insideTiles[u] * 10 >= landTiles[u] ? Region.Cut : Region.Out)
                 : insideTiles[u] * 2 > landTiles[u] ? Region.In : Region.Out;
+        }
 
         // Playable land tiles; then small playable pockets cut off from the main playable part of
         // their landmass are dropped (a lone province surrounded by greyed-out land).
@@ -155,18 +174,26 @@ public sealed record PlayArea(
             if (Land(i))
                 landField[i] = landUnit[i] >= 0 ? (playable[i] ? dist[i] : -dist[i]) : Guide(i);
 
-        // Water: all of a water area; otherwise playable near playable land (fading with the
-        // distance from its shore) or inside the outline, with a margin.
+        // Water. Rivers and other narrow water are playable next to playable land (fading with
+        // the distance from its shore). Open water (and the coasts and river mouths next to it)
+        // goes by its body: the sea is playable inside the outline; an inland sea or lake when
+        // most of its shore is playable land, or it's in a water area (the Caspian).
         var waterField = new double[n];
         var fromShore = ShoreValues(map, landField, w, h);
+        var kind = WaterKinds(map, playable, w, h);
         for (int i = 0; i < n; i++)
         {
             if (Land(i))
                 continue;
-            if (InWaterArea(geo.LonAt(i % w + 0.5, w), geo.LatAt(i / w + 0.5, h)))
-                waterField[i] = Range;
-            else
-                waterField[i] = Math.Clamp(Math.Max(Guide(i), fromShore[i]) + SeaMargin, -Range, Range);
+            double near = fromShore[i];
+            if (kind[i] == Water.Sea)
+                near = Math.Max(near, GuideAtSea(i));
+            else if (kind[i] == Water.PlayableLake || (kind[i] == Water.Lake && InWaterArea(geo.LonAt(i % w + 0.5, w), geo.LatAt(i / w + 0.5, h))))
+                near = WaterRange;
+            double value = near + SeaMargin;
+            if (value < 0 && kind[i] != Water.Sea)
+                value *= WaterRange / 3; // only the open sea fades out slowly; rivers and lakes go grey within a few tiles
+            waterField[i] = Math.Clamp(value, -WaterRange, WaterRange);
         }
 
         // Each field carries on a few tiles across the coast, so the drawn edge doesn't jump
@@ -186,8 +213,8 @@ public sealed record PlayArea(
                 map.Terrain[i] = TerrainType.Outside;
                 outsideTiles++;
             }
-            play[i * 2] = Quantize(landValue);
-            play[i * 2 + 1] = Quantize(waterValue);
+            play[i * 2] = Quantize(landValue, GameMap.PlayFieldSteps);
+            play[i * 2 + 1] = Quantize(waterValue, GameMap.PlayFieldWaterSteps);
         }
 
         // Slivers of land the edge cut off from the rest (smaller than the smallest island kept) go too.
@@ -199,7 +226,7 @@ public sealed record PlayArea(
             if (id != GameMap.NoLandmass && map.LandmassSizes[id] < spec.MinIslandTiles)
             {
                 map.Terrain[i] = TerrainType.Outside;
-                play[i * 2] = Quantize(-1);
+                play[i * 2] = Quantize(-1, GameMap.PlayFieldSteps);
                 slivers++;
             }
         }
@@ -210,7 +237,7 @@ public sealed record PlayArea(
                           $"{100.0 * outsideTiles / n:F1}% of the map outside, {slivers} sliver tiles dropped");
     }
 
-    private static byte Quantize(double v) => (byte)Math.Clamp((int)Math.Round(128 + v * GameMap.PlayFieldSteps), 0, 255);
+    private static byte Quantize(double v, int steps) => (byte)Math.Clamp((int)Math.Round(128 + v * steps), 0, 255);
 
     /// <summary>Lists the regions the outline cuts through (so they can be moved in or out by name).</summary>
     private static void Report(List<Unit> units, int[] landTiles, int[] insideTiles, Region[] state, Func<Unit, bool> offMap)
@@ -226,14 +253,14 @@ public sealed record PlayArea(
     /// For water: the best of (a shore's land field less the water's distance from that shore),
     /// over all shores, through water (two raster sweeps each way, 8 neighbours). A river
     /// between a playable and an unplayable bank is playable all the way across; open water
-    /// far from playable land comes out at -Range. Land: -Range.
+    /// far from playable land comes out at -WaterRange. Land: -WaterRange.
     /// </summary>
     private static double[] ShoreValues(GameMap map, double[] landField, int w, int h)
     {
         int n = map.TileCount;
         var value = new double[n];
         for (int i = 0; i < n; i++)
-            value[i] = map.CoastField[i] > 0 ? landField[i] : -Range;
+            value[i] = map.CoastField[i] > 0 ? landField[i] : -WaterRange;
         const double Diagonal = 1.41421356;
         for (int pass = 0; pass < 4; pass++)
         {
@@ -260,8 +287,86 @@ public sealed record PlayArea(
                 }
         }
         for (int i = 0; i < n; i++)
-            value[i] = map.CoastField[i] > 0 ? -Range : Math.Max(value[i], -Range);
+            value[i] = map.CoastField[i] > 0 ? -WaterRange : Math.Max(value[i], -WaterRange);
         return value;
+    }
+
+    private enum Water : byte { Narrow, Sea, Lake, PlayableLake }
+
+    /// <summary>
+    /// Sorts the water. Open water (over 4 tiles from land) and what's within 6 tiles of it
+    /// through water (coasts, river mouths) is the <c>Sea</c> when it's a big stretch joined to
+    /// the map's edge, otherwise a <c>Lake</c> (an inland sea, a lake, or one the sea only
+    /// reaches up a river), a <c>PlayableLake</c> when at least a third of its shore is playable
+    /// land. Everything else (rivers, narrow water) is <c>Narrow</c>.
+    /// </summary>
+    private static Water[] WaterKinds(GameMap map, bool[] playable, int w, int h)
+    {
+        int n = map.TileCount;
+        bool IsWater(int t) => map.CoastField[t] <= 0;
+        var steps = new int[n];
+        Array.Fill(steps, -1);
+        var queue = new Queue<int>();
+        for (int i = 0; i < n; i++)
+            if (map.CoastField[i] < -4 * Program.FieldPerTile)
+            {
+                steps[i] = 0;
+                queue.Enqueue(i);
+            }
+        while (queue.Count > 0)
+        {
+            int t = queue.Dequeue();
+            if (steps[t] >= 6)
+                continue;
+            foreach (int nb in Neighbours4(t, w, h))
+                if (IsWater(nb) && steps[nb] < 0)
+                {
+                    steps[nb] = steps[t] + 1;
+                    queue.Enqueue(nb);
+                }
+        }
+
+        // Each stretch of open water on its own, sized up with its shore.
+        var kind = new Water[n];
+        var seen = new bool[n];
+        var patch = new List<int>();
+        for (int i = 0; i < n; i++)
+        {
+            if (steps[i] < 0 || seen[i])
+                continue;
+            patch.Clear();
+            seen[i] = true;
+            queue.Enqueue(i);
+            bool edge = false;
+            int shore = 0, playableShore = 0;
+            while (queue.Count > 0)
+            {
+                int t = queue.Dequeue();
+                patch.Add(t);
+                int x = t % w, y = t / w;
+                edge |= x == 0 || y == 0 || x == w - 1 || y == h - 1;
+                foreach (int nb in Neighbours4(t, w, h))
+                {
+                    if (!IsWater(nb))
+                    {
+                        shore++;
+                        if (playable[nb])
+                            playableShore++;
+                    }
+                    else if (steps[nb] >= 0 && !seen[nb])
+                    {
+                        seen[nb] = true;
+                        queue.Enqueue(nb);
+                    }
+                }
+            }
+            var k = edge && patch.Count >= MinOpenSea ? Water.Sea
+                : shore > 0 && playableShore * 3 >= shore ? Water.PlayableLake
+                : Water.Lake;
+            foreach (int t in patch)
+                kind[t] = k;
+        }
+        return kind;
     }
 
     /// <summary>

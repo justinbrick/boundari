@@ -35,7 +35,7 @@ public class SimBenchmark
         if (int.TryParse(Environment.GetEnvironmentVariable("BOUNDARI_NATIONS"), out int nations))
             game.AddNations(nations);
         else
-            game.AddNations(MapNations.Europe); // OpenFront's 52
+            game.AddNations(MapNations.Europe); // OpenFront's, less those outside the play area
         game.AddBots(int.TryParse(Environment.GetEnvironmentVariable("BOUNDARI_BOTS"), out int n) ? n : 400);
         var timer = Stopwatch.StartNew();
         long worst = 0;

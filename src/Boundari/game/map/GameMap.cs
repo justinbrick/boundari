@@ -66,8 +66,11 @@ public sealed class GameMap
     /// </summary>
     public byte[]? PlayField { get; set; }
 
-    /// <summary>A <see cref="PlayField"/> byte is 128 + this many steps per tile of distance (so it spans ±8 tiles).</summary>
+    /// <summary>A <see cref="PlayField"/> land byte is 128 + this many steps per tile of distance (so it spans ±8 tiles).</summary>
     public const int PlayFieldSteps = 16;
+
+    /// <summary>A <see cref="PlayField"/> water byte is 128 + this many steps per tile (±42 tiles: the sea fades out past the edge).</summary>
+    public const int PlayFieldWaterSteps = 3;
 
     public readonly TerrainType[] Terrain;
 

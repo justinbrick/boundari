@@ -6,9 +6,10 @@ namespace Boundari.Sim;
 public sealed record NationSpec(string Name, string Flag, double Lat, double Lon);
 
 /// <summary>
-/// Fixed nations for the built-in maps, like OpenFront's map manifests: the same 52
-/// nations OpenFront puts on Europe, each starting near its real home (Egypt, which
-/// had no land on the map when it stopped at 33°N, is replaced by Cyprus).
+/// Fixed nations for the built-in maps, like OpenFront's map manifests: the nations
+/// OpenFront puts on Europe, each starting near its real home, less the nine whose land is
+/// outside Europe's play area (Morocco, Algeria, Tunisia, Libya, Syria, Iraq, Israel, Jordan,
+/// Lebanon); Egypt is replaced by Cyprus.
 /// </summary>
 public static class MapNations
 {
@@ -39,13 +40,8 @@ public static class MapNations
         new("Belarus", "by", 53.7, 28.0),
         new("Romania", "ro", 45.9, 24.9),
         new("Türkiye", "tr", 39.2, 33.0),
-        new("Morocco", "ma", 33.5, -6.2),
         new("Russia", "ru", 56.0, 40.5),
-        new("Syria", "sy", 35.0, 38.3),
-        new("Iraq", "iq", 35.4, 43.4),
         new("Georgia", "ge", 42.1, 43.6),
-        new("Tunisia", "tn", 35.4, 9.6),
-        new("Algeria", "dz", 35.4, 3.0),
         new("Portugal", "pt", 39.6, -8.1),
         new("Greece", "gr", 39.4, 21.9),
         new("Serbia", "rs", 44.0, 20.8),
@@ -64,11 +60,7 @@ public static class MapNations
         new("Northern Ireland", "gb-nir", 54.6, -6.7),
         new("Sápmi", "", 68.6, 23.0),
         new("Denmark", "dk", 56.1, 9.2),
-        new("Israel", "il", 31.6, 34.95),
         new("Cyprus", "cy", 35.0, 33.2),      // in place of Egypt
-        new("Libya", "ly", 32.2, 13.4),
-        new("Jordan", "jo", 31.2, 36.6),
-        new("Lebanon", "lb", 34.0, 35.9),
         new("Iceland", "is", 64.9, -18.6),
         new("Andorra", "ad", 42.5, 1.55),
         new("Monaco", "mc", 43.74, 7.42),
