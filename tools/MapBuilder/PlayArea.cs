@@ -48,6 +48,8 @@ public sealed record PlayArea(
 
     private const int PocketTiles = 20000;   // smaller playable patches cut off from the rest are dropped
 
+    private const double LakeReach = 3;      // greyed-out lakes this near playable land stay water
+
     private enum Region { In, Out, Cut }
 
     private sealed record Unit(string Name, string Country, string Code, List<TileRing> Rings, double MinX, double MinY, double MaxX, double MaxY);
@@ -135,6 +137,7 @@ public sealed record PlayArea(
         int pockets = DropPockets(map, playable, landUnit, landTiles, state, cutOff, w, h);
         Mark();
         Report(units, landTiles, insideTiles, state, OffMap);
+        bool[] filled = GreyOutInlandWater(map, spec, playable);
 
         // The play area's edge on land: region borders and stretches of the outline (inside cut
         // regions) with playable land on one side and unplayable land on the other; each tile's
@@ -160,7 +163,9 @@ public sealed record PlayArea(
         // Land: + inside the play area, - outside, by its distance to that edge.
         var landField = new double[n];
         for (int i = 0; i < n; i++)
-            if (Land(i))
+            if (filled[i])
+                landField[i] = -Range;
+            else if (Land(i))
                 landField[i] = landUnit[i] >= 0 ? (playable[i] ? dist[i] : -dist[i]) : Guide(i);
 
         // The field carries on a few tiles out over the water, so the drawn edge doesn't jump
@@ -198,6 +203,125 @@ public sealed record PlayArea(
         Console.WriteLine($"  play area: {units.Count} regions ({state.Count(s => s == Region.In)} in, {state.Count(s => s == Region.Cut)} cut by the outline), " +
                           $"{pockets} pocket regions dropped, {borderEdges} edge segments, " +
                           $"{100.0 * outsideTiles / n:F1}% of the map outside, {slivers} sliver tiles dropped");
+    }
+
+    /// <summary>
+    /// Rivers and lakes out in the greyed-out land are filled in as land (grey like the rest: it
+    /// looks cleaner; the sea stays water). Water by playable land stays: lakes with a shore
+    /// within <see cref="LakeReach"/> tiles of it (the whole lake), and river water nearer to it
+    /// than to unplayable land, or lying between it and the far bank (a river along the edge
+    /// stays water to its far shore). A river running out of the play area ends at the edge.
+    /// Returns the tiles filled in.
+    /// </summary>
+    private static bool[] GreyOutInlandWater(GameMap map, MapSpec spec, bool[] playable)
+    {
+        int w = map.Width, h = map.Height, n = map.TileCount;
+        var filled = new bool[n];
+        if (!Program.Sources.TryGetValue(map, out var src))
+            return filled;
+        bool Inland(int i) => map.CoastField[i] <= 0 && src.InLand[i];
+        var otherLand = new bool[n];
+        for (int i = 0; i < n; i++)
+            otherLand[i] = map.CoastField[i] > 0 && !playable[i];
+        float[] toPlayable = Rasterizer.DistanceTransform(playable, w, h);
+        float[] toOther = Rasterizer.DistanceTransform(otherLand, w, h);
+
+        // Lakes (and the land cover's ponds), each as a whole.
+        var seen = new bool[n];
+        var queue = new Queue<int>();
+        var lake = new List<int>();
+        int lakes = 0;
+        for (int i = 0; i < n; i++)
+        {
+            if (seen[i] || !Inland(i) || src.InRiver[i])
+                continue;
+            lake.Clear();
+            seen[i] = true;
+            queue.Enqueue(i);
+            bool bySea = false;
+            while (queue.Count > 0)
+            {
+                int t = queue.Dequeue();
+                lake.Add(t);
+                foreach (int nb in Neighbours4(t, w, h))
+                {
+                    bySea |= map.CoastField[nb] <= 0 && !src.InLand[nb];
+                    if (!seen[nb] && Inland(nb) && !src.InRiver[nb])
+                    {
+                        seen[nb] = true;
+                        queue.Enqueue(nb);
+                    }
+                }
+            }
+            // (open to the sea: not a lake but an island too small to keep, or a lagoon)
+            if (bySea || lake.Any(t => toPlayable[t] <= LakeReach))
+                continue;
+            foreach (int t in lake)
+                filled[t] = true;
+            lakes++;
+        }
+
+        // Rivers, tile by tile.
+        double reach = spec.RiverWidth * 1.6; // across the widest river, at a slant
+        for (int i = 0; i < n; i++)
+        {
+            if (!Inland(i) || !src.InRiver[i] || toPlayable[i] <= 1.5 || toPlayable[i] <= toOther[i])
+                continue;
+            if (toPlayable[i] > reach || !Between(i))
+                filled[i] = true;
+        }
+
+        int count = 0;
+        for (int i = 0; i < n; i++)
+            if (filled[i])
+            {
+                map.CoastField[i] = 0.05f * Program.FieldPerTile;
+                count++;
+            }
+        if (count > 0)
+        {
+            Program.Classify(map, spec, minLakeTiles: 1); // (measures the land's coast field again without them)
+            for (int i = 0; i < n; i++)
+                filled[i] &= map.CoastField[i] > 0;
+            // Water that ends at them (a river cut off at the edge) is no further from the shore than from them.
+            float[] toFilled = Rasterizer.DistanceTransform(filled, w, h);
+            for (int i = 0; i < n; i++)
+                if (map.CoastField[i] <= 0)
+                    map.CoastField[i] = Math.Max(map.CoastField[i], -(toFilled[i] - 0.5f) * Program.FieldPerTile);
+        }
+        Console.WriteLine($"  greyed-out water filled in: {lakes} lakes, {count} tiles in all");
+        return filled;
+
+        // True if some line through this river tile reaches playable land one way and land (or
+        // the sea) the other, within one river's width.
+        bool Between(int i)
+        {
+            double cx = i % w + 0.5, cy = i / w + 0.5;
+            for (int k = 0; k < 16; k++)
+            {
+                double a = k * Math.PI / 16, dx = Math.Cos(a), dy = Math.Sin(a);
+                var (d1, p1) = March(cx, cy, dx, dy);
+                var (d2, p2) = March(cx, cy, -dx, -dy);
+                if ((p1 || p2) && d1 + d2 <= reach)
+                    return true;
+            }
+            return false;
+        }
+
+        // How far along this direction the river ends, and whether playable land is there.
+        (double Dist, bool Playable) March(double x, double y, double dx, double dy)
+        {
+            for (double s = 0.5; s <= reach; s += 0.5)
+            {
+                int tx = (int)Math.Floor(x + dx * s), ty = (int)Math.Floor(y + dy * s);
+                if (tx < 0 || ty < 0 || tx >= w || ty >= h)
+                    break;
+                int t = ty * w + tx;
+                if (!Inland(t))
+                    return (s, playable[t]);
+            }
+            return (double.PositiveInfinity, false);
+        }
     }
 
     private static byte Quantize(double v) => (byte)Math.Clamp((int)Math.Round(128 + v * GameMap.PlayFieldSteps), 0, 255);

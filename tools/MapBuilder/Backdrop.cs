@@ -17,7 +17,8 @@ namespace Boundari.MapBuilder;
 /// (128 + 16 per tile from the coast, land above 128), with a one-tile border from its
 /// neighbours so they join seamlessly. Pieces of open ocean, and pieces the map itself covers,
 /// aren't written. Zoomed out, the game draws a world overview instead
-/// (src/Boundari/maps/world_overview.bmap: the same, at a sixth of the detail, without rivers).
+/// (src/Boundari/maps/world_overview.bmap: the same, at a sixth of the detail). It's all greyed
+/// out, so it has no lakes or rivers: only the sea is water.)
 /// </summary>
 public static class Backdrop
 {
@@ -42,8 +43,6 @@ public static class Backdrop
             File.Delete(old);
 
         var land = GeoJson.LoadRings(Path.Combine(dataDir, $"ne_{region.Detail}_land.geojson"));
-        GeoJson.LoadRings(Path.Combine(dataDir, $"ne_{region.Detail}_lakes.geojson"));
-        GeoJson.LoadRivers(Path.Combine(dataDir, "ne_10m_rivers_lake_centerlines.geojson"), region.RiverMaxRank);
 
         BuildOverview(region, kx, dataDir, outDir);
 
@@ -75,6 +74,8 @@ public static class Backdrop
                 LatMin = geo.LatAt(y0 + size, height),
                 Width = size,
                 LandCoverScale = 0,
+                RiverMaxRank = -1,
+                Lakes = false,
                 PlayArea = null,
             };
             var map = Program.Build(spec, dataDir, height: size);
@@ -104,7 +105,8 @@ public static class Backdrop
             MinIslandTiles = Math.Max(2, region.MinIslandTiles / (OverviewDivisor * OverviewDivisor)),
             MinLakeTiles = Math.Max(2, region.MinLakeTiles / (OverviewDivisor * OverviewDivisor)),
             LandCoverScale = 0,
-            RiverMaxRank = -1, // (rivers would come out far too wide at this size)
+            RiverMaxRank = -1,
+            Lakes = false,
             PlayArea = null,
         };
         var map = Program.Build(spec, dataDir);

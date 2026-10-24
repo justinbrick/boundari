@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using Boundari.Map;
 
 namespace Boundari.MapBuilder;
@@ -23,13 +24,20 @@ public sealed record MapSpec(
     int RiverMaxRank,     // include rivers up to this Natural Earth rank (0 = biggest; -1 = none)
     double RiverWidth,    // width in tiles of the biggest rivers; smaller ones are narrower
     PlayArea? PlayArea = null, // where it can be played (null = all of it); the rest is greyed out
-    MapProjection Projection = MapProjection.Equirectangular)
+    MapProjection Projection = MapProjection.Equirectangular,
+    bool Lakes = true)    // false: no lakes (the greyed-out world shows no lakes or rivers)
 {
     public MapGeo Geo => new(LonMin, LonMax, LatMin, LatMax, StandardParallel, Projection);
 }
 
+/// <summary>Where a built map's water came from: inside Natural Earth's land (rivers and lakes, not sea), and which of that is a river.</summary>
+public sealed record InlandWater(bool[] InLand, bool[] InRiver);
+
 public static class Program
 {
+    /// <summary>The sources of each map <see cref="Build"/> made (for <see cref="PlayArea"/>, which greys out rivers and lakes).</summary>
+    internal static readonly ConditionalWeakTable<GameMap, InlandWater> Sources = new();
+
     private static readonly MapSpec[] Specs =
     {
         // Plain longitude/latitude grid, like OpenFront's world map. Antarctica is cut off below 58°S.
@@ -187,7 +195,7 @@ public static class Program
             .ToList();
 
         var land = Project(GeoJson.LoadRings(Path.Combine(dataDir, $"ne_{spec.Detail}_land.geojson")));
-        var lakes = Project(GeoJson.LoadRings(Path.Combine(dataDir, $"ne_{spec.Detail}_lakes.geojson")));
+        var lakes = spec.Lakes ? Project(GeoJson.LoadRings(Path.Combine(dataDir, $"ne_{spec.Detail}_lakes.geojson"))) : new List<TileRing>();
 
         // Rivers are real water: boats can use them and they split the land.
         var rivers = spec.RiverMaxRank < 0
@@ -203,11 +211,14 @@ public static class Program
         bool[] inLake = Rasterizer.Fill(lakes, width, height);
         var isLand = new bool[map.TileCount];
         var isWater = new bool[map.TileCount];
+        var riverTile = new bool[map.TileCount];
         for (int i = 0; i < map.TileCount; i++)
         {
             isLand[i] = inLand[i] && !inLake[i] && river[i] >= 0;
             isWater[i] = !isLand[i];
+            riverTile[i] = river[i] < 0 && !inLake[i];
         }
+        Sources.AddOrUpdate(map, new InlandWater(inLand, riverTile));
 
         // 2. Signed distance to the coast and river banks: exact near the shore,
         //    approximate further away.
@@ -253,7 +264,7 @@ public static class Program
     }
 
     /// <summary>Drops tiny islands and lakes, then sorts tiles into sea, lake and land heights.</summary>
-    private static void Classify(GameMap map, MapSpec spec, int minLakeTiles)
+    internal static void Classify(GameMap map, MapSpec spec, int minLakeTiles)
     {
         MapProcessing.RemoveSmallLandmasses(map, spec.MinIslandTiles);
         MapProcessing.ClassifyWater(map, minLakeTiles);
@@ -275,7 +286,7 @@ public static class Program
     /// which would draw shallow-water blobs or phantom shores where they used to be. Push each tile's value out to at least its distance from
     /// the coastline that actually remains.
     /// </summary>
-    private static void DropRemovedFeatures(GameMap map)
+    internal static void DropRemovedFeatures(GameMap map)
     {
         var land = new bool[map.TileCount];
         var water = new bool[map.TileCount];
