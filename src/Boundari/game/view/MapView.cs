@@ -81,11 +81,17 @@ public partial class MapView : Sprite2D
         _paletteTexture = ImageTexture.CreateFromImage(_paletteImage);
         _material.SetShaderParameter("palette_tex", _paletteTexture);
 
+        ApplyBaseColors(_material);
+    }
+
+    /// <summary>Sets map.gdshader's land-cover and water colours on a material.</summary>
+    public static void ApplyBaseColors(ShaderMaterial material)
+    {
         var colors = new Vector3[CoverColors.Length];
         for (int i = 0; i < colors.Length; i++)
             colors[i] = new Vector3(CoverColors[i].R, CoverColors[i].G, CoverColors[i].B);
-        _material.SetShaderParameter("cover_colors", colors);
-        _material.SetShaderParameter("water_color", WaterColor);
+        material.SetShaderParameter("cover_colors", colors);
+        material.SetShaderParameter("water_color", WaterColor);
     }
 
     public void ShowMap(GameMap map)

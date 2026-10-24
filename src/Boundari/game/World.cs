@@ -993,7 +993,7 @@ public partial class World : Node2D
         DisplayServer.WindowSetTitle($"Boundari — {title}");
     }
 
-    private MapView? _backdrop;
+    private WorldBackdrop? _backdrop;
     private GameMap? _worldMap;
 
     /// <summary>
@@ -1018,18 +1018,17 @@ public partial class World : Node2D
         }
         if (!regional || _worldMap?.Geo is null)
         {
-            if (_backdrop is not null)
-                _backdrop.Visible = false;
+            _backdrop?.HideWorld();
             RenderingServer.SetDefaultClearColor(_clearColor);
             return;
         }
         if (_backdrop is null)
         {
-            _backdrop = new MapView { Name = "WorldBackdrop", ZIndex = _view.ZIndex, ZAsRelative = _view.ZAsRelative };
+            _backdrop = new WorldBackdrop { Name = "WorldBackdrop", ZIndex = _view.ZIndex, ZAsRelative = _view.ZAsRelative };
             _view.GetParent().AddChild(_backdrop);
             _view.GetParent().MoveChild(_backdrop, _view.GetIndex()); // drawn under the map
         }
-        _backdrop.ShowAsBackdrop(_worldMap, map);
+        _backdrop.Show(_worldMap, map);
         RenderingServer.SetDefaultClearColor(MapView.BackdropSea); // past the world's top and bottom
     }
 
@@ -1329,7 +1328,7 @@ public partial class World : Node2D
         if (_backdrop is { Visible: true } world)
         {
             // Far enough out to see the whole world around the map.
-            Vector2 worldSize = world.Texture.GetSize() * world.Scale;
+            Vector2 worldSize = world.WorldRect.Size;
             minZoom = Mathf.Min(minZoom, Mathf.Min(screen.X / worldSize.X, screen.Y / worldSize.Y) * 0.95f);
         }
         _camera.Set("min_zoom", minZoom); // camera_2d.gd limits
