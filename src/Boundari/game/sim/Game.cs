@@ -331,7 +331,7 @@ public sealed partial class Game
             case AttackIntent attack when Phase == GamePhase.Running:
                 StartAttack(player, attack.TargetId, attack.Troops > 0
                     ? Math.Min(attack.Troops, player.Troops)
-                    : player.Troops * Math.Clamp(attack.RatioPercent, 1, 100) / 100);
+                    : player.Troops * Math.Clamp(attack.RatioPercent, 1, 100) / 100, tile: attack.Tile);
                 break;
             case DirectedAttackIntent directed when Phase == GamePhase.Running:
                 StartDirectedAttack(player, directed);
@@ -607,13 +607,16 @@ public sealed partial class Game
 
     /// <summary>
     /// True if the player can attack the owner of this tile over land: some of the
-    /// player's border on the same landmass touches that owner. Otherwise it takes a boat.
+    /// player's border on the same landmass touches that owner (for empty land: touches
+    /// that same stretch of empty land). Otherwise it takes a boat.
     /// </summary>
     public bool CanReachByLand(Player player, int tile)
     {
         if (tile < 0 || !Map.IsLand(tile))
             return false;
         ushort target = Owner[tile];
+        if (target == Nobody)
+            return EmptyLandAlong(player, tile).Count > 0;
         int landmass = Map.LandmassId[tile];
         Span<int> nb = stackalloc int[4];
         foreach (int t in player.Border)

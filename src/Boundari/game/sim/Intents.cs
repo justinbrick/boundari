@@ -14,8 +14,11 @@ public sealed record SpawnIntent(ushort PlayerId, int Tile) : Intent(PlayerId);
 /// Send a share of the player's troops against a target: another player's id, or 0
 /// to expand into empty land. <paramref name="RatioPercent"/> is 1..100; AI players may
 /// instead name an exact number of <paramref name="Troops"/> (capped at what they have).
+/// <paramref name="Tile"/> is the empty land clicked (Boundari's own): an attack on empty land
+/// then only goes into that stretch of empty land, not every bit along our border (such as
+/// irradiated land inside our own). -1 = all of it, as OpenFront (what the AI sends).
 /// </summary>
-public sealed record AttackIntent(ushort PlayerId, ushort TargetId, int RatioPercent, long Troops = 0) : Intent(PlayerId);
+public sealed record AttackIntent(ushort PlayerId, ushort TargetId, int RatioPercent, long Troops = 0, int Tile = -1) : Intent(PlayerId);
 
 /// <summary>
 /// A directed attack (Boundari's own): like <see cref="AttackIntent"/>, but leaning the way

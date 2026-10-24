@@ -196,6 +196,35 @@ public class NukeTests
     }
 
     [Fact]
+    public void ClickingEmptyLand_OnlyGoesIntoThatStretchOfIt()
+    {
+        var (game, a, b, _) = Setup();
+        int[] Pocket(Player p)
+        {
+            int c = DeepInside(game, p), w = game.Map.Width;
+            var tiles = Enumerable.Range(0, game.Map.TileCount)
+                .Where(t => Math.Abs(t % w - c % w) <= 3 && Math.Abs(t / w - c / w) <= 3 && game.Owner[t] == p.Id).ToArray();
+            foreach (int t in tiles)
+                SetOwner(game, t, Game.Nobody);
+            return tiles;
+        }
+        int[] mine = Pocket(b), theirs = Pocket(a); // irradiated holes in both players' land
+
+        // B clicks the hole in A's land: it doesn't touch B, so nothing happens to B's own hole.
+        Assert.False(game.CanReachByLand(b, theirs[0]));
+        game.Submit(new AttackIntent(b.Id, Game.Nobody, 100, Tile: theirs[0]));
+        Wait(game, 100);
+        Assert.All(mine, t => Assert.Equal(Game.Nobody, game.Owner[t]));
+
+        // Clicking its own hole retakes it.
+        Assert.True(game.CanReachByLand(b, mine[0]));
+        game.Submit(new AttackIntent(b.Id, Game.Nobody, 100, Tile: mine[0]));
+        Wait(game, 100);
+        Assert.All(mine, t => Assert.Equal(b.Id, game.Owner[t]));
+        Assert.All(theirs, t => Assert.Equal(Game.Nobody, game.Owner[t]));
+    }
+
+    [Fact]
     public void NoBombs_DuringTheSpawnWindow_OrWithoutASilo()
     {
         var map = MapGenerator.Generate(21, new MapGenSettings { Width = 400, Height = 250, MinIslandTiles = 8, MinLakeTiles = 30 });

@@ -47,6 +47,13 @@ public sealed class Attack
     /// <summary>The arrow of a directed attack (Boundari's own), or null for a normal one.</summary>
     public readonly AttackArrow? Arrow;
 
+    /// <summary>
+    /// For an attack on a clicked stretch of empty land (Boundari's own): the empty tiles along
+    /// our border it starts from, the ones in that stretch. Null = every empty tile along our
+    /// border (OpenFront). Once it's going it only spreads through that stretch anyway.
+    /// </summary>
+    internal HashSet<int>? Patch;
+
     internal Attack(Player attacker, ushort targetId, long troops, int sourceTile, Rng rng, AttackArrow? arrow = null)
     {
         Arrow = arrow;

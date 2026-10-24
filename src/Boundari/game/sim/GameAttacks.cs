@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Boundari.Core;
 using Boundari.Map;
 
@@ -107,9 +108,10 @@ public sealed partial class Game
     /// at us, absorbs our earlier attacks on the same target, and queues every target tile
     /// along our border. If there's nothing to take, the troops come straight back. A
     /// directed attack (with an <paramref name="arrow"/>) stays on its own: it neither
-    /// absorbs nor is absorbed by other attacks.
+    /// absorbs nor is absorbed by other attacks. With a <paramref name="tile"/> of empty land
+    /// (a click), an attack on empty land only goes into that stretch of it.
     /// </summary>
-    private void StartAttack(Player attacker, ushort targetId, long troops, AttackArrow? arrow = null)
+    private void StartAttack(Player attacker, ushort targetId, long troops, AttackArrow? arrow = null, int tile = -1)
     {
         if (targetId == attacker.Id || (targetId != Nobody && GetPlayer(targetId) is not { IsAlive: true }))
             return;
@@ -120,6 +122,8 @@ public sealed partial class Game
 
         attacker.Troops -= troops;
         var attack = new Attack(attacker, targetId, troops, -1, new Rng(_rng.Fork()), arrow) { Id = _nextUnitId++ };
+        if (targetId == Nobody && tile >= 0 && tile < Map.TileCount && Map.IsLand(tile) && Owner[tile] == Nobody)
+            attack.Patch = EmptyLandAlong(attacker, tile);
         RefreshToConquer(attack);
         if (CancelAgainstIncoming(attack))
             return;
@@ -127,7 +131,7 @@ public sealed partial class Game
         for (int i = _attacks.Count - 1; i >= 0 && arrow is null; i--)
         {
             var other = _attacks[i];
-            if (other.Attacker == attacker && other.TargetId == targetId && other.Arrow is null)
+            if (other.Attacker == attacker && other.TargetId == targetId && other.Arrow is null && SamePatch(other, attack))
             {
                 attack.TroopsExact += other.TroopsExact;
                 _attacks.RemoveAt(i);
@@ -226,7 +230,112 @@ public sealed partial class Game
         attack.Attacker.Border.CopyTo(border);
         Array.Sort(border); // HashSet order isn't guaranteed; keep every machine identical
         foreach (int tile in border)
-            AddNeighbours(attack, tile);
+            AddNeighbours(attack, tile, attack.Patch);
+    }
+
+    /// <summary>Two attacks on empty land merge only if they go into the same stretch of it.</summary>
+    private static bool SamePatch(Attack a, Attack b) =>
+        a.Patch is null ? b.Patch is null : b.Patch is not null && a.Patch.Overlaps(b.Patch);
+
+    /// <summary>
+    /// The empty land tiles along the player's border that are joined (through empty land) to
+    /// <paramref name="tile"/>: where a click on that empty land sends the troops. Grows a
+    /// flood from the clicked tile and from every empty tile along the border at the same pace,
+    /// joining floods that meet, and stops as soon as each border flood has either met the
+    /// clicked one or run out (a pocket of fallout inside our land runs out fast), so a click
+    /// on the wide open wilderness doesn't have to flood all of it.
+    /// </summary>
+    public HashSet<int> EmptyLandAlong(Player player, int tile)
+    {
+        var found = new HashSet<int>();
+        if (tile < 0 || tile >= Map.TileCount || !Map.IsLand(tile) || Owner[tile] != Nobody)
+            return found;
+        Span<int> nb = stackalloc int[4];
+        var border = new int[player.Border.Count];
+        player.Border.CopyTo(border);
+        Array.Sort(border);
+        var starts = new List<int>();
+        foreach (int t in border)
+        {
+            int count = LandNeighbours(t, nb);
+            for (int k = 0; k < count; k++)
+                if (Owner[nb[k]] == Nobody)
+                    starts.Add(nb[k]);
+        }
+        if (starts.Count == 0)
+            return found;
+
+        var label = new Dictionary<int, int>();
+        var parent = new List<int>();
+        var open = new List<int>(); // per flood: tiles queued and not yet looked at
+        var queue = new Queue<int>();
+        int Find(int l)
+        {
+            while (parent[l] != l)
+                l = parent[l] = parent[parent[l]];
+            return l;
+        }
+        void Seed(int t)
+        {
+            if (label.ContainsKey(t))
+                return;
+            label[t] = parent.Count;
+            parent.Add(parent.Count);
+            open.Add(1);
+            queue.Enqueue(t);
+        }
+        Seed(tile); // flood 0 = the clicked stretch
+        foreach (int s in starts)
+            Seed(s);
+
+        bool Settled()
+        {
+            int click = Find(0);
+            if (open[click] == 0)
+                return true; // the clicked stretch is all flooded: everything else is apart from it
+            foreach (int s in starts)
+            {
+                int r = Find(label[s]);
+                if (r != click && open[r] > 0)
+                    return false;
+            }
+            return true;
+        }
+
+        int steps = 0;
+        Span<int> around = stackalloc int[4];
+        while (queue.Count > 0)
+        {
+            int t = queue.Dequeue();
+            int root = Find(label[t]);
+            open[root]--;
+            int count = LandNeighbours(t, around);
+            for (int k = 0; k < count; k++)
+            {
+                int n = around[k];
+                if (Owner[n] != Nobody)
+                    continue;
+                if (!label.TryGetValue(n, out int other))
+                {
+                    label[n] = root;
+                    open[root]++;
+                    queue.Enqueue(n);
+                }
+                else if (Find(other) is var r && r != root)
+                {
+                    parent[r] = root; // two floods met: the same stretch of empty land
+                    open[root] += open[r];
+                    open[r] = 0;
+                }
+            }
+            if ((++steps & 1023) == 0 && Settled())
+                break;
+        }
+        int clicked = Find(0);
+        foreach (int s in starts)
+            if (Find(label[s]) == clicked)
+                found.Add(s);
+        return found;
     }
 
     /// <summary>
@@ -235,7 +344,7 @@ public sealed partial class Game
     /// high ground and rough land cover: that randomness is what lets fast attacks race ahead
     /// in branching veins. Worked in 40ths of a tick so it's a whole number.
     /// </summary>
-    private void AddNeighbours(Attack attack, int tile)
+    private void AddNeighbours(Attack attack, int tile, HashSet<int>? only = null)
     {
         Span<int> nb = stackalloc int[4];
         Span<int> nb2 = stackalloc int[4];
@@ -243,7 +352,7 @@ public sealed partial class Game
         for (int k = 0; k < count; k++)
         {
             int n = nb[k];
-            if (Owner[n] != attack.TargetId)
+            if (Owner[n] != attack.TargetId || (only is not null && !only.Contains(n)))
                 continue;
             attack.Border.Add(n);
             int mine = 0, inner = LandNeighbours(n, nb2);

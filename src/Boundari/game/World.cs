@@ -647,7 +647,7 @@ public partial class World : Node2D
             return;
         ushort target = _game.Owner[tile];
         if (target != _me.Id && !_me.Allies.Contains(target) && _game.CanReachByLand(_me, tile))
-            _game.Submit(new AttackIntent(_me.Id, target, _hud.AttackRatioPercent));
+            _game.Submit(new AttackIntent(_me.Id, target, _hud.AttackRatioPercent, Tile: tile));
     }
 
     /// <summary>
@@ -935,7 +935,7 @@ public partial class World : Node2D
         if (target == _me.Id || !_me.IsAlive || !_me.HasSpawned)
             return;
         if (_game.CanReachByLand(_me, tile))
-            _game.Submit(new AttackIntent(_me.Id, target, _hud.AttackRatioPercent));
+            _game.Submit(new AttackIntent(_me.Id, target, _hud.AttackRatioPercent, Tile: tile));
         else if (doubleClick)
             SendBoat(tile); // land you can't walk to: a double click sends a boat (or press B)
     }

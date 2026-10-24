@@ -141,6 +141,7 @@ public sealed partial class Game
         bool valid = intent.FromTile >= 0 && intent.FromTile < Map.TileCount && intent.ToTile >= 0 && intent.ToTile < Map.TileCount
             && intent.FromTile != intent.ToTile;
         var arrow = DirectedAttacks && valid ? new AttackArrow(intent.FromTile, intent.ToTile, intent.ThinPermille, Map.Width, Rules) : null;
-        StartAttack(attacker, intent.TargetId, troops, arrow);
+        // An arrow ending on empty land goes into that stretch of it only (see AttackIntent.Tile).
+        StartAttack(attacker, intent.TargetId, troops, arrow, valid ? intent.ToTile : -1);
     }
 }
