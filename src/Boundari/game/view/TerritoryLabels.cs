@@ -40,7 +40,7 @@ public partial class TerritoryLabels : Node2D
     private const float NameShadow = 4f / 32, TroopShadow = 3f / 20;
     private const float OutlineLighten = 0.4f;          // outline = the territory's colour, lightened
 
-    private static readonly Color TextColor = new(0.117f, 0.117f, 0.117f, 1f);
+    private static readonly Color TextColor = new("#252525"); // names and troop counts
     private static readonly Color ShadowColor = new(0, 0, 0, 0.157f);
     private Color[] _palette = Array.Empty<Color>();
 
