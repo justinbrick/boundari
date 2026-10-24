@@ -9,7 +9,8 @@ public sealed record NationSpec(string Name, string Flag, double Lat, double Lon
 /// Fixed nations for the built-in maps, like OpenFront's map manifests: the nations
 /// OpenFront puts on Europe, each starting near its real home, less the nine whose land is
 /// outside Europe's play area (Morocco, Algeria, Tunisia, Libya, Syria, Iraq, Israel, Jordan,
-/// Lebanon); Egypt is replaced by Cyprus.
+/// Lebanon); Egypt is replaced by Cyprus. North-east European Russia (empty in OpenFront's
+/// Europe, which stops short of it) gets nations of its own: its real republics and regions.
 /// </summary>
 public static class MapNations
 {
@@ -64,5 +65,16 @@ public static class MapNations
         new("Iceland", "is", 64.9, -18.6),
         new("Andorra", "ad", 42.5, 1.55),
         new("Monaco", "mc", 43.74, 7.42),
+        // North-east European Russia (no flags of their own yet)
+        new("Karelia", "", 63.8, 33.5),
+        new("Arkhangelsk", "", 63.6, 42.5),
+        new("Nenets", "", 67.6, 54.0),
+        new("Komi", "", 63.0, 54.5),
+        new("Vologda", "", 59.6, 41.0),
+        new("Vyatka", "", 58.5, 49.5),
+        new("Perm", "", 59.0, 56.0),
+        new("Udmurtia", "", 57.2, 53.0),
+        new("Tatarstan", "", 55.5, 50.5),
+        new("Bashkortostan", "", 54.2, 56.0),
     };
 }
