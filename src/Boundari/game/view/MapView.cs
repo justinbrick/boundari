@@ -138,19 +138,33 @@ public partial class MapView : Sprite2D
         SetOwners(null);
     }
 
-    /// <summary>Marks the tiles outside the play area (if the map has any) for the shader to grey out.</summary>
+    /// <summary>
+    /// Uploads the play area's edge field (if the map has one) for the shader to grey out
+    /// what's past it: red = land, green = water, each 128 + 16 per tile inside the edge.
+    /// </summary>
     private void UploadPlayArea(GameMap map)
     {
-        var play = new byte[map.TileCount];
-        bool any = false;
-        for (int i = 0; i < play.Length; i++)
+        byte[]? play = map.PlayField;
+        if (play is null)
         {
-            bool outside = map.IsOutside(i);
-            play[i] = outside ? (byte)0 : (byte)255;
-            any |= outside;
+            // (an older map: just the outside tiles, so the edge follows the tiles)
+            bool any = false;
+            play = new byte[map.TileCount * 2];
+            for (int i = 0; i < map.TileCount; i++)
+            {
+                bool outside = map.IsOutside(i);
+                play[i * 2] = play[i * 2 + 1] = outside ? (byte)112 : (byte)144;
+                any |= outside;
+            }
+            if (!any)
+            {
+                _material.SetShaderParameter("has_play_area", false);
+                _material.SetShaderParameter("play_tex", default);
+                return;
+            }
         }
-        _material.SetShaderParameter("has_play_area", any);
-        _material.SetShaderParameter("play_tex", any ? ImageTexture.CreateFromImage(Image.CreateFromData(map.Width, map.Height, false, Image.Format.L8, play)) : null);
+        _material.SetShaderParameter("has_play_area", true);
+        _material.SetShaderParameter("play_tex", ImageTexture.CreateFromImage(Image.CreateFromData(map.Width, map.Height, false, Image.Format.Rg8, play)));
     }
 
     /// <summary>

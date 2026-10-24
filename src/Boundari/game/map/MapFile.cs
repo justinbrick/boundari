@@ -13,7 +13,7 @@ namespace Boundari.Map;
 public static class MapFile
 {
     private const uint Magic = 0x50414D42; // "BMAP"
-    private const int Version = 3; // 2: real-world location, 3: land cover
+    private const int Version = 4; // 2: real-world location, 3: land cover, 4: play area field
 
     public static void Write(GameMap map, Stream output)
     {
@@ -46,6 +46,9 @@ public static class MapFile
             w.Write((Half)v);
         foreach (float v in map.Elevation)
             w.Write((Half)v);
+        w.Write(map.PlayField is not null);
+        if (map.PlayField is { } play)
+            w.Write(play);
     }
 
     public static GameMap Read(Stream input)
@@ -85,6 +88,13 @@ public static class MapFile
             map.Terrain[i] = (TerrainType)terrain[i];
         ReadHalves(r, map.CoastField);
         ReadHalves(r, map.Elevation);
+        if (version >= 4 && r.ReadBoolean())
+        {
+            byte[] play = r.ReadBytes(map.TileCount * 2);
+            if (play.Length != map.TileCount * 2)
+                throw new EndOfStreamException("Map file is truncated.");
+            map.PlayField = play;
+        }
 
         MapProcessing.LabelLandmasses(map);
         return map;
