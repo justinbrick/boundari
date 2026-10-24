@@ -94,7 +94,8 @@ public static class LandCoverBuilder
 
     private static byte[] LoadWorldCover(MapSpec spec, MapGeo geo, int width, int height, string root)
     {
-        string path = Path.Combine(root, "tools", "data", "worldcover", $"{spec.Id}_{width}x{height}.bin");
+        string projection = geo.Projection == MapProjection.Mercator ? "_mercator" : "";
+        string path = Path.Combine(root, "tools", "data", "worldcover", $"{spec.Id}_{width}x{height}{projection}.bin");
         if (!File.Exists(path))
             RunFetchScript(geo, width, height, path, root);
         byte[] raw = File.ReadAllBytes(path);
@@ -123,6 +124,8 @@ public static class LandCoverBuilder
             "--out", outPath,
         })
             psi.ArgumentList.Add(arg);
+        if (geo.Projection == MapProjection.Mercator)
+            psi.ArgumentList.Add("--mercator");
 
         Console.WriteLine("  fetching land cover from ESA WorldCover...");
         using var process = Process.Start(psi)!;

@@ -116,7 +116,7 @@ public class MapGeoTests
     public void MapFile_KeepsRealWorldLocation()
     {
         var map = MapGenerator.Generate(4, new MapGenSettings { Width = 200, Height = 150, MinIslandTiles = 8, MinLakeTiles = 30 });
-        map.Geo = new MapGeo(-25, 45, 33, 72, 50);
+        map.Geo = new MapGeo(-25, 45, 33, 72, 0, MapProjection.Mercator);
 
         using var stream = new System.IO.MemoryStream();
         MapFile.Write(map, stream);
@@ -135,6 +135,25 @@ public class MapGeoTests
         Assert.Equal(72, geo.LatAt(0, height), 6);
         Assert.Equal(1000, geo.TileX(geo.LonAt(1000, width), width), 6);
         Assert.Equal(500, geo.TileY(geo.LatAt(500, height), height), 6);
+    }
+
+    [Fact]
+    public void Mercator_HasSquareTilesThatShrinkTowardsThePoles()
+    {
+        var geo = new MapGeo(-25, 66.875, 27.4, 72, 0, MapProjection.Mercator);
+        int width = 5250, height = geo.HeightFor(width);
+
+        Assert.InRange(height, 4400, 4410); // (5250 x 3965 before, on equirectangular)
+        Assert.Equal(27.4, geo.LatAt(height, height), 6);
+        Assert.Equal(1234.5, geo.TileY(geo.LatAt(1234.5, height), height), 6);
+        // Past the map's edges too (the world around it), as far as the world is drawn.
+        Assert.Equal(84, geo.LatAt(geo.TileY(84, height), height), 6);
+        Assert.Equal(-58, geo.LatAt(geo.TileY(-58, height), height), 6);
+        // Square: a tile's north-south size matches its east-west one at that latitude.
+        double y = geo.TileY(60, height);
+        double kmNorthSouth = (geo.LatAt(y - 0.5, height) - geo.LatAt(y + 0.5, height)) * 111.32;
+        Assert.Equal(geo.KmPerTile(y, width, height), kmNorthSouth, 3);
+        Assert.InRange(geo.KmPerTile(geo.TileY(50, height), width, height) / geo.KmPerTile(geo.TileY(72, height), width, height), 2.0, 2.2);
     }
 
     [Theory]

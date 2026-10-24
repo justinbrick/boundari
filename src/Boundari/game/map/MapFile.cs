@@ -14,7 +14,7 @@ namespace Boundari.Map;
 public static class MapFile
 {
     private const uint Magic = 0x50414D42; // "BMAP"
-    private const int Version = 5; // 2: real-world location, 3: land cover, 4: play area field (land, water), 5: (land only)
+    private const int Version = 6; // 2: real-world location, 3: land cover, 4: play area field (land, water), 5: (land only), 6: projection
 
     public static void Write(GameMap map, Stream output)
     {
@@ -34,6 +34,7 @@ public static class MapFile
             w.Write(geo.LatMin);
             w.Write(geo.LatMax);
             w.Write(geo.StandardParallel);
+            w.Write((byte)geo.Projection);
         }
         w.Write(map.Cover is not null);
         if (map.Cover is { } cover)
@@ -70,6 +71,8 @@ public static class MapFile
         if (version >= 2 && r.ReadBoolean())
         {
             map.Geo = new MapGeo(r.ReadDouble(), r.ReadDouble(), r.ReadDouble(), r.ReadDouble(), r.ReadDouble());
+            if (version >= 6)
+                map.Geo = map.Geo with { Projection = (MapProjection)r.ReadByte() };
             map.TileScale = GameMap.TileScaleFor(name, width, map.Geo);
         }
         if (version >= 3 && r.ReadBoolean())

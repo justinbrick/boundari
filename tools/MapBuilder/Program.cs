@@ -13,7 +13,7 @@ public sealed record MapSpec(
     string Name,
     double LonMin, double LonMax,
     double LatMin, double LatMax,
-    double StandardParallel, // latitude where tiles are exactly square (0 = plain lon/lat grid)
+    double StandardParallel, // latitude where tiles are exactly square (0 = plain lon/lat grid; unused by Mercator)
     int Width,
     string Detail,        // Natural Earth scale: "50m" (world) or "10m" (regional, more detailed)
     int ElevationZoom,    // terrain tile zoom level in tools/data/terrarium{zoom}
@@ -22,7 +22,11 @@ public sealed record MapSpec(
     int LandCoverScale,   // land-cover cells per tile side (0 = no land cover)
     int RiverMaxRank,     // include rivers up to this Natural Earth rank (0 = biggest; -1 = none)
     double RiverWidth,    // width in tiles of the biggest rivers; smaller ones are narrower
-    PlayArea? PlayArea = null); // where it can be played (null = all of it); the rest is greyed out
+    PlayArea? PlayArea = null, // where it can be played (null = all of it); the rest is greyed out
+    MapProjection Projection = MapProjection.Equirectangular)
+{
+    public MapGeo Geo => new(LonMin, LonMax, LatMin, LatMax, StandardParallel, Projection);
+}
 
 public static class Program
 {
@@ -31,13 +35,14 @@ public static class Program
         // Plain longitude/latitude grid, like OpenFront's world map. Antarctica is cut off below 58°S.
         new("world", "World", -180, 180, -58, 84, 0, 2400, "50m", 3, MinIslandTiles: 12, MinLakeTiles: 20, LandCoverScale: 0,
             RiverMaxRank: 3, RiverWidth: 2.0),
-        // Iceland to the Urals, the Arctic to the Sahara. ~1.7 km per tile: 57 1/7 tiles per degree
-        // of longitude, as when it was 4000 tiles over 70° (tile scale 1.33 over the original 3000:
-        // finer territory; OpenFront's tile numbers are scaled to match, see Sim.ScaledRules).
+        // Iceland to the Urals, the Arctic to the Sahara, on Mercator (true shapes; the world
+        // around it too). 57 1/7 tiles per degree of longitude, as when it was 4000 tiles over 70°
+        // (tile scale 1.33 over the original 3000: finer territory; OpenFront's tile numbers are
+        // scaled to match, see Sim.ScaledRules): ~1.7 km per tile at 50°N, finer further north.
         // Islands, lakes and rivers keep their real-world sizes: 45 / 68 tiles and 3.9 wide at 3000.
         // Only Europe's countries are played (EuropePlayArea); the rest is greyed out.
-        new("europe", "Europe", -25, 66.875, 27.4, 72, 50, 5250, "10m", 6, MinIslandTiles: 80, MinLakeTiles: 121, LandCoverScale: 2,
-            RiverMaxRank: 7, RiverWidth: 5.2, PlayArea: EuropePlayArea),
+        new("europe", "Europe", -25, 66.875, 27.4, 72, 0, 5250, "10m", 6, MinIslandTiles: 80, MinLakeTiles: 121, LandCoverScale: 2,
+            RiverMaxRank: 7, RiverWidth: 5.2, PlayArea: EuropePlayArea, Projection: MapProjection.Mercator),
     };
 
     /// <summary>
@@ -162,7 +167,7 @@ public static class Program
     /// <summary>Builds the map (<paramref name="height"/>: its height in tiles, if not the one that makes tiles square).</summary>
     public static GameMap Build(MapSpec spec, string dataDir, int? height = null)
     {
-        var geo = new MapGeo(spec.LonMin, spec.LonMax, spec.LatMin, spec.LatMax, spec.StandardParallel);
+        var geo = spec.Geo;
         int width = spec.Width;
         int tall = height ?? geo.HeightFor(width);
         var map = new GameMap(width, tall, seed: 0) { Name = spec.Name, Geo = geo };

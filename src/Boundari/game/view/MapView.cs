@@ -102,7 +102,10 @@ public partial class MapView : Sprite2D
 
         // Four half-floats per tile: coast field, elevation, hill shade, and how steep the
         // coast field is (precomputed here so the shader needn't sample the neighbours).
-        double metresPerTile = (map.Geo?.KmPerTile(h) ?? 2.5) * 1000;
+        // (per row: Mercator tiles are smaller on the ground towards the poles)
+        var metresPerTile = new double[h];
+        for (int y = 0; y < h; y++)
+            metresPerTile[y] = (map.Geo?.KmPerTile(y + 0.5, w, h) ?? 2.5) * 1000;
         var terrain = new byte[w * h * 8];
         var span = terrain.AsSpan();
         for (int i = 0; i < map.TileCount; i++)
@@ -112,7 +115,7 @@ public partial class MapView : Sprite2D
             int u = Math.Max(y - 1, 0) * w + x, d = Math.Min(y + 1, h - 1) * w + x;
             BinaryPrimitives.WriteHalfLittleEndian(span.Slice(i * 8, 2), (Half)map.CoastField[i]);
             BinaryPrimitives.WriteHalfLittleEndian(span.Slice(i * 8 + 2, 2), (Half)map.Elevation[i]);
-            BinaryPrimitives.WriteHalfLittleEndian(span.Slice(i * 8 + 4, 2), (Half)HillShade(map, l, r, u, d, metresPerTile));
+            BinaryPrimitives.WriteHalfLittleEndian(span.Slice(i * 8 + 4, 2), (Half)HillShade(map, l, r, u, d, metresPerTile[y]));
             float slope = 0.5f * MathF.Sqrt(Sq(map.CoastField[r] - map.CoastField[l]) + Sq(map.CoastField[d] - map.CoastField[u]));
             BinaryPrimitives.WriteHalfLittleEndian(span.Slice(i * 8 + 6, 2), (Half)slope);
         }

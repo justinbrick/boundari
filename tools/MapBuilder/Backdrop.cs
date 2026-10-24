@@ -29,12 +29,13 @@ public static class Backdrop
     public static void Build(MapSpec region, string dataDir, string outDir)
     {
         var timer = Stopwatch.StartNew();
-        var geo = new MapGeo(region.LonMin, region.LonMax, region.LatMin, region.LatMax, region.StandardParallel);
+        // (positions past the map's edges, in its projection: see MapGeo)
+        var geo = region.Geo;
         int width = region.Width, height = geo.HeightFor(width);
-        double kx = width / (region.LonMax - region.LonMin), ky = height / (region.LatMax - region.LatMin);
+        double kx = width / (region.LonMax - region.LonMin);
 
-        int cx0 = (int)Math.Floor((-180 - region.LonMin) * kx / Chunk), cx1 = (int)Math.Floor((180 - region.LonMin) * kx / Chunk);
-        int cy0 = (int)Math.Floor((region.LatMax - WorldLatMax) * ky / Chunk), cy1 = (int)Math.Floor((region.LatMax - WorldLatMin) * ky / Chunk);
+        int cx0 = (int)Math.Floor(geo.TileX(-180, width) / Chunk), cx1 = (int)Math.Floor(geo.TileX(180, width) / Chunk);
+        int cy0 = (int)Math.Floor(geo.TileY(WorldLatMax, height) / Chunk), cy1 = (int)Math.Floor(geo.TileY(WorldLatMin, height) / Chunk);
         string folder = Path.Combine(outDir, "world");
         Directory.CreateDirectory(folder);
         foreach (string old in Directory.GetFiles(folder, "*.wchunk"))
@@ -53,8 +54,8 @@ public static class Backdrop
                 int x0 = cx * Chunk, y0 = cy * Chunk;
                 if (x0 >= 0 && y0 >= 0 && x0 + Chunk <= width && y0 + Chunk <= height)
                     continue; // all under the map itself
-                double lonMin = region.LonMin + (x0 - Margin) / kx, lonMax = region.LonMin + (x0 + Chunk + Margin) / kx;
-                double latMax = region.LatMax - (y0 - Margin) / ky, latMin = region.LatMax - (y0 + Chunk + Margin) / ky;
+                double lonMin = geo.LonAt(x0 - Margin, width), lonMax = geo.LonAt(x0 + Chunk + Margin, width);
+                double latMax = geo.LatAt(y0 - Margin, height), latMin = geo.LatAt(y0 + Chunk + Margin, height);
                 if (land.Any(r => r.Touches(lonMin, lonMax, latMin, latMax)))
                     jobs.Add((cx, cy));
             }
@@ -68,10 +69,10 @@ public static class Backdrop
             var spec = region with
             {
                 Id = $"world_{job.X}_{job.Y}",
-                LonMin = region.LonMin + x0 / kx,
-                LonMax = region.LonMin + (x0 + size) / kx,
-                LatMax = region.LatMax - y0 / ky,
-                LatMin = region.LatMax - (y0 + size) / ky,
+                LonMin = geo.LonAt(x0, width),
+                LonMax = geo.LonAt(x0 + size, width),
+                LatMax = geo.LatAt(y0, height),
+                LatMin = geo.LatAt(y0 + size, height),
                 Width = size,
                 LandCoverScale = 0,
                 PlayArea = null,
