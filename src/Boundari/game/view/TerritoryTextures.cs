@@ -20,7 +20,8 @@ public sealed class TerritoryTextures
     // Owner ids are packed in 12 bits (two per tile plus the fade length fit in RGBA8).
     public const ushort Water = 4095;
     public const ushort Fallout = 4094; // unowned land poisoned by a bomb
-    public const int MaxPlayerIds = Fallout;
+    public const ushort Outside = 4093; // land outside the play area (like water, it never borders a territory)
+    public const int MaxPlayerIds = Outside;
 
     private const float LongAgo = -1e6f;
 
@@ -329,12 +330,14 @@ public sealed class TerritoryTextures
     }
 
     /// <summary>Ids past the 12-bit range (never expected) are drawn as unclaimed.</summary>
-    private static ushort Packable(ushort id) => id < MaxPlayerIds || id == Water || id == Fallout ? id : (ushort)0;
+    private static ushort Packable(ushort id) => id < MaxPlayerIds || id == Water || id == Fallout || id == Outside ? id : (ushort)0;
 
     private ushort Shown(int i, ushort[]? owners, bool[]? fallout)
     {
         if (_map.IsWater(i))
             return Water;
+        if (_map.IsOutside(i))
+            return Outside;
         ushort owner = owners?[i] ?? 0;
         return owner == 0 && fallout is not null && fallout[i] ? Fallout : owner;
     }
@@ -533,8 +536,8 @@ public sealed class TerritoryTextures
             for (int x = 0; x < rw; x++)
                 id[y * rw + x] = _shown[(y0 + y) * w + x0 + x];
 
-        static bool Measured(ushort owner) => owner != 0 && owner != Water && owner != Fallout;
-        // Start: tiles right next to a foreign tile (another owner's, unclaimed or fallout; not water) point at it.
+        static bool Measured(ushort owner) => owner != 0 && owner != Water && owner != Fallout && owner != Outside;
+        // Start: tiles right next to a foreign tile (another owner's, unclaimed or fallout; not water or outside) point at it.
         for (int y = 0; y < rh; y++)
             for (int x = 0; x < rw; x++)
             {
@@ -552,7 +555,7 @@ public sealed class TerritoryTextures
                             continue;
                         ushort other = id[ny * rw + nx];
                         int d2 = dx * dx + dy * dy;
-                        if (d2 < best && other != mine && other != Water)
+                        if (d2 < best && other != mine && other != Water && other != Outside)
                         {
                             best = d2;
                             vx[i] = (short)dx;

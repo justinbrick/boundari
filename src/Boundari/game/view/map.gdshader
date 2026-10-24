@@ -19,7 +19,7 @@ uniform float cover_scale = 4.0;
 uniform vec3 cover_colors[7];
 // Territory, split into owner_chunk-sized chunks (one texture-array layer each).
 // RGBA8: owner id and previous owner id in 12 bits each (R + low half of G, high half
-// of G + B; 0 = unclaimed, 4095 = water), then A = capture fade length in 1/16 ticks.
+// of G + B; 0 = unclaimed, 4095 = water, 4093 = outside the play area), then A = capture fade length in 1/16 ticks.
 uniform sampler2DArray owner_tex : filter_nearest, repeat_disable;
 // R32F: tick (with fraction) when each tile changed hands, for animating captures.
 uniform sampler2DArray capture_tex : filter_nearest, repeat_disable;
@@ -125,6 +125,7 @@ uniform float contour_interval = 0.0;
 
 const int WATER = 4095;
 const int FALLOUT = 4094; // land poisoned by a bomb (nobody owns it)
+const int OUTSIDE = 4093; // land outside the play area (drawn grey; territories end at its smooth edge)
 const int COVER_NONE = 0;
 const int COVER_FARMLAND = 1;
 const int COVER_MEADOW = 2;
@@ -466,7 +467,7 @@ float tile_border_distance(ivec2 c, int id, out bool is_water) {
 	int prev;
 	float fade_in;
 	owner_at(c, owner, prev, fade_in);
-	is_water = owner == WATER;
+	is_water = owner == WATER || owner == OUTSIDE;
 	float own = (owner == id ? fade_in : 0.0) + (prev == id ? 1.0 - fade_in : 0.0);
 	if (own <= 0.0) {
 		return -0.5;
@@ -499,7 +500,7 @@ float tile_border_distance(ivec2 c, int id, out bool is_water) {
 
 // Distance (tiles) from this point inwards to the edge of `id`'s territory, smoothed over the
 // 4x4 nearest tile centres (cubic B-spline, for round curves); water doesn't count (coasts
-// have their own border). Far inside (further than any border shown), the nearest tile's.
+// have their own border, and so does the play area's edge). Far inside (further than any border shown), the nearest tile's.
 float border_distance(vec2 tile, int id) {
 	bool is_water;
 	float near = tile_border_distance(ivec2(floor(tile)), id, is_water);
@@ -598,8 +599,8 @@ void territory_at(vec2 tile, out int best_id, out float edge) {
 			int prev;
 			float f;
 			owner_at(base + ivec2(i, j), id, prev, f);
-			if (id == WATER) {
-				continue; // water doesn't compete, so territory reaches the coastline
+			if (id == WATER || id == OUTSIDE) {
+				continue; // water and greyed-out land don't compete: territory reaches the coastline and the play area's edge
 			}
 			float w = wx[i] * wy[j];
 			total += w;
@@ -732,10 +733,11 @@ void fragment() {
 
 	// Land outside the play area: flat dark grey, its edge a clean line about a pixel wide.
 	float outside = backdrop ? 1.0 : 0.0;
+	float play_inside = 1e3; // tiles inside the play area's edge
 	if (has_play_area) {
-		float inside = (texture(play_tex, UV).r * 255.0 - 128.0) / 16.0;
-		float aa = max(fwidth(inside), 1e-4);
-		outside = 1.0 - smoothstep(-aa, aa, inside);
+		play_inside = (texture(play_tex, UV).r * 255.0 - 128.0) / 16.0;
+		float aa = max(fwidth(play_inside), 1e-4);
+		outside = 1.0 - smoothstep(-aa, aa, play_inside);
 	}
 	ground = mix(ground, outside_color.rgb, outside);
 	vec3 color = mix(water_color.rgb, ground, land);
@@ -768,8 +770,8 @@ void fragment() {
 				+ fallout_noise(tile * 0.45 - vec2(0.0, visual_time * 0.006)) * 0.35;
 			vec3 glow = vec3(0.32, 0.86, 0.12);
 			vec3 fallout = mix(scorched, glow, smoothstep(0.35, 0.95, n) * 0.7);
-			color = mix(color, mix(ground * 0.4, fallout, 0.85), land * (1.0 - cover_water));
-		} else if (id != WATER && id != 0) {
+			color = mix(color, mix(ground * 0.4, fallout, 0.85), land * (1.0 - cover_water) * (1.0 - outside));
+		} else if (id != WATER && id != OUTSIDE && id != 0) {
 			vec4 swatch = texelFetch(palette_tex, ivec2(id & 255, id >> 8), 0);
 			vec3 nation = swatch.rgb;
 			// A palette alpha below 1 asks for a more solid fill (tribes are drawn opaque).
@@ -813,6 +815,8 @@ void fragment() {
 			}
 			float cbw = max(coast_border_width, tiles_per_px * 1.2);
 			float coast_border = 1.0 - smoothstep(cbw - tiles_per_px, cbw + tiles_per_px, coast_dist);
+			// Along the play area's edge too, so the outline sits right against the grey.
+			coast_border = max(coast_border, 1.0 - smoothstep(cbw - tiles_per_px, cbw + tiles_per_px, play_inside));
 			border = border_width > 0.0 ? max(max(border, coast_border), hatch_edge) : 0.0;
 
 			vec3 fill = mix(ground, nation, opacity);
@@ -832,7 +836,7 @@ void fragment() {
 			if (id == target_id) {
 				owned = mix(owned, vec3(1.0), target_lighten * (0.75 + 0.25 * sin(visual_time * 0.6)));
 			}
-			color = mix(color, owned, land * (1.0 - cover_water));
+			color = mix(color, owned, land * (1.0 - cover_water) * (1.0 - outside));
 		}
 	}
 
