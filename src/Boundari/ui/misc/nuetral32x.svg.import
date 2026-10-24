@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b3oe8eldx5fc7"
-path="res://.godot/imported/small_factory.svg-04db311ed92ecc0456393616a5986769.ctex"
+uid="uid://b85ev2qk603ew"
+path="res://.godot/imported/nuetral32x.svg-3d1c069d71391fe87fbeed1cf1251df5.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://ui/small_icons/small_factory.svg"
-dest_files=["res://.godot/imported/small_factory.svg-04db311ed92ecc0456393616a5986769.ctex"]
+source_file="res://ui/misc/nuetral32x.svg"
+dest_files=["res://.godot/imported/nuetral32x.svg-3d1c069d71391fe87fbeed1cf1251df5.ctex"]
 
 [params]
 

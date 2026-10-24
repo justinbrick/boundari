@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cxfxtwobwb4ok"
-path="res://.godot/imported/small_city.svg-570edb617cac8dd21da4d79e3922b011.ctex"
+uid="uid://vhox3wmmlb2e"
+path="res://.godot/imported/angry32x.svg-34238497c281fa24e7a43bd1847c6664.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://ui/small_icons/small_city.svg"
-dest_files=["res://.godot/imported/small_city.svg-570edb617cac8dd21da4d79e3922b011.ctex"]
+source_file="res://ui/misc/angry32x.svg"
+dest_files=["res://.godot/imported/angry32x.svg-34238497c281fa24e7a43bd1847c6664.ctex"]
 
 [params]
 

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://glv2hvuy3mtf"
-path="res://.godot/imported/defense.svg-44b73640f598f537e04a928cbce6b682.ctex"
+uid="uid://dmiuvwywbo1i6"
+path="res://.godot/imported/alliance_fill32x.svg-c32c51b678a07954274830b840ae5321.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://ui/small_icons_new/defense.svg"
-dest_files=["res://.godot/imported/defense.svg-44b73640f598f537e04a928cbce6b682.ctex"]
+source_file="res://ui/misc/alliance_fill32x.svg"
+dest_files=["res://.godot/imported/alliance_fill32x.svg-c32c51b678a07954274830b840ae5321.ctex"]
 
 [params]
 

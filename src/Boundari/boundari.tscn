@@ -74,6 +74,12 @@
 [ext_resource type="Texture2D" uid="uid://dfhmxqij04f7a" path="res://ui/tip.jpg" id="73_812tb"]
 [ext_resource type="Texture2D" uid="uid://dtptu6l5ug7bj" path="res://ui/rando.jpg" id="74_xiaxg"]
 [ext_resource type="Texture2D" uid="uid://dp25fypw8h5ts" path="res://ui/misc/cash128x.svg" id="75_cjpii"]
+[ext_resource type="Texture2D" uid="uid://bnvt8reeqkei2" path="res://ui/misc/money_basic32x.svg" id="76_285xx"]
+[ext_resource type="Texture2D" uid="uid://m4md0dy0kye7" path="res://ui/tags128x/embargo128x.svg" id="77_o5262"]
+[ext_resource type="Texture2D" uid="uid://dmiuvwywbo1i6" path="res://ui/misc/alliance_fill32x.svg" id="78_aow1b"]
+[ext_resource type="Texture2D" uid="uid://vhox3wmmlb2e" path="res://ui/misc/angry32x.svg" id="78_fruhh"]
+[ext_resource type="Texture2D" uid="uid://b85ev2qk603ew" path="res://ui/misc/nuetral32x.svg" id="79_fruhh"]
+[ext_resource type="Texture2D" uid="uid://cvq1nqipe5qmn" path="res://ui/misc/distrustfulBETTA32x.svg" id="80_mwd57"]
 [ext_resource type="Script" uid="uid://divxtioscd01k" path="res://game/view/MapView.cs" id="bw_mapview"]
 [ext_resource type="Script" uid="uid://b17hmp882uwcy" path="res://game/World.cs" id="bw_world"]
 
@@ -108,7 +114,7 @@ shader_parameter/grain_scale = 150.0
 shader_parameter/noise_speed = 0.0
 shader_parameter/corner_radius_px = 12.00000057
 shader_parameter/corner_smooth_px = 0.0
-shader_parameter/rect_size = Vector2(746, 113)
+shader_parameter/rect_size = Vector2(746, 81)
 shader_parameter/panel_alpha = 1.0
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_cjpii"]
@@ -138,11 +144,19 @@ content_margin_top = 4.0
 content_margin_right = 4.0
 content_margin_bottom = 4.0
 bg_color = Color(0.101960786, 0.101960786, 0.101960786, 0.19607843)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(1, 1, 1, 0.047058824)
 corner_radius_top_left = 4
 corner_radius_top_right = 4
 corner_radius_bottom_right = 4
 corner_radius_bottom_left = 4
 corner_detail = 6
+expand_margin_top = 1.0
+expand_margin_bottom = 1.0
+shadow_color = Color(0, 0, 0, 0)
 
 [sub_resource type="FontVariation" id="FontVariation_8yhk8"]
 base_font = ExtResource("49_5khtq")
@@ -508,12 +522,16 @@ corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_n3xjr"]
-shader = SubResource("Shader_2q8dx")
+shader = ExtResource("4_enfkb")
 shader_parameter/blur_amount = 2.6000001235
-shader_parameter/darken_amount = 0.70000003325
+shader_parameter/darken_amount = 0.550000026125
 shader_parameter/noise_strength = 0.01600000076
 shader_parameter/grain_scale = 150.0
 shader_parameter/noise_speed = 0.0
+shader_parameter/corner_radius_px = 12.00000057
+shader_parameter/corner_smooth_px = 0.0
+shader_parameter/rect_size = Vector2(746, 60)
+shader_parameter/panel_alpha = 1.0
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_exfoo"]
 bg_color = Color(0, 0, 0, 0.16470589)
@@ -939,6 +957,40 @@ color = Color(1, 1, 1, 0.1764706)
 thickness = 2
 vertical = true
 
+[sub_resource type="DPITexture" id="DPITexture_d773e"]
+_source = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><circle cx=\"8\" cy=\"8\" r=\"7\" fill=\"#fefefe\" fill-opacity=\".75\"/></svg>
+"
+base_scale = 1.1
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_aow1b"]
+content_margin_left = 4.0
+content_margin_top = 4.0
+content_margin_right = 4.0
+content_margin_bottom = 4.0
+bg_color = Color(0, 0.5294118, 0.75686276, 1)
+border_color = Color(0.8, 0.8, 0.8, 0)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+corner_detail = 6
+expand_margin_top = 1.0
+expand_margin_bottom = 1.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_wahd8"]
+content_margin_left = 4.0
+content_margin_top = 4.0
+content_margin_right = 4.0
+content_margin_bottom = 4.0
+bg_color = Color(0.124927096, 0.7131584, 0.99999994, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+corner_detail = 6
+expand_margin_top = 1.0
+expand_margin_bottom = 1.0
+
 [node name="Node2D" type="Node2D" unique_id=1680915766]
 script = ExtResource("bw_world")
 
@@ -1058,6 +1110,7 @@ texture = ExtResource("8_d773e")
 metadata/_edit_lock_ = true
 
 [node name="Main_Control" type="Control" parent="Main_Layer" unique_id=1204450789]
+visible = false
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -6024,7 +6077,6 @@ texture = ExtResource("65_d773e")
 expand_mode = 2
 
 [node name="Main_ControlTEST" type="Control" parent="Main_Layer" unique_id=1365945728]
-visible = false
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -6034,12 +6086,15 @@ grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("4_pdu2b")
 popup_offset_y = 18.0
+metadata/_edit_lock_ = true
 
 [node name="HBox_Hud" type="Control" parent="Main_Layer/Main_ControlTEST" unique_id=46654828]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_top = -8.0
+offset_bottom = -8.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
@@ -6059,6 +6114,7 @@ offset_bottom = -60.0
 grow_horizontal = 2
 grow_vertical = 0
 theme_override_styles/panel = SubResource("StyleBoxFlat_d773e")
+metadata/_edit_lock_ = true
 
 [node name="Hud_Rec" type="ColorRect" parent="Main_Layer/Main_ControlTEST/HBox_Hud/In_Panel2" unique_id=2000106924]
 material = SubResource("ShaderMaterial_ldsro")
@@ -6119,12 +6175,14 @@ text = "35%"
 
 [node name="TroopAmount_Label" type="Label" parent="Main_Layer/Main_ControlTEST/HBox_Hud/In_Panel2/AttackRatio_Hbox" unique_id=2115398537]
 modulate = Color(1, 1, 1, 0.78431374)
+custom_minimum_size = Vector2(65, 0)
 layout_mode = 2
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.29411766)
 theme_override_fonts/font = SubResource("FontVariation_rw53w")
 text = "(1.65K)"
 
 [node name="VSeparator" type="VSeparator" parent="Main_Layer/Main_ControlTEST/HBox_Hud/In_Panel2/AttackRatio_Hbox" unique_id=1721596433]
+visible = false
 custom_minimum_size = Vector2(0, 12)
 layout_mode = 2
 size_flags_vertical = 4
@@ -6134,7 +6192,11 @@ theme_override_styles/separator = SubResource("StyleBoxLine_cjpii")
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 4
+theme_override_constants/grabber_offset = 0
+theme_override_icons/grabber = SubResource("DPITexture_d773e")
 theme_override_styles/slider = SubResource("StyleBoxFlat_p0wbd")
+theme_override_styles/grabber_area = SubResource("StyleBoxFlat_aow1b")
+theme_override_styles/grabber_area_highlight = SubResource("StyleBoxFlat_wahd8")
 min_value = 10.0
 value = 35.0
 scrollable = false
@@ -6212,6 +6274,7 @@ anchor_bottom = 1.0
 offset_left = -373.0
 offset_top = -113.0
 offset_right = 373.0
+offset_bottom = -11.0
 grow_horizontal = 2
 grow_vertical = 0
 theme_override_styles/panel = SubResource("StyleBoxFlat_d773e")
@@ -6222,17 +6285,21 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_bottom = -11.0
 grow_horizontal = 2
 grow_vertical = 2
+metadata/_edit_lock_ = true
 
 [node name="Struct_Titles_Panel2" type="Panel" parent="Main_Layer/Main_ControlTEST/HBox_Hud/In_Panel" unique_id=70391475]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_bottom = -11.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_cjpii")
+metadata/_edit_lock_ = true
 
 [node name="In_Panel" type="Panel" parent="Main_Layer/Main_ControlTEST/HBox_Hud/In_Panel" unique_id=1089147313]
 custom_minimum_size = Vector2(0, 53)
@@ -6240,9 +6307,11 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_bottom = -11.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_fruhh")
+metadata/_edit_lock_ = true
 
 [node name="ButtonsRow" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST" unique_id=878460126]
 layout_mode = 1
@@ -6250,6 +6319,8 @@ anchors_preset = -1
 anchor_top = 0.9064815
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_top = -8.0
+offset_bottom = -8.0
 alignment = 1
 metadata/_edit_use_anchors_ = true
 
@@ -6725,8 +6796,9 @@ anchor_top = 1.0
 anchor_right = 0.5
 anchor_bottom = 1.0
 offset_left = -373.0
-offset_top = -60.0
+offset_top = -68.0
 offset_right = 373.0
+offset_bottom = -19.0
 grow_horizontal = 2
 grow_vertical = 0
 
@@ -6735,909 +6807,11 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_styles/panel = ExtResource("19_2q8dx")
 
-[node name="Leader_Rect" type="ColorRect" parent="Main_Layer/Main_ControlTEST" unique_id=1890135614]
-visible = false
-material = SubResource("ShaderMaterial_1u143")
-layout_mode = 1
-anchors_preset = -1
-anchor_top = 0.7768518
-anchor_right = 0.209375
-anchor_bottom = 0.9444444
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="Hud_Shadow3" type="Panel" parent="Main_Layer/Main_ControlTEST/Leader_Rect" unique_id=1313848623]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_styles/panel = ExtResource("19_2q8dx")
-
-[node name="VBoxContainer" type="VBoxContainer" parent="Main_Layer/Main_ControlTEST/Leader_Rect" unique_id=138660996]
-layout_mode = 1
-anchors_preset = -1
-anchor_right = 1.0
-anchor_bottom = 0.8563536
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer" unique_id=166783741]
-layout_mode = 2
-
-[node name="HBoxContainer" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer" unique_id=502437321]
-layout_mode = 2
-
-[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/HBoxContainer" unique_id=661811060]
-custom_minimum_size = Vector2(13, 0)
-layout_mode = 2
-
-[node name="Label5" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/HBoxContainer" unique_id=1420357614]
-custom_minimum_size = Vector2(25, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = SubResource("FontVariation_1u143")
-text = "#"
-vertical_alignment = 1
-
-[node name="Slash" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/HBoxContainer" unique_id=1826402809]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.8277695, 0.8277695, 0.82776934, 1)
-theme_override_fonts/font = ExtResource("21_2q8dx")
-text = "|"
-vertical_alignment = 1
-
-[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/HBoxContainer" unique_id=501747320]
-custom_minimum_size = Vector2(150, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = SubResource("FontVariation_1u143")
-text = "Name"
-vertical_alignment = 1
-
-[node name="Slash2" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/HBoxContainer" unique_id=2070235170]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.8277695, 0.8277695, 0.82776934, 1)
-theme_override_fonts/font = ExtResource("21_2q8dx")
-text = "|"
-vertical_alignment = 1
-
-[node name="Label2" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/HBoxContainer" unique_id=1706313531]
-custom_minimum_size = Vector2(64, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = SubResource("FontVariation_1u143")
-text = "Owned"
-vertical_alignment = 1
-
-[node name="Slash3" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/HBoxContainer" unique_id=1041448810]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.8277695, 0.8277695, 0.82776934, 1)
-theme_override_fonts/font = ExtResource("21_2q8dx")
-text = "|"
-vertical_alignment = 1
-
-[node name="Label3" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/HBoxContainer" unique_id=1555291038]
-custom_minimum_size = Vector2(46, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = SubResource("FontVariation_1u143")
-text = "Troops"
-vertical_alignment = 1
-
-[node name="Slash4" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/HBoxContainer" unique_id=1891127645]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.8277695, 0.8277695, 0.82776934, 1)
-theme_override_fonts/font = ExtResource("21_2q8dx")
-text = "|"
-vertical_alignment = 1
-
-[node name="Label4" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/HBoxContainer" unique_id=1642836724]
-custom_minimum_size = Vector2(46, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = SubResource("FontVariation_1u143")
-text = "Cash"
-vertical_alignment = 1
-autowrap_mode = 2
-
-[node name="ScrollContainer" type="ScrollContainer" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer" unique_id=780933976]
-layout_mode = 2
-size_flags_vertical = 3
-layout_direction = 3
-theme = SubResource("Theme_fruhh")
-theme_override_styles/panel = SubResource("StyleBoxFlat_2q8dx")
-theme_override_styles/focus = SubResource("StyleBoxFlat_285xx")
-horizontal_scroll_mode = 0
-
-[node name="VBoxContainer" type="VBoxContainer" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer" unique_id=628887960]
-layout_mode = 2
-
-[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer" unique_id=1258791297]
-layout_mode = 2
-
-[node name="1st" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer" unique_id=423877441]
-layout_mode = 2
-
-[node name="Cash" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/1st" unique_id=521114212]
-custom_minimum_size = Vector2(46, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
-text = "3.7M"
-horizontal_alignment = 2
-vertical_alignment = 1
-autowrap_mode = 2
-
-[node name="Slash4" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/1st" unique_id=1817085055]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.8277695, 0.8277695, 0.82776934, 1)
-theme_override_fonts/font = ExtResource("21_2q8dx")
-text = "|"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Pop" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/1st" unique_id=695453697]
-custom_minimum_size = Vector2(46, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
-text = "429K"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Slash3" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/1st" unique_id=232265931]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.8277695, 0.8277695, 0.82776934, 1)
-theme_override_fonts/font = ExtResource("21_2q8dx")
-text = "|"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Percent" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/1st" unique_id=2022987932]
-custom_minimum_size = Vector2(64, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
-text = "31.0%"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Slash2" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/1st" unique_id=859370003]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.8277695, 0.8277695, 0.82776934, 1)
-theme_override_fonts/font = ExtResource("21_2q8dx")
-text = "|"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Name" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/1st" unique_id=853389874]
-custom_minimum_size = Vector2(150, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
-text = "S.A.P | Bananas"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Slash" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/1st" unique_id=334394015]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.8277695, 0.8277695, 0.82776934, 1)
-theme_override_fonts/font = ExtResource("21_2q8dx")
-text = "|"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Pos" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/1st" unique_id=665544592]
-custom_minimum_size = Vector2(25, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
-text = "1"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/1st" unique_id=934065991]
-custom_minimum_size = Vector2(5, 0)
-layout_mode = 2
-
-[node name="2nd" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer" unique_id=1820646269]
-layout_mode = 2
-
-[node name="Label4" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/2nd" unique_id=787069569]
-custom_minimum_size = Vector2(46, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
-text = "2.2M"
-horizontal_alignment = 2
-vertical_alignment = 1
-autowrap_mode = 2
-
-[node name="Slash4" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/2nd" unique_id=2012334702]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.8277695, 0.8277695, 0.82776934, 1)
-theme_override_fonts/font = ExtResource("21_2q8dx")
-text = "|"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Label3" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/2nd" unique_id=1477420470]
-custom_minimum_size = Vector2(46, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
-text = "213K"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Slash3" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/2nd" unique_id=802576259]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.8277695, 0.8277695, 0.82776934, 1)
-theme_override_fonts/font = ExtResource("21_2q8dx")
-text = "|"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Label2" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/2nd" unique_id=3999844]
-custom_minimum_size = Vector2(64, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
-text = "22.6%"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Slash2" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/2nd" unique_id=1032901839]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.8277695, 0.8277695, 0.82776934, 1)
-theme_override_fonts/font = ExtResource("21_2q8dx")
-text = "|"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/2nd" unique_id=2005635119]
-custom_minimum_size = Vector2(150, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
-text = "justin"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Slash" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/2nd" unique_id=680208593]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.8277695, 0.8277695, 0.82776934, 1)
-theme_override_fonts/font = ExtResource("21_2q8dx")
-text = "|"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Label5" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/2nd" unique_id=1105671127]
-custom_minimum_size = Vector2(25, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
-text = "2"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/2nd" unique_id=1780240153]
-custom_minimum_size = Vector2(5, 0)
-layout_mode = 2
-
-[node name="3rd" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer" unique_id=1532615190]
-layout_mode = 2
-
-[node name="Label4" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/3rd" unique_id=1728493974]
-custom_minimum_size = Vector2(46, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
-text = "1.5M"
-horizontal_alignment = 2
-vertical_alignment = 1
-autowrap_mode = 2
-
-[node name="Slash4" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/3rd" unique_id=702171640]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.8277695, 0.8277695, 0.82776934, 1)
-theme_override_fonts/font = ExtResource("21_2q8dx")
-text = "|"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Label3" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/3rd" unique_id=2077315742]
-custom_minimum_size = Vector2(46, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892, 18.892, 18.892, 0.776)
-theme_override_fonts/font = ExtResource("25_285xx")
-text = "142K"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Slash3" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/3rd" unique_id=224245845]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.8277695, 0.8277695, 0.82776934, 1)
-theme_override_fonts/font = ExtResource("21_2q8dx")
-text = "|"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Label2" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/3rd" unique_id=1159488422]
-custom_minimum_size = Vector2(64, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
-text = "13.3%"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Slash2" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/3rd" unique_id=1445033358]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.8277695, 0.8277695, 0.82776934, 1)
-theme_override_fonts/font = ExtResource("21_2q8dx")
-text = "|"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/3rd" unique_id=1019426025]
-custom_minimum_size = Vector2(150, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
-text = "brunette"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Slash" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/3rd" unique_id=1865386441]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.8277695, 0.8277695, 0.82776934, 1)
-theme_override_fonts/font = ExtResource("21_2q8dx")
-text = "|"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Label5" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/3rd" unique_id=291681939]
-custom_minimum_size = Vector2(25, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
-text = "3"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/3rd" unique_id=1745567252]
-custom_minimum_size = Vector2(5, 0)
-layout_mode = 2
-
-[node name="4th" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer" unique_id=1764841502]
-layout_mode = 2
-
-[node name="Label4" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/4th" unique_id=901985617]
-custom_minimum_size = Vector2(46, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
-text = "775K"
-horizontal_alignment = 2
-vertical_alignment = 1
-autowrap_mode = 2
-
-[node name="Slash4" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/4th" unique_id=1668484882]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.8277695, 0.8277695, 0.82776934, 1)
-theme_override_fonts/font = ExtResource("21_2q8dx")
-text = "|"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Label3" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/4th" unique_id=1247450757]
-custom_minimum_size = Vector2(46, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
-text = "87K"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Slash3" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/4th" unique_id=949145218]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.8277695, 0.8277695, 0.82776934, 1)
-theme_override_fonts/font = ExtResource("21_2q8dx")
-text = "|"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Label2" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/4th" unique_id=1881677987]
-custom_minimum_size = Vector2(64, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
-text = "8.5%"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Slash2" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/4th" unique_id=452208741]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.8277695, 0.8277695, 0.82776934, 1)
-theme_override_fonts/font = ExtResource("21_2q8dx")
-text = "|"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/4th" unique_id=1755563014]
-custom_minimum_size = Vector2(150, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
-text = "Big \"Momala\" Chungus"
-horizontal_alignment = 2
-vertical_alignment = 1
-clip_text = true
-text_overrun_behavior = 3
-
-[node name="Slash" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/4th" unique_id=2008679007]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.8277695, 0.8277695, 0.82776934, 1)
-theme_override_fonts/font = ExtResource("21_2q8dx")
-text = "|"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Label5" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/4th" unique_id=2113525011]
-custom_minimum_size = Vector2(25, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
-text = "4"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/4th" unique_id=1372740398]
-custom_minimum_size = Vector2(5, 0)
-layout_mode = 2
-
-[node name="5th" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer" unique_id=62665091]
-layout_mode = 2
-
-[node name="Label4" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/5th" unique_id=614772335]
-custom_minimum_size = Vector2(46, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
-text = "301K"
-horizontal_alignment = 2
-vertical_alignment = 1
-autowrap_mode = 2
-
-[node name="Slash4" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/5th" unique_id=543355960]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.8277695, 0.8277695, 0.82776934, 1)
-theme_override_fonts/font = ExtResource("21_2q8dx")
-text = "|"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Label3" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/5th" unique_id=1648150248]
-custom_minimum_size = Vector2(46, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
-text = "34K"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Slash3" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/5th" unique_id=1856939591]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.8277695, 0.8277695, 0.82776934, 1)
-theme_override_fonts/font = ExtResource("21_2q8dx")
-text = "|"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Label2" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/5th" unique_id=195408452]
-custom_minimum_size = Vector2(64, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
-text = "5.7%"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Slash2" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/5th" unique_id=1767709014]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.8277695, 0.8277695, 0.82776934, 1)
-theme_override_fonts/font = ExtResource("21_2q8dx")
-text = "|"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/5th" unique_id=733883223]
-custom_minimum_size = Vector2(150, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
-text = "GyroAim"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Slash" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/5th" unique_id=962071125]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.8277695, 0.8277695, 0.82776934, 1)
-theme_override_fonts/font = ExtResource("21_2q8dx")
-text = "|"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Label5" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/5th" unique_id=892487590]
-custom_minimum_size = Vector2(25, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
-text = "5"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/5th" unique_id=1396625320]
-custom_minimum_size = Vector2(5, 0)
-layout_mode = 2
-
-[node name="6th" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer" unique_id=755873170]
-layout_mode = 2
-
-[node name="Label4" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/6th" unique_id=207454760]
-custom_minimum_size = Vector2(46, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
-text = "40K"
-horizontal_alignment = 2
-vertical_alignment = 1
-autowrap_mode = 2
-
-[node name="Slash4" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/6th" unique_id=222835272]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.8277695, 0.8277695, 0.82776934, 1)
-theme_override_fonts/font = ExtResource("21_2q8dx")
-text = "|"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Label3" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/6th" unique_id=1011977568]
-custom_minimum_size = Vector2(46, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
-text = "19K"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Slash3" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/6th" unique_id=1898442466]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.8277695, 0.8277695, 0.82776934, 1)
-theme_override_fonts/font = ExtResource("21_2q8dx")
-text = "|"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Label2" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/6th" unique_id=13750384]
-custom_minimum_size = Vector2(64, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
-text = "3.0%"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Slash2" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/6th" unique_id=1767138992]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.8277695, 0.8277695, 0.82776934, 1)
-theme_override_fonts/font = ExtResource("21_2q8dx")
-text = "|"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/6th" unique_id=473541388]
-custom_minimum_size = Vector2(150, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
-text = "goo goo ga ga"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Slash" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/6th" unique_id=1066889666]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.8277695, 0.8277695, 0.82776934, 1)
-theme_override_fonts/font = ExtResource("21_2q8dx")
-text = "|"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Label5" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/6th" unique_id=160237824]
-custom_minimum_size = Vector2(25, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
-text = "6"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/6th" unique_id=140272862]
-custom_minimum_size = Vector2(5, 0)
-layout_mode = 2
-
-[node name="7th" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer" unique_id=1995264240]
-layout_mode = 2
-
-[node name="Label4" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/7th" unique_id=684565024]
-custom_minimum_size = Vector2(46, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
-text = "12K"
-horizontal_alignment = 2
-vertical_alignment = 1
-autowrap_mode = 2
-
-[node name="Slash4" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/7th" unique_id=366029332]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.8277695, 0.8277695, 0.82776934, 1)
-theme_override_fonts/font = ExtResource("21_2q8dx")
-text = "|"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Label3" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/7th" unique_id=269421159]
-custom_minimum_size = Vector2(46, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
-text = "7K"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Slash3" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/7th" unique_id=1772224738]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.8277695, 0.8277695, 0.82776934, 1)
-theme_override_fonts/font = ExtResource("21_2q8dx")
-text = "|"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Label2" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/7th" unique_id=732482390]
-custom_minimum_size = Vector2(64, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
-text = "2.1%"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Slash2" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/7th" unique_id=678449351]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.8277695, 0.8277695, 0.82776934, 1)
-theme_override_fonts/font = ExtResource("21_2q8dx")
-text = "|"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/7th" unique_id=1779043649]
-custom_minimum_size = Vector2(150, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
-text = "Dr_Tip"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Slash" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/7th" unique_id=561263249]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.8277695, 0.8277695, 0.82776934, 1)
-theme_override_fonts/font = ExtResource("21_2q8dx")
-text = "|"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Label5" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/7th" unique_id=1998564542]
-custom_minimum_size = Vector2(25, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
-text = "7"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/7th" unique_id=308716035]
-custom_minimum_size = Vector2(5, 0)
-layout_mode = 2
-
-[node name="8th" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer" unique_id=957744005]
-layout_mode = 2
-
-[node name="Label4" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/8th" unique_id=249938840]
-custom_minimum_size = Vector2(46, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
-text = "5K"
-horizontal_alignment = 2
-vertical_alignment = 1
-autowrap_mode = 2
-
-[node name="Slash4" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/8th" unique_id=1151527790]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.8277695, 0.8277695, 0.82776934, 1)
-theme_override_fonts/font = ExtResource("21_2q8dx")
-text = "|"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Label3" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/8th" unique_id=772109713]
-custom_minimum_size = Vector2(46, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
-text = "3K"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Slash3" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/8th" unique_id=801085135]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.8277695, 0.8277695, 0.82776934, 1)
-theme_override_fonts/font = ExtResource("21_2q8dx")
-text = "|"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Label2" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/8th" unique_id=263522800]
-custom_minimum_size = Vector2(64, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
-text = "1.7%"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Slash2" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/8th" unique_id=444273816]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.8277695, 0.8277695, 0.82776934, 1)
-theme_override_fonts/font = ExtResource("21_2q8dx")
-text = "|"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/8th" unique_id=1884000025]
-custom_minimum_size = Vector2(150, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
-text = "carl"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Slash" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/8th" unique_id=9228093]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.8277695, 0.8277695, 0.82776934, 1)
-theme_override_fonts/font = ExtResource("21_2q8dx")
-text = "|"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="Label5" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/8th" unique_id=1873013726]
-custom_minimum_size = Vector2(25, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
-text = "8"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Leader_Rect/VBoxContainer/ScrollContainer/VBoxContainer/8th" unique_id=937756917]
-custom_minimum_size = Vector2(5, 0)
-layout_mode = 2
-
-[node name="Personal_Panel" type="Panel" parent="Main_Layer/Main_ControlTEST/Leader_Rect" unique_id=264383567]
-layout_mode = 0
-offset_top = 153.0
-offset_right = 402.0
-offset_bottom = 181.0
-theme_override_styles/panel = SubResource("StyleBoxFlat_1u143")
-
-[node name="3rd" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Leader_Rect/Personal_Panel" unique_id=985661910]
-layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -199.0
-offset_top = -10.0
-offset_right = 193.0
-offset_bottom = 10.0
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Leader_Rect/Personal_Panel/3rd" unique_id=1925883680]
-custom_minimum_size = Vector2(16, 0)
-layout_mode = 2
-
-[node name="Label5" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/Personal_Panel/3rd" unique_id=1861385217]
-custom_minimum_size = Vector2(25, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
-text = "3"
-vertical_alignment = 1
-
-[node name="Slash" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/Personal_Panel/3rd" unique_id=1129132706]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.8277695, 0.8277695, 0.82776934, 1)
-theme_override_fonts/font = ExtResource("21_2q8dx")
-text = "|"
-vertical_alignment = 1
-
-[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/Personal_Panel/3rd" unique_id=1850077448]
-custom_minimum_size = Vector2(150, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
-text = "brunette"
-vertical_alignment = 1
-
-[node name="Slash2" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/Personal_Panel/3rd" unique_id=665877846]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.8277695, 0.8277695, 0.82776934, 1)
-theme_override_fonts/font = ExtResource("21_2q8dx")
-text = "|"
-vertical_alignment = 1
-
-[node name="Label2" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/Personal_Panel/3rd" unique_id=917150803]
-custom_minimum_size = Vector2(64, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
-text = "13.3%"
-vertical_alignment = 1
-
-[node name="Slash3" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/Personal_Panel/3rd" unique_id=567027018]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.8277695, 0.8277695, 0.82776934, 1)
-theme_override_fonts/font = ExtResource("21_2q8dx")
-text = "|"
-vertical_alignment = 1
-
-[node name="Label3" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/Personal_Panel/3rd" unique_id=1239183009]
-custom_minimum_size = Vector2(46, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892, 18.892, 18.892, 0.776)
-theme_override_fonts/font = ExtResource("25_285xx")
-text = "142K"
-vertical_alignment = 1
-
-[node name="Slash4" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/Personal_Panel/3rd" unique_id=1329555023]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.8277695, 0.8277695, 0.82776934, 1)
-theme_override_fonts/font = ExtResource("21_2q8dx")
-text = "|"
-vertical_alignment = 1
-
-[node name="Label4" type="Label" parent="Main_Layer/Main_ControlTEST/Leader_Rect/Personal_Panel/3rd" unique_id=1766312799]
-custom_minimum_size = Vector2(46, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(18.892157, 18.892157, 18.892157, 0.7764706)
-theme_override_fonts/font = ExtResource("25_285xx")
-text = "1.5M"
-vertical_alignment = 1
-autowrap_mode = 2
-
 [node name="Display_Rec" type="ColorRect" parent="Main_Layer/Main_ControlTEST" unique_id=759787702]
 material = SubResource("ShaderMaterial_62siw")
 layout_mode = 0
-offset_left = 1550.0
-offset_top = 932.0
+offset_left = 1570.0
+offset_top = 955.0
 offset_right = 1912.0
 offset_bottom = 1072.0
 mouse_filter = 2
@@ -7658,17 +6832,11 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-
-[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer" unique_id=1250911743]
-layout_mode = 2
-theme_override_constants/margin_left = 5
+alignment = 1
 
 [node name="VBoxContainer2" type="VBoxContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer" unique_id=513823331]
 layout_mode = 2
-
-[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2" unique_id=119028644]
-layout_mode = 2
-theme_override_constants/margin_top = 5
+alignment = 1
 
 [node name="VBoxContainer" type="VBoxContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2" unique_id=476147126]
 custom_minimum_size = Vector2(144, 0)
@@ -7686,11 +6854,11 @@ texture = ExtResource("48_exfoo")
 expand_mode = 1
 stretch_mode = 5
 
-[node name="Name" type="Label" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/VBoxContainer/HBoxContainer" unique_id=1466043273]
+[node name="Hover_Name" type="Label" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/VBoxContainer/HBoxContainer" unique_id=1466043273]
 layout_mode = 2
 theme_override_fonts/font = SubResource("FontVariation_ogqqv")
 theme_override_font_sizes/font_size = 20
-text = "brunette"
+text = "brunettetjuy..."
 vertical_alignment = 1
 
 [node name="Placement" type="Label" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/VBoxContainer/HBoxContainer" unique_id=2093682964]
@@ -7702,7 +6870,77 @@ theme_override_font_sizes/font_size = 14
 text = "3rd"
 vertical_alignment = 1
 
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/VBoxContainer/HBoxContainer" unique_id=1068544715]
+layout_mode = 2
+
+[node name="TradeOn" type="TextureRect" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/VBoxContainer/HBoxContainer" unique_id=2125825743]
+modulate = Color(0.4864999, 1, 0.20999998, 0.76862746)
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+texture = ExtResource("76_285xx")
+expand_mode = 1
+
+[node name="TradeOff" type="TextureRect" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/VBoxContainer/HBoxContainer" unique_id=373392001]
+visible = false
+modulate = Color(1, 0.18251956, 0.13418633, 1)
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+texture = ExtResource("77_o5262")
+expand_mode = 1
+
+[node name="Allied" type="TextureRect" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/VBoxContainer/HBoxContainer" unique_id=1078178375]
+modulate = Color(0.4864999, 1, 0.20999998, 0.76862746)
+custom_minimum_size = Vector2(24, 24)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+texture = ExtResource("78_aow1b")
+expand_mode = 1
+
+[node name="Alliance_Time" type="Label" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/VBoxContainer/HBoxContainer" unique_id=790405993]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4918905, 0.9999998, 0.42177945, 1)
+theme_override_fonts/font = SubResource("FontVariation_2q8dx")
+theme_override_font_sizes/font_size = 12
+text = "1m 30s"
+vertical_alignment = 1
+
+[node name="Hostile" type="TextureRect" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/VBoxContainer/HBoxContainer" unique_id=1318788504]
+visible = false
+modulate = Color(1, 0.18431373, 0.13333334, 1)
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+texture = ExtResource("78_fruhh")
+expand_mode = 1
+
+[node name="Nuetral" type="TextureRect" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/VBoxContainer/HBoxContainer" unique_id=564631093]
+visible = false
+modulate = Color(0.6, 0.6, 0.6, 1)
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+texture = ExtResource("79_fruhh")
+expand_mode = 1
+
+[node name="Distrustful" type="TextureRect" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/VBoxContainer/HBoxContainer" unique_id=1427835453]
+visible = false
+modulate = Color(0.99, 0.6435, 0, 1)
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+texture = ExtResource("80_mwd57")
+expand_mode = 1
+
 [node name="HBoxContainer3" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/VBoxContainer" unique_id=1493670464]
+visible = false
 layout_mode = 2
 theme_override_constants/separation = 12
 
@@ -7843,7 +7081,7 @@ layout_mode = 2
 alignment = 1
 
 [node name="Display_Meter" type="Panel" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/VBoxContainer" unique_id=1956647390]
-custom_minimum_size = Vector2(140, 30)
+custom_minimum_size = Vector2(120, 30)
 layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 4
@@ -7873,7 +7111,7 @@ text = "$3.87M"
 vertical_alignment = 1
 
 [node name="Display_Gold" type="Panel" parent="Main_Layer/Main_ControlTEST/Display_Rec/Panel/HBoxContainer/VBoxContainer2/HBoxContainer/VBoxContainer" unique_id=430124199]
-custom_minimum_size = Vector2(140, 30)
+custom_minimum_size = Vector2(120, 30)
 layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 4
@@ -8117,7 +7355,6 @@ offset_bottom = -5.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 0
-metadata/_edit_lock_ = true
 
 [node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Leader_HBox" unique_id=1734254321]
 custom_minimum_size = Vector2(10, 0)
@@ -8212,7 +7449,16 @@ texture_normal = ExtResource("74_xiaxg")
 ignore_texture_size = true
 stretch_mode = 0
 
+[node name="ColorRect" type="ColorRect" parent="Main_Layer/Main_ControlTEST" unique_id=1780230823]
+layout_mode = 0
+offset_left = 587.0
+offset_top = 1012.0
+offset_right = 1333.0
+offset_bottom = 1060.0
+color = Color(0, 0, 0, 0.5254902)
+
 [node name="Large_Rect" type="ColorRect" parent="Main_Layer/Main_ControlTEST" unique_id=185155977]
+visible = false
 material = SubResource("ShaderMaterial_n3xjr")
 layout_mode = 1
 anchors_preset = -1
@@ -8231,7 +7477,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/separation = 0
+theme_override_constants/separation = 12
 alignment = 1
 metadata/_edit_lock_ = true
 
@@ -8243,14 +7489,8 @@ theme_override_constants/separation = 0
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="VBoxContainer" type="VBoxContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Left_HBox/HBox_Player" unique_id=965505437]
-layout_mode = 2
-theme_override_constants/separation = 0
-alignment = 1
-
 [node name="TroopMeter" type="Panel" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Left_HBox/HBox_Player" unique_id=257551140]
-visible = false
-custom_minimum_size = Vector2(230, 40)
+custom_minimum_size = Vector2(172, 40)
 layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 4
@@ -8307,70 +7547,6 @@ vertical_alignment = 1
 custom_minimum_size = Vector2(8, 0)
 layout_mode = 2
 
-[node name="TroopMeterFAKE" type="Panel" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Left_HBox/HBox_Player" unique_id=1234097138]
-custom_minimum_size = Vector2(230, 40)
-layout_mode = 2
-size_flags_horizontal = 4
-size_flags_vertical = 4
-theme_override_styles/panel = SubResource("StyleBoxFlat_7iv60")
-
-[node name="HBoxContainer" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Left_HBox/HBox_Player/TroopMeterFAKE" unique_id=1115708924]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-alignment = 1
-
-[node name="MarginContainer2" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Left_HBox/HBox_Player/TroopMeterFAKE/HBoxContainer" unique_id=1673635067]
-custom_minimum_size = Vector2(8, 0)
-layout_mode = 2
-
-[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Left_HBox/HBox_Player/TroopMeterFAKE/HBoxContainer" unique_id=123701518]
-modulate = Color(1, 1, 1, 0.74509805)
-custom_minimum_size = Vector2(16, 16)
-layout_mode = 2
-size_flags_horizontal = 4
-size_flags_vertical = 4
-texture = ExtResource("67_8yhk8")
-expand_mode = 1
-
-[node name="Current_Troops" type="Label" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Left_HBox/HBox_Player/TroopMeterFAKE/HBoxContainer" unique_id=1618418965]
-modulate = Color(1, 1, 1, 0.74509805)
-layout_mode = 2
-theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.09803922)
-theme_override_constants/shadow_offset_x = 2
-theme_override_constants/shadow_offset_y = 2
-theme_override_fonts/font = SubResource("FontVariation_y52gj")
-theme_override_font_sizes/font_size = 18
-text = "140K"
-vertical_alignment = 1
-
-[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Left_HBox/HBox_Player/TroopMeterFAKE/HBoxContainer" unique_id=1189468434]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="Max_Troops" type="Label" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Left_HBox/HBox_Player/TroopMeterFAKE/HBoxContainer" unique_id=206432006]
-modulate = Color(1, 1, 1, 0.74509805)
-layout_mode = 2
-theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.09803922)
-theme_override_constants/shadow_offset_x = 2
-theme_override_constants/shadow_offset_y = 2
-theme_override_fonts/font = SubResource("FontVariation_y52gj")
-theme_override_font_sizes/font_size = 18
-text = "241K"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="MarginContainer3" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Left_HBox/HBox_Player/TroopMeterFAKE/HBoxContainer" unique_id=449910983]
-custom_minimum_size = Vector2(8, 0)
-layout_mode = 2
-
-[node name="MarginContainer3" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox" unique_id=45472092]
-custom_minimum_size = Vector2(16, 0)
-layout_mode = 2
-
 [node name="HBoxContainer" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox" unique_id=1197483254]
 layout_mode = 2
 alignment = 2
@@ -8418,7 +7594,7 @@ horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="Label_Notif_Example" type="Label" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/HBoxContainer/VBoxContainer/Button_Notif" unique_id=192259351]
-modulate = Color(18.892157, 18.892157, 18.892157, 0.7058824)
+modulate = Color(18.892157, 18.892157, 18.892157, 0.78431374)
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -8473,11 +7649,8 @@ vertical_alignment = 1
 custom_minimum_size = Vector2(0, 3)
 layout_mode = 2
 
-[node name="MarginContainer2" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox" unique_id=1029808377]
-custom_minimum_size = Vector2(16, 0)
-layout_mode = 2
-
 [node name="Right_HBox" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox" unique_id=356655119]
+visible = false
 layout_mode = 2
 theme_override_constants/separation = 0
 
@@ -8495,13 +7668,10 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-
-[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Right_HBox/Panel_Cash/HBoxContainer" unique_id=1400230838]
-custom_minimum_size = Vector2(4, 0)
-layout_mode = 2
+alignment = 1
 
 [node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Right_HBox/Panel_Cash/HBoxContainer" unique_id=713042433]
-modulate = Color(1, 1, 1, 0.78431374)
+modulate = Color(0.99215686, 0.78039217, 0, 1)
 custom_minimum_size = Vector2(20, 20)
 layout_mode = 2
 size_flags_horizontal = 4
@@ -8510,11 +7680,10 @@ texture = ExtResource("75_cjpii")
 expand_mode = 1
 
 [node name="MarginContainer2" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Right_HBox/Panel_Cash/HBoxContainer" unique_id=1507394402]
-custom_minimum_size = Vector2(2, 0)
 layout_mode = 2
 
 [node name="Label_Cash" type="Label" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Right_HBox/Panel_Cash/HBoxContainer" unique_id=1136067634]
-modulate = Color(1, 1, 1, 0.8627451)
+modulate = Color(0.99215686, 0.78039217, 0, 1)
 layout_mode = 2
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.09803922)
 theme_override_constants/shadow_offset_x = 2
@@ -8525,169 +7694,250 @@ text = "3.87M"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="MarginContainer8" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Right_HBox" unique_id=1342784726]
-custom_minimum_size = Vector2(16, 0)
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox" unique_id=1881897332]
+custom_minimum_size = Vector2(172, 0)
 layout_mode = 2
 
-[node name="Structures" type="Panel" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Right_HBox" unique_id=759720134]
-visible = false
-custom_minimum_size = Vector2(400, 40)
-layout_mode = 2
-size_flags_horizontal = 4
-size_flags_vertical = 4
-theme_override_styles/panel = SubResource("StyleBoxFlat_j54ir")
+[node name="Large_Rect2" type="ColorRect" parent="Main_Layer/Main_ControlTEST" unique_id=718259792]
+material = SubResource("ShaderMaterial_n3xjr")
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.30572918
+anchor_top = 0.9444444
+anchor_right = 0.69427085
+anchor_bottom = 1.0
+offset_top = -8.0
+offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 2
+metadata/_edit_use_anchors_ = true
 
-[node name="HBoxContainer2" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Right_HBox/Structures" unique_id=1360265333]
+[node name="TroopGold_HBox" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect2" unique_id=1012769491]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/separation = 5
+theme_override_constants/separation = 12
+alignment = 1
+metadata/_edit_lock_ = true
+
+[node name="Left_HBox" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect2/TroopGold_HBox" unique_id=693731343]
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="HBox_Player" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect2/TroopGold_HBox/Left_HBox" unique_id=214344115]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="TroopMeter" type="Panel" parent="Main_Layer/Main_ControlTEST/Large_Rect2/TroopGold_HBox/Left_HBox/HBox_Player" unique_id=1738069761]
+custom_minimum_size = Vector2(172, 40)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("StyleBoxFlat_7iv60")
+
+[node name="HBoxContainer" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect2/TroopGold_HBox/Left_HBox/HBox_Player/TroopMeter" unique_id=1785502071]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 alignment = 1
 
-[node name="MarginContainer6" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Right_HBox/Structures/HBoxContainer2" unique_id=134595031]
-custom_minimum_size = Vector2(24, 0)
-layout_mode = 2
-
-[node name="HBox_Harbour" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Right_HBox/Structures/HBoxContainer2" unique_id=221688616]
-layout_mode = 2
-theme_override_constants/separation = 6
-
-[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Right_HBox/Structures/HBoxContainer2/HBox_Harbour" unique_id=824362840]
-modulate = Color(1, 1, 1, 0.3137255)
-custom_minimum_size = Vector2(20, 20)
-layout_mode = 2
-size_flags_horizontal = 4
-size_flags_vertical = 4
-texture = ExtResource("23_fruhh")
-expand_mode = 1
-
-[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Right_HBox/Structures/HBoxContainer2/HBox_Harbour" unique_id=869138938]
-modulate = Color(1, 1, 1, 0.27450982)
-custom_minimum_size = Vector2(28, 0)
-layout_mode = 2
-theme_override_fonts/font = SubResource("FontVariation_ri5to")
-text = "0"
-
-[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Right_HBox/Structures/HBoxContainer2" unique_id=448881750]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="HBox_Barracks" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Right_HBox/Structures/HBoxContainer2" unique_id=23467961]
-layout_mode = 2
-theme_override_constants/separation = 6
-
-[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Right_HBox/Structures/HBoxContainer2/HBox_Barracks" unique_id=1534741065]
-modulate = Color(1, 1, 1, 0.3137255)
-custom_minimum_size = Vector2(20, 20)
-layout_mode = 2
-size_flags_horizontal = 4
-size_flags_vertical = 4
-texture = ExtResource("24_wahd8")
-expand_mode = 1
-
-[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Right_HBox/Structures/HBoxContainer2/HBox_Barracks" unique_id=1796792493]
-modulate = Color(1, 1, 1, 0.27450982)
-custom_minimum_size = Vector2(28, 0)
-layout_mode = 2
-text = "0"
-
-[node name="MarginContainer2" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Right_HBox/Structures/HBoxContainer2" unique_id=1845295980]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="HBox_Depot" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Right_HBox/Structures/HBoxContainer2" unique_id=1331401542]
-layout_mode = 2
-theme_override_constants/separation = 6
-
-[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Right_HBox/Structures/HBoxContainer2/HBox_Depot" unique_id=570630219]
-modulate = Color(1, 1, 1, 0.3137255)
-custom_minimum_size = Vector2(20, 20)
-layout_mode = 2
-size_flags_horizontal = 4
-size_flags_vertical = 4
-texture = ExtResource("25_ri5to")
-expand_mode = 1
-
-[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Right_HBox/Structures/HBoxContainer2/HBox_Depot" unique_id=1330352411]
-modulate = Color(1, 1, 1, 0.27450982)
-custom_minimum_size = Vector2(28, 0)
-layout_mode = 2
-text = "0"
-
-[node name="MarginContainer3" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Right_HBox/Structures/HBoxContainer2" unique_id=1846653970]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="HBox_Silo" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Right_HBox/Structures/HBoxContainer2" unique_id=491041927]
-layout_mode = 2
-theme_override_constants/separation = 6
-
-[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Right_HBox/Structures/HBoxContainer2/HBox_Silo" unique_id=1128769144]
-modulate = Color(1, 1, 1, 0.3137255)
-custom_minimum_size = Vector2(20, 20)
-layout_mode = 2
-size_flags_horizontal = 4
-size_flags_vertical = 4
-texture = ExtResource("26_y52gj")
-expand_mode = 1
-
-[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Right_HBox/Structures/HBoxContainer2/HBox_Silo" unique_id=1739020764]
-modulate = Color(1, 1, 1, 0.27450982)
-custom_minimum_size = Vector2(28, 0)
-layout_mode = 2
-text = "0"
-
-[node name="MarginContainer4" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Right_HBox/Structures/HBoxContainer2" unique_id=748260008]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="HBox_Sam" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Right_HBox/Structures/HBoxContainer2" unique_id=291623093]
-layout_mode = 2
-theme_override_constants/separation = 6
-
-[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Right_HBox/Structures/HBoxContainer2/HBox_Sam" unique_id=1009562487]
-modulate = Color(1, 1, 1, 0.3137255)
-custom_minimum_size = Vector2(20, 20)
-layout_mode = 2
-size_flags_horizontal = 4
-size_flags_vertical = 4
-texture = ExtResource("38_jqbn1")
-expand_mode = 1
-
-[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Right_HBox/Structures/HBoxContainer2/HBox_Sam" unique_id=971081066]
-modulate = Color(1, 1, 1, 0.27450982)
-custom_minimum_size = Vector2(28, 0)
-layout_mode = 2
-text = "0"
-
-[node name="MarginContainer5" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Right_HBox/Structures/HBoxContainer2" unique_id=401637601]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="HBox_Warship" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Right_HBox/Structures/HBoxContainer2" unique_id=2032879870]
-layout_mode = 2
-theme_override_constants/separation = 6
-
-[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Right_HBox/Structures/HBoxContainer2/HBox_Warship" unique_id=1630324263]
-modulate = Color(1, 1, 1, 0.3137255)
-custom_minimum_size = Vector2(20, 20)
-layout_mode = 2
-size_flags_horizontal = 4
-size_flags_vertical = 4
-texture = ExtResource("39_exfoo")
-expand_mode = 1
-
-[node name="Label" type="Label" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Right_HBox/Structures/HBoxContainer2/HBox_Warship" unique_id=2109169068]
-modulate = Color(1, 1, 1, 0.27450982)
-custom_minimum_size = Vector2(28, 0)
-layout_mode = 2
-text = "0"
-
-[node name="MarginContainer7" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect/TroopGold_HBox/Right_HBox/Structures/HBoxContainer2" unique_id=1419815835]
+[node name="MarginContainer2" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect2/TroopGold_HBox/Left_HBox/HBox_Player/TroopMeter/HBoxContainer" unique_id=2127796048]
 custom_minimum_size = Vector2(8, 0)
+layout_mode = 2
+
+[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_ControlTEST/Large_Rect2/TroopGold_HBox/Left_HBox/HBox_Player/TroopMeter/HBoxContainer" unique_id=951039975]
+modulate = Color(1, 1, 1, 0.78431374)
+custom_minimum_size = Vector2(16, 16)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+texture = ExtResource("67_8yhk8")
+expand_mode = 1
+
+[node name="Current_Troops" type="Label" parent="Main_Layer/Main_ControlTEST/Large_Rect2/TroopGold_HBox/Left_HBox/HBox_Player/TroopMeter/HBoxContainer" unique_id=1415979853]
+layout_mode = 2
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.09803922)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_fonts/font = SubResource("FontVariation_y52gj")
+theme_override_font_sizes/font_size = 18
+text = "140K"
+vertical_alignment = 1
+
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect2/TroopGold_HBox/Left_HBox/HBox_Player/TroopMeter/HBoxContainer" unique_id=1170411714]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Max_Troops" type="Label" parent="Main_Layer/Main_ControlTEST/Large_Rect2/TroopGold_HBox/Left_HBox/HBox_Player/TroopMeter/HBoxContainer" unique_id=211915275]
+layout_mode = 2
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.09803922)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_fonts/font = SubResource("FontVariation_y52gj")
+theme_override_font_sizes/font_size = 18
+text = "241K"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="MarginContainer3" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect2/TroopGold_HBox/Left_HBox/HBox_Player/TroopMeter/HBoxContainer" unique_id=133585476]
+custom_minimum_size = Vector2(8, 0)
+layout_mode = 2
+
+[node name="HBoxContainer" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect2/TroopGold_HBox" unique_id=1728677072]
+layout_mode = 2
+alignment = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect2/TroopGold_HBox/HBoxContainer" unique_id=1475745767]
+custom_minimum_size = Vector2(350, 0)
+layout_mode = 2
+alignment = 2
+metadata/_edit_lock_ = true
+
+[node name="Panel_Notif" type="Panel" parent="Main_Layer/Main_ControlTEST/Large_Rect2/TroopGold_HBox/HBoxContainer/VBoxContainer" unique_id=1718000927]
+visible = false
+custom_minimum_size = Vector2(0, 300)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("StyleBoxFlat_mwd57")
+
+[node name="Button_Notif" type="Button" parent="Main_Layer/Main_ControlTEST/Large_Rect2/TroopGold_HBox/HBoxContainer/VBoxContainer" unique_id=1336532286]
+custom_minimum_size = Vector2(350, 45)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_styles/normal = ExtResource("10_tqtv8")
+theme_override_styles/pressed = ExtResource("26_jqbn1")
+theme_override_styles/hover = ExtResource("27_exfoo")
+theme_override_styles/focus = ExtResource("28_l6ikw")
+
+[node name="Label_No_Notif" type="Label" parent="Main_Layer/Main_ControlTEST/Large_Rect2/TroopGold_HBox/HBoxContainer/VBoxContainer/Button_Notif" unique_id=1072314040]
+visible = false
+modulate = Color(18.892157, 18.892157, 18.892157, 0.19607843)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -46.0
+offset_top = -9.0
+offset_right = 46.0
+offset_bottom = 9.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 14
+text = "Notifications..."
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Label_Notif_Example" type="Label" parent="Main_Layer/Main_ControlTEST/Large_Rect2/TroopGold_HBox/HBoxContainer/VBoxContainer/Button_Notif" unique_id=1484550066]
+modulate = Color(18.892157, 18.892157, 18.892157, 0.78431374)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -109.5
+offset_top = -10.0
+offset_right = 109.5
+offset_bottom = 10.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 14
+text = "Alliance request sent to Czechia.*"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ColorRectDEPRECATED" type="Panel" parent="Main_Layer/Main_ControlTEST/Large_Rect2/TroopGold_HBox/HBoxContainer/VBoxContainer/Button_Notif" unique_id=1189651341]
+visible = false
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.88285714
+anchor_top = 0.1
+anchor_right = 0.98285717
+anchor_bottom = 0.87777776
+grow_horizontal = 0
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_exfoo")
+metadata/_edit_use_anchors_ = true
+
+[node name="Label_Notif_Queue" type="Label" parent="Main_Layer/Main_ControlTEST/Large_Rect2/TroopGold_HBox/HBoxContainer/VBoxContainer/Button_Notif/ColorRectDEPRECATED" unique_id=1315442461]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -4.5
+offset_top = -13.0
+offset_right = 4.5
+offset_bottom = 11.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.74509805)
+theme_override_fonts/font = SubResource("FontVariation_j4h4s")
+theme_override_font_sizes/font_size = 15
+text = "4"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect2/TroopGold_HBox/HBoxContainer/VBoxContainer" unique_id=895367074]
+custom_minimum_size = Vector2(0, 3)
+layout_mode = 2
+
+[node name="Right_HBox" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect2/TroopGold_HBox" unique_id=1759316243]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="Panel_Cash" type="Panel" parent="Main_Layer/Main_ControlTEST/Large_Rect2/TroopGold_HBox/Right_HBox" unique_id=192910352]
+custom_minimum_size = Vector2(106, 40)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("StyleBoxFlat_ud2h5")
+
+[node name="HBoxContainer" type="HBoxContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect2/TroopGold_HBox/Right_HBox/Panel_Cash" unique_id=2091755704]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+alignment = 1
+
+[node name="TextureRect" type="TextureRect" parent="Main_Layer/Main_ControlTEST/Large_Rect2/TroopGold_HBox/Right_HBox/Panel_Cash/HBoxContainer" unique_id=734457035]
+modulate = Color(0.99215686, 0.78039217, 0, 1)
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+texture = ExtResource("75_cjpii")
+expand_mode = 1
+
+[node name="MarginContainer2" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect2/TroopGold_HBox/Right_HBox/Panel_Cash/HBoxContainer" unique_id=1669767981]
+layout_mode = 2
+
+[node name="Label_Cash" type="Label" parent="Main_Layer/Main_ControlTEST/Large_Rect2/TroopGold_HBox/Right_HBox/Panel_Cash/HBoxContainer" unique_id=899756813]
+modulate = Color(0.99215686, 0.78039217, 0, 1)
+layout_mode = 2
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.09803922)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_fonts/font = SubResource("FontVariation_y52gj")
+theme_override_font_sizes/font_size = 18
+text = "3.87M"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="MarginContainer" type="MarginContainer" parent="Main_Layer/Main_ControlTEST/Large_Rect2/TroopGold_HBox" unique_id=994690965]
+custom_minimum_size = Vector2(172, 0)
 layout_mode = 2
 
 [node name="Shadow_Control" type="Control" parent="Main_Layer/Main_ControlTEST" unique_id=687000068]
@@ -8697,10 +7947,11 @@ anchor_left = 0.30572918
 anchor_top = 0.8888889
 anchor_right = 0.69427085
 anchor_bottom = 0.9444444
+offset_top = -8.0
+offset_bottom = -8.0
 grow_horizontal = 2
 grow_vertical = 0
 mouse_filter = 2
-metadata/_edit_lock_ = true
 
 [node name="Hud_Shadow" type="Panel" parent="Main_Layer/Main_ControlTEST/Shadow_Control" unique_id=830896168]
 custom_minimum_size = Vector2(750, 0)
@@ -10687,7 +9938,3 @@ grow_vertical = 2
 mouse_filter = 2
 texture = ExtResource("65_d773e")
 expand_mode = 2
-
-[node name="HSeparator" type="HSeparator" parent="." unique_id=2093450238]
-offset_right = 40.0
-offset_bottom = 4.0

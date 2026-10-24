@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://d4je46sfrcpyh"
-path="res://.godot/imported/sam2.svg-571d2692ee02dcb0b34ba6300898fe37.ctex"
+uid="uid://bnvt8reeqkei2"
+path="res://.godot/imported/money_basic32x.svg-d3f97c09de8fb96c5dcf2e8d21dc64be.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://ui/small_icons_new/sam2.svg"
-dest_files=["res://.godot/imported/sam2.svg-571d2692ee02dcb0b34ba6300898fe37.ctex"]
+source_file="res://ui/misc/money_basic32x.svg"
+dest_files=["res://.godot/imported/money_basic32x.svg-d3f97c09de8fb96c5dcf2e8d21dc64be.ctex"]
 
 [params]
 
