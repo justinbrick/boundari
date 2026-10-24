@@ -132,15 +132,6 @@ corner_radius_top_right = 12
 [sub_resource type="FontVariation" id="FontVariation_rw53w"]
 base_font = ExtResource("49_5khtq")
 
-[sub_resource type="StyleBoxLine" id="StyleBoxLine_cjpii"]
-content_margin_left = 0.0
-content_margin_top = 4.0
-content_margin_right = 0.0
-content_margin_bottom = 4.0
-color = Color(1, 1, 1, 0.1764706)
-thickness = 2
-vertical = true
-
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_p0wbd"]
 content_margin_left = 4.0
 content_margin_top = 4.0
@@ -939,86 +930,17 @@ expand_margin_top = 2.0
 expand_margin_right = 2.0
 expand_margin_bottom = 2.0
 
+[sub_resource type="StyleBoxLine" id="StyleBoxLine_cjpii"]
+content_margin_left = 0.0
+content_margin_top = 4.0
+content_margin_right = 0.0
+content_margin_bottom = 4.0
+color = Color(1, 1, 1, 0.1764706)
+thickness = 2
+vertical = true
+
 [node name="Node2D" type="Node2D" unique_id=1680915766]
 script = ExtResource("bw_world")
-
-[node name="TestImage" type="Sprite2D" parent="." unique_id=747275518]
-visible = false
-position = Vector2(957, 539)
-texture = ExtResource("2_mwd57")
-
-[node name="TNameMockup" type="Label" parent="TestImage" unique_id=1976942347]
-offset_left = 137.0
-offset_top = -35.0
-offset_right = 290.0
-offset_bottom = 10.0
-theme_override_colors/font_color = Color(0.117109306, 0.11710932, 0.117109306, 1)
-theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.15686275)
-theme_override_colors/font_outline_color = Color(0.8039216, 0.8784314, 0.7921569, 1)
-theme_override_constants/shadow_offset_x = 4
-theme_override_constants/shadow_offset_y = 4
-theme_override_constants/outline_size = 4
-theme_override_fonts/font = SubResource("FontVariation_xiaxg")
-theme_override_font_sizes/font_size = 32
-text = "RUSSIA"
-
-[node name="TTroopMockup" type="Label" parent="TestImage" unique_id=1521236398]
-offset_left = 180.0
-offset_top = 3.0
-offset_right = 251.0
-offset_bottom = 31.0
-theme_override_colors/font_color = Color(0.117109306, 0.11710932, 0.117109306, 1)
-theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.15686275)
-theme_override_colors/font_outline_color = Color(0.8039216, 0.8784314, 0.7921569, 1)
-theme_override_constants/shadow_offset_x = 3
-theme_override_constants/shadow_offset_y = 3
-theme_override_constants/outline_size = 3
-theme_override_constants/shadow_outline_size = 0
-theme_override_fonts/font = SubResource("FontVariation_wahd8")
-theme_override_font_sizes/font_size = 20
-text = "56.2K"
-
-[node name="TextureRect [V1]2" type="TextureRect" parent="TestImage" unique_id=1590022146]
-offset_left = 93.0
-offset_top = -25.0
-offset_right = 127.66667
-offset_bottom = 1.0
-texture = ExtResource("3_aow1b")
-expand_mode = 1
-
-[node name="Startup_VBox" type="VBoxContainer" parent="TestImage" unique_id=1748609815]
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -977.0
-offset_top = -559.0
-offset_right = -937.0
-offset_bottom = -519.0
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_constants/separation = 0
-
-[node name="MapName" type="Label" parent="TestImage/Startup_VBox" unique_id=156809837]
-layout_mode = 2
-theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.7176471)
-theme_override_constants/shadow_offset_x = 12
-theme_override_constants/shadow_offset_y = 12
-theme_override_fonts/font = SubResource("FontVariation_wrnm3")
-theme_override_font_sizes/font_size = 250
-text = "Europe"
-horizontal_alignment = 1
-
-[node name="AlphaText" type="Label" parent="TestImage/Startup_VBox" unique_id=649436143]
-layout_mode = 2
-theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.4392157)
-theme_override_constants/shadow_offset_x = 6
-theme_override_constants/shadow_offset_y = 6
-theme_override_fonts/font = SubResource("FontVariation_wrnm3")
-theme_override_font_sizes/font_size = 60
-text = "Boundari Alpha 1.0"
-horizontal_alignment = 1
 
 [node name="MapDisplay" type="Sprite2D" parent="." unique_id=1126381259]
 script = ExtResource("bw_mapview")
@@ -1044,6 +966,86 @@ pan_speed = 1000.0
 max_zoom = 100.0
 
 [node name="Main_Layer" type="CanvasLayer" parent="." unique_id=1596231632]
+
+[node name="TestImage" type="Sprite2D" parent="Main_Layer" unique_id=747275518]
+visible = false
+position = Vector2(957, 539)
+texture = ExtResource("2_mwd57")
+
+[node name="TNameMockup" type="Label" parent="Main_Layer/TestImage" unique_id=1976942347]
+offset_left = 137.0
+offset_top = -35.0
+offset_right = 290.0
+offset_bottom = 10.0
+theme_override_colors/font_color = Color(0.14622894, 0.1462287, 0.14622873, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.15686275)
+theme_override_colors/font_outline_color = Color(0.8039216, 0.8784314, 0.7921569, 1)
+theme_override_constants/shadow_offset_x = 4
+theme_override_constants/shadow_offset_y = 4
+theme_override_constants/outline_size = 4
+theme_override_fonts/font = SubResource("FontVariation_xiaxg")
+theme_override_font_sizes/font_size = 32
+text = "RUSSIA"
+
+[node name="TTroopMockup" type="Label" parent="Main_Layer/TestImage" unique_id=1521236398]
+visible = false
+offset_left = 180.0
+offset_top = 3.0
+offset_right = 251.0
+offset_bottom = 31.0
+theme_override_colors/font_color = Color(0.117109306, 0.11710932, 0.117109306, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.15686275)
+theme_override_colors/font_outline_color = Color(0.8039216, 0.8784314, 0.7921569, 1)
+theme_override_constants/shadow_offset_x = 3
+theme_override_constants/shadow_offset_y = 3
+theme_override_constants/outline_size = 3
+theme_override_constants/shadow_outline_size = 0
+theme_override_fonts/font = SubResource("FontVariation_wahd8")
+theme_override_font_sizes/font_size = 20
+text = "56.2K"
+
+[node name="TextureRect [V1]2" type="TextureRect" parent="Main_Layer/TestImage" unique_id=1590022146]
+offset_left = 93.0
+offset_top = -25.0
+offset_right = 127.66667
+offset_bottom = 1.0
+texture = ExtResource("3_aow1b")
+expand_mode = 1
+
+[node name="Startup_VBox" type="VBoxContainer" parent="Main_Layer/TestImage" unique_id=1748609815]
+visible = false
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -977.0
+offset_top = -559.0
+offset_right = -937.0
+offset_bottom = -519.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+
+[node name="MapName" type="Label" parent="Main_Layer/TestImage/Startup_VBox" unique_id=156809837]
+layout_mode = 2
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.7176471)
+theme_override_constants/shadow_offset_x = 12
+theme_override_constants/shadow_offset_y = 12
+theme_override_fonts/font = SubResource("FontVariation_wrnm3")
+theme_override_font_sizes/font_size = 250
+text = "Europe"
+horizontal_alignment = 1
+
+[node name="AlphaText" type="Label" parent="Main_Layer/TestImage/Startup_VBox" unique_id=649436143]
+layout_mode = 2
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.4392157)
+theme_override_constants/shadow_offset_x = 6
+theme_override_constants/shadow_offset_y = 6
+theme_override_fonts/font = SubResource("FontVariation_wrnm3")
+theme_override_font_sizes/font_size = 60
+text = "Boundari Alpha 1.0"
+horizontal_alignment = 1
 
 [node name="MapRect" type="TextureRect" parent="Main_Layer" unique_id=461330216]
 anchors_preset = 15
@@ -1155,12 +1157,6 @@ layout_mode = 2
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.29411766)
 theme_override_fonts/font = SubResource("FontVariation_rw53w")
 text = "(1.65K)"
-
-[node name="VSeparator" type="VSeparator" parent="Main_Layer/Main_Control/HBox_Hud/In_Panel2/AttackRatio_Hbox" unique_id=486689328]
-custom_minimum_size = Vector2(0, 12)
-layout_mode = 2
-size_flags_vertical = 4
-theme_override_styles/separator = SubResource("StyleBoxLine_cjpii")
 
 [node name="HSlider" type="HSlider" parent="Main_Layer/Main_Control/HBox_Hud/In_Panel2/AttackRatio_Hbox" unique_id=110662855]
 layout_mode = 2
