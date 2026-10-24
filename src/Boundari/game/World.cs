@@ -223,6 +223,7 @@ public partial class World : Node2D
         _args = ParseArgs();
         if (_args.Dev is { } dev)
             _devTools.Override(dev);
+        AddAmbientSounds();
         string mapId = _args.Seed is not null ? "random" : _args.Map ?? StartMap;
         if (mapId is "" or "random" || !LoadMap(mapId))
             Generate(_args.Seed ?? (Seed != 0 ? Seed : RandomSeed()));
@@ -1010,6 +1011,8 @@ public partial class World : Node2D
         ApplyPalette();
         _ = _game.Waterways; // prepare sea routes now, not on the first boat
         _labels.SetGame(_game);
+        if (_ambient is not null)
+            _ambient.Game = _game;
         _intel.SetGame(_game, _me);
         _labels.MouseOverride = _args.Hover is { } fake ? new Vector2(fake.X * _map.Width, fake.Y * _map.Height) : null;
         _overlay.SetGame(_game, _me);
@@ -1250,6 +1253,24 @@ public partial class World : Node2D
         _fpsTimer = 0;
         _stepMs = _worstStepMs = 0;
         _steps = 0;
+    }
+
+    private const string AmbientScene = "res://audio/ambient_sounds.tscn";
+    private AmbientSounds? _ambient;
+
+    /// <summary>
+    /// The background sounds (wind, sea, birds...): which plays where, and how loud, is set
+    /// in audio/ambient_sounds.tscn. Left out of screenshot and benchmark runs.
+    /// </summary>
+    private void AddAmbientSounds()
+    {
+        if (_args.Screenshot is not null || _args.Bench is not null || !ResourceLoader.Exists(AmbientScene))
+            return;
+        if (GD.Load<PackedScene>(AmbientScene)?.Instantiate() is not AmbientSounds ambient)
+            return;
+        _ambient = ambient;
+        _ambient.WaitForSim = SyncSim;
+        AddChild(_ambient);
     }
 
     private void FrameCamera(float zoom, Vector2? focus)

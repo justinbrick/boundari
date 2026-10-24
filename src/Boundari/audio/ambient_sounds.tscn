@@ -1,0 +1,61 @@
+[gd_scene load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://game/view/AmbientSounds.cs" id="1_sounds"]
+[ext_resource type="Script" path="res://game/view/AmbientLayer.cs" id="2_layer"]
+[ext_resource type="AudioStream" path="res://audio/ambient/wind1.mp3" id="3_wind1"]
+[ext_resource type="AudioStream" path="res://audio/ambient/wind2.mp3" id="4_wind2"]
+[ext_resource type="AudioStream" path="res://audio/ambient/birds.mp3" id="5_birds"]
+[ext_resource type="AudioStream" path="res://audio/ambient/ocean.mp3" id="6_ocean"]
+[ext_resource type="AudioStream" path="res://audio/ambient/fire1.mp3" id="7_fire1"]
+[ext_resource type="AudioStream" path="res://audio/ambient/fire2.mp3" id="8_fire2"]
+
+[node name="AmbientSounds" type="Node"]
+script = ExtResource("1_sounds")
+
+[node name="wind1" type="Node" parent="."]
+script = ExtResource("2_layer")
+Stream = ExtResource("3_wind1")
+VolumeDb = 6.0
+Places = 6
+SkipStart = 2.0
+SkipEnd = 1.5
+
+[node name="wind2" type="Node" parent="."]
+script = ExtResource("2_layer")
+Stream = ExtResource("4_wind2")
+VolumeDb = -14.0
+Places = 1
+SkipStart = 2.5
+SkipEnd = 2.5
+
+[node name="birds" type="Node" parent="."]
+script = ExtResource("2_layer")
+Stream = ExtResource("5_birds")
+VolumeDb = 6.0
+Places = 8
+SkipStart = 0.5
+SkipEnd = 0.5
+
+[node name="ocean" type="Node" parent="."]
+script = ExtResource("2_layer")
+Stream = ExtResource("6_ocean")
+VolumeDb = -7.0
+Places = 16
+SkipStart = 3.0
+SkipEnd = 2.0
+
+[node name="fire1" type="Node" parent="."]
+script = ExtResource("2_layer")
+Stream = ExtResource("7_fire1")
+VolumeDb = -15.0
+Places = 32
+SkipStart = 2.5
+SkipEnd = 3.0
+
+[node name="fire2" type="Node" parent="."]
+script = ExtResource("2_layer")
+Stream = ExtResource("8_fire2")
+VolumeDb = 2.0
+Places = 32
+SkipStart = 0.5
+SkipEnd = 1.5
