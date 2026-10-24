@@ -7,17 +7,18 @@ using Godot;
 namespace Boundari.View;
 
 /// <summary>
-/// The greyed-out world drawn around a regional map (Europe), under it. Zoomed out it's the
-/// whole world at low detail (world.bmap); zoomed in, full-detail pieces of it at the map's
-/// own tile size (maps/world/{x}_{y}.wchunk, built by tools/MapBuilder worldbackdrop) are
-/// loaded in the background for what's on screen, so the grey land matches the map's detail
-/// right up to its edge. Only the pieces near the camera are kept.
+/// The world drawn around a regional map (Europe), under it: its land dark grey (outside the
+/// play area), its water as water. Zoomed out it's the world overview (world_overview.bmap, a
+/// sixth of the map's detail, which is still finer than a pixel there); zoomed in, full-detail
+/// pieces at the map's own tile size (maps/world/{x}_{y}.wchunk, both built by tools/MapBuilder
+/// worldbackdrop) are loaded in the background for what's on screen, so the coasts match the
+/// map's right up to its edge. Only the pieces near the camera are kept.
 /// </summary>
 public partial class WorldBackdrop : Node2D
 {
     private const int Chunk = 1024;               // tiles per piece side (as Backdrop.Chunk in the map builder)
     private const string Folder = "res://maps/world";
-    private const float ShowFromPixelsPerTile = 0.3f; // closer than this the low-detail world looks blurry
+    private const float ShowFromPixelsPerTile = 0.3f; // closer than this the overview's tiles get bigger than a pixel
     private const int MaxPieces = 40;             // pieces kept loaded
     private const int MaxLoading = 3;             // pieces loading at once
     private const float FieldPerTile = 0.004f;    // coast field units per tile (as the map builder's)
@@ -158,7 +159,7 @@ public partial class WorldBackdrop : Node2D
         });
     }
 
-    /// <summary>A piece's PNG (coast field, hill shading) as map.gdshader's terrain texture.</summary>
+    /// <summary>A piece's PNG (the coast field) as map.gdshader's terrain texture.</summary>
     private static Image? Unpack(byte[] png)
     {
         if (png.Length == 0)
@@ -166,13 +167,13 @@ public partial class WorldBackdrop : Node2D
         var source = new Image();
         if (source.LoadPngFromBuffer(png) != Error.Ok)
             return null;
-        if (source.GetFormat() != Image.Format.La8)
-            source.Convert(Image.Format.La8);
+        if (source.GetFormat() != Image.Format.L8)
+            source.Convert(Image.Format.L8);
         int side = source.GetWidth();
-        byte[] la = source.GetData();
+        byte[] grey = source.GetData();
         var field = new float[side * side];
         for (int i = 0; i < field.Length; i++)
-            field[i] = (la[i * 2] - 128) / 16f * FieldPerTile;
+            field[i] = (grey[i] - 128) / 16f * FieldPerTile;
         var terrain = new byte[side * side * 8];
         var span = terrain.AsSpan();
         for (int y = 0; y < side; y++)
@@ -182,10 +183,9 @@ public partial class WorldBackdrop : Node2D
                 int l = y * side + Math.Max(x - 1, 0), r = y * side + Math.Min(x + 1, side - 1);
                 int u = Math.Max(y - 1, 0) * side + x, d = Math.Min(y + 1, side - 1) * side + x;
                 float slope = 0.5f * MathF.Sqrt((field[r] - field[l]) * (field[r] - field[l]) + (field[d] - field[u]) * (field[d] - field[u]));
-                float shade = 0.45f + la[i * 2 + 1] / 255f * (1.4f - 0.45f);
                 System.Buffers.Binary.BinaryPrimitives.WriteHalfLittleEndian(span.Slice(i * 8, 2), (Half)field[i]);
                 System.Buffers.Binary.BinaryPrimitives.WriteHalfLittleEndian(span.Slice(i * 8 + 2, 2), (Half)0f);
-                System.Buffers.Binary.BinaryPrimitives.WriteHalfLittleEndian(span.Slice(i * 8 + 4, 2), (Half)shade);
+                System.Buffers.Binary.BinaryPrimitives.WriteHalfLittleEndian(span.Slice(i * 8 + 4, 2), (Half)1f); // (no hill shading)
                 System.Buffers.Binary.BinaryPrimitives.WriteHalfLittleEndian(span.Slice(i * 8 + 6, 2), (Half)slope);
             }
         return Image.CreateFromData(side, side, false, Image.Format.Rgbah, terrain);

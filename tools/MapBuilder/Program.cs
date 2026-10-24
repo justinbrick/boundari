@@ -41,12 +41,10 @@ public static class Program
     };
 
     /// <summary>
-    /// Europe's play area. The outline (clockwise from west of Iceland, as (latitude, longitude))
-    /// is rough: it sets the edge at sea (the Arctic past Jan Mayen and the North Cape, round
-    /// the south of Novaya Zemlya, the Mediterranean to the African and Levant coasts, the
-    /// Atlantic past the Canaries) and splits Russia and Kazakhstan (down the Ural Mountains and
-    /// the Ural River to the Caspian, whose open water is played). On land the edge is the
-    /// borders of the countries listed.
+    /// Europe's play area: the countries listed, their borders as the edge (water is all
+    /// playable). The rough outline (clockwise from west of Iceland, as (latitude, longitude))
+    /// splits Russia and Kazakhstan, down the Ural Mountains and the Ural River to the Caspian,
+    /// and decides islands no region covers.
     /// </summary>
     private static PlayArea EuropePlayArea => new( // (a property: the Specs above are set up first)
         new EdgeLeg[]
@@ -79,7 +77,6 @@ public static class Program
                 (28.1, -12.7), (28.0, -14.3), (28.0, -16.6), (28.0, -18.6), (28.6, -19.3), (30.5, -21.3), (34.0, -23.0),
                 (40.0, -23.5), (46.0, -23.6), (53.0, -23.6), (60.0, -23.8)),
         },
-        new[] { ((47.3, 46.6), (36.4, 55.2)) }, // the Caspian Sea
         // The countries that make up Europe (Council of Europe style: Turkey, the Caucasus and
         // Cyprus too); Russia and Kazakhstan only west of the Urals and the Ural River.
         Countries: new[]

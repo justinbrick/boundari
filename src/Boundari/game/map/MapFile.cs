@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
 using System.Runtime.InteropServices;
 
 namespace Boundari.Map;
@@ -13,7 +14,7 @@ namespace Boundari.Map;
 public static class MapFile
 {
     private const uint Magic = 0x50414D42; // "BMAP"
-    private const int Version = 4; // 2: real-world location, 3: land cover, 4: play area field
+    private const int Version = 5; // 2: real-world location, 3: land cover, 4: play area field (land, water), 5: (land only)
 
     public static void Write(GameMap map, Stream output)
     {
@@ -90,9 +91,12 @@ public static class MapFile
         ReadHalves(r, map.Elevation);
         if (version >= 4 && r.ReadBoolean())
         {
-            byte[] play = r.ReadBytes(map.TileCount * 2);
-            if (play.Length != map.TileCount * 2)
+            int perTile = version == 4 ? 2 : 1;
+            byte[] play = r.ReadBytes(map.TileCount * perTile);
+            if (play.Length != map.TileCount * perTile)
                 throw new EndOfStreamException("Map file is truncated.");
+            if (perTile == 2)
+                play = Enumerable.Range(0, map.TileCount).Select(i => play[i * 2]).ToArray(); // (its land field)
             map.PlayField = play;
         }
 

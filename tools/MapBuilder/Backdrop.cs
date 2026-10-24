@@ -10,19 +10,21 @@ using Boundari.Map;
 namespace Boundari.MapBuilder;
 
 /// <summary>
-/// The greyed-out world drawn around a regional map, at the map's own detail: the whole world
-/// on the map's tile grid (its projection carried round the globe), cut into square pieces the
-/// game loads only where the camera is zoomed in (src/Boundari/maps/world/{x}_{y}.wchunk).
-/// Each piece is a PNG, grey + alpha: per tile the coast field (128 + 16 per tile from the
-/// coast, land above 128) and the hill shading (0.45..1.4 as 0..255), with a one-tile border
-/// from its neighbours so they join seamlessly. Pieces of open ocean, and pieces the map itself
-/// covers, aren't written.
+/// The world drawn around a regional map (its land dark grey, outside the play area), at the
+/// map's own detail: the whole world on the map's tile grid (its projection carried round the
+/// globe), cut into square pieces the game loads only where the camera is zoomed in
+/// (src/Boundari/maps/world/{x}_{y}.wchunk). Each piece is a greyscale PNG of the coast field
+/// (128 + 16 per tile from the coast, land above 128), with a one-tile border from its
+/// neighbours so they join seamlessly. Pieces of open ocean, and pieces the map itself covers,
+/// aren't written. Zoomed out, the game draws a world overview instead
+/// (src/Boundari/maps/world_overview.bmap: the same, at a sixth of the detail, without rivers).
 /// </summary>
 public static class Backdrop
 {
     public const int Chunk = 1024;        // tiles per piece side (without its border)
     private const int Margin = 64;        // built this far past each side, so islands and lakes at the seams come out whole
     private const double WorldLatMax = 84, WorldLatMin = -58; // as the world map
+    private const int OverviewDivisor = 6;  // the overview's tiles are this many of the map's across
 
     public static void Build(MapSpec region, string dataDir, string outDir)
     {
@@ -30,7 +32,6 @@ public static class Backdrop
         var geo = new MapGeo(region.LonMin, region.LonMax, region.LatMin, region.LatMax, region.StandardParallel);
         int width = region.Width, height = geo.HeightFor(width);
         double kx = width / (region.LonMax - region.LonMin), ky = height / (region.LatMax - region.LatMin);
-        double metresPerTile = geo.KmPerTile(height) * 1000;
 
         int cx0 = (int)Math.Floor((-180 - region.LonMin) * kx / Chunk), cx1 = (int)Math.Floor((180 - region.LonMin) * kx / Chunk);
         int cy0 = (int)Math.Floor((region.LatMax - WorldLatMax) * ky / Chunk), cy1 = (int)Math.Floor((region.LatMax - WorldLatMin) * ky / Chunk);
@@ -42,6 +43,8 @@ public static class Backdrop
         var land = GeoJson.LoadRings(Path.Combine(dataDir, $"ne_{region.Detail}_land.geojson"));
         GeoJson.LoadRings(Path.Combine(dataDir, $"ne_{region.Detail}_lakes.geojson"));
         GeoJson.LoadRivers(Path.Combine(dataDir, "ne_10m_rivers_lake_centerlines.geojson"), region.RiverMaxRank);
+
+        BuildOverview(region, kx, dataDir, outDir);
 
         var jobs = new List<(int X, int Y)>();
         for (int cy = cy0; cy <= cy1; cy++)
@@ -74,7 +77,7 @@ public static class Backdrop
                 PlayArea = null,
             };
             var map = Program.Build(spec, dataDir, height: size);
-            byte[] png = Encode(map, metresPerTile);
+            byte[] png = Encode(map);
             File.WriteAllBytes(Path.Combine(folder, $"{job.X}_{job.Y}.wchunk"), png);
             Interlocked.Add(ref bytes, png.Length);
             int n = Interlocked.Increment(ref done);
@@ -84,35 +87,44 @@ public static class Backdrop
         Console.WriteLine($"World backdrop: {jobs.Count} pieces, {bytes / 1024 / 1024} MB, {timer.Elapsed.TotalMinutes:F1} min -> {folder}");
     }
 
-    /// <summary>The piece's own tiles plus a one-tile border, as a grey + alpha PNG (see the class notes).</summary>
-    private static byte[] Encode(GameMap map, double metresPerTile)
+    /// <summary>The whole world at a sixth of the map's detail, for when the camera is zoomed out.</summary>
+    private static void BuildOverview(MapSpec region, double kx, string dataDir, string outDir)
     {
-        int side = Chunk + 2, w = map.Width, h = map.Height;
-        var pixels = new byte[side * side * 2];
+        var timer = Stopwatch.StartNew();
+        var spec = region with
+        {
+            Id = "world_overview",
+            Name = "World overview",
+            LonMin = -180,
+            LonMax = 180,
+            LatMin = WorldLatMin,
+            LatMax = WorldLatMax,
+            Width = (int)Math.Round(360 * kx / OverviewDivisor),
+            MinIslandTiles = Math.Max(2, region.MinIslandTiles / (OverviewDivisor * OverviewDivisor)),
+            MinLakeTiles = Math.Max(2, region.MinLakeTiles / (OverviewDivisor * OverviewDivisor)),
+            LandCoverScale = 0,
+            RiverMaxRank = -1, // (rivers would come out far too wide at this size)
+            PlayArea = null,
+        };
+        var map = Program.Build(spec, dataDir);
+        string path = Path.Combine(outDir, "world_overview.bmap");
+        using (var file = File.Create(path))
+            MapFile.Write(map, file);
+        Console.WriteLine($"World overview: {map.Width}x{map.Height}, {new FileInfo(path).Length / 1024} KB, {timer.ElapsedMilliseconds} ms -> {path}");
+    }
+
+    /// <summary>The piece's own tiles plus a one-tile border, as a greyscale PNG of the coast field.</summary>
+    private static byte[] Encode(GameMap map)
+    {
+        int side = Chunk + 2, w = map.Width;
+        var pixels = new byte[side * side];
         for (int j = 0; j < side; j++)
             for (int i = 0; i < side; i++)
             {
-                int x = Margin - 1 + i, y = Margin - 1 + j, t = y * w + x;
+                int t = (Margin - 1 + j) * w + Margin - 1 + i;
                 double tiles = map.CoastField[t] / Program.FieldPerTile;
-                int l = y * w + Math.Max(x - 1, 0), r = y * w + Math.Min(x + 1, w - 1);
-                int u = Math.Max(y - 1, 0) * w + x, d = Math.Min(y + 1, h - 1) * w + x;
-                double shade = HillShade(map, l, r, u, d, metresPerTile);
-                int p = (j * side + i) * 2;
-                pixels[p] = (byte)Math.Clamp((int)Math.Round(128 + tiles * 16), 0, 255);
-                pixels[p + 1] = (byte)Math.Clamp((int)Math.Round((shade - 0.45) / (1.4 - 0.45) * 255), 0, 255);
+                pixels[j * side + i] = (byte)Math.Clamp((int)Math.Round(128 + tiles * 16), 0, 255);
             }
-        return Png.EncodeGreyAlpha(side, side, pixels);
-    }
-
-    // As MapView's hill shading (the light from the north-west, relief exaggerated 5 times).
-    private static double HillShade(GameMap map, int left, int right, int up, int down, double metresPerTile)
-    {
-        const double Exaggeration = 5;
-        double gx = (ElevationScale.ToMetres(map.Elevation[right]) - ElevationScale.ToMetres(map.Elevation[left])) * 0.5 / metresPerTile * Exaggeration;
-        double gy = (ElevationScale.ToMetres(map.Elevation[down]) - ElevationScale.ToMetres(map.Elevation[up])) * 0.5 / metresPerTile * Exaggeration;
-        double lx = -1, ly = -1, lz = 1.5, ll = Math.Sqrt(lx * lx + ly * ly + lz * lz);
-        double nx = -gx, ny = -gy, nz = 1, nl = Math.Sqrt(nx * nx + ny * ny + nz * nz);
-        double dot = (nx * lx + ny * ly + nz * lz) / (nl * ll);
-        return Math.Clamp(dot / (lz / ll), 0.45, 1.4);
+        return Png.EncodeGrey(side, side, pixels);
     }
 }

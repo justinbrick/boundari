@@ -17,22 +17,24 @@ Maps are defined in `Program.cs` (`Specs`): the longitude/latitude box, width in
 Natural Earth detail level, the smallest island/lake to keep, and optionally a play area.
 
 A play area (`PlayArea.cs`, Europe's is `EuropePlayArea` in `Program.cs`) is where the game can
-be played. Its outline is rough: hand-placed points the edge curves through, and stretches that
-follow a real river by name (Natural Earth's river lines). On land the edge snaps to real
-borders: every province/region (Natural Earth admin 1) is in when most of its land is inside the
-outline. The build prints the regions the outline cuts through; add a name or ISO code to
-`AlwaysIn` / `AlwaysOut` to change one. A region that runs off the map is cut along the outline
-instead (so there's no straight cut at the map's edge), and small playable patches cut off from
-the rest are dropped. At sea the edge is the outline, a little further out, and water next to
-playable land stays playable up to the far shore. Everything outside becomes `Outside` terrain:
-greyed out in the game like the world map drawn around Europe, and never claimable. The map also
-stores the edge as a smooth field, which the game draws it from.
-The greyed-out world drawn around Europe has its own build:
-`dotnet run -c Release --project tools/MapBuilder -- worldbackdrop` (~3 minutes) writes the whole
-world at Europe's detail as 1024x1024-tile pieces to `src/Boundari/maps/world/*.wchunk` (PNGs:
-coast field and hill shading), which the game streams in where the camera is zoomed in
-(`view/WorldBackdrop.cs`). Rebuild it whenever Europe's box or tile size changes. A game export
-must include `*.wchunk` files (and `*.bmap`) as non-resource files.
+be played. Its land is real countries (Natural Earth admin 1 provinces/regions, so country borders
+too): the countries listed are in whole; `SplitCountries` (Russia, Kazakhstan) go region by region,
+a region being in when most of its land is inside a rough outline (hand-placed points the edge
+curves through, and stretches that follow a real river by name). The build prints the regions
+the outline cuts through; add a name or ISO code to `AlwaysIn` / `AlwaysOut` to change one, or
+to `CutByOutline` to cut it along the outline. A region that runs off the map is cut along the
+outline (so there's no straight cut at the map's edge), and small playable patches cut off from
+the rest are dropped. Land outside becomes `Outside` terrain: dark grey in the game like the
+world around Europe, and never claimable. Water is all playable. The map also stores the edge as
+a smooth field, which the game draws it from.
+
+The world drawn around Europe (its land dark grey) has its own build:
+`dotnet run -c Release --project tools/MapBuilder -- worldbackdrop` (~1-2 minutes) writes the whole
+world at Europe's detail as 1024x1024-tile pieces to `src/Boundari/maps/world/*.wchunk`
+(greyscale PNGs of the coast field), which the game streams in where the camera is zoomed in
+(`view/WorldBackdrop.cs`), and `src/Boundari/maps/world_overview.bmap` (the same at a sixth of
+the detail, for zoomed out). Rebuild it whenever Europe's box or tile size changes. A game
+export must include `*.wchunk` files (and `*.bmap`) as non-resource files.
 
 To try out a change to the outline quickly, without land cover (nothing is downloaded):
 `dotnet run -c Release --project tools/MapBuilder -- europe --preview` writes a small picture to

@@ -1005,7 +1005,10 @@ public partial class World : Node2D
         bool regional = map.Geo is { } geo && (geo.LonMax - geo.LonMin < 359) && _mapId != "world";
         if (regional && _worldMap is null)
         {
-            byte[] bytes = Godot.FileAccess.GetFileAsBytes("res://maps/world.bmap");
+            // (the world at a sixth of Europe's detail, built with its pieces; else the coarse world map)
+            byte[] bytes = Godot.FileAccess.GetFileAsBytes("res://maps/world_overview.bmap");
+            if (bytes.Length == 0)
+                bytes = Godot.FileAccess.GetFileAsBytes("res://maps/world.bmap");
             try
             {
                 if (bytes.Length > 0)
@@ -1029,7 +1032,7 @@ public partial class World : Node2D
             _view.GetParent().MoveChild(_backdrop, _view.GetIndex()); // drawn under the map
         }
         _backdrop.Show(_worldMap, map);
-        RenderingServer.SetDefaultClearColor(MapView.BackdropSea); // past the world's top and bottom
+        RenderingServer.SetDefaultClearColor(MapView.SeaColor); // past the world's top and bottom
     }
 
     private readonly Color _clearColor = ProjectSettings.GetSetting("rendering/environment/defaults/default_clear_color", new Color(0.3f, 0.3f, 0.3f)).AsColor();

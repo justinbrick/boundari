@@ -59,18 +59,15 @@ public sealed class GameMap
     public LandCover? Cover { get; set; }
 
     /// <summary>
-    /// For a map with a play area: two bytes per tile, how far inside the play area the tile
-    /// is if it's land, then the same if it's water (see <see cref="PlayFieldTiles"/>); or null.
-    /// The renderer draws the greyed-out edge from it smoothly; <see cref="TerrainType.Outside"/>
-    /// tiles are where it's below 0.
+    /// For a map with a play area: one byte per tile, how far inside the play area's land edge
+    /// the tile is (see <see cref="PlayFieldSteps"/>; carried a few tiles out over the water
+    /// too), or null. The renderer draws the edge from it smoothly; <see cref="TerrainType.Outside"/>
+    /// land is where it's below 0 (water is all playable).
     /// </summary>
     public byte[]? PlayField { get; set; }
 
-    /// <summary>A <see cref="PlayField"/> land byte is 128 + this many steps per tile of distance (so it spans ±8 tiles).</summary>
+    /// <summary>A <see cref="PlayField"/> byte is 128 + this many steps per tile of distance (so it spans ±8 tiles).</summary>
     public const int PlayFieldSteps = 16;
-
-    /// <summary>A <see cref="PlayField"/> water byte is 128 + this many steps per tile (±42 tiles: the sea fades out past the edge).</summary>
-    public const int PlayFieldWaterSteps = 3;
 
     public readonly TerrainType[] Terrain;
 

@@ -57,16 +57,14 @@ uniform float shore_glow_tiles : hint_range(0.2, 6.0) = 2.5;
 
 group_uniforms territory;
 uniform bool show_territory = true;
-// The world drawn around a regional map (outside the play area): greyed out.
+// The world drawn around a regional map: its land all outside the play area. Water stays water.
 uniform bool backdrop = false;
-// How far inside the play area (in tiles; below 0 = greyed out like the backdrop): red for
-// land, stored as 0.5 + 16/255 per tile, green for water, 0.5 + 3/255 per tile
-// (MapView.UploadPlayArea).
+// How far inside the play area's land edge (in tiles; below 0 = outside), stored as
+// 0.5 + 16/255 per tile (MapView.UploadPlayArea).
 uniform sampler2D play_tex : filter_linear, repeat_disable;
 uniform bool has_play_area = false;
-// Past the play area's edge at sea, the water fades to grey over this many tiles (finishing by
-// the map's own edge, where the greyed world around it takes over).
-uniform float sea_fade_tiles = 36.0;
+// Land outside the play area: one flat dark grey, like OpenFront's unplayable land.
+uniform vec4 outside_color : source_color = vec4(0.235, 0.235, 0.247, 1.0);
 uniform float territory_opacity : hint_range(0.0, 1.0) = 0.5;
 // How far (in tiles) borders are smoothed. Bigger = rounder, smoother bends.
 uniform float border_smoothing : hint_range(0.5, 2.0) = 1.0;
@@ -668,13 +666,8 @@ vec3 cover_color_of(int id) {
 
 // Land colour, plus how much of this pixel is small inland water from the land-cover
 // layer (0..1). That water is drawn as water: no territory tint, no hill shading.
-vec3 ground_color(vec2 tile, float elev, float tiles_per_px, bool plain, out float water) {
+vec3 ground_color(vec2 tile, float elev, float tiles_per_px, out float water) {
 	water = 0.0;
-	if (plain) {
-		// Greyed out (outside the play area, or the world around it): one colour, so the two
-		// match where they meet; only the hill shading shows the land's shape.
-		return cover_colors[COVER_FARMLAND];
-	}
 	if (!has_cover) {
 		// No land-cover data (random maps, world map): flat bands by height.
 		float fw = max(fwidth(elev), 1e-5);
@@ -707,13 +700,6 @@ vec3 ground_color(vec2 tile, float elev, float tiles_per_px, bool plain, out flo
 
 // ---------------------------------------------------------------------------
 
-// Greyed out (outside the play area): mostly the colour's brightness, with a trace of its hue
-// so land and sea stay apart, and dimmed.
-vec3 backdrop_grey(vec3 c) {
-	float lum = dot(c, vec3(0.299, 0.587, 0.114));
-	return mix(vec3(lum), c, 0.22) * 0.66 + 0.05;
-}
-
 void fragment() {
 	vec2 tile = UV * map_size;
 	float tiles_per_px = max(length(dFdx(tile)), length(dFdy(tile)));
@@ -727,21 +713,7 @@ void fragment() {
 	float land = smoothstep(-0.5 * fw, 0.5 * fw, h);
 
 	float cover_water;
-	// How greyed out (past the play area's edge): land and water have their own edges (water
-	// next to playable land stays playable up to the far shore). On land it's a clean line
-	// about a pixel wide; at sea it fades out softly past the edge.
-	float grey_out = 0.0;
-	if (has_play_area) {
-		vec2 raw = texture(play_tex, UV).rg * 255.0 - 128.0;
-		float on_land = raw.r / 16.0;
-		float edge_room = min(min(tile.x, tile.y), min(map_size.x - tile.x, map_size.y - tile.y));
-		float at_sea = min(raw.g / 3.0, edge_room - sea_fade_tiles);
-		float aa = max(fwidth(on_land), 1e-4);
-		float land_grey = 1.0 - smoothstep(-aa, aa, on_land);
-		float sea_grey = 1.0 - smoothstep(-sea_fade_tiles, 0.0, at_sea);
-		grey_out = mix(sea_grey, land_grey, land);
-	}
-	vec3 ground = ground_color(tile, elev, tiles_per_px, backdrop || grey_out > 0.5, cover_water);
+	vec3 ground = ground_color(tile, elev, tiles_per_px, cover_water);
 	vec3 flat_ground = ground;
 
 	// Soft hill shading, lit from the north-west (precomputed per tile). Always on.
@@ -757,6 +729,15 @@ void fragment() {
 	}
 
 	ground = mix(ground, flat_ground, cover_water); // water stays flat
+
+	// Land outside the play area: flat dark grey, its edge a clean line about a pixel wide.
+	float outside = backdrop ? 1.0 : 0.0;
+	if (has_play_area) {
+		float inside = (texture(play_tex, UV).r * 255.0 - 128.0) / 16.0;
+		float aa = max(fwidth(inside), 1e-4);
+		outside = 1.0 - smoothstep(-aa, aa, inside);
+	}
+	ground = mix(ground, outside_color.rgb, outside);
 	vec3 color = mix(water_color.rgb, ground, land);
 
 	// Distance to the shore in tiles (negative out in the water).
@@ -855,10 +836,5 @@ void fragment() {
 		}
 	}
 
-	if (backdrop) {
-		color = backdrop_grey(color);
-	} else if (has_play_area) {
-		color = mix(color, backdrop_grey(color), grey_out);
-	}
 	COLOR = vec4(color, 1.0);
 }

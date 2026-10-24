@@ -94,7 +94,8 @@ public partial class MapView : Sprite2D
         material.SetShaderParameter("water_color", WaterColor);
     }
 
-    public void ShowMap(GameMap map)
+    /// <summary>Shows a map (<paramref name="territory"/> = false: never anyone's land, so no territory textures).</summary>
+    public void ShowMap(GameMap map, bool territory = true)
     {
         _map = map;
         int w = map.Width, h = map.Height;
@@ -126,6 +127,10 @@ public partial class MapView : Sprite2D
         UploadCover(map);
         UploadPlayArea(map);
 
+        _territory = null;
+        _material.SetShaderParameter("show_territory", territory);
+        if (!territory)
+            return;
         _territory = new TerritoryTextures(map);
         _material.SetShaderParameter("owner_tex", _territory.OwnerArray);
         _material.SetShaderParameter("capture_tex", _territory.TimeArray);
@@ -145,8 +150,8 @@ public partial class MapView : Sprite2D
     }
 
     /// <summary>
-    /// Uploads the play area's edge field (if the map has one) for the shader to grey out
-    /// what's past it: red = land (128 + 16 per tile inside the edge), green = water (128 + 3 per tile).
+    /// Uploads the play area's edge field (if the map has one) for the shader to draw the land
+    /// past it dark grey: 128 + 16 per tile inside the edge.
     /// </summary>
     private void UploadPlayArea(GameMap map)
     {
@@ -155,11 +160,11 @@ public partial class MapView : Sprite2D
         {
             // (an older map: just the outside tiles, so the edge follows the tiles)
             bool any = false;
-            play = new byte[map.TileCount * 2];
+            play = new byte[map.TileCount];
             for (int i = 0; i < map.TileCount; i++)
             {
                 bool outside = map.IsOutside(i);
-                play[i * 2] = play[i * 2 + 1] = outside ? (byte)112 : (byte)144;
+                play[i] = outside ? (byte)112 : (byte)144;
                 any |= outside;
             }
             if (!any)
@@ -170,7 +175,7 @@ public partial class MapView : Sprite2D
             }
         }
         _material.SetShaderParameter("has_play_area", true);
-        _material.SetShaderParameter("play_tex", ImageTexture.CreateFromImage(Image.CreateFromData(map.Width, map.Height, false, Image.Format.Rg8, play)));
+        _material.SetShaderParameter("play_tex", ImageTexture.CreateFromImage(Image.CreateFromData(map.Width, map.Height, false, Image.Format.L8, play)));
     }
 
     /// <summary>
@@ -179,9 +184,8 @@ public partial class MapView : Sprite2D
     /// </summary>
     public void ShowAsBackdrop(GameMap world, GameMap region)
     {
-        ShowMap(world);
+        ShowMap(world, territory: false);
         _material.SetShaderParameter("backdrop", true);
-        _material.SetShaderParameter("show_territory", false);
         var w = world.Geo!;
         var r = region.Geo!;
         double x0 = r.TileX(w.LonMin, region.Width), x1 = r.TileX(w.LonMax, region.Width);
@@ -195,16 +199,8 @@ public partial class MapView : Sprite2D
         Visible = true;
     }
 
-    /// <summary>The greyed-out colour of the open sea on a backdrop (for the space past the world's edges).</summary>
-    public static Color BackdropSea
-    {
-        get
-        {
-            float lum = WaterColor.R * 0.299f + WaterColor.G * 0.587f + WaterColor.B * 0.114f;
-            float Grey(float c) => (lum + (c - lum) * 0.22f) * 0.66f + 0.05f; // as map.gdshader's backdrop_grey
-            return new Color(Grey(WaterColor.R), Grey(WaterColor.G), Grey(WaterColor.B));
-        }
-    }
+    /// <summary>The open sea's colour (for the space past the world's edges).</summary>
+    public static Color SeaColor => WaterColor;
 
     // Hill shading: how much the land is exaggerated, and where the light comes from (north-west).
     private const double ReliefExaggeration = 5;

@@ -4,16 +4,16 @@ using System.IO.Compression;
 
 namespace Boundari.MapBuilder;
 
-/// <summary>Minimal PNG decoder (8-bit RGB / RGBA, non-interlaced: enough for elevation tiles) and grey + alpha encoder.</summary>
+/// <summary>Minimal PNG decoder (8-bit RGB / RGBA, non-interlaced: enough for elevation tiles) and greyscale encoder.</summary>
 public static class Png
 {
     /// <summary>
-    /// An 8-bit grey + alpha PNG of these pixels (two bytes each, row by row). Each row gets
+    /// An 8-bit greyscale PNG of these pixels (one byte each, row by row). Each row gets
     /// whichever filter shrinks it most (the usual heuristic), then it's deflated.
     /// </summary>
-    public static byte[] EncodeGreyAlpha(int width, int height, byte[] pixels)
+    public static byte[] EncodeGrey(int width, int height, byte[] pixels)
     {
-        const int Bpp = 2;
+        const int Bpp = 1;
         int stride = width * Bpp;
         var raw = new MemoryStream();
         using (var z = new ZLibStream(raw, CompressionLevel.SmallestSize, leaveOpen: true))
@@ -61,7 +61,7 @@ public static class Png
         WriteInt32BE(header, 0, width);
         WriteInt32BE(header, 4, height);
         header[8] = 8;  // bit depth
-        header[9] = 4;  // grey + alpha
+        header[9] = 0;  // greyscale
         WriteChunk(file, "IHDR", header);
         WriteChunk(file, "IDAT", raw.ToArray());
         WriteChunk(file, "IEND", Array.Empty<byte>());

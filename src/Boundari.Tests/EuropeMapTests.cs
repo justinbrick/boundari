@@ -17,7 +17,7 @@ public class EuropeMapTests
     }
 
     [Fact]
-    public void EveryNation_StartsOnPlayableLand_AndThePlayAreaHasItsField()
+    public void EveryNation_StartsOnPlayableLand_AllWaterIsPlayable_AndThePlayAreaHasItsField()
     {
         var map = Europe();
         var geo = map.Geo!;
@@ -35,8 +35,12 @@ public class EuropeMapTests
         int disagree = 0;
         for (int i = 0; i < map.TileCount; i++)
         {
-            bool land = map.CoastField[i] > 0;
-            int value = map.PlayField![i * 2 + (land ? 0 : 1)] - 128;
+            if (map.CoastField[i] <= 0)
+            {
+                Assert.False(map.IsOutside(i), "water is all playable");
+                continue;
+            }
+            int value = map.PlayField![i] - 128;
             if (map.IsOutside(i) ? value > 1 : value < -1)
                 disagree++;
         }
