@@ -19,9 +19,10 @@ foreach ($x in 0..7) {
         Invoke-WebRequest $url -OutFile (Join-Path $data "terrarium3\${x}_$y.png")
     }
 }
-# Elevation, zoom level 6, only the tiles covering the Europe map.
-foreach ($x in 27..43) {
-    foreach ($y in 13..26) {
+# Elevation, zoom level 6, the whole world from 84°N to 58°S (~170 MB): Europe and the
+# full-detail greyed-out world around it (MapBuilder worldbackdrop).
+foreach ($x in 0..63) {
+    foreach ($y in 1..45) {
         $url = "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/6/$x/$y.png"
         Invoke-WebRequest $url -OutFile (Join-Path $data "terrarium6\${x}_$y.png")
     }

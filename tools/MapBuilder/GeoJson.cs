@@ -1,16 +1,34 @@
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.IO;
 using System.Text.Json;
 
 namespace Boundari.MapBuilder;
 
-/// <summary>A closed polygon ring as (longitude, latitude) pairs.</summary>
-public sealed record Ring(double[] Lon, double[] Lat);
+/// <summary>A closed polygon ring (or a line) as (longitude, latitude) pairs, with its bounding box.</summary>
+public sealed record Ring(double[] Lon, double[] Lat)
+{
+    public double MinLon { get; } = Lon.Length > 0 ? Lon.Min() : 0;
+    public double MaxLon { get; } = Lon.Length > 0 ? Lon.Max() : 0;
+    public double MinLat { get; } = Lat.Length > 0 ? Lat.Min() : 0;
+    public double MaxLat { get; } = Lat.Length > 0 ? Lat.Max() : 0;
+
+    /// <summary>True if any of it may lie in this box.</summary>
+    public bool Touches(double lonMin, double lonMax, double latMin, double latMax) =>
+        MaxLon >= lonMin && MinLon <= lonMax && MaxLat >= latMin && MinLat <= latMax;
+}
 
 public static class GeoJson
 {
+    // Files read once per run (the world backdrop builds hundreds of pieces from them).
+    private static readonly ConcurrentDictionary<string, List<Ring>> RingCache = new();
+    private static readonly ConcurrentDictionary<(string, int), List<(Ring, int)>> RiverCache = new();
+
     /// <summary>Every ring (outer boundaries and holes) of every Polygon/MultiPolygon in the file.</summary>
-    public static List<Ring> LoadRings(string path)
+    public static List<Ring> LoadRings(string path) => RingCache.GetOrAdd(path, ReadRings);
+
+    private static List<Ring> ReadRings(string path)
     {
         using var doc = JsonDocument.Parse(File.ReadAllBytes(path));
         var rings = new List<Ring>();
@@ -34,7 +52,10 @@ public static class GeoJson
     /// River lines from Natural Earth's rivers file, with their importance rank
     /// (0 = most important). Intermittent rivers are skipped.
     /// </summary>
-    public static List<(Ring Line, int Rank)> LoadRivers(string path, int maxRank)
+    public static List<(Ring Line, int Rank)> LoadRivers(string path, int maxRank) =>
+        RiverCache.GetOrAdd((path, maxRank), key => ReadRivers(key.Item1, key.Item2));
+
+    private static List<(Ring Line, int Rank)> ReadRivers(string path, int maxRank)
     {
         using var doc = JsonDocument.Parse(File.ReadAllBytes(path));
         var rivers = new List<(Ring, int)>();

@@ -27,6 +27,13 @@ the rest are dropped. At sea the edge is the outline, a little further out, and 
 playable land stays playable up to the far shore. Everything outside becomes `Outside` terrain:
 greyed out in the game like the world map drawn around Europe, and never claimable. The map also
 stores the edge as a smooth field, which the game draws it from.
+The greyed-out world drawn around Europe has its own build:
+`dotnet run -c Release --project tools/MapBuilder -- worldbackdrop` (~3 minutes) writes the whole
+world at Europe's detail as 1024x1024-tile pieces to `src/Boundari/maps/world/*.wchunk` (PNGs:
+coast field and hill shading), which the game streams in where the camera is zoomed in
+(`view/WorldBackdrop.cs`). Rebuild it whenever Europe's box or tile size changes. A game export
+must include `*.wchunk` files (and `*.bmap`) as non-resource files.
+
 To try out a change to the outline quickly, without land cover (nothing is downloaded):
 `dotnet run -c Release --project tools/MapBuilder -- europe --preview` writes a small picture to
 `tools/data/preview_europe.ppm` (green/blue = playable, grey = outside).

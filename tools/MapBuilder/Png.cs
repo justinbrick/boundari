@@ -4,9 +4,114 @@ using System.IO.Compression;
 
 namespace Boundari.MapBuilder;
 
-/// <summary>Minimal PNG decoder: 8-bit RGB / RGBA, non-interlaced. Enough for elevation tiles.</summary>
+/// <summary>Minimal PNG decoder (8-bit RGB / RGBA, non-interlaced: enough for elevation tiles) and grey + alpha encoder.</summary>
 public static class Png
 {
+    /// <summary>
+    /// An 8-bit grey + alpha PNG of these pixels (two bytes each, row by row). Each row gets
+    /// whichever filter shrinks it most (the usual heuristic), then it's deflated.
+    /// </summary>
+    public static byte[] EncodeGreyAlpha(int width, int height, byte[] pixels)
+    {
+        const int Bpp = 2;
+        int stride = width * Bpp;
+        var raw = new MemoryStream();
+        using (var z = new ZLibStream(raw, CompressionLevel.SmallestSize, leaveOpen: true))
+        {
+            var row = new byte[stride + 1];
+            var best = new byte[stride + 1];
+            for (int y = 0; y < height; y++)
+            {
+                long bestCost = long.MaxValue;
+                for (byte filter = 0; filter <= 4; filter++)
+                {
+                    row[0] = filter;
+                    long cost = 0;
+                    for (int i = 0; i < stride; i++)
+                    {
+                        int x = pixels[y * stride + i];
+                        int a = i >= Bpp ? pixels[y * stride + i - Bpp] : 0;
+                        int b = y > 0 ? pixels[(y - 1) * stride + i] : 0;
+                        int c = i >= Bpp && y > 0 ? pixels[(y - 1) * stride + i - Bpp] : 0;
+                        int predicted = filter switch
+                        {
+                            1 => a,
+                            2 => b,
+                            3 => (a + b) / 2,
+                            4 => Paeth(a, b, c),
+                            _ => 0,
+                        };
+                        byte v = (byte)(x - predicted);
+                        row[i + 1] = v;
+                        cost += v < 128 ? v : 256 - v;
+                    }
+                    if (cost < bestCost)
+                    {
+                        bestCost = cost;
+                        Array.Copy(row, best, row.Length);
+                    }
+                }
+                z.Write(best, 0, best.Length);
+            }
+        }
+
+        var file = new MemoryStream();
+        file.Write(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 });
+        var header = new byte[13];
+        WriteInt32BE(header, 0, width);
+        WriteInt32BE(header, 4, height);
+        header[8] = 8;  // bit depth
+        header[9] = 4;  // grey + alpha
+        WriteChunk(file, "IHDR", header);
+        WriteChunk(file, "IDAT", raw.ToArray());
+        WriteChunk(file, "IEND", Array.Empty<byte>());
+        return file.ToArray();
+    }
+
+    private static void WriteChunk(Stream file, string type, byte[] data)
+    {
+        var length = new byte[4];
+        WriteInt32BE(length, 0, data.Length);
+        file.Write(length);
+        var body = new byte[4 + data.Length];
+        System.Text.Encoding.ASCII.GetBytes(type).CopyTo(body, 0);
+        data.CopyTo(body, 4);
+        file.Write(body);
+        var crc = new byte[4];
+        WriteInt32BE(crc, 0, (int)Crc32(body));
+        file.Write(crc);
+    }
+
+    private static uint[]? _crcTable;
+
+    private static uint Crc32(byte[] data)
+    {
+        if (_crcTable is null)
+        {
+            var table = new uint[256];
+            for (uint n = 0; n < 256; n++)
+            {
+                uint c = n;
+                for (int k = 0; k < 8; k++)
+                    c = (c & 1) != 0 ? 0xEDB88320u ^ (c >> 1) : c >> 1;
+                table[n] = c;
+            }
+            _crcTable = table;
+        }
+        uint crc = 0xFFFFFFFFu;
+        foreach (byte b in data)
+            crc = _crcTable[(crc ^ b) & 0xFF] ^ (crc >> 8);
+        return crc ^ 0xFFFFFFFFu;
+    }
+
+    private static void WriteInt32BE(byte[] buffer, int offset, int value)
+    {
+        buffer[offset] = (byte)(value >> 24);
+        buffer[offset + 1] = (byte)(value >> 16);
+        buffer[offset + 2] = (byte)(value >> 8);
+        buffer[offset + 3] = (byte)value;
+    }
+
     public static (int Width, int Height, int Channels, byte[] Pixels) Decode(byte[] file)
     {
         ReadOnlySpan<byte> signature = stackalloc byte[] { 137, 80, 78, 71, 13, 10, 26, 10 };

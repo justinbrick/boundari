@@ -113,6 +113,13 @@ public static class Program
         string dataDir = Path.Combine(root, "tools", "data");
         string outDir = Path.Combine(root, "src", "Boundari", "maps");
 
+        // worldbackdrop: the full-detail greyed-out world around Europe, in pieces (see Backdrop).
+        if (args.Contains("worldbackdrop"))
+        {
+            Backdrop.Build(Specs.First(s => s.Id == "europe"), dataDir, outDir);
+            return 0;
+        }
+
         var wanted = args.Length == 0 ? Specs : Specs.Where(s => args.Contains(s.Id)).ToArray();
         if (wanted.Length == 0)
         {
@@ -155,14 +162,24 @@ public static class Program
         return 0;
     }
 
-    public static GameMap Build(MapSpec spec, string dataDir)
+    /// <summary>Builds the map (<paramref name="height"/>: its height in tiles, if not the one that makes tiles square).</summary>
+    public static GameMap Build(MapSpec spec, string dataDir, int? height = null)
     {
         var geo = new MapGeo(spec.LonMin, spec.LonMax, spec.LatMin, spec.LatMax, spec.StandardParallel);
         int width = spec.Width;
-        int height = geo.HeightFor(width);
-        var map = new GameMap(width, height, seed: 0) { Name = spec.Name, Geo = geo };
+        int tall = height ?? geo.HeightFor(width);
+        var map = new GameMap(width, tall, seed: 0) { Name = spec.Name, Geo = geo };
+        return BuildInto(map, spec, dataDir);
+    }
 
+    private static GameMap BuildInto(GameMap map, MapSpec spec, string dataDir)
+    {
+        var geo = map.Geo!;
+        int width = map.Width, height = map.Height;
+
+        // (only what reaches near the map: the world backdrop builds small pieces of the world)
         List<TileRing> Project(List<Ring> rings) => rings
+            .Where(r => r.Touches(geo.LonMin - 1, geo.LonMax + 1, geo.LatMin - 1, geo.LatMax + 1))
             .Select(r => new TileRing(r.Lon.Select(lon => geo.TileX(lon, width)).ToArray(),
                                       r.Lat.Select(lat => geo.TileY(lat, height)).ToArray()))
             .ToList();
@@ -174,6 +191,7 @@ public static class Program
         var rivers = spec.RiverMaxRank < 0
             ? new List<(TileRing, double)>()
             : GeoJson.LoadRivers(Path.Combine(dataDir, "ne_10m_rivers_lake_centerlines.geojson"), spec.RiverMaxRank)
+                .Where(r => r.Line.Touches(geo.LonMin - 1, geo.LonMax + 1, geo.LatMin - 1, geo.LatMax + 1))
                 .Select(r => (Project(new List<Ring> { r.Line })[0], RiverHalfWidth(spec, r.Rank)))
                 .ToList();
         float[] river = Rasterizer.RiverDistance(rivers, width, height, ExactBand);
