@@ -64,7 +64,10 @@ public static class MapFile
         ulong seed = r.ReadUInt64();
         var map = new GameMap(width, height, seed) { Name = name, TileScale = GameMap.TileScaleFor(name, width) };
         if (version >= 2 && r.ReadBoolean())
+        {
             map.Geo = new MapGeo(r.ReadDouble(), r.ReadDouble(), r.ReadDouble(), r.ReadDouble(), r.ReadDouble());
+            map.TileScale = GameMap.TileScaleFor(name, width, map.Geo);
+        }
         if (version >= 3 && r.ReadBoolean())
         {
             var cover = new LandCover(r.ReadInt32(), width, height);

@@ -9,6 +9,13 @@ public enum TerrainType : byte
     Plains,
     Highlands,
     Mountains,
+
+    /// <summary>
+    /// Outside the play area (land or sea past a regional map's natural edge): drawn greyed
+    /// out like the world around it, and neither land nor water to the game, so nothing can
+    /// claim, cross or sail it. Its look (land or sea) still comes from the coast field.
+    /// </summary>
+    Outside,
 }
 
 /// <summary>
@@ -33,10 +40,14 @@ public sealed class GameMap
     /// </summary>
     public double TileScale { get; set; } = 1;
 
-    /// <summary>The tile scale for a built-in map, from its name and width (1 for anything else).</summary>
-    public static double TileScaleFor(string name, int width) => name switch
+    /// <summary>
+    /// The tile scale for a built-in map, from its name and size (1 for anything else). Europe's
+    /// is measured in tiles per degree of longitude against the original 3000 tiles over 70°, so
+    /// it stays right however far the map reaches.
+    /// </summary>
+    public static double TileScaleFor(string name, int width, MapGeo? geo = null) => name switch
     {
-        "Europe" => width / 3000.0,
+        "Europe" => geo is null ? width / 3000.0 : width / (geo.LonMax - geo.LonMin) / (3000.0 / 70),
         "World" => width / 2400.0,
         _ => 1,
     };
@@ -81,7 +92,10 @@ public sealed class GameMap
 
     public bool InBounds(int x, int y) => x >= 0 && y >= 0 && x < Width && y < Height;
 
-    public bool IsLand(int index) => Terrain[index] >= TerrainType.Plains;
+    public bool IsLand(int index) => (uint)(Terrain[index] - TerrainType.Plains) <= TerrainType.Mountains - TerrainType.Plains;
+
+    /// <summary>Outside the play area: neither land nor water to the game (see <see cref="TerrainType.Outside"/>).</summary>
+    public bool IsOutside(int index) => Terrain[index] == TerrainType.Outside;
 
     public bool IsWater(int index) => Terrain[index] <= TerrainType.Lake;
 

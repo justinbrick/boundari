@@ -118,6 +118,7 @@ public partial class MapView : Sprite2D
         _material.SetShaderParameter("shoreline_tiles", 0.32f * (float)map.TileScale);
         _material.SetShaderParameter("shore_glow_tiles", 2.5f * (float)map.TileScale);
         UploadCover(map);
+        UploadPlayArea(map);
 
         _territory = new TerritoryTextures(map);
         _material.SetShaderParameter("owner_tex", _territory.OwnerArray);
@@ -135,6 +136,54 @@ public partial class MapView : Sprite2D
         _material.SetShaderParameter("owner_chunk", TerritoryTextures.ChunkSize);
         _material.SetShaderParameter("owner_chunks_x", _territory.ChunksX);
         SetOwners(null);
+    }
+
+    /// <summary>Marks the tiles outside the play area (if the map has any) for the shader to grey out.</summary>
+    private void UploadPlayArea(GameMap map)
+    {
+        var play = new byte[map.TileCount];
+        bool any = false;
+        for (int i = 0; i < play.Length; i++)
+        {
+            bool outside = map.IsOutside(i);
+            play[i] = outside ? (byte)0 : (byte)255;
+            any |= outside;
+        }
+        _material.SetShaderParameter("has_play_area", any);
+        _material.SetShaderParameter("play_tex", any ? ImageTexture.CreateFromImage(Image.CreateFromData(map.Width, map.Height, false, Image.Format.L8, play)) : null);
+    }
+
+    /// <summary>
+    /// Shows <paramref name="world"/> greyed out as the backdrop of a regional map (drawn under
+    /// it), stretched onto the region's projection so the coasts carry on past its edges.
+    /// </summary>
+    public void ShowAsBackdrop(GameMap world, GameMap region)
+    {
+        ShowMap(world);
+        _material.SetShaderParameter("backdrop", true);
+        _material.SetShaderParameter("show_territory", false);
+        var w = world.Geo!;
+        var r = region.Geo!;
+        double x0 = r.TileX(w.LonMin, region.Width), x1 = r.TileX(w.LonMax, region.Width);
+        double y0 = r.TileY(w.LatMax, region.Height), y1 = r.TileY(w.LatMin, region.Height);
+        Position = new Vector2((float)x0, (float)y0);
+        Scale = new Vector2((float)((x1 - x0) / world.Width), (float)((y1 - y0) / world.Height));
+        // Shorelines are sized in the backdrop's (much bigger) tiles: match the region's on screen.
+        float perTile = Math.Min(Scale.X, Scale.Y);
+        _material.SetShaderParameter("shoreline_tiles", 0.32f * (float)region.TileScale / perTile);
+        _material.SetShaderParameter("shore_glow_tiles", 2.5f * (float)region.TileScale / perTile);
+        Visible = true;
+    }
+
+    /// <summary>The greyed-out colour of the open sea on a backdrop (for the space past the world's edges).</summary>
+    public static Color BackdropSea
+    {
+        get
+        {
+            float lum = WaterColor.R * 0.299f + WaterColor.G * 0.587f + WaterColor.B * 0.114f;
+            float Grey(float c) => (lum + (c - lum) * 0.22f) * 0.66f + 0.05f; // as map.gdshader's backdrop_grey
+            return new Color(Grey(WaterColor.R), Grey(WaterColor.G), Grey(WaterColor.B));
+        }
     }
 
     // Hill shading: how much the land is exaggerated, and where the light comes from (north-west).

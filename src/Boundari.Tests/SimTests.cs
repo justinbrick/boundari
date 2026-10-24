@@ -136,6 +136,46 @@ public class SimTests
         Assert.True(me.TileCount > before * 3, $"expansion should grow territory: {before} -> {me.TileCount}");
     }
 
+    [Fact]
+    public void LandOutsideThePlayArea_IsNeverTaken()
+    {
+        var map = SmallMap();
+        // The east half of the biggest landmass is outside the play area.
+        int biggest = Enumerable.Range(0, map.LandmassSizes.Length).OrderByDescending(i => map.LandmassSizes[i]).First();
+        int[] land = Enumerable.Range(0, map.TileCount).Where(t => map.LandmassId[t] == biggest).ToArray();
+        int midX = (int)land.Select(t => t % map.Width).Average();
+        foreach (int t in land.Where(t => t % map.Width > midX))
+            map.Terrain[t] = TerrainType.Outside;
+        MapProcessing.LabelLandmasses(map);
+        int outside = land.Count(map.IsOutside);
+        Assert.True(outside > 1000);
+        Assert.All(land.Where(map.IsOutside), t => Assert.False(map.IsLand(t) || map.IsWater(t)));
+
+        var game = new Game(map, 1, spawnPhaseTicks: 2);
+        var me = game.AddPlayer("Me");
+        game.SetCheats(me, infiniteGold: true, instantBuild: true);
+        int start = land.Where(t => !map.IsOutside(t)).OrderBy(t => Math.Abs(t % map.Width - midX)).First();
+        game.Submit(new SpawnIntent(me.Id, start));
+        for (int t = 0; t < 20; t++)
+            game.Step();
+        for (int round = 0; round < 20; round++)
+        {
+            game.Submit(new AttackIntent(me.Id, Game.Nobody, 100));
+            for (int t = 0; t < 30; t++)
+                game.Step();
+        }
+        Assert.True(me.TileCount > 1000, $"should have spread over the playable half: {me.TileCount}");
+        Assert.All(land.Where(map.IsOutside), t => Assert.Equal(Game.Nobody, game.Owner[t]));
+        Assert.False(game.CanReachByLand(me, land.First(map.IsOutside)));
+    }
+
+    [Fact]
+    public void EuropeTileScale_IsTilesPerDegree_HoweverFarTheMapReaches()
+    {
+        Assert.Equal(4000 / 3000.0, GameMap.TileScaleFor("Europe", 4000, new MapGeo(-25, 45, 33, 72, 50)), 6);
+        Assert.Equal(4000 / 3000.0, GameMap.TileScaleFor("Europe", 5250, new MapGeo(-25, 66.875, 27.4, 72, 50)), 6);
+    }
+
     private static bool IsBorder(Game game, int tile)
     {
         Span<int> nb = stackalloc int[4];

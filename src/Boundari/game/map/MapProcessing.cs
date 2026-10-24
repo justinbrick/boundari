@@ -99,7 +99,7 @@ public static class MapProcessing
         {
             if (visited[i] || !map.IsLand(i))
                 continue;
-            FloodFill(map, i, visited, queue, region, land: true);
+            FloodFill(map, i, visited, queue, region, land: true, playable: true);
             int id = sizes.Count;
             foreach (int t in region)
                 map.LandmassId[t] = id;
@@ -112,8 +112,8 @@ public static class MapProcessing
         map.LandTileCount = landTiles;
     }
 
-    /// <summary>4-connected flood fill over land (CoastField &gt; 0) or water tiles.</summary>
-    private static void FloodFill(GameMap map, int start, bool[] visited, int[] queue, List<int> region, bool land)
+    /// <summary>4-connected flood fill over land (CoastField &gt; 0) or water tiles; <paramref name="playable"/>: not into the area outside the play area.</summary>
+    private static void FloodFill(GameMap map, int start, bool[] visited, int[] queue, List<int> region, bool land, bool playable = false)
     {
         region.Clear();
         int w = map.Width, h = map.Height;
@@ -133,7 +133,7 @@ public static class MapProcessing
 
         void Visit(int n)
         {
-            if (visited[n] || (map.CoastField[n] > 0) != land)
+            if (visited[n] || (map.CoastField[n] > 0) != land || (playable && map.IsOutside(n)))
                 return;
             visited[n] = true;
             queue[tail++] = n;

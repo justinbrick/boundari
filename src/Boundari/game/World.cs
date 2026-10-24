@@ -982,6 +982,7 @@ public partial class World : Node2D
     {
         _map = map;
         _view.ShowMap(_map);
+        ShowWorldAround(map);
         _grid.SetMap(_map.Width, _map.Height);
         _devTools.ApplyAll(); // a new map resets the map material's settings
         _splash.SetMapName(_mapId == "random" ? "Random" : _map.Name);
@@ -991,6 +992,48 @@ public partial class World : Node2D
                  $"{100.0 * _map.LandTileCount / _map.TileCount:F0}% land, ready in {loadMs} ms");
         DisplayServer.WindowSetTitle($"Boundari — {title}");
     }
+
+    private MapView? _backdrop;
+    private GameMap? _worldMap;
+
+    /// <summary>
+    /// A regional real-world map (Europe) gets the rest of the world drawn around it, greyed
+    /// out: only the region is played on. Other maps get none.
+    /// </summary>
+    private void ShowWorldAround(GameMap map)
+    {
+        bool regional = map.Geo is { } geo && (geo.LonMax - geo.LonMin < 359) && _mapId != "world";
+        if (regional && _worldMap is null)
+        {
+            byte[] bytes = Godot.FileAccess.GetFileAsBytes("res://maps/world.bmap");
+            try
+            {
+                if (bytes.Length > 0)
+                    _worldMap = MapFile.Read(new MemoryStream(bytes));
+            }
+            catch (Exception e) when (e is InvalidDataException or EndOfStreamException)
+            {
+                GD.PushError($"Could not read the world map: {e.Message}");
+            }
+        }
+        if (!regional || _worldMap?.Geo is null)
+        {
+            if (_backdrop is not null)
+                _backdrop.Visible = false;
+            RenderingServer.SetDefaultClearColor(_clearColor);
+            return;
+        }
+        if (_backdrop is null)
+        {
+            _backdrop = new MapView { Name = "WorldBackdrop", ZIndex = _view.ZIndex, ZAsRelative = _view.ZAsRelative };
+            _view.GetParent().AddChild(_backdrop);
+            _view.GetParent().MoveChild(_backdrop, _view.GetIndex()); // drawn under the map
+        }
+        _backdrop.ShowAsBackdrop(_worldMap, map);
+        RenderingServer.SetDefaultClearColor(MapView.BackdropSea); // past the world's top and bottom
+    }
+
+    private readonly Color _clearColor = ProjectSettings.GetSetting("rendering/environment/defaults/default_clear_color", new Color(0.3f, 0.3f, 0.3f)).AsColor();
 
     private void StartMatch()
     {
@@ -1282,7 +1325,14 @@ public partial class World : Node2D
         _camera.Offset = Vector2.Zero;
         _camera.Position = mapSize * (focus ?? new Vector2(0.5f, 0.5f));
         _camera.Zoom = Vector2.One * fit * zoom;
-        _camera.Set("min_zoom", fit * 0.5f); // camera_2d.gd limits
+        float minZoom = fit * 0.5f;
+        if (_backdrop is { Visible: true } world)
+        {
+            // Far enough out to see the whole world around the map.
+            Vector2 worldSize = world.Texture.GetSize() * world.Scale;
+            minZoom = Mathf.Min(minZoom, Mathf.Min(screen.X / worldSize.X, screen.Y / worldSize.Y) * 0.95f);
+        }
+        _camera.Set("min_zoom", minZoom); // camera_2d.gd limits
         _camera.Set("max_zoom", 120.0f);
     }
 

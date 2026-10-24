@@ -1473,6 +1473,8 @@ public sealed partial class Game
             if (nx - ox < 0 || ny - oy < 0 || nx - ox >= RailWindow || ny - oy >= RailWindow)
                 return;
             int n = Map.Index(nx, ny);
+            if (Map.IsOutside(n))
+                return; // past the play area
             bool water2 = Map.IsWater(n);
             int run = water2 ? water + 1 : 0;
             if (run > Rules.MaxBridgeTiles || (water2 && nx == tx && ny == ty))
